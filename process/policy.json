@@ -1,0 +1,7 @@
+{
+  "note": "Project-wide defaults of the Figma -> Bricks build, decided by the owner (2026-10-27: the product must look like Figma to the eye). Read by bricks/policy.mjs. Every entry says why, so a default is never a silent guess.",
+  "lineHeight": {
+    "mode": "figma-round",
+    "why": "Figma lays out text lines with whole-pixel line boxes (17.5 -> 18, 19.3636 -> 19, 23.75 -> 24, 21.7841 -> 22: checked on every text node of the Hero, e.g. 3 lines of 19.3636 are 57px high, not 58.09). A browser keeps the fraction, so multi-line text drifted 1 to 2px per block. 'exact' keeps the raw number."
+  }
+}

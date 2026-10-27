@@ -1,0 +1,1636 @@
+{
+  "name": "Pagepeed-Landingapge (fixture)",
+  "version": "fixture",
+  "lastModified": "2026-10-26T00:00:00Z",
+  "nodes": {
+    "1586:393": {
+      "document": {
+        "id": "1586:393",
+        "name": "Award",
+        "type": "FRAME",
+        "layoutMode": "VERTICAL",
+        "primaryAxisSizingMode": "AUTO",
+        "counterAxisSizingMode": "FIXED",
+        "itemSpacing": 0,
+        "paddingLeft": 0,
+        "paddingRight": 0,
+        "paddingTop": 48,
+        "paddingBottom": 48,
+        "primaryAxisAlignItems": "MIN",
+        "counterAxisAlignItems": "CENTER",
+        "layoutSizingHorizontal": "FIXED",
+        "layoutSizingVertical": "HUG",
+        "fills": [
+          {
+            "type": "SOLID",
+            "visible": true,
+            "blendMode": "NORMAL",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          }
+        ],
+        "strokes": [],
+        "effects": [],
+        "clipsContent": true,
+        "scrollBehavior": "SCROLLS",
+        "interactions": [],
+        "exportSettings": [],
+        "absoluteBoundingBox": {
+          "x": 0,
+          "y": 572,
+          "width": 1440,
+          "height": 401
+        },
+        "absoluteRenderBounds": {
+          "x": 0,
+          "y": 572,
+          "width": 1440,
+          "height": 401
+        },
+        "children": [
+          {
+            "id": "1586:394",
+            "name": "_Title",
+            "type": "FRAME",
+            "layoutMode": "VERTICAL",
+            "primaryAxisSizingMode": "AUTO",
+            "counterAxisSizingMode": "FIXED",
+            "itemSpacing": 0,
+            "paddingLeft": 0,
+            "paddingRight": 0,
+            "paddingTop": 0,
+            "paddingBottom": 40,
+            "primaryAxisAlignItems": "MIN",
+            "counterAxisAlignItems": "CENTER",
+            "layoutSizingHorizontal": "FIXED",
+            "layoutSizingVertical": "HUG",
+            "fills": [],
+            "clipsContent": false,
+            "scrollBehavior": "SCROLLS",
+            "interactions": [],
+            "exportSettings": [],
+            "absoluteBoundingBox": {
+              "x": 150,
+              "y": 620,
+              "width": 1140,
+              "height": 88
+            },
+            "absoluteRenderBounds": {
+              "x": 150,
+              "y": 620,
+              "width": 1140,
+              "height": 88
+            },
+            "children": [
+              {
+                "id": "1586:395",
+                "name": "Content Item/Header",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "AUTO",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 0,
+                "paddingRight": 0,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "CENTER",
+                "counterAxisAlignItems": "MIN",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 150,
+                  "y": 620,
+                  "width": 1140,
+                  "height": 48
+                },
+                "absoluteRenderBounds": {
+                  "x": 150,
+                  "y": 620,
+                  "width": 1140,
+                  "height": 48
+                },
+                "children": [
+                  {
+                    "id": "1586:396",
+                    "name": "Pading Top",
+                    "type": "FRAME",
+                    "visible": false,
+                    "fills": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 150,
+                      "y": 620,
+                      "width": 250,
+                      "height": 24
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 150,
+                      "y": 620,
+                      "width": 250,
+                      "height": 24
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "1586:398",
+                    "name": "Heading text",
+                    "type": "TEXT",
+                    "characters": "GIẢI THƯỞNG VÀ DANH  HIỆU VIETNIX ĐÃ ĐẠT ĐƯỢC",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "style": {
+                      "fontFamily": "Inter",
+                      "fontPostScriptName": "Inter-Bold",
+                      "fontStyle": "Bold",
+                      "fontWeight": 700,
+                      "fontSize": 36,
+                      "lineHeightPx": 48,
+                      "lineHeightPercentFontSize": 133.33333333333331,
+                      "lineHeightUnit": "PIXELS",
+                      "letterSpacing": 0,
+                      "textAlignHorizontal": "CENTER",
+                      "textAlignVertical": "TOP",
+                      "textAutoResize": "HEIGHT"
+                    },
+                    "styles": {
+                      "text": "S:h4"
+                    },
+                    "boundVariables": {
+                      "fills": [
+                        {
+                          "type": "VARIABLE_ALIAS",
+                          "id": "VariableID:1:2"
+                        }
+                      ]
+                    },
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 150,
+                      "y": 620,
+                      "width": 1140,
+                      "height": 48
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 150,
+                      "y": 620,
+                      "width": 1140,
+                      "height": 48
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "1586:399",
+                    "name": "Padding Bottom",
+                    "type": "FRAME",
+                    "visible": false,
+                    "fills": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 150,
+                      "y": 652,
+                      "width": 250,
+                      "height": 12
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 150,
+                      "y": 652,
+                      "width": 250,
+                      "height": 12
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "1586:401",
+                "name": "Content Item/Paragraph",
+                "type": "INSTANCE",
+                "componentId": "C:para",
+                "visible": false,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 150,
+                  "y": 684,
+                  "width": 1200,
+                  "height": 140
+                },
+                "absoluteRenderBounds": {
+                  "x": 150,
+                  "y": 684,
+                  "width": 1200,
+                  "height": 140
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "1586:402",
+            "name": "award-vnx",
+            "type": "INSTANCE",
+            "componentId": "C:award",
+            "layoutMode": "HORIZONTAL",
+            "primaryAxisSizingMode": "FIXED",
+            "counterAxisSizingMode": "AUTO",
+            "itemSpacing": 20,
+            "paddingLeft": 0,
+            "paddingRight": 0,
+            "paddingTop": 0,
+            "paddingBottom": 24,
+            "primaryAxisAlignItems": "MIN",
+            "counterAxisAlignItems": "MIN",
+            "layoutSizingHorizontal": "FIXED",
+            "layoutSizingVertical": "HUG",
+            "fills": [],
+            "clipsContent": false,
+            "scrollBehavior": "SCROLLS",
+            "interactions": [],
+            "exportSettings": [],
+            "absoluteBoundingBox": {
+              "x": 150,
+              "y": 708,
+              "width": 1140,
+              "height": 213
+            },
+            "absoluteRenderBounds": {
+              "x": 150,
+              "y": 708,
+              "width": 1140,
+              "height": 213
+            },
+            "children": [
+              {
+                "id": "I1586:402;c1",
+                "name": "_award-card c1",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "FIXED",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 12,
+                "paddingRight": 12,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "MIN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "HUG",
+                "layoutGrow": 1,
+                "cornerRadius": 12,
+                "clipsContent": true,
+                "fills": [],
+                "strokes": [],
+                "effects": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 150,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "absoluteRenderBounds": {
+                  "x": 150,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "children": [
+                  {
+                    "id": "I1586:402;1095:30399",
+                    "name": "img I1586:402;1095:30399",
+                    "type": "RECTANGLE",
+                    "fills": [
+                      {
+                        "type": "IMAGE",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "scaleMode": "FILL",
+                        "imageRef": "ref0000000000000000000000000000000000trophy1"
+                      }
+                    ],
+                    "strokes": [],
+                    "effects": [],
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 225.42950000000002,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 225.42950000000002,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "I1586:402;c1:title",
+                    "name": "Title",
+                    "type": "FRAME",
+                    "layoutMode": "HORIZONTAL",
+                    "primaryAxisSizingMode": "FIXED",
+                    "counterAxisSizingMode": "FIXED",
+                    "itemSpacing": 0,
+                    "paddingLeft": 0,
+                    "paddingRight": 0,
+                    "paddingTop": 16,
+                    "paddingBottom": 0,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "MIN",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "clipsContent": false,
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 162,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 162,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "children": [
+                      {
+                        "id": "I1586:402;c1:text",
+                        "name": "Top 10 Thương hiệu hàng đầu Việt Nam 2023",
+                        "type": "TEXT",
+                        "characters": "Top 10 Thương hiệu hàng đầu Việt Nam 2023",
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "visible": true,
+                            "blendMode": "NORMAL",
+                            "color": {
+                              "r": 0.1568627450980392,
+                              "g": 0.1568627450980392,
+                              "b": 0.1607843137254902,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "layoutGrow": 1,
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontPostScriptName": "Inter-Regular",
+                          "fontStyle": "Regular",
+                          "fontWeight": 400,
+                          "fontSize": 16,
+                          "lineHeightPx": 24,
+                          "lineHeightPercentFontSize": 150,
+                          "lineHeightUnit": "PIXELS",
+                          "letterSpacing": 0,
+                          "textAlignHorizontal": "CENTER",
+                          "textAlignVertical": "TOP",
+                          "textAutoResize": "HEIGHT"
+                        },
+                        "styles": {
+                          "text": "S:body"
+                        },
+                        "scrollBehavior": "SCROLLS",
+                        "interactions": [],
+                        "exportSettings": [],
+                        "absoluteBoundingBox": {
+                          "x": 162,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "absoluteRenderBounds": {
+                          "x": 162,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "I1586:402;c2",
+                "name": "_award-card c2",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "FIXED",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 12,
+                "paddingRight": 12,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "MIN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "FILL",
+                "layoutGrow": 1,
+                "layoutAlign": "STRETCH",
+                "cornerRadius": 12,
+                "clipsContent": true,
+                "fills": [],
+                "strokes": [],
+                "effects": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 382,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "absoluteRenderBounds": {
+                  "x": 382,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "children": [
+                  {
+                    "id": "I1586:402;1095:30407",
+                    "name": "img I1586:402;1095:30407",
+                    "type": "RECTANGLE",
+                    "fills": [
+                      {
+                        "type": "IMAGE",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "scaleMode": "CROP",
+                        "imageRef": "ref0000000000000000000000000000000000cert001",
+                        "imageTransform": [
+                          [
+                            0.34,
+                            0,
+                            0.5944
+                          ],
+                          [
+                            0,
+                            0.8433,
+                            0.0722
+                          ]
+                        ]
+                      }
+                    ],
+                    "strokes": [],
+                    "effects": [],
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 443.204,
+                      "y": 708,
+                      "width": 89.592,
+                      "height": 125
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 443.204,
+                      "y": 708,
+                      "width": 89.592,
+                      "height": 125
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "I1586:402;c2:title",
+                    "name": "Title",
+                    "type": "FRAME",
+                    "layoutMode": "HORIZONTAL",
+                    "primaryAxisSizingMode": "FIXED",
+                    "counterAxisSizingMode": "FIXED",
+                    "itemSpacing": 0,
+                    "paddingLeft": 0,
+                    "paddingRight": 0,
+                    "paddingTop": 16,
+                    "paddingBottom": 0,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "MIN",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "clipsContent": false,
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 394,
+                      "y": 833,
+                      "width": 188,
+                      "height": 40
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 394,
+                      "y": 833,
+                      "width": 188,
+                      "height": 40
+                    },
+                    "children": [
+                      {
+                        "id": "I1586:402;c2:text",
+                        "name": "Chứng Nhận Bảo Mật",
+                        "type": "TEXT",
+                        "characters": "Chứng Nhận Bảo Mật",
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "visible": true,
+                            "blendMode": "NORMAL",
+                            "color": {
+                              "r": 0.1568627450980392,
+                              "g": 0.1568627450980392,
+                              "b": 0.1607843137254902,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "layoutGrow": 1,
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontPostScriptName": "Inter-Regular",
+                          "fontStyle": "Regular",
+                          "fontWeight": 400,
+                          "fontSize": 16,
+                          "lineHeightPx": 24,
+                          "lineHeightPercentFontSize": 150,
+                          "lineHeightUnit": "PIXELS",
+                          "letterSpacing": 0,
+                          "textAlignHorizontal": "CENTER",
+                          "textAlignVertical": "TOP",
+                          "textAutoResize": "HEIGHT"
+                        },
+                        "styles": {
+                          "text": "S:body"
+                        },
+                        "scrollBehavior": "SCROLLS",
+                        "interactions": [],
+                        "exportSettings": [],
+                        "absoluteBoundingBox": {
+                          "x": 394,
+                          "y": 849,
+                          "width": 188,
+                          "height": 24
+                        },
+                        "absoluteRenderBounds": {
+                          "x": 394,
+                          "y": 849,
+                          "width": 188,
+                          "height": 24
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "I1586:402;c3",
+                "name": "_award-card c3",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "FIXED",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 12,
+                "paddingRight": 12,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "MIN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "FILL",
+                "layoutGrow": 1,
+                "layoutAlign": "STRETCH",
+                "cornerRadius": 12,
+                "clipsContent": true,
+                "fills": [],
+                "strokes": [],
+                "effects": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 614,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "absoluteRenderBounds": {
+                  "x": 614,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "children": [
+                  {
+                    "id": "I1586:402;1095:30395",
+                    "name": "img I1586:402;1095:30395",
+                    "type": "RECTANGLE",
+                    "fills": [
+                      {
+                        "type": "IMAGE",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "scaleMode": "FILL",
+                        "imageRef": "ref0000000000000000000000000000000000trophy2"
+                      }
+                    ],
+                    "strokes": [],
+                    "effects": [],
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 689.4295,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 689.4295,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "I1586:402;c3:title",
+                    "name": "Title",
+                    "type": "FRAME",
+                    "layoutMode": "HORIZONTAL",
+                    "primaryAxisSizingMode": "FIXED",
+                    "counterAxisSizingMode": "FIXED",
+                    "itemSpacing": 0,
+                    "paddingLeft": 0,
+                    "paddingRight": 0,
+                    "paddingTop": 16,
+                    "paddingBottom": 0,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "MIN",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "clipsContent": false,
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 626,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 626,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "children": [
+                      {
+                        "id": "I1586:402;c3:text",
+                        "name": "Top 10 Thương hiệu uy tín thời đại kinh tế số",
+                        "type": "TEXT",
+                        "characters": "Top 10 Thương hiệu uy tín thời đại kinh tế số",
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "visible": true,
+                            "blendMode": "NORMAL",
+                            "color": {
+                              "r": 0.1568627450980392,
+                              "g": 0.1568627450980392,
+                              "b": 0.1607843137254902,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "layoutGrow": 1,
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontPostScriptName": "Inter-Regular",
+                          "fontStyle": "Regular",
+                          "fontWeight": 400,
+                          "fontSize": 16,
+                          "lineHeightPx": 24,
+                          "lineHeightPercentFontSize": 150,
+                          "lineHeightUnit": "PIXELS",
+                          "letterSpacing": 0,
+                          "textAlignHorizontal": "CENTER",
+                          "textAlignVertical": "TOP",
+                          "textAutoResize": "HEIGHT"
+                        },
+                        "styles": {
+                          "text": "S:body"
+                        },
+                        "scrollBehavior": "SCROLLS",
+                        "interactions": [],
+                        "exportSettings": [],
+                        "absoluteBoundingBox": {
+                          "x": 626,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "absoluteRenderBounds": {
+                          "x": 626,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "I1586:402;c4",
+                "name": "_award-card c4",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "FIXED",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 12,
+                "paddingRight": 12,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "MIN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "FILL",
+                "layoutGrow": 1,
+                "layoutAlign": "STRETCH",
+                "cornerRadius": 12,
+                "clipsContent": true,
+                "fills": [],
+                "strokes": [],
+                "effects": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 846,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "absoluteRenderBounds": {
+                  "x": 846,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "children": [
+                  {
+                    "id": "I1586:402;1373:58",
+                    "name": "img I1586:402;1373:58",
+                    "type": "RECTANGLE",
+                    "fills": [
+                      {
+                        "type": "IMAGE",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "scaleMode": "FILL",
+                        "imageRef": "ref0000000000000000000000000000000000cert002"
+                      }
+                    ],
+                    "strokes": [],
+                    "effects": [],
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 907.204,
+                      "y": 708,
+                      "width": 89.592,
+                      "height": 125
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 907.204,
+                      "y": 708,
+                      "width": 89.592,
+                      "height": 125
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "I1586:402;c4:title",
+                    "name": "Title",
+                    "type": "FRAME",
+                    "layoutMode": "HORIZONTAL",
+                    "primaryAxisSizingMode": "FIXED",
+                    "counterAxisSizingMode": "FIXED",
+                    "itemSpacing": 0,
+                    "paddingLeft": 0,
+                    "paddingRight": 0,
+                    "paddingTop": 16,
+                    "paddingBottom": 0,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "MIN",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "clipsContent": false,
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 858,
+                      "y": 833,
+                      "width": 188,
+                      "height": 40
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 858,
+                      "y": 833,
+                      "width": 188,
+                      "height": 40
+                    },
+                    "children": [
+                      {
+                        "id": "I1586:402;c4:text",
+                        "name": "Chứng Nhận Chất Lượng",
+                        "type": "TEXT",
+                        "characters": "Chứng Nhận Chất Lượng",
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "visible": true,
+                            "blendMode": "NORMAL",
+                            "color": {
+                              "r": 0.1568627450980392,
+                              "g": 0.1568627450980392,
+                              "b": 0.1607843137254902,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "layoutGrow": 1,
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontPostScriptName": "Inter-Regular",
+                          "fontStyle": "Regular",
+                          "fontWeight": 400,
+                          "fontSize": 16,
+                          "lineHeightPx": 24,
+                          "lineHeightPercentFontSize": 150,
+                          "lineHeightUnit": "PIXELS",
+                          "letterSpacing": 0,
+                          "textAlignHorizontal": "CENTER",
+                          "textAlignVertical": "TOP",
+                          "textAutoResize": "HEIGHT"
+                        },
+                        "styles": {
+                          "text": "S:body"
+                        },
+                        "scrollBehavior": "SCROLLS",
+                        "interactions": [],
+                        "exportSettings": [],
+                        "absoluteBoundingBox": {
+                          "x": 858,
+                          "y": 849,
+                          "width": 188,
+                          "height": 24
+                        },
+                        "absoluteRenderBounds": {
+                          "x": 858,
+                          "y": 849,
+                          "width": 188,
+                          "height": 24
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "I1586:402;c5",
+                "name": "_award-card c5",
+                "type": "FRAME",
+                "layoutMode": "VERTICAL",
+                "primaryAxisSizingMode": "FIXED",
+                "counterAxisSizingMode": "FIXED",
+                "itemSpacing": 0,
+                "paddingLeft": 12,
+                "paddingRight": 12,
+                "paddingTop": 0,
+                "paddingBottom": 0,
+                "primaryAxisAlignItems": "MIN",
+                "counterAxisAlignItems": "CENTER",
+                "layoutSizingHorizontal": "FILL",
+                "layoutSizingVertical": "FILL",
+                "layoutGrow": 1,
+                "layoutAlign": "STRETCH",
+                "cornerRadius": 12,
+                "clipsContent": true,
+                "fills": [],
+                "strokes": [],
+                "effects": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 1078,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "absoluteRenderBounds": {
+                  "x": 1078,
+                  "y": 708,
+                  "width": 212,
+                  "height": 189
+                },
+                "children": [
+                  {
+                    "id": "I1586:402;1095:30403",
+                    "name": "img I1586:402;1095:30403",
+                    "type": "RECTANGLE",
+                    "fills": [
+                      {
+                        "type": "IMAGE",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "scaleMode": "FILL",
+                        "imageRef": "ref0000000000000000000000000000000000trophy3"
+                      }
+                    ],
+                    "strokes": [],
+                    "effects": [],
+                    "layoutSizingHorizontal": "FIXED",
+                    "layoutSizingVertical": "FIXED",
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 1153.4295,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 1153.4295,
+                      "y": 708,
+                      "width": 61.141,
+                      "height": 125
+                    },
+                    "children": []
+                  },
+                  {
+                    "id": "I1586:402;c5:title",
+                    "name": "Title",
+                    "type": "FRAME",
+                    "layoutMode": "HORIZONTAL",
+                    "primaryAxisSizingMode": "FIXED",
+                    "counterAxisSizingMode": "FIXED",
+                    "itemSpacing": 0,
+                    "paddingLeft": 0,
+                    "paddingRight": 0,
+                    "paddingTop": 16,
+                    "paddingBottom": 0,
+                    "primaryAxisAlignItems": "CENTER",
+                    "counterAxisAlignItems": "MIN",
+                    "layoutSizingHorizontal": "FILL",
+                    "layoutSizingVertical": "HUG",
+                    "fills": [],
+                    "clipsContent": false,
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 1090,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 1090,
+                      "y": 833,
+                      "width": 188,
+                      "height": 64
+                    },
+                    "children": [
+                      {
+                        "id": "I1586:402;c5:text",
+                        "name": "Top 5",
+                        "type": "TEXT",
+                        "characters": "Top 5\nThương Hiệu Uy Tín",
+                        "fills": [
+                          {
+                            "type": "SOLID",
+                            "visible": true,
+                            "blendMode": "NORMAL",
+                            "color": {
+                              "r": 0.1568627450980392,
+                              "g": 0.1568627450980392,
+                              "b": 0.1607843137254902,
+                              "a": 1
+                            }
+                          }
+                        ],
+                        "layoutSizingHorizontal": "FILL",
+                        "layoutSizingVertical": "HUG",
+                        "layoutGrow": 1,
+                        "style": {
+                          "fontFamily": "Inter",
+                          "fontPostScriptName": "Inter-Regular",
+                          "fontStyle": "Regular",
+                          "fontWeight": 400,
+                          "fontSize": 16,
+                          "lineHeightPx": 24,
+                          "lineHeightPercentFontSize": 150,
+                          "lineHeightUnit": "PIXELS",
+                          "letterSpacing": 0,
+                          "textAlignHorizontal": "CENTER",
+                          "textAlignVertical": "TOP",
+                          "textAutoResize": "HEIGHT"
+                        },
+                        "styles": {
+                          "text": "S:body"
+                        },
+                        "scrollBehavior": "SCROLLS",
+                        "interactions": [],
+                        "exportSettings": [],
+                        "absoluteBoundingBox": {
+                          "x": 1090,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "absoluteRenderBounds": {
+                          "x": 1090,
+                          "y": 849,
+                          "width": 188,
+                          "height": 48
+                        },
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "1586:403",
+            "name": "Pagination",
+            "type": "INSTANCE",
+            "componentId": "C:pagination",
+            "layoutMode": "HORIZONTAL",
+            "primaryAxisSizingMode": "AUTO",
+            "counterAxisSizingMode": "AUTO",
+            "itemSpacing": 8,
+            "paddingLeft": 0,
+            "paddingRight": 0,
+            "paddingTop": 0,
+            "paddingBottom": 0,
+            "primaryAxisAlignItems": "MIN",
+            "counterAxisAlignItems": "MIN",
+            "layoutSizingHorizontal": "HUG",
+            "layoutSizingVertical": "HUG",
+            "fills": [],
+            "scrollBehavior": "SCROLLS",
+            "interactions": [],
+            "exportSettings": [],
+            "absoluteBoundingBox": {
+              "x": 620,
+              "y": 921,
+              "width": 200,
+              "height": 4
+            },
+            "absoluteRenderBounds": {
+              "x": 620,
+              "y": 921,
+              "width": 200,
+              "height": 4
+            },
+            "children": [
+              {
+                "id": "I1586:403;dash1",
+                "name": "Pagination Item Dash 01",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 620,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 620,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash1:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 620,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 620,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash2",
+                "name": "Pagination Item Dash 02",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 648,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 648,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash2:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 648,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 648,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash3",
+                "name": "Pagination Item Dash 03",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 676,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 676,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash3:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 676,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 676,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash4",
+                "name": "Pagination Item Dash 04",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 704,
+                  "y": 921,
+                  "width": 32,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 704,
+                  "y": 921,
+                  "width": 32,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash4:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 1,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 704,
+                      "y": 921,
+                      "width": 32,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 704,
+                      "y": 921,
+                      "width": 32,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash5",
+                "name": "Pagination Item Dash 05",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 744,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 744,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash5:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 744,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 744,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash6",
+                "name": "Pagination Item Dash 06",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 772,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 772,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash6:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 772,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 772,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": "I1586:403;dash7",
+                "name": "Pagination Item Dash 07",
+                "type": "FRAME",
+                "layoutSizingHorizontal": "FIXED",
+                "layoutSizingVertical": "FIXED",
+                "clipsContent": true,
+                "fills": [],
+                "scrollBehavior": "SCROLLS",
+                "interactions": [],
+                "exportSettings": [],
+                "absoluteBoundingBox": {
+                  "x": 800,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "absoluteRenderBounds": {
+                  "x": 800,
+                  "y": 921,
+                  "width": 20,
+                  "height": 4
+                },
+                "children": [
+                  {
+                    "id": "I1586:403;dash7:v",
+                    "name": "Vector 2 (Stroke)",
+                    "type": "VECTOR",
+                    "fills": [
+                      {
+                        "type": "SOLID",
+                        "visible": true,
+                        "opacity": 0.24,
+                        "blendMode": "NORMAL",
+                        "color": {
+                          "r": 0.1568627450980392,
+                          "g": 0.1568627450980392,
+                          "b": 0.1607843137254902,
+                          "a": 1
+                        }
+                      }
+                    ],
+                    "strokes": [],
+                    "scrollBehavior": "SCROLLS",
+                    "interactions": [],
+                    "exportSettings": [],
+                    "absoluteBoundingBox": {
+                      "x": 800,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "absoluteRenderBounds": {
+                      "x": 800,
+                      "y": 921,
+                      "width": 20,
+                      "height": 4
+                    },
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "components": {
+        "C:para": {
+          "name": "Content Item/Paragraph"
+        },
+        "C:award": {
+          "name": "award-vnx"
+        },
+        "C:pagination": {
+          "name": "Pagination"
+        }
+      },
+      "styles": {
+        "S:h4": {
+          "name": "H4/Bold",
+          "styleType": "TEXT"
+        },
+        "S:body": {
+          "name": "Body-text-lg/Regular",
+          "styleType": "TEXT"
+        }
+      }
+    }
+  }
+}

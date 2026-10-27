@@ -1,0 +1,10 @@
+wp-content/uploads/
+wp-content/upgrade/
+.DS_Store
+.env
+wp-content/debug.log
+node_modules/
+process/work/*/*/assets/
+process/work/*/*/state.json
+process/work/*/*/verify.png
+/process/work

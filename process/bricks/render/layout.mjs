@@ -1,0 +1,52 @@
+// Figma auto layout -> Bricks flex. Always written explicitly so theme defaults never leak.
+// Nodes without auto layout get `position:relative` when they have children (children are absolute, see size.mjs).
+import { addCustomCss, px, r4 } from './utils/css.mjs';
+import { strokeMode, strokeWidths } from './utils/stroke.mjs';
+
+// Main axis 'safe center': when content is wider than the box Figma keeps it start-aligned, plain CSS center overflows on both sides.
+// Cross axis plain 'center': a child wider / taller than the box overflows on BOTH sides in Figma (Hero run: a 658px glow in a 195px
+// column sits at x=-231.5, a 93px row in an 88px content box sits at y=5.5 of 104), which is what CSS `center` does.
+const JUSTIFY = { MIN: 'flex-start', CENTER: 'safe center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' };
+const ALIGN = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' };
+
+export function applyLayout({ node, s, css, warn }, kind) {
+  const l = node.layout;
+  if (!l) {
+    if (node.children?.some((c) => c.visible !== false) && s._position !== 'absolute') s._position = 'relative';
+    return;
+  }
+  if (l.mode === 'GRID') {
+    // Figma GRID -> CSS grid: Bricks 1.9.8 has `_display: grid` but no track controls, so tracks and gaps are custom css. Items are start-aligned
+    // (a HUG-height card must not stretch to the tallest card of its row); cells come from each child's grid anchor (size.mjs).
+    s._display = 'grid';
+    addCustomCss(s, `grid-template-columns: ${l.columns}; grid-template-rows: ${l.rows}; column-gap: ${px(l.columnGap)}; row-gap: ${px(l.rowGap)}; align-items: start !important;`); // !important: Bricks writes `align-items: initial` for every `_display: grid`
+    Object.assign(css, { 'column-gap': px(l.columnGap), 'row-gap': px(l.rowGap) });
+  } else {
+    s._display = 'flex';
+    s._direction = l.mode === 'HORIZONTAL' ? 'row' : 'column';
+    s._justifyContent = JUSTIFY[l.primaryAlign] ?? 'flex-start';
+    s._alignItems = ALIGN[l.counterAlign] ?? 'flex-start';
+    s._flexWrap = l.wrap ? 'wrap' : 'nowrap';
+    const rowGapKey = l.mode === 'HORIZONTAL' ? '_columnGap' : '_rowGap';
+    const crossGapKey = l.mode === 'HORIZONTAL' ? '_rowGap' : '_columnGap';
+    if (l.primaryAlign !== 'SPACE_BETWEEN') {
+      s[rowGapKey] = px(l.gap);
+      css[l.mode === 'HORIZONTAL' ? 'column-gap' : 'row-gap'] = px(l.gap);
+    }
+    if (l.wrap && l.counterGap != null) s[crossGapKey] = px(l.counterGap);
+  }
+  // Figma measures padding from the outer edge (an INSIDE stroke is drawn over it unless "strokes included in layout");
+  // a CSS border sits inside the box, so it must be taken out of the padding to land on the same content area.
+  let p = l.padding;
+  const st = node.stroke;
+  if (st && strokeMode(node) === 'border' && st.align === 'INSIDE' && !st.inLayout && st.paints[st.paints.length - 1].type === 'SOLID') {
+    const w = strokeWidths(st);
+    p = Object.fromEntries(['top', 'right', 'bottom', 'left'].map((k) => [k, Math.max(0, r4(l.padding[k] - w[k]))]));
+    for (const k of Object.keys(p)) if (l.padding[k] < w[k]) warn(node, `padding-${k} ${l.padding[k]} is smaller than the stroke ${w[k]}: content shifts by ${r4(w[k] - l.padding[k])}px`);
+  }
+  if (kind === 'section' || p.top || p.right || p.bottom || p.left) {
+    s._padding = { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left) };
+    Object.assign(css, { 'padding-top': px(p.top), 'padding-right': px(p.right), 'padding-bottom': px(p.bottom), 'padding-left': px(p.left) });
+  }
+  if (node.children?.some((c) => c.visible !== false && c.place === 'ABSOLUTE') && s._position !== 'absolute') s._position = 'relative';
+}
