@@ -45,10 +45,13 @@ export function summaryStep(urlOrDir) {
   const wrongByNode = {};
   for (const r of verify?.bad ?? []) (wrongByNode[r.label] ??= []).push(r);
 
+  // severity tiers (shared/severity.mjs): FAIL = a blocker or major difference; tier 3 minor and tier 4 negligible are listed, they do not fail
+  const tiers = verify?.tiers ?? { 1: 0, 2: verify?.bad?.length ?? 0, 3: 0, 4: 0 };
   const verdict = !verify ? 'NOT VERIFIED (step 5 not run)'
-    : verify.bad.length === 0 && !warnings.length && !st.unhandled.size && !missing.length ? 'PASS: every checked value matches Figma, nothing unmapped'
-      : verify.bad.length === 0 ? 'PASS WITH GAPS: values match, but some things are not built/approximated (see below)'
-        : `FAIL: ${verify.bad.length} value(s) differ from Figma`;
+    : tiers[1] || tiers[2] ? `FAIL: ${tiers[1]} blocker and ${tiers[2]} major difference(s) from Figma`
+      : tiers[3] ? `PASS WITH MINOR: ${tiers[3]} minor difference(s), ${tiers[4]} negligible (see below)`
+        : !warnings.length && !st.unhandled.size && !missing.length ? `PASS: every checked value matches Figma within the negligible class (${tiers[4]} listed), nothing unmapped`
+          : 'PASS WITH GAPS: values match, but some things are not built/approximated (see below)';
 
   const md = [
     `# Summary: ${tree.name} [${tree.id}]`, '',

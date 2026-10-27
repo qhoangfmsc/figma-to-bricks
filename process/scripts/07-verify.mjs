@@ -16,6 +16,7 @@ import { resolveWorkspace } from '../shared/workspace.mjs';
 import { requireSignOff } from '../review/index.mjs';
 import { bridge } from '../bricks/bridge.mjs';
 import { runQa } from '../shared/qa.mjs';
+import { tierOf, TIER_NAME, verdictOf } from '../shared/severity.mjs';
 import { download, getRenders } from '../figma/api.mjs';
 
 const BUDGETS = JSON.parse(readFileSync(new URL('../qa/budgets.json', import.meta.url), 'utf8'));
@@ -151,16 +152,20 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     if (m.h1 > 1) rows.push({ label: `page @${f.tree.box.w}px`, check: 'visible h1 (at most one per section; the page has exactly one, in the Hero)', want: '≤ 1', got: String(m.h1), ok: m.h1 <= 1 });
     for (const msg of r.log.failed) rows.push({ label: 'request', check: 'failed', want: 'ok', got: msg, ok: false });
 
+    for (const x of rows) if (!x.ok) { x.tier = tierOf(x); if (x.tier === 4) x.soft = true; } // tier 4 = negligible: listed, not counted as a failure
     const soft = rows.filter((x) => !x.ok && x.soft);
     const bad = rows.filter((x) => !x.ok && !x.soft);
-    anyBad ||= bad.length > 0;
+    const tiers = { 1: 0, 2: 0, 3: 0, 4: soft.length };
+    for (const x of bad) tiers[x.tier]++;
+    anyBad ||= bad.some((x) => x.tier <= 2);
     const md = [
       `# Verify: ${f.tree.name} [${f.tree.id}]${f.key === 'base' ? '' : ` · breakpoint ${f.key}`}`, '',
       `Rendered with Playwright (Chromium, in Docker) at ${Math.round(f.tree.box.w)}px · ${url} · time frozen at ${FREEZE}`, '',
+      `**Verdict: ${verdictOf(tiers)}** · tier 1 blocker ${tiers[1]} · tier 2 major ${tiers[2]} · tier 3 minor ${tiers[3]} · tier 4 negligible ${tiers[4]} (listed below, not counted)`, '',
       `**${rows.length - bad.length - soft.length}/${rows.length} checks match** (position/size tolerance ${tol}px)${soft.length ? ` · **${soft.length} text-engine difference(s)** within ${SOFT_PX}px listed below, not counted as failures` : ''}`, '',
       r.visual ? `**Look vs Figma render:** mean difference ${Math.round(r.visual.mean * 100) / 100}/255, ${r.visual.cells.filter((c) => c.diff > limit).length} of ${r.visual.cells.length} regions (${r.visual.cell}px) above ${limit}${r.visual.masks.length ? `; ${r.visual.masks.length} live region(s) (countdown) masked` : ''} (see verify${f.suffix}.diff.png, white = different)` : `**Look vs Figma render: not measured** (${figmaErr[f.key] ?? 'no figma token'})`,
       `**Images downloaded:** ${loaded.length} · visible ${Math.round(visibleBytes / 1024)} KB · hidden by CSS but downloaded ${Math.round(hiddenBytes / 1024)} KB (${hiddenLoaded.length})`, '',
-      bad.length ? '## Mismatches\n\n| node | check | Figma | rendered |\n|---|---|---|---|\n' + bad.map((x) => `| ${x.label} | ${x.check} | ${x.want} | ${x.got} |`).join('\n') : '## All checks pass',
+      bad.length ? '## Mismatches (worst first)\n\n| tier | node | check | Figma | rendered |\n|---|---|---|---|---|\n' + [...bad].sort((a, b) => a.tier - b.tier).map((x) => `| ${x.tier} ${TIER_NAME[x.tier]} | ${x.label} | ${x.check} | ${x.want} | ${x.got} |`).join('\n') : '## All checks pass',
       '',
     ];
     if (soft.length) md.push('## Text-engine differences (Figma vs browser text layout, within 2.5px)', '', '| node | check | Figma | rendered |', '|---|---|---|---|', ...soft.map((x) => `| ${x.label} | ${x.check} | ${x.want} | ${x.got} |`), '');
@@ -173,14 +178,14 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     }
     if (r.log.console.length) md.push('## Console', '', ...r.log.console.map((c) => `- ${c}`), '');
     ws.writeText(`verify${f.suffix}.md`, md.join('\n'));
-    ws.writeJson(`verify${f.suffix}.json`, { url, tol, total: rows.length, bad, soft, visualMean: r.visual?.mean ?? null, imageBytes: visibleBytes, hiddenImageBytes: hiddenBytes, engines: f.key === 'base' ? result.engines : undefined });
+    ws.writeJson(`verify${f.suffix}.json`, { url, tol, total: rows.length, bad, soft, tiers, verdict: verdictOf(tiers), visualMean: r.visual?.mean ?? null, imageBytes: visibleBytes, hiddenImageBytes: hiddenBytes, engines: f.key === 'base' ? result.engines : undefined });
     for (const [src, dst] of [[r.shot, `verify${f.suffix}.png`], [`${f.key}.diff.png`, `verify${f.suffix}.diff.png`]]) {
       try { writeFileSync(ws.file(dst), readFileSync(join(outDir, src))); } catch { /* no diff without figma png */ }
     }
-    console.log(`  [${f.key} @${Math.round(f.tree.box.w)}px] ${rows.length - bad.length - soft.length}/${rows.length} checks match${soft.length ? ` (+${soft.length} text-engine)` : ''}${r.visual ? ` · look ${Math.round(r.visual.mean * 100) / 100}/255` : ''} · images ${Math.round(visibleBytes / 1024)} KB (+${Math.round(hiddenBytes / 1024)} KB hidden)`);
+    console.log(`  [${f.key} @${Math.round(f.tree.box.w)}px] ${verdictOf(tiers)} T1:${tiers[1]} T2:${tiers[2]} T3:${tiers[3]} T4:${tiers[4]} · ${rows.length - bad.length - soft.length}/${rows.length} checks match${soft.length ? ` (+${soft.length} text-engine)` : ''}${r.visual ? ` · look ${Math.round(r.visual.mean * 100) / 100}/255` : ''} · images ${Math.round(visibleBytes / 1024)} KB (+${Math.round(hiddenBytes / 1024)} KB hidden)`);
     for (const x of bad.slice(0, 25)) console.log(`    ✗ ${x.label} ${x.check}: want ${x.want} · got ${x.got}`);
     if (bad.length > 25) console.log(`    … ${bad.length - 25} more in verify${f.suffix}.md`);
-    summary.push({ key: f.key, total: rows.length, bad: bad.length });
+    summary.push({ key: f.key, total: rows.length, bad: bad.length, tiers });
   }
   for (const [k, e] of Object.entries(result.engines)) console.log(`  [${k}] ${e.error ? `error ${e.error.slice(0, 80)}` : `vs chromium ${Math.round(e.mean * 100) / 100}/255 · scroll ${e.overflow.over ? 'YES' : 'no'} · covered ${e.covered}`}`);
   if (anyBad) process.exitCode = 1;

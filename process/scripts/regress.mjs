@@ -24,7 +24,7 @@ const numbers = (dir) => {
   for (const f of readdirSync(dir).filter((n) => /^verify(\..+)?\.json$/.test(n))) {
     const key = f === 'verify.json' ? 'base' : f.slice(7, -5);
     const v = j(join(dir, f));
-    out[key] = { look: Math.round((v.visualMean ?? 0) * 100) / 100, bad: v.bad.length };
+    out[key] = { look: Math.round((v.visualMean ?? 0) * 100) / 100, bad: v.bad.length, major: v.tiers ? v.tiers[1] + v.tiers[2] : v.bad.length };
   }
   return out;
 };
@@ -49,8 +49,8 @@ for (const s of list) {
   for (const [k, n] of Object.entries(now)) {
     const b = was[k];
     if (!b) { notes.push(`${k}: new frame (look ${n.look}, ${n.bad} mismatches)`); continue; }
-    const flag = n.look > b.look + 1 || n.bad > b.bad + 3;
-    notes.push(`${k}: look ${b.look} -> ${n.look}, mismatches ${b.bad} -> ${n.bad}${flag ? '  WORSE' : ''}`);
+    const flag = n.look > b.look + 1 || n.bad > b.bad + 3 || (b.major !== undefined && n.major > b.major);
+    notes.push(`${k}: look ${b.look} -> ${n.look}, mismatches ${b.bad} -> ${n.bad}${b.major !== undefined ? `, blocker+major ${b.major} -> ${n.major}` : ''}${flag ? '  WORSE' : ''}`);
     if (flag) worse++;
   }
   console.log(`${worse && notes.some((x) => x.includes('WORSE')) ? '✗' : '✓'} ${s.name}${r.status === null ? ' (run failed)' : ''}\n    ${notes.join('\n    ')}`);

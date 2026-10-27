@@ -1,7 +1,7 @@
 // Figma auto layout -> Bricks flex. Always written explicitly so theme defaults never leak.
 // Nodes without auto layout get `position:relative` when they have children (children are absolute, see size.mjs).
 import { addCustomCss, px, r4 } from './utils/css.mjs';
-import { strokeMode, strokeWidths } from './utils/stroke.mjs';
+import { isGradientRing, strokeMode, strokeWidths } from './utils/stroke.mjs';
 
 // Main axis 'safe center': when content is wider than the box Figma keeps it start-aligned, plain CSS center overflows on both sides.
 // Cross axis plain 'center': a child wider / taller than the box overflows on BOTH sides in Figma (Hero run: a 658px glow in a 195px
@@ -44,6 +44,8 @@ export function applyLayout({ node, s, css, warn }, kind) {
     p = Object.fromEntries(['top', 'right', 'bottom', 'left'].map((k) => [k, Math.max(0, r4(l.padding[k] - w[k]))]));
     for (const k of Object.keys(p)) if (l.padding[k] < w[k]) warn(node, `padding-${k} ${l.padding[k]} is smaller than the stroke ${w[k]}: content shifts by ${r4(w[k] - l.padding[k])}px`);
   }
+  // a gradient ring that Figma counts in the layout (INSIDE + "include stroke in layout") pushes the content in by its width, like a border would
+  if (node.stroke && isGradientRing(node) && node.stroke.inLayout && node.stroke.align === 'INSIDE') { const w = node.stroke.weight; p = { top: p.top + w, right: p.right + w, bottom: p.bottom + w, left: p.left + w }; }
   if (kind === 'section' || p.top || p.right || p.bottom || p.left) {
     s._padding = { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left) };
     Object.assign(css, { 'padding-top': px(p.top), 'padding-right': px(p.right), 'padding-bottom': px(p.bottom), 'padding-left': px(p.left) });

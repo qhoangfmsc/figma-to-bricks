@@ -73,6 +73,8 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Workspace
 
+`process/work/` is the working area of the pipeline and the AI (owner decision 2026-10-27): it is **not committed** (`/process/work` in `.gitignore`). Everything that must outlive a run lives outside it: the rules (`bricks/`, `decide/`, `responsive/`, `detect/`), `policy.json`, the tests and the docs. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`, notes such as `page-scope.md`) are local and can be regenerated from the Figma link by `auto.mjs`.
+
 `process/work/<fileKey>/<node-id>/` holds everything for one section:
 
 | file | made by | purpose |
@@ -82,12 +84,12 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 | `tree.json` / `tree.md` | 2 | normalized tree / the same tree for reading; hidden nodes shown as `HIDDEN` |
 | `facts.json` / `facts.md` | 3 | deterministic inventory: components + properties, repeats, heading outline, prototype, styles |
 | `review.json` / `revisions.md` | **owner** | sign-off bound to a fingerprint of tree + decisions / log of owner feedback after a build |
-| `detections.json` / `detections.md` | 3 + **owner/AI** | candidate sections and components with `status` (proposed / approved / rejected); `.md` is the review sheet. Committed |
-| `overrides.json` | **human / AI** | decisions the rules cannot make (see below), committed |
+| `detections.json` / `detections.md` | 3 + **owner/AI** | candidate sections and components with `status` (proposed / approved / rejected); `.md` is the review sheet |
+| `overrides.json` | **human / AI** | decisions the rules cannot make (see below) |
 | `bricks.json` | 5 | elements pushed to Bricks (`{ $asset }` placeholders for images) |
 | `mapping.json` | 5 | Figma node id → Bricks element id + expected position and CSS |
 | `report.md` | 5 | warnings, skipped nodes, fonts, full Figma → Bricks table |
-| `fonts.json`, `state.json` | 5, 6 | fonts to load; template/media ids (not committed) |
+| `fonts.json`, `state.json` | 5, 6 | fonts to load; template/media ids |
 | `verify.md` / `verify.png` | 7 | measured vs Figma, screenshot |
 
 ## Autopilot: one link in, Bricks out

@@ -162,6 +162,7 @@ import { COMPONENTS } from '../bricks/components/index.mjs';
 import { matchTrees } from '../responsive/match.mjs';
 import { mergeResponsive } from '../responsive/merge.mjs';
 import { decide } from '../decide/index.mjs';
+import { tierOf, verdictOf } from '../shared/severity.mjs';
 
 const txt = (id, characters, extra = {}) => ({ id, name: id, type: 'TEXT', characters, absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT', ...extra.style }, fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }] });
 const withIcons = () => mini({
@@ -1021,4 +1022,34 @@ test('stroke OUTSIDE / CENTER: no border (it would grow the box), shadows instea
   assert.equal(els[1].settings._border, undefined);
   assert.match(els[1].settings._cssCustom, /box-shadow: 0 0 0 2px #ff0000;/);
   assert.ok(els[2].settings._cssCustom.includes('box-shadow: 0 0 0 1px #ff0000, inset 0 0 0 1px #ff0000, 0px 2px 3px 0px rgba(0, 0, 0, 0.25);'));
+});
+
+
+test('gradient stroke: a ring drawn by ::before; INSIDE + included in layout pushes the content in by the stroke width', () => {
+  const grad = { type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 1, g: 0.8, b: 0.7, a: 1 } }, { position: 1, color: { r: 1, g: 0.4, b: 0.3, a: 1 } }] };
+  const card = kid('cd', { layoutMode: 'VERTICAL', paddingLeft: 24, paddingRight: 24, paddingTop: 24, paddingBottom: 24, cornerRadius: 20, strokes: [grad], strokeWeight: 3, strokeAlign: 'INSIDE', strokesIncludedInLayout: true, absoluteBoundingBox: { x: 0, y: 0, width: 343, height: 200 }, children: [] });
+  const el = byFigma(buildTemplate(mini({ children: [card] }), { overrides: {}, salt: 'g' }), 'cd').settings;
+  assert.equal(el._padding.left, '27px');
+  assert.match(el._cssCustom, /::before \{ content: ""; position: absolute; inset: 0px; padding: 3px; border-radius: 20px 20px 20px 20px;/);
+  assert.match(el._cssCustom, /mask-composite: exclude/);
+  assert.equal(el._position, 'relative');
+});
+
+
+test('severity tiers: blockers, major (visible), minor, negligible (line-height, outside stroke, text engine); verdict from the worst tier', () => {
+  const row = (check, want, got, extra = {}) => ({ label: 'n1 block', check, want, got, ok: false, ...extra });
+  assert.equal(tierOf(row('on top at its center', 'itself', 'covered by img#x')), 1);
+  assert.equal(tierOf(row('exists', 'in DOM', 'missing')), 1);
+  assert.equal(tierOf(row('transparent area without a background', 'a fill', '40% clear')), 1);
+  assert.equal(tierOf({ label: 'look 0,0 80×80', check: 'vs Figma render', want: '≤ 18', got: '35', ok: false }), 2);
+  assert.equal(tierOf({ label: 'look 0,0 80×80', check: 'vs Figma render', want: '≤ 18', got: '22', ok: false }), 3);
+  assert.equal(tierOf(row('y', '199', '196')), 3); // 3px: minor
+  assert.equal(tierOf(row('h', '24', '47')), 2); // a whole extra line
+  assert.equal(tierOf(row('h', '23', '22')), 4); // line-height rounding
+  assert.equal(tierOf(row('w', '498', '504')), 3); // a 3px stroke counted twice
+  assert.equal(tierOf(row('w', '171', '169.77', { soft: true })), 4); // text engine
+  assert.equal(tierOf(row('color', 'rgb(0, 0, 0)', 'rgb(1, 1, 1)')), 2);
+  assert.equal(verdictOf({ 1: 0, 2: 0, 3: 2, 4: 9 }), 'PASS WITH MINOR');
+  assert.equal(verdictOf({ 1: 0, 2: 1, 3: 0, 4: 0 }), 'FAIL');
+  assert.equal(verdictOf({ 1: 0, 2: 0, 3: 0, 4: 12 }), 'PASS');
 });

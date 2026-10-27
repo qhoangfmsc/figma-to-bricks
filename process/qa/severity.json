@@ -1,0 +1,8 @@
+{
+  "note": "Severity tiers of a mismatch (owner decision 2026-10-27: sort errors by how visible they are, the small ones may be ignored). Tier 1 blocker, 2 major, 3 minor, 4 negligible. Everything stays listed; the verdict is FAIL with a tier 1 or 2 row, PASS WITH MINOR with only tier 3, PASS with nothing above tier 4.",
+  "box": { "negligiblePx": 2.5, "minorPx": 8 },
+  "css": { "negligiblePx": 1.5, "minorPx": 8 },
+  "look": { "minor": 18, "major": 30 },
+  "alwaysBlocker": ["exists", "on top at its center", "horizontal scroll", "failed", "transparent area without a background"],
+  "alwaysMajor": ["image weight", "hidden images downloaded", "visible h1"]
+}

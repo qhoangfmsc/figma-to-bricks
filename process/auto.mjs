@@ -71,8 +71,8 @@ async function runSection(sectionUrl, sectionId, { firstSection, bg }) {
   const state = base.readJson('state.json', {});
   const lines = [
     `# Scorecard: ${base.readJson('tree.json').name}`, '', `Template: ${state.builderUrl ?? 'not pushed'}`, '',
-    '| frame | checks | look vs Figma (/255) | images (KB) | hidden images loaded (KB) | other browsers |', '|---|---|---|---|---|---|',
-    ...frames.map(({ key, v }) => v ? `| ${key} | ${v.total - v.bad.length - (v.soft?.length ?? 0)}/${v.total}${v.soft?.length ? ` (+${v.soft.length} text-engine)` : ''} | ${Math.round(v.visualMean * 100) / 100} | ${Math.round(v.imageBytes / 1024)} | ${Math.round(v.hiddenImageBytes / 1024)} | ${key === 'base' && v.engines ? Object.entries(v.engines).map(([k, e]) => `${k.split('.')[1]} ${Math.round(e.mean * 100) / 100}`).join(', ') : '-'} |` : `| ${key} | not verified | | | | |`), '',
+    '| frame | verdict | blocker / major / minor / negligible | look vs Figma (/255) | images (KB) | hidden images loaded (KB) | other browsers |', '|---|---|---|---|---|---|---|',
+    ...frames.map(({ key, v }) => v ? `| ${key} | ${v.verdict ?? '-'} | ${v.tiers ? `${v.tiers[1]} / ${v.tiers[2]} / ${v.tiers[3]} / ${v.tiers[4]}` : '-'} | ${Math.round(v.visualMean * 100) / 100} | ${Math.round(v.imageBytes / 1024)} | ${Math.round(v.hiddenImageBytes / 1024)} | ${key === 'base' && v.engines ? Object.entries(v.engines).map(([k, e]) => `${k.split('.')[1]} ${Math.round(e.mean * 100) / 100}`).join(', ') : '-'} |` : `| ${key} | not verified | | | | | |`), '',
     '## What the checks cannot see / known limits', '',
     '- Text: Figma and the browser lay out text with different engines (1 to 2.5px per label); a different line break is a real mismatch and is listed.',
     '- Live parts (countdown) are masked; animation is not built (animations.md).', '',
@@ -81,7 +81,7 @@ async function runSection(sectionUrl, sectionId, { firstSection, bg }) {
     '## For the designer', '', ...(result.designer.length ? [...new Set(result.designer)].map((x) => `- ${x}`) : ['_none_']), '',
   ];
   base.writeText('scorecard.md', lines.join('\n'));
-  const bad = frames.reduce((s, f) => s + (f.v?.bad.length ?? 0), 0);
+  const bad = frames.reduce((s, f) => s + (f.v?.tiers ? f.v.tiers[1] + f.v.tiers[2] : (f.v?.bad.length ?? 0)), 0); // real problems = tier 1 + 2
   return { name: base.readJson('tree.json').name, id: sectionId, dir: base.dir, template: state.builderUrl, frames, bad, result };
 }
 
@@ -98,10 +98,10 @@ for (const s of sections) {
 }
 
 // page report: one table, the designer list, everything that needs a look
-const rows = done.map((d) => d.error ? `| ${d.name} | STOPPED: ${d.error.replace(/\|/g, '/').slice(0, 120)} | | | |` : `| ${d.name} | ${d.frames.map((f) => f.v ? `${f.key} ${Math.round(f.v.visualMean * 100) / 100}` : `${f.key} -`).join(' · ')} | ${d.bad} | ${d.result.decisions.length} | ${d.template ?? ''} |`);
+const rows = done.map((d) => d.error ? `| ${d.name} | STOPPED: ${d.error.replace(/\|/g, '/').slice(0, 120)} | | | |` : `| ${d.name} | ${d.frames.map((f) => f.v ? `${f.key} ${f.v.verdict ?? ''} ${Math.round(f.v.visualMean * 100) / 100}` : `${f.key} -`).join(' · ')} | ${d.bad} | ${d.result.decisions.length} | ${d.template ?? ''} |`);
 const page = [
   `# Page report: ${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, '', `${done.length} section(s), base ${plan.base.width}px, tablet / mobile frames merged per section.`, '',
-  '| section | look vs Figma (/255) per frame | mismatches | decisions by rule | template |', '|---|---|---|---|---|', ...rows, '',
+  '| section | verdict and look vs Figma (/255) per frame | blockers + major | decisions by rule | template |', '|---|---|---|---|---|', ...rows, '',
   '## For the designer', '', ...(() => { const all = done.flatMap((d) => d.result.designer.map((x) => `${d.name}: ${x}`)); return all.length ? all.map((x) => `- ${x}`) : ['_none_']; })(), '',
   '## Needs a look', '', ...(() => { const all = done.flatMap((d) => d.result.needs.map((x) => `${d.name}: ${x}`)); return all.length ? all.map((x) => `- ${x}`) : ['_none_']; })(), '',
   '## Where to look', '', ...done.filter((d) => d.dir).map((d) => `- ${d.name}: ${d.dir}/scorecard.md, decisions.md, verify*.diff.png`), '',

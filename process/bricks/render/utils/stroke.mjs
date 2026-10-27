@@ -4,6 +4,11 @@
 //  'inset'  inset box-shadow (takes no space) otherwise, e.g. a 2px stroke on a frame with 0 padding.
 // Not supported yet: gradient strokes, OUTSIDE/CENTER (approximated as inside, warned), several strokes (top one wins).
 import { addCustomCss, colorObj, cssColor, px } from './css.mjs';
+import { linearGradientCss } from './gradient.mjs';
+
+// A uniform stroke painted with ONE linear gradient (peach gradient borders of the Gifts cards): CSS borders cannot take a gradient, so the stroke is a ring
+// drawn by ::before (gradient background masked to the ring between the padding box and the content box). OUTSIDE / CENTER grow the ring outwards.
+export const isGradientRing = (node) => { const st = node.stroke; if (!st || st.paints.length !== 1 || st.paints[0].type !== 'GRADIENT_LINEAR' || st.dashes) return false; const w = strokeWidths(st); return w.top === w.right && w.right === w.bottom && w.bottom === w.left; };
 
 export const strokeWidths = (st) => st.weights ?? { top: st.weight, right: st.weight, bottom: st.weight, left: st.weight };
 
@@ -30,6 +35,14 @@ export function applyStroke(ctx, border) {
   // the box: Gifts section, a 498px box became 504px and everything after it moved). A uniform solid stroke becomes shadows: outside = `0 0 0 w`,
   // center = half outside + half inside. effects.mjs lists them first (on top) together with the node's own shadows.
   const uniform = w.top === w.right && w.right === w.bottom && w.bottom === w.left;
+  if (isGradientRing(node)) {
+    const out = st.align === 'OUTSIDE' ? w.top : st.align === 'CENTER' ? w.top / 2 : 0;
+    const r = (node.radius ?? [0, 0, 0, 0]).map((x) => (x > 0 ? x + out : 0));
+    if (ctx.s._position !== 'absolute') ctx.s._position ??= 'relative';
+    addCustomCss(s, `content: ""; position: absolute; inset: ${px(-out)}; padding: ${px(w.top)}; border-radius: ${r.map(px).join(' ')}; background: ${linearGradientCss(top, node.box.w + 2 * out, node.box.h + 2 * out)}; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;`, '::before');
+    if (st.inLayout && st.align === 'OUTSIDE') warn(node, 'stroke outside AND included in layout: its outer space is not added');
+    return;
+  }
   if (st.align !== 'INSIDE' && top.type === 'SOLID' && uniform && !st.dashes && st.paints.length === 1) {
     const c = cssColor(top);
     ctx.strokeShadows = st.align === 'OUTSIDE' ? [`0 0 0 ${px(w.top)} ${c}`] : [`0 0 0 ${px(w.top / 2)} ${c}`, `inset 0 0 0 ${px(w.top / 2)} ${c}`];
