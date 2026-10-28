@@ -59,13 +59,25 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
 
   // Figma's own render of every frame = what the eye should see
   const figmaErr = {};
+  const fileVersion = ws.readJson('raw.json').version; // Figma's render of a node is fixed for a given file version: reuse it instead of asking the rate-limited images API again
   for (const f of frames) {
-    try {
-      const r = await getRenders(ws.ref.fileKey, [f.tree.id], 'png', { scale: 1 });
-      const file = ws.file(`verify${f.suffix}.figma.png`);
-      writeFileSync(file, await download(r[f.tree.id]));
-      f.figmaPng = file;
-    } catch (e) { figmaErr[f.key] = e.message; }
+    const pngFile = ws.file(`verify${f.suffix}.figma.png`), stamp = `figma-render${f.suffix}.json`;
+    const cached = ws.readJson(stamp, null);
+    if (ws.has(`verify${f.suffix}.figma.png`) && cached?.version === fileVersion && cached?.node === f.tree.id) { f.figmaPng = pngFile; continue; }
+    for (let attempt = 1; attempt <= 4; attempt++) { // a dropped connection ("terminated") must not turn into an unmeasured frame
+      try {
+        const r = await getRenders(ws.ref.fileKey, [f.tree.id], 'png', { scale: 1 });
+        const file = ws.file(`verify${f.suffix}.figma.png`);
+        writeFileSync(file, await download(r[f.tree.id]));
+        f.figmaPng = file;
+        ws.writeJson(stamp, { version: fileVersion, node: f.tree.id });
+        delete figmaErr[f.key];
+        break;
+      } catch (e) {
+        figmaErr[f.key] = e.message;
+        if (attempt < 4) await new Promise((res) => setTimeout(res, 3000 * attempt));
+      }
+    }
   }
 
   const job = {

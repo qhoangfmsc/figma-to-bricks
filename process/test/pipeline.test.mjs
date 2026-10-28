@@ -162,6 +162,8 @@ import { COMPONENTS } from '../bricks/components/index.mjs';
 import { matchTrees } from '../responsive/match.mjs';
 import { mergeResponsive } from '../responsive/merge.mjs';
 import { decide } from '../decide/index.mjs';
+import { detectForms } from '../detect/rules/form.mjs';
+import { detectButtons } from '../detect/rules/button.mjs';
 import { tierOf, verdictOf } from '../shared/severity.mjs';
 
 const txt = (id, characters, extra = {}) => ({ id, name: id, type: 'TEXT', characters, absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT', ...extra.style }, fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }] });
@@ -717,7 +719,7 @@ test('countdown: units become fields (format + label), the colon is a ::after at
   assert.match(bad.warnings.map((w) => w.msg).join(), /format must be one of/);
 });
 
-test('overflow like Figma: cross-axis center spills on both sides, an absolute child wider than its parent is not clamped to 100%', () => {
+test('overflow like Figma: cross-axis and main-axis center spill on both sides, an absolute child wider than its parent is not clamped to 100%', () => {
   const wide = kid('wd', { name: 'Glow', absoluteBoundingBox: { x: -20, y: 0, width: 240, height: 10 }, children: [] });
   const box = kid('bx', { name: 'Box', layoutMode: undefined, absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 50 }, children: [wide] });
   const b = buildTemplate(mini({ children: [box] }), { overrides: {}, salt: 'o' });
@@ -726,7 +728,7 @@ test('overflow like Figma: cross-axis center spills on both sides, an absolute c
   const col = kid('col', { layoutMode: 'VERTICAL', counterAxisAlignItems: 'CENTER', primaryAxisAlignItems: 'CENTER', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 100 }, children: [] });
   const c = byFigma(buildTemplate(mini({ children: [col] }), { overrides: {}, salt: 'o' }), 'col').settings;
   assert.equal(c._alignItems, 'center');
-  assert.equal(c._justifyContent, 'safe center');
+  assert.equal(c._justifyContent, 'center');
 });
 
 test('artboard anchoring: root-level absolute children follow the viewport (constraints, hand-centered LEFT), exact at the artboard width', () => {
@@ -1052,4 +1054,76 @@ test('severity tiers: blockers, major (visible), minor, negligible (line-height,
   assert.equal(verdictOf({ 1: 0, 2: 0, 3: 2, 4: 9 }), 'PASS WITH MINOR');
   assert.equal(verdictOf({ 1: 0, 2: 1, 3: 0, 4: 0 }), 'FAIL');
   assert.equal(verdictOf({ 1: 0, 2: 0, 3: 0, 4: 12 }), 'PASS');
+});
+
+
+test('phase 3 detection: a CTA that is an instance of the Button component is a button; a stack of placeholder inputs + consent + CTA is a form with typed fields', () => {
+  const text = (id, chars, size = 16) => ({ id, name: id, type: 'TEXT', visible: true, text: { characters: chars, fontSize: size, fontFamily: 'Inter' }, box: { w: 100, h: 20 }, children: [] });
+  const input = (id, chars) => ({ id, name: `Form field / ${id}`, type: 'FRAME', visible: true, fills: [{ type: 'SOLID' }], box: { w: 433, h: 39 }, children: [text(`${id}t`, chars)] });
+  const cta = { id: 'cta', name: 'Registration / CTA', type: 'INSTANCE', visible: true, componentSet: 'Button Custom', box: { w: 433, h: 48 }, children: [text('ctat', 'ĐĂNG KÝ')] };
+  const consent = { id: 'cons', name: 'Form / Privacy consent', type: 'INSTANCE', visible: true, box: { w: 433, h: 60 }, children: [{ id: 'cb', name: 'Consent / Checkbox', type: 'INSTANCE', visible: true, box: { w: 20, h: 20 }, children: [] }, text('cst', 'Tôi đồng ý để xử lý thông tin')] };
+  const form = { id: 'f', name: 'Registration / Form', type: 'FRAME', visible: true, box: { w: 481, h: 500 }, children: [input('Full name', 'Họ và Tên*'), input('Phone', 'Số điện thoại/ Zalo*'), input('Email', 'Email*'), input('Company', 'Tên công ty'), consent, cta] };
+  const tree = { id: 'r', name: 'Section', type: 'FRAME', visible: true, box: { w: 1440, h: 800 }, children: [form] };
+  const [f] = detectForms(tree);
+  assert.equal(f.node, 'f');
+  assert.equal(f.params.submit, 'cta');
+  assert.deepEqual(f.params.fields.map((x) => x.type), ['text', 'tel', 'email', 'text', 'checkbox']);
+  assert.deepEqual(f.params.fields.map((x) => x.required), [true, true, true, false, false]);
+  assert.equal(f.params.fields[0].placeholder, 'Họ và Tên*'); // kept as drawn: Bricks must not append its own " *"
+  assert.equal(f.params.fields.at(-1).labelNode, 'cstt'.replace('cstt', 'cst')); // the consent statement carries the label typography
+  assert.ok(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [cta] }).some((b) => b.node === 'cta'));
+  // a word that merely contains "cta" is not a button ("Unpredictable costs")
+  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [{ ...cta, id: 'card', name: 'Problem card / 05 Unpredictable costs', componentSet: undefined }] }).length, 0);
+  // decide: the form is approved and its submit button is not a second button
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }, { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'cta', params: {} }] }, 'overrides.json': { nodes: {} } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
+  const st = Object.fromEntries(files['detections.json'].components.map((c) => [c.component, c.status]));
+  assert.deepEqual(st, { form: 'approved', button: 'rejected' });
+  assert.ok(out.designer.some((d) => /Form "Registration \/ Form"/.test(d)));
+});
+
+test('form error messages: decide gives a field the "Error message / X" text the designer drew for it (never invented), the form writes errorMessage + the drawn look', () => {
+  const text = (id, chars) => ({ id, name: id, type: 'TEXT', visible: true, text: { characters: chars, fontSize: 16, fontFamily: 'Inter' }, box: { w: 100, h: 20 }, children: [] });
+  const input = (id, chars) => ({ id, name: `Form field / ${id}`, type: 'FRAME', visible: true, fills: [{ type: 'SOLID' }], box: { w: 433, h: 39 }, children: [text(`${id}t`, chars)] });
+  const cta = { id: 'cta', name: 'Registration / CTA', type: 'INSTANCE', visible: true, componentSet: 'Button Custom', box: { w: 433, h: 48 }, children: [text('ctat', 'ĐĂNG KÝ')] };
+  const form = { id: 'f', name: 'Registration / Form', type: 'FRAME', visible: true, box: { w: 481, h: 500 }, children: [input('Full name', 'Họ và Tên*'), input('Email', 'Email*'), cta] };
+  const tree = { id: 'r', name: 'Section', type: 'FRAME', visible: true, box: { w: 1440, h: 800 }, children: [form] };
+  const [f] = detectForms(tree);
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }] } };
+  const formErrors = { email: { text: 'Vui lòng nhập địa chỉ email hợp lệ', node: '2237:7486', gap: 7, style: { fontFamily: 'Inter', fontSize: 12, fontWeight: 400, lineHeightPx: 16, letterSpacing: 0, color: '#ffffff', alpha: 1 } } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { formErrors });
+  const fields = files['detections.json'].components[0].params.fields;
+  assert.equal(fields.find((x) => x.placeholder === 'Email*').error, 'Vui lòng nhập địa chỉ email hợp lệ');
+  assert.equal(fields.find((x) => x.placeholder === 'Họ và Tên*').error, undefined); // no error frame in Figma: nothing is invented
+  assert.ok(out.designer.some((d) => /error messages for the fields Figma has no error frame for \(full name\)/.test(d)));
+  // the component
+  const inp = (id, ph) => kid(id, { name: 'Input', layoutMode: 'HORIZONTAL', fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }], children: [txt(`${id}t`, ph)] });
+  const frm = mini({ children: [kid('frm', { name: 'Contact', layoutMode: 'VERTICAL', itemSpacing: 12, children: [
+    inp('in1', 'Họ và Tên*'), inp('in2', 'Email*'),
+    kid('btn', { name: 'Submit', layoutMode: 'HORIZONTAL', fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }], children: [txt('bt', 'Send')] }),
+  ] })] });
+  const params = { fields: JSON.stringify([{ node: 'in1', type: 'text', placeholder: 'Họ và Tên*', required: true }, { node: 'in2', type: 'email', placeholder: 'Email*', required: true, error: 'Vui lòng nhập địa chỉ email hợp lệ', errorNode: '2237:7486' }]), submit: 'btn', errorStyle: formErrors.email.style && { ...formErrors.email.style, gap: 7 } };
+  const b = buildWith(frm, { ...emptyDetections(), components: [{ id: 'd1', component: 'form', node: 'frm', status: 'approved', params }] });
+  const el = b.template.content.find((e) => e.name === 'form');
+  assert.equal(el?.settings.fields.find((x) => x.type === 'email')?.errorMessage, 'Vui lòng nhập địa chỉ email hợp lệ');
+  assert.equal(el.settings.fields.find((x) => x.placeholder === 'Họ và Tên*')?.errorMessage, undefined);
+  assert.match(el.settings._cssCustom, /\.form-group \.form-group-error-message \{ background-color: transparent; padding: 0; margin-top: 7px; color: #ffffff; font-family: Inter; font-size: 12px; font-weight: 400; line-height: 16px; letter-spacing: 0px;/);
+});
+
+test('navigation: a menu has no heading, its items (several repeat groups) form a list, every item label is a link, URLs go to the designer list', () => {
+  const text = (id, chars, size = 16) => ({ id, name: 'Item', type: 'TEXT', visible: true, text: { characters: chars, fontSize: size, fontFamily: 'Inter' }, box: { w: 60, h: 24 }, children: [] });
+  const icon = (id) => ({ id, name: 'angle-down', type: 'TEXT', visible: true, svg: 'x.svg', text: { characters: 'angle-down', fontSize: 12, fontFamily: 'FA' }, box: { w: 12, h: 24 }, children: [] });
+  const item = (id, label, withIcon) => ({ id, name: 'Menu Item', type: 'INSTANCE', component: 'Menu Item', visible: true, box: { w: 75, h: 64 }, children: [text(`${id}t`, label), ...(withIcon ? [icon(`${id}i`)] : [])] });
+  const row = { id: 'row', name: 'Menu item', type: 'FRAME', visible: true, box: { w: 600, h: 64 }, children: [item('a', 'Hosting', true), item('b', 'VPS', true), item('c', 'Tên miền', false), item('d', 'Blog', false)] };
+  const tree = { id: 'r', name: 'Menu', type: 'FRAME', visible: true, fills: [], box: { w: 1440, h: 64 }, children: [row] };
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [
+    { parent: 'row', parentName: 'Menu item', count: 2, itemName: 'Menu Item', ids: ['a', 'b'] },
+    { parent: 'row', parentName: 'Menu item', count: 2, itemName: 'Menu Item', ids: ['c', 'd'] }] }, 'detections.json': { version: 1, sections: [], components: [] } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { firstSection: false });
+  const comps = files['detections.json'].components;
+  assert.ok(comps.some((c) => c.component === 'semantic' && c.node === 'row' && c.params.tag === 'ul' && c.params.itemTag === 'li'));
+  assert.deepEqual(comps.filter((c) => c.component === 'link').map((c) => c.node).sort(), ['at', 'bt', 'ct', 'dt']);
+  assert.ok(comps.filter((c) => c.component === 'link').every((c) => c.status === 'approved' && c.params.link === null));
+  assert.equal(files['overrides.json']?.nodes?.at?.element, undefined); // no heading override on a menu label
+  assert.ok(out.designer.some((d) => /Link URLs of the 4 menu items in "Menu"/.test(d)));
 });

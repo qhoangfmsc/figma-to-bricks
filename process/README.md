@@ -103,6 +103,9 @@ To change a decision: edit `detections.json` / `overrides.json` (or `policy.json
 `/generate-bricks-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow.
 The fix loop after a run is part of the workflow: `scripts/triage.mjs <workspace>` (worst picture regions -> Figma nodes -> likely cause), a rule fix with a test,
 then `scripts/regress.mjs <fileKey>` (rebuilds every section and compares with `baseline.json`; `--save` after a good round).
+A rule change in `decide/` or `auto.mjs` only reaches the sections by re-running `auto.mjs` (it regenerates every autopilot detection and override), then `regress.mjs <fileKey> --no-rebuild` compares; `regress.mjs` alone only rebuilds from the saved decisions.
+Components decided by rule: `button` (named button / btn / cta), `form` (>= 2 placeholder inputs + a submit; a field gets the text of the Figma frame `Error message / <same name>` found beside the page frames, never an invented one), menu items (`Menu Item` labels -> `text-link`, their container `ul > li`, no heading in a menu section).
+Network: Figma's render of a frame is cached per file version (`figma-render*.json` + `verify*.figma.png`); the images API is rate limited, requests time out after 2 minutes and are retried 4 times, a frame that still could not be fetched is `NOT MEASURED` in the guard.
 
 ## Checks (step 7) and the QA image
 

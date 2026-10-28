@@ -12,13 +12,15 @@
 //   fields gap   the gap between the field frames (the theme's padding-bottom is replaced)
 //   submit       text + typography, fill (solid -> Bricks control, gradient -> CSS), border + radius, padding, width, height
 // params: fields [{ node (input frame id), type (text|email|tel|textarea|select|checkbox…, default text), label, placeholder, required, labelNode (text node id) }]
+//         fields[].error (the Figma error text of that field, written by process/decide from "Error message / X") · errorStyle (its look + gap)
 //         submit (node id of the submit button frame) · settings (optional object, raw Bricks settings deep-merged on top)
 // Not in Figma, so not built: what the form DOES (action / recipient / success message): Bricks default (email) stays, listed as missing.
 import { addCustomCss, cssColor, px } from '../render/utils/css.mjs';
 import { linearGradientCss } from '../render/utils/gradient.mjs';
 import { deepMerge } from '../render/utils/merge.mjs';
 import { typography } from '../render/text.mjs';
-import { boxLook, findNode, firstText, jsonParam, rowId, visibleKids } from './helpers.mjs';
+import { boxLook, findNode, firstText, jsonParam, rowId, svgIcon, svgNode, visibleKids } from './helpers.mjs';
+import { lineHeightFor } from '../render/text.mjs';
 
 const contains = (n, id) => n.id === id || (n.children ?? []).some((c) => contains(c, id));
 const parentOf = (root, id) => (root.children ?? []).reduce((f, c) => f ?? (c.id === id ? root : parentOf(c, id)), null);
@@ -29,7 +31,7 @@ export default {
   label: 'Form',
   figma: 'a container with labeled input frames and a submit button frame (listed in params.fields / params.submit with citations)',
   bricks: 'a block (the Figma frame) holding a `form` element: fields repeater + field / label / submit look from the drawn frames; other children kept after it',
-  limits: 'form action / recipient / messages are not in Figma (Bricks defaults); select / checkbox looks are not read; only the first field is read for the look of all',
+  limits: 'form action / recipient / success message are not in Figma (Bricks defaults); an error message exists only for the fields the designer drew an error frame for (params.fields[].error, from "Error message / X"); select / checkbox looks are not read; only the first field is read for the look of all',
   mergesChildren: true,
   wrap: true,
   innerKind: 'form',
@@ -54,12 +56,17 @@ export default {
     t.fields = fields.map((f, i) => ({
       id: rowId(det.id, i),
       type: f.type ?? 'text',
-      ...(f.label && { label: f.label }),
+      // a checkbox keeps its statement as the option text (Bricks: `options`), a text field its label above the input
+      ...(f.label && f.type !== 'checkbox' && { label: f.label }),
+      ...(f.type === 'checkbox' && f.label && { options: f.label }),
       ...(f.placeholder && { placeholder: f.placeholder }),
       ...(f.required && { required: true }),
+      // the text the designer drew under the field in its error state (Bricks shows it after a failed check of a required / email field)
+      ...(f.error && { errorMessage: f.error }),
     }));
-    if (fields.some((f) => f.label)) t.showLabels = true;
-    if (fields.some((f) => f.required)) t.requiredAsterisk = true;
+    if (fields.some((f) => f.label && f.type !== 'checkbox')) t.showLabels = true;
+    // Bricks writes " *" after a required label / placeholder: only when the Figma texts do not already carry the asterisk themselves
+    if (fields.some((f) => f.required && !/\*/.test(f.placeholder ?? f.label ?? ''))) t.requiredAsterisk = true;
 
     // ---- fields ----
     const frames = fields.map((f) => findNode(root, f.node));
@@ -70,10 +77,24 @@ export default {
     if (look.padding) t.fieldPadding = look.padding;
     const inText = firstText(first);
     if (inText) { t.placeholderTypography = typography(inText); t.fieldTypography = typography(inText); }
-    addCustomCss(t, `height: ${px(first.box.h)}; box-sizing: border-box;`, ' .form-group input');
+    addCustomCss(t, `height: ${px(first.box.h)}; box-sizing: border-box;`, ' .form-group input:not([type=checkbox])');
+    if (inText) addCustomCss(t, `line-height: ${px(lineHeightFor(inText))}; resize: none;`, ' .form-group textarea');
     frames.forEach((fr, i) => {
       if (fields[i].type === 'textarea') addCustomCss(t, `height: ${px(fr.box.h)}; min-height: ${px(fr.box.h)}; box-sizing: border-box; ${look.padding ? `padding: ${look.padding.top} ${look.padding.right} ${look.padding.bottom} ${look.padding.left};` : ''}`, ' .form-group textarea');
     });
+
+    // ---- error message look (Bricks default: danger background, 15px padding): the drawn "Error message" text, gap = the gap under the drawn field ----
+    const es = det.params?.errorStyle;
+    if (es && fields.some((f) => f.error)) {
+      const decls = ['background-color: transparent;', 'padding: 0;', `margin-top: ${px(es.gap)};`];
+      if (es.color) decls.push(`color: ${cssColor({ hex: es.color, alpha: es.alpha ?? 1 })};`);
+      if (es.fontFamily) decls.push(`font-family: ${es.fontFamily};`);
+      if (es.fontSize) decls.push(`font-size: ${px(es.fontSize)};`);
+      if (es.fontWeight) decls.push(`font-weight: ${es.fontWeight};`);
+      if (es.lineHeightPx) decls.push(`line-height: ${px(es.lineHeightPx)};`);
+      decls.push(`letter-spacing: ${px(es.letterSpacing ?? 0)};`);
+      addCustomCss(t, decls.join(' '), ' .form-group .form-group-error-message');
+    }
 
     // ---- gap between the field frames (the theme uses padding-bottom: 20px) ----
     const fieldGap = node.layout?.gap ?? 0; // the form frame stacks the field frames, the submit and the note with this gap
@@ -97,6 +118,25 @@ export default {
       if (starFill) addCustomCss(t, `color: ${cssColor(starFill)};`, ' .required:after');
     }
 
+    // ---- checkbox (the consent row): box, border, radius from the drawn checkbox; the statement sits next to it with the Figma gap ----
+    const boxField = fields.find((f) => f.type === 'checkbox');
+    if (boxField) {
+      const row = findNode(root, boxField.node);
+      const find = (n) => (/check\s?box/i.test(n.name ?? '') && n.box.w <= 40 ? n : (n.children ?? []).map(find).find(Boolean));
+      const cb = find(row);
+      const stmt = boxField.labelNode && findNode(root, boxField.labelNode);
+      if (cb) {
+        const look = boxLook(cb, warn);
+        const b = look.border;
+        addCustomCss(t, `appearance: none; -webkit-appearance: none; flex: none; margin: 0; width: ${px(cb.box.w)}; height: ${px(cb.box.h)}; box-sizing: border-box; background: ${look.background ? cssColor(look.background) : 'transparent'};${b ? ` border: ${b.width.top} ${b.style} ${cssColor(b.color)}; border-radius: ${b.radius?.top ?? '0px'};` : ''}`, ' .form-group input[type=checkbox]');
+        const gap = stmt ? stmt.box.x - (cb.box.x + cb.box.w) : 12;
+        // Bricks markup: .form-group > ul.options-wrapper > li > input[type=checkbox] + label
+        addCustomCss(t, 'list-style: none; margin: 0; padding: 0;', ' .options-wrapper');
+        addCustomCss(t, `display: flex; align-items: center; gap: ${px(gap)}; margin: 0; padding: 0;`, ' .options-wrapper li');
+        addCustomCss(t, 'margin: 0; padding: 0; flex: 1;', ' .options-wrapper li label');
+      }
+    }
+
     // ---- submit ----
     const submit = findNode(root, det.params.submit);
     const sl = boxLook(submit, warn);
@@ -114,6 +154,13 @@ export default {
     const decls = [`width: ${px(submit.box.w)}; height: ${px(submit.box.h)}; box-sizing: border-box;`];
     if (submit.layout?.padding) { const p = submit.layout.padding; decls.push(`padding: ${px(p.top)} ${px(p.right)} ${px(p.bottom)} ${px(p.left)};`); }
     if (grad) decls.push(`background-image: ${linearGradientCss(grad, submit.box.w, submit.box.h)};`);
+    const icon = svgNode(submit);
+    if (icon) { t.submitButtonIcon = svgIcon(icon); t.submitButtonIconPosition = 'right'; decls.push(`display: inline-flex; align-items: center; justify-content: center; gap: ${px(submit.layout?.gap ?? 0)};`); }
+    // all of the Figma shadows (several inner + drop shadows on the CTA) as one box-shadow list
+    const shadows = (submit.effects ?? []).filter((e) => e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW');
+    if (shadows.length) decls.push(`box-shadow: ${shadows.map((e) => `${e.type === 'INNER_SHADOW' ? 'inset ' : ''}${px(e.x)} ${px(e.y)} ${px(e.blur)} ${px(e.spread ?? 0)} ${cssColor(e)}`).join(', ')};`);
+    const labelShadow = (btnText?.effects ?? []).filter((e) => e.type === 'DROP_SHADOW');
+    if (labelShadow.length) decls.push(`text-shadow: ${labelShadow.map((e) => `${px(e.x)} ${px(e.y)} ${px(e.blur)} ${cssColor(e)}`).join(', ')};`);
     addCustomCss(t, decls.join(' '), ' button[type=submit]');
 
     const extra = jsonParam(det.params?.settings);

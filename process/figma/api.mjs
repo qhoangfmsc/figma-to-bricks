@@ -6,7 +6,7 @@ const BASE = 'https://api.figma.com';
 export async function figmaGet(path, { retries = 4 } = {}) {
   const token = need('FIGMA_TOKEN', 'Create one at Figma > Settings > Security > Personal access tokens (scope file_content:read) and add FIGMA_TOKEN=... to .env');
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(BASE + path, { headers: { 'X-Figma-Token': token } });
+    const res = await fetch(BASE + path, { headers: { 'X-Figma-Token': token }, signal: AbortSignal.timeout(120000) }); // a stalled connection must fail, not hang the run
     if (res.status === 429 && attempt < retries) {
       const wait = Number(res.headers.get('retry-after') ?? 5) * 1000;
       console.error(`  figma 429, waiting ${wait / 1000}s`);
@@ -39,7 +39,7 @@ export async function getRenders(fileKey, ids, format = 'svg', { scale } = {}) {
 }
 
 export async function download(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(120000) });
   if (!res.ok) throw new Error(`download ${res.status} ${url.slice(0, 80)}`);
   return Buffer.from(await res.arrayBuffer());
 }

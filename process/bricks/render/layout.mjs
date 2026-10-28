@@ -3,10 +3,11 @@
 import { addCustomCss, px, r4 } from './utils/css.mjs';
 import { isGradientRing, strokeMode, strokeWidths } from './utils/stroke.mjs';
 
-// Main axis 'safe center': when content is wider than the box Figma keeps it start-aligned, plain CSS center overflows on both sides.
+// Main axis plain 'center' too: content wider than the box overflows on BOTH sides in Figma as well (Registration mobile: the date/time bar sits at x 27.5, which
+// 'safe center' turned into 44; the regression guard showed no other section changed).
 // Cross axis plain 'center': a child wider / taller than the box overflows on BOTH sides in Figma (Hero run: a 658px glow in a 195px
 // column sits at x=-231.5, a 93px row in an 88px content box sits at y=5.5 of 104), which is what CSS `center` does.
-const JUSTIFY = { MIN: 'flex-start', CENTER: 'safe center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' };
+const JUSTIFY = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' };
 const ALIGN = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' };
 
 export function applyLayout({ node, s, css, warn }, kind) {
