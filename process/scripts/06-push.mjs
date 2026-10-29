@@ -61,7 +61,10 @@ export async function pushStep(urlOrDir) {
   if (state.templateId) {
     let oldTitle = state.templateTitle;
     if (!oldTitle) { try { oldTitle = (await bridge('GET', `/templates/${state.templateId}`)).title; } catch { /* unknown: keep updating */ } }
-    if (oldTitle && oldTitle !== body.title) {
+    // a title the pipeline generated itself ("Banner (figma 1583:582)") is renamed in place to the naming convention "<design name> - <section>"; a title the owner chose differently still means a new version
+    const autoTitle = oldTitle && /\(figma [\w:;]+\)$/.test(oldTitle);
+    if (oldTitle && oldTitle !== body.title && autoTitle) console.log(`  template ${state.templateId} renamed ("${oldTitle}" -> "${body.title}")`);
+    else if (oldTitle && oldTitle !== body.title) {
       (state.previousTemplates ??= []).push({ id: state.templateId, title: oldTitle });
       console.log(`  title changed ("${oldTitle}" -> "${body.title}"): template ${state.templateId} is kept as it is, a new template is created`);
       state.templateId = null;

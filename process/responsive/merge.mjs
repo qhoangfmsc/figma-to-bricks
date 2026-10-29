@@ -31,7 +31,10 @@ const SEMANTIC_KEYS = new Set(['tag', 'customTag', 'altText', '_attributes', 'li
 const SPLIT_ON = ['image', 'file', 'icon', 'svg', 'text', 'fields', 'items'];
 // what "absent" means in CSS: a variant that does not set a key the wider frame set gets the initial value instead of a warning
 const ZERO_SIDES = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
-const NEUTRAL = { _widthMax: 'none', _heightMax: 'none', _widthMin: '0px', _heightMin: '0px', _flexShrink: 1, _flexGrow: 0, _flexBasis: 'auto', _alignSelf: 'auto', _position: 'static', _left: 'auto', _top: 'auto', _right: 'auto', _bottom: 'auto', _overflow: 'visible', _border: { width: ZERO_SIDES, style: 'none' }, _padding: ZERO_SIDES, _margin: ZERO_SIDES };
+// Bricks builds ONE css declaration out of these objects (box-shadow: values + color + inset): a breakpoint that holds only the changed sub-key (the new spread)
+// makes `box-shadow: 0 0 0 .3153px` with no color and no inset, so the whole object is written whenever any part differs
+const ONE_DECLARATION = new Set(['_boxShadow', '_textShadow', '_transform', '_gradient']);
+const NEUTRAL = { _height: 'auto', _widthMax: 'none', _heightMax: 'none', _widthMin: '0px', _heightMin: '0px', _flexShrink: 1, _flexGrow: 0, _flexBasis: 'auto', _alignSelf: 'auto', _position: 'static', _left: 'auto', _top: 'auto', _right: 'auto', _bottom: 'auto', _overflow: 'visible', _border: { width: ZERO_SIDES, style: 'none' }, _padding: ZERO_SIDES, _margin: ZERO_SIDES };
 const SUB_NEUTRAL = { 'white-space': 'normal', 'text-transform': 'none', 'text-decoration': 'none', 'font-style': 'normal', 'letter-spacing': 'normal', radius: ZERO_SIDES, width: ZERO_SIDES, style: 'none' }; // typography sub-keys a variant leaves out
 const FLEX_ONLY = new Set(['_direction', '_justifyContent', '_alignItems', '_flexWrap', '_rowGap', '_columnGap']); // meaningless when the frame has no flex container
 
@@ -121,7 +124,7 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
           if (!(k in NEUTRAL)) { warn(nodeForWarn, `${v.key}: "${k}" is set in the wider frame and absent here: CSS cannot unset it`); continue; }
           b = NEUTRAL[k];
         }
-        if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b)) {
+        if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b) && !ONE_DECLARATION.has(k)) {
           const diff = Object.fromEntries(Object.entries(b).filter(([sk, sv]) => !same(a[sk], sv)));
           for (const sk of Object.keys(a)) {
             if (sk in b) continue;
@@ -131,6 +134,9 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
           if (Object.keys(diff).length) bEl.settings[`${k}:${v.key}`] = diff;
         } else bEl.settings[`${k}:${v.key}`] = b;
       }
+      // the Bricks control `_alignSelf: stretch` also writes `width: 100%` (see render/size.mjs): taking `stretch` away at a breakpoint without a width of its own
+      // leaves the 100% behind, so the element stays as wide as its parent (Certificate mobile: a 124px counter became 319px)
+      if (bEl.settings._alignSelf === 'stretch' && `_alignSelf:${v.key}` in bEl.settings && bEl.settings[`_alignSelf:${v.key}`] !== 'stretch' && !(`_width:${v.key}` in bEl.settings)) bEl.settings[`_width:${v.key}`] = 'auto';
       for (const sel of new Set([...ref.css.keys(), ...nextCss.keys()])) {
         const delta = cssDelta(ref.css.get(sel), nextCss.get(sel));
         if (delta) addMedia(bEl.id, range, sel, delta);
@@ -187,6 +193,7 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
   }
 
   // ---- hide / contents in the ranges where an element does not exist
+  const hideNone = new Map(); // element id -> keys of the ranges where it is hidden (display: none)
   const kids = new Map();
   for (const e of composite) { if (!kids.has(e.parent)) kids.set(e.parent, []); kids.get(e.parent).push(e); }
   const subtreeExists = (e, key) => exists.get(e.id)?.has(key) || (kids.get(e.id) ?? []).some((c) => subtreeExists(c, key));
@@ -195,10 +202,22 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
     for (const r of ranges) {
       if (exists.get(e.id).has(r.key)) continue;
       const parentGone = parent && !exists.get(parent.id).has(r.key);
-      if (parentGone && !(kids.get(e.id) ?? []).some((c) => subtreeExists(c, r.key))) continue; // the parent hides it
+      // the parent hides it, unless the parent only became `display: contents` (it keeps a partner below it): then this element hides itself
+      const parentHides = parentGone && !(kids.get(parent.id) ?? []).some((c) => subtreeExists(c, r.key));
+      if (parentHides && !(kids.get(e.id) ?? []).some((c) => subtreeExists(c, r.key))) continue;
       const keepsChildren = (kids.get(e.id) ?? []).some((c) => subtreeExists(c, r.key));
-      addMedia(e.id, r, `body #brxe-${e.id}`, `display: ${keepsChildren ? 'contents' : 'none'};`); // `body #id` out-ranks the element's own `#id { display }` without !important
+      if (keepsChildren) addMedia(e.id, r, `body #brxe-${e.id}`, 'display: contents;'); // `body #id` out-ranks the element's own `#id { display }` without !important; Bricks has no `contents` option
+      else (hideNone.get(e.id) ?? hideNone.set(e.id, new Set()).get(e.id)).add(r.key);
     }
+  }
+  // Hidden in the narrowest frame(s) (a run of ranges from the narrowest up) = the Bricks attribute `_display: none` at the widest of those breakpoints (it cascades down);
+  // any other range (hidden on the wide frame, or a middle range only) has no attribute that says so: css
+  const narrowToWide = [...sorted].reverse().map((v) => v.key);
+  for (const [id, keys] of hideNone) {
+    let j = 0;
+    while (j < narrowToWide.length && keys.has(narrowToWide[j])) j++;
+    if (j) elById.get(id).settings[`_display:${narrowToWide[j - 1]}`] = 'none';
+    for (const k of keys) if (!narrowToWide.slice(0, j).includes(k)) addMedia(id, ranges.find((r) => r.key === k), `body #brxe-${id}`, 'display: none;');
   }
 
   // An image that is hidden at some widths must not be downloaded there: a hidden image with loading=eager is still fetched, a lazy one is not.

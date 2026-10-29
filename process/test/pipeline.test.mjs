@@ -7,6 +7,9 @@ import { normalizeRoot } from '../figma/normalize.mjs';
 import { buildTemplate } from '../bricks/render/index.mjs';
 import { collectSvgRoots } from '../figma/nodes.mjs';
 import { parseFigmaUrl } from '../figma/url.mjs';
+import { pickTwin, wordsOf } from '../responsive/twin.mjs';
+import { Progress, screenOf, screenOfWidth } from '../shared/progress.mjs';
+import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from '../figma/api.mjs';
 
 const fx = (p) => fileURLToPath(new URL(`../fixtures/award/${p}`, import.meta.url));
 const raw = JSON.parse(readFileSync(fx('raw.json'), 'utf8'));
@@ -123,7 +126,7 @@ test('per-side stroke -> one inset shadow per side with the real selector', () =
 });
 
 test('HUG width never clamps to the parent and never shrinks; FILL keeps the Figma px as flex-basis', () => {
-  const els = buildMini({ primaryAxisSizingMode: 'FIXED', children: [kid('h', { layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG' }), kid('f', { layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FIXED', layoutAlign: 'STRETCH' })] });
+  const els = buildMini({ primaryAxisSizingMode: 'FIXED', children: [kid('h', { layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', children: [kid('hc', {})] }), kid('f', { layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FIXED', layoutAlign: 'STRETCH' })] });
   const h = els.find((e) => e.label === 'h').settings;
   assert.equal(h._widthMax, 'none');
   assert.equal(h._width, 'auto');
@@ -145,15 +148,17 @@ test('icon-font text is exported as svg', () => {
 test('linear gradient: horizontal Figma handles -> 90deg across the whole box; stops are re-projected exactly', () => {
   const g = (handles) => ({ type: 'GRADIENT_LINEAR', gradientHandlePositions: handles, gradientStops: [{ position: 0, color: { r: 0, g: 0.5, b: 1, a: 1 } }, { position: 1, color: { r: 0, g: 0, b: 0, a: 1 } }] });
   const [root] = buildMini({ fills: [g([{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }])], children: [] });
-  assert.equal(root.settings._cssCustom, `#brxe-${root.id} { background-image: linear-gradient(90deg, #0080ff 0%, #000000 100%); }`);
+  assert.deepEqual(root.settings._gradient, { gradientType: 'linear', angle: 90, applyTo: 'background', colors: [{ color: { hex: '#0080ff' }, stop: '0%' }, { color: { hex: '#000000' }, stop: '100%' }] }); // the Bricks attribute, no css
+  assert.equal(root.settings._cssCustom, undefined);
   // gradient line not spanning the box: 25% -> 75% of the width
   const [r2] = buildMini({ fills: [g([{ x: 0.25, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 0.25, y: 1 }])], children: [] });
-  assert.match(r2.settings._cssCustom, /linear-gradient\(90deg, #0080ff 25%, #000000 75%\)/);
+  assert.deepEqual(r2.settings._gradient.colors.map((c) => c.stop), ['25%', '75%']);
 });
 
 test('gradient text fill -> background-clip:text on the text element', () => {
   const [root, text] = buildMini({ children: [{ id: 't', name: 't', type: 'TEXT', characters: 'x', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' }, fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 1, g: 1, b: 1, a: 1 } }] }] }] });
-  assert.match(text.settings._cssCustom, /background-clip: text; .*text-fill-color: transparent/);
+  assert.equal(text.settings._gradient.applyTo, 'text'); // Bricks writes background-clip: text and the transparent fill for this option
+  assert.equal(text.settings._cssCustom, undefined);
 });
 
 // ---- detect step + components (approved detections change the build, nothing else does)
@@ -238,7 +243,7 @@ test('approved button -> one button element, label merged, theme defaults overri
   assert.equal(btn.settings.text, 'Buy now');
   assert.equal(btn.settings._typography['letter-spacing'], '0px');
   assert.equal(btn.settings._padding.left, '16px');
-  assert.match(btn.settings._cssCustom, /column-gap: 8px/);
+  assert.match(btn.settings._cssCustom, /column-gap: 8px/); // no icon: Bricks has no gap control for it (`iconGap` needs an icon), css is the only way
   assert.equal(b.mapping.bt.skipped, 'merged into button d2');
   assert.equal(b.template.content.filter((e) => e.parent === btn.id).length, 0);
 });
@@ -757,7 +762,7 @@ test('artboard anchoring: root-level absolute children follow the viewport (cons
 });
 
 test('GRID: Figma grid auto layout becomes CSS grid with the Figma tracks, gaps and cells; HUG cards keep their own height', () => {
-  const card = (id, col, row, h, extra = {}) => kid(id, { layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', layoutGrow: 1, gridColumnAnchorIndex: col, gridRowAnchorIndex: row, gridColumnSpan: 1, gridRowSpan: 1, gridChildHorizontalAlign: 'AUTO', gridChildVerticalAlign: 'AUTO', absoluteBoundingBox: { x: col * 172, y: row * 100, width: 166, height: h }, children: [], ...extra });
+  const card = (id, col, row, h, extra = {}) => kid(id, { layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', layoutGrow: 1, gridColumnAnchorIndex: col, gridRowAnchorIndex: row, gridColumnSpan: 1, gridRowSpan: 1, gridChildHorizontalAlign: 'AUTO', gridChildVerticalAlign: 'AUTO', absoluteBoundingBox: { x: col * 172, y: row * 100, width: 166, height: h }, children: [kid(`${id}c`, {})], ...extra });
   const grid = kid('gr', { layoutMode: 'GRID', paddingTop: 16, gridColumnCount: 2, gridRowCount: 2, gridColumnGap: 12, gridRowGap: 10, gridColumnsSizing: 'repeat(2,minmax(0,1fr))', gridRowsSizing: 'repeat(2,fit-content(100%))', layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', absoluteBoundingBox: { x: 0, y: 0, width: 344, height: 216 }, children: [card('c1', 0, 0, 80), card('c2', 1, 0, 100), card('c3', 0, 1, 90, { layoutSizingVertical: 'FILL' })] });
   const b = buildTemplate(mini({ children: [grid] }), { overrides: {}, salt: 'g' });
   const g = byFigma(b, 'gr').settings;
@@ -794,12 +799,13 @@ test('responsive merge: breakpoint keys for changed values, unset for dropped cs
   const node = (id, name, children = []) => ({ id, name, type: 'FRAME', children });
   const el = (id, parent, name, settings = {}, label = id) => ({ id, parent, name, settings, label });
   // base frame: root > [title, wrap > [cta], photo, deco]
-  const baseTree = node('r', 'Hero', [node('t', 'Title'), node('w', 'Wrap', [node('c', 'CTA')]), node('p', 'Photo'), node('d', 'Deco')]);
+  const baseTree = node('r', 'Hero', [node('t', 'Title'), node('w', 'Wrap', [node('c', 'CTA'), node('x', 'Note')]), node('p', 'Photo'), node('d', 'Deco')]);
   const baseEls = [
     el('R', 0, 'section', { _width: '100%', _height: '1000px' }),
     el('T', 'R', 'heading', { _typography: { 'font-size': '58px', 'white-space': 'nowrap', color: { hex: '#fff' } }, text: 'Hi', _cssCustom: '#brxe-T { align-self: stretch; margin: 0; }' }),
     el('W', 'R', 'block', { _padding: { top: '10px', right: '10px', bottom: '10px', left: '10px' } }),
     el('C', 'W', 'button', { text: 'Go', _widthMax: '100%' }),
+    el('X', 'W', 'text', { text: 'only on desktop' }),
     el('P', 'R', 'image', { image: { $asset: 'images/a.png' }, _width: '200px' }),
     el('D', 'R', 'block', { _width: '50px' }),
   ];
@@ -823,8 +829,10 @@ test('responsive merge: breakpoint keys for changed values, unset for dropped cs
   assert.match(get('T').settings._cssCustom, /#brxe-T \{ align-self: stretch; margin: 0; \} @media \(max-width: 991px\) \{ #brxe-T \{ align-self: unset; \} \}/);
   assert.equal(get('C').settings['_widthMax:tablet_portrait'], 'none'); // the variant left it out: initial value, not a warning
   assert.match(get('W').settings._cssCustom, /@media \(max-width: 991px\) \{ body #brxe-W \{ display: contents; \} \}/); // wrapper lost, its CTA lives on
-  assert.match(get('D').settings._cssCustom, /@media \(max-width: 991px\) \{ body #brxe-D \{ display: none; \} \}/); // no partner: hidden in the tablet range
-  assert.match(get('P').settings._cssCustom, /display: none;/); // different picture: two elements, the base one is hidden at tablet
+  assert.equal(get('D').settings['_display:tablet_portrait'], 'none'); // no partner: hidden in the tablet range, by the Bricks attribute (no css)
+  assert.doesNotMatch(get('D').settings._cssCustom ?? '', /display/);
+  assert.equal(get('X').settings['_display:tablet_portrait'], 'none'); // its wrapper only became `contents`: the child with no partner hides itself
+  assert.equal(get('P').settings['_display:tablet_portrait'], 'none'); // different picture: two elements, the base one is hidden at tablet
   const strip = get('VS');
   assert.equal(strip.parent, 'R'); // variant-only elements hang under the partner of their parent
   assert.match(strip.settings._cssCustom, /@media \(min-width: 992px\) \{ body #brxe-VS \{ display: none; \} \}/); // hidden above the breakpoint
@@ -1126,4 +1134,414 @@ test('navigation: a menu has no heading, its items (several repeat groups) form 
   assert.ok(comps.filter((c) => c.component === 'link').every((c) => c.status === 'approved' && c.params.link === null));
   assert.equal(files['overrides.json']?.nodes?.at?.element, undefined); // no heading override on a menu label
   assert.ok(out.designer.some((d) => /Link URLs of the 4 menu items in "Menu"/.test(d)));
+});
+
+test('breakpoint twin: unique name wins, repeated or renamed sections pair by their text, doubtful pairs get none', () => {
+  const sec = (id, name, text) => ({ id, name, words: wordsOf({ type: 'FRAME', children: [{ type: 'TEXT', characters: text }] }) });
+  const base = [sec('b1', 'Banner', 'alpha beta gamma'), sec('b2', 'vnx-service', 'hosting nvme tốc độ cao dịch vụ'), sec('b3', 'vnx-service', 'vps cloud server cấu hình dịch vụ'), sec('b4', 'Award', 'giải thưởng danh hiệu vietnix')];
+  const cand = [sec('m1', 'Banner', 'unrelated words only'), sec('m2', 'vnx-service', 'vps cloud server cấu hình'), sec('m3', 'vnx-service', 'hosting nvme tốc độ cao'), sec('m4', 'Certificate', 'chứng nhận chất lượng bảo mật')];
+  assert.equal(pickTwin(base[0], base, cand).id, 'm1'); // unique name on both sides
+  assert.equal(pickTwin(base[1], base, cand).id, 'm3'); // repeated name: the text decides, not the order
+  assert.equal(pickTwin(base[2], base, cand).id, 'm2');
+  assert.equal(pickTwin(base[3], base, cand), null); // nothing shares enough text: no twin, never a guess
+  assert.equal(wordsOf({ type: 'TEXT', visible: false, characters: 'hidden text' }).size, 0);
+});
+
+test('an empty frame that hugs has nothing to hug in the browser: it keeps the Figma box', () => {
+  const t = structuredClone(tree);
+  const hold = (function rec(n) { return n.id === '1586:394' ? n : (n.children ?? []).map(rec).find(Boolean); })(t);
+  hold.children = []; hold.sizing = { h: 'HUG', v: 'HUG' }; hold.box = { ...hold.box, w: 343, h: 214 };
+  const b = buildTemplate(t, { overrides: {}, salt: 'x' });
+  const s = b.template.content.find((e) => e.id === b.mapping['1586:394'].bricksId).settings;
+  assert.equal(s._height, '214px');
+  assert.equal(s._width, '343px');
+});
+
+test('progress: units per screen, a missing screen is not counted, percentage, estimate and the screen in work', () => {
+  let clock = 0;
+  const p = new Progress({ dir: null, node: 'n', title: 't', sections: [{ id: 'a', name: 'Hero' }, { id: 'b', name: 'Menu' }], screens: ['mobile'], now: () => clock });
+  assert.equal(screenOf('mobile_portrait'), 'mobile');
+  assert.equal(screenOf('base'), 'desktop');
+  assert.equal(screenOfWidth(2504), 'widescreen');
+  assert.equal(screenOfWidth(768), 'tablet');
+  assert.equal(p.units().total, 2 * (2 + 2 * 2)); // 2 sections x (build+push, desktop, mobile) x 2
+  p.begin(0); p.found(0, ['mobile_portrait']);
+  p.prepared(0, 'desktop'); p.prepared(0, 'mobile_portrait'); p.at(0, 'mobile_portrait', 'verify');
+  clock = 60000; p.built(0); p.pushed(0); p.verified(0, 'base', 'PASS');
+  assert.equal(p.units().done, 5);
+  assert.equal(p.summary().eta, (60000 / 5) * (12 - 5));
+  const pre = new Progress({ dir: null, node: 'n', title: 't', sections: [{ id: 'a', name: 'A' }], now: () => clock });
+  pre.prepared(0, 'desktop'); clock = 10 * 60000; pre.begin(0); clock = 11 * 60000; pre.built(0); pre.pushed(0);
+  assert.equal(pre.summary().eta, (60000 / 2) * (4 - 3)); // 1 of 4 units was done before the clock started: speed = 2 units in 1 minute
+  p.begin(1); p.found(1, []); // Menu has no mobile twin: its mobile screen is no longer counted
+  assert.equal(p.units().total, 2 * 3 + 2 * 2);
+  const md = p.markdown();
+  assert.match(md, /đang làm:\*\* section 2\/2 "Menu"/i);
+  assert.match(md, /Tablet \| 0 \/ 0 \| không có frame này trong file Figma/);
+  assert.match(md, /Widescreen \| 0 \/ 0 \| không có frame này trong file Figma/);
+  p.end(0); p.end(1);
+  assert.equal(p.units().done, p.units().total);
+  assert.equal(p.summary().pct, 100);
+});
+
+test('responsive merge: a frame that hugs (no height set) takes the fixed height of the wider frame back to auto', () => {
+  const node = (id, name, children = []) => ({ id, name, type: 'FRAME', children });
+  const el = (id, parent, name, settings = {}) => ({ id, parent, name, settings, label: id });
+  const map = (f, b) => ({ [f]: { bricksId: b, element: 'section', verify: true, expect: { x: 0, y: 0, w: 1, h: 1, css: {} } } });
+  const base = { tree: node('r', 'Banner'), template: { title: 'x', type: 'section', content: [el('R', 0, 'section', { _width: '100%', _height: '572px' })] }, mapping: map('r', 'R') };
+  const variant = { key: 'mobile_portrait', maxWidth: 478, aliases: {}, tree: node('vr', 'Banner'), template: { content: [el('VR', 0, 'section', { _width: '100%' })] }, mapping: map('vr', 'VR') };
+  const { template, warnings } = mergeResponsive({ base, variants: [variant] });
+  assert.equal(template.content.find((e) => e.id === 'R').settings['_height:mobile_portrait'], 'auto');
+  assert.equal(warnings.some((w) => /_height/.test(w.msg)), false);
+});
+
+test('a page frame without clip whose layer sticks out sideways gets the _overflow attribute, otherwise nothing is added', () => {
+  const out = (nodeRaw) => buildMini(nodeRaw)[0].settings;
+  const over = kid('a', { absoluteBoundingBox: { x: 350, y: 0, width: 100, height: 40 } });
+  const inside = kid('b', { absoluteBoundingBox: { x: 100, y: 0, width: 100, height: 40 } });
+  assert.equal(out({ children: [over] })._overflow, 'hidden');
+  assert.equal(out({ children: [over] })._cssCustom, undefined); // an attribute, not css
+  assert.equal(out({ children: [inside] })._overflow, undefined);
+  assert.equal(out({ clipsContent: true, children: [over] })._overflow, 'hidden'); // Figma clips it already
+});
+
+test('figma run cache: the same structure lookup is fetched once, a new file version drops it, geometry is never cached, a 5xx is retried', async () => {
+  process.env.FIGMA_TOKEN ??= 'test-token';
+  const realFetch = globalThis.fetch, realErr = console.error, realLog = console.log;
+  console.error = () => {}; console.log = () => {};
+  const calls = []; let version = 'v1', failOnce = true;
+  globalThis.fetch = async (url) => {
+    const u = String(url).replace('https://api.figma.com', ''); calls.push(u);
+    if (u.includes('nodes?ids=boom') && failOnce) { failOnce = false; return { ok: false, status: 500, headers: new Headers(), text: async () => 'Error retrieving file' }; }
+    return { ok: true, status: 200, headers: new Headers(), json: async () => ({ version, path: u }) };
+  };
+  try {
+    enableRunCache();
+    await refreshRunCache('K');
+    await figmaGet('/v1/files/K?depth=5'); await figmaGet('/v1/files/K?depth=5');
+    assert.equal(calls.filter((c) => c === '/v1/files/K?depth=5').length, 1);
+    await figmaGet('/v1/files/K/nodes?ids=1%3A2&geometry=paths'); await figmaGet('/v1/files/K/nodes?ids=1%3A2&geometry=paths');
+    assert.equal(calls.filter((c) => c.includes('geometry')).length, 2); // node geometry is not cached
+    version = 'v2'; await refreshRunCache('K');
+    await figmaGet('/v1/files/K?depth=5');
+    assert.equal(calls.filter((c) => c === '/v1/files/K?depth=5').length, 2); // the version changed: fetched again
+    const r = await figmaGet('/v1/files/K/nodes?ids=boom');
+    assert.equal(r.version, 'v2'); // the 500 was retried
+    assert.ok(runCacheStats().hits >= 1);
+  } finally { globalThis.fetch = realFetch; console.error = realErr; console.log = realLog; }
+});
+
+test('writePlan creates the work folder of a Figma file that was never run before', async () => {
+  const { writePlan, plansFile } = await import('../shared/deliverable.mjs');
+  const { rmSync, existsSync: exists } = await import('node:fs');
+  const { dirname } = await import('node:path');
+  const key = `__test_new_file_${process.pid}`;
+  try {
+    writePlan(key, '1:2', 'Design', [{ id: '1:3', name: 'Banner' }]);
+    assert.ok(exists(plansFile(key, '1:2')));
+  } finally { rmSync(dirname(plansFile(key, '1:2')), { recursive: true, force: true }); }
+});
+
+test('a hugging root keeps its Figma minHeight (Banner: h HUG, minHeight 540)', () => {
+  const [root] = buildMini({ primaryAxisSizingMode: 'AUTO', minHeight: 540, children: [kid('a', {})] });
+  assert.equal(root.settings._heightMin, '540px');
+});
+
+test('text truncated to N lines in Figma is clamped to N lines', () => {
+  const txt = { id: 't', name: 't', type: 'TEXT', characters: 'one two three', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 40 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textTruncation: 'ENDING', maxLines: 2 } };
+  const els = buildMini({ children: [txt] });
+  assert.match(els.find((e) => e.name === 'text-basic').settings._cssCustom, /-webkit-line-clamp: 2/);
+});
+
+test('an instance whose label was overridden: the stale hugging frame is recomputed from its children (Banner button 99×40 -> 213×54)', () => {
+  const box = (x, y, width, height) => ({ absoluteBoundingBox: { x, y, width, height } });
+  const label = { id: 'lbl', name: 'Button', type: 'TEXT', characters: 'Đăng ký ngay', ...box(64, 12, 117, 30), style: { fontFamily: 'Inter', fontSize: 18, fontWeight: 500, lineHeightPx: 30 } };
+  const icon = { id: 'ico', name: 'Icon', type: 'FRAME', ...box(32, 15, 24, 24) };
+  const btn = { id: 'btn', name: 'Button', type: 'INSTANCE', ...box(0, 0, 99, 40), layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', primaryAxisSizingMode: 'AUTO', counterAxisSizingMode: 'AUTO', itemSpacing: 8, paddingTop: 12, paddingBottom: 12, paddingLeft: 32, paddingRight: 32, primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER', children: [icon, label] };
+  const outside = { id: 'out', name: 'Frame', type: 'FRAME', ...box(0, 0, 150, 70), layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', children: [] };
+  const tree = mini({ layoutMode: 'VERTICAL', children: [btn, outside] });
+  const find = (n, id) => (n.id === id ? n : (n.children ?? []).map((c) => find(c, id)).find(Boolean));
+  assert.deepEqual([find(tree, 'btn').box.w, find(tree, 'btn').box.h], [213, 54]);
+  assert.equal(find(tree, 'lbl').box.x, 64);
+  assert.equal(find(tree, 'ico').box.y, 15);                              // (54 - 24) / 2 + 0
+  assert.deepEqual([find(tree, 'out').box.w, find(tree, 'out').box.h], [150, 70]); // outside an instance: untouched
+});
+
+test('an ordered list text layer is reported (Figma draws the number and indent itself), not dropped silently', () => {
+  const txt = { id: 't', name: 't', type: 'TEXT', characters: 'a\nb', lineTypes: ['ORDERED', 'ORDERED'], lineIndentations: [1, 1], absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 40 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20 } };
+  const out = buildTemplate(mini({ children: [txt] }), { overrides: {}, salt: 'm' });
+  assert.match(out.warnings.map((w) => w.msg).join(), /text list formatting \(ORDERED level 1\) not applied/);
+});
+
+test('an empty FILL child in a hugging parent keeps its Figma box (Price table tooltip icon: 28px, not 0)', () => {
+  const img = kid('img', { absoluteBoundingBox: { x: 0, y: 0, width: 28, height: 28 }, layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FIXED', layoutAlign: 'STRETCH' });
+  const wrap = kid('wrap', { absoluteBoundingBox: { x: 0, y: 0, width: 28, height: 34 }, layoutMode: 'VERTICAL', layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', children: [img] });
+  const els = buildMini({ children: [wrap] });
+  const mapped = els.find((e) => e.label === 'img' || e.settings?._width === '28px');
+  assert.equal(mapped.settings._width, '28px');
+});
+
+test('FILL children inside an instance take the live size of their parent (Album image 316×316 in a 270×285 card)', () => {
+  const box = (x, y, width, height) => ({ absoluteBoundingBox: { x, y, width, height } });
+  const img = { id: 'img', name: 'Main Image', type: 'RECTANGLE', ...box(0, 0, 316, 316), layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FILL', layoutAlign: 'STRETCH', layoutGrow: 1 };
+  const card = { id: 'card', name: 'card', type: 'FRAME', ...box(0, 0, 270, 285), layoutMode: 'VERTICAL', layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FIXED', children: [img] };
+  const inst = { id: 'inst', name: 'inst', type: 'INSTANCE', ...box(0, 0, 270, 285), layoutMode: 'VERTICAL', layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FIXED', children: [card] };
+  const tree = mini({ layoutMode: 'VERTICAL', children: [inst] });
+  const find = (n, id) => (n.id === id ? n : (n.children ?? []).map((c) => find(c, id)).find(Boolean));
+  assert.deepEqual([find(tree, 'img').box.w, find(tree, 'img').box.h], [270, 285]);
+});
+
+test('a whole-text override with a variable-bound font size takes the size resolved for the frame (Voucher mobile note: 8px, not the style table 12px)', () => {
+  const txt = { id: 't', name: 't', type: 'TEXT', characters: 'abc def', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 8, fontWeight: 400, lineHeightPx: 20 },
+    characterStyleOverrides: [3, 3, 3, 3, 3, 3, 3], styleOverrideTable: { 3: { fontFamily: 'Inter', fontStyle: 'Italic', italic: true, fontWeight: 400, fontSize: 12, lineHeightPx: 20, boundVariables: { fontSize: { type: 'VARIABLE_ALIAS', id: 'v' } } } } };
+  const el = buildMini({ children: [txt] }).find((e) => e.name === 'text-basic');
+  assert.match(el.settings.text, /font-style:italic/);        // the italic of the override stays
+  assert.doesNotMatch(el.settings.text, /font-size:12px/);    // the unresolved size does not
+  assert.equal(el.settings._typography['font-size'], '8px');
+});
+test('a partial run with a variable-bound weight keeps its own value', () => {
+  const txt = { id: 't', name: 't', type: 'TEXT', characters: 'abc def', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20 },
+    characterStyleOverrides: [0, 0, 0, 0, 7, 7, 7], styleOverrideTable: { 7: { fontFamily: 'Inter', fontWeight: 700, fontSize: 16, lineHeightPx: 20, boundVariables: { fontWeight: { type: 'VARIABLE_ALIAS', id: 'v' } } } } };
+  const el = buildMini({ children: [txt] }).find((e) => e.name === 'text-basic');
+  assert.match(el.settings.text, /700/);
+});
+
+test('a CENTER stroke drawn as a border (left bar) is taken out of the padding too: Figma strokes take no layout space (Feature card)', () => {
+  const [root, card] = buildMini({ children: [kid('card', { layoutMode: 'VERTICAL', paddingLeft: 20, paddingTop: 20, paddingBottom: 20, paddingRight: 0, strokes: [{ type: 'SOLID', color: { r: 0, g: 0.5, b: 1, a: 1 } }], strokeAlign: 'CENTER', individualStrokeWeights: { top: 0, right: 0, bottom: 0, left: 4 }, strokeWeight: 4, children: [] })] });
+  assert.equal(card.settings._padding.left, '16px');
+});
+
+test('an image that fills the height of a hugging row is a wrapper + covering picture, so its aspect ratio cannot stretch the row', () => {
+  const fillImg = kid('pic', { type: 'RECTANGLE', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 40 }, layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'FILL', layoutAlign: 'STRETCH', layoutGrow: 1, fills: [{ type: 'IMAGE', imageRef: 'ref0', scaleMode: 'FILL' }] });
+  const row = kid('row', { layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', children: [fillImg] });
+  const manifest = { images: { ref0: { file: 'images/a.png', width: 1000, height: 1000, sha256: 'a' } }, svgs: {} };
+  const tree = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'VERTICAL', children: [row] } } } }, 'r', manifest);
+  const els = buildTemplate(tree, { overrides: {}, salt: 'm' }).template.content;
+  const inner = els.find((e) => e.name === 'image');
+  assert.equal(inner.settings._position, 'absolute');
+  assert.equal(inner.settings._height, '100%');
+  const wrapper = els.find((e) => e.id === inner.parent);
+  assert.equal(wrapper.name, 'block');
+});
+
+test('relayout: a FILL child of a SPACE_BETWEEN row ignores the stale itemSpacing (faq title row 1100 = 1076 + 24)', () => {
+  const box = (x, y, width, height) => ({ absoluteBoundingBox: { x, y, width, height } });
+  const label = { id: 'lab', name: 'lab', type: 'FRAME', ...box(0, 0, 952, 30), layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG' };
+  const icon = { id: 'ic', name: 'ic', type: 'FRAME', ...box(1076, 3, 24, 24), layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FIXED' };
+  const row = { id: 'row', name: 'row', type: 'FRAME', ...box(0, 0, 1100, 30), layoutMode: 'HORIZONTAL', itemSpacing: 124, primaryAxisAlignItems: 'SPACE_BETWEEN', counterAxisAlignItems: 'CENTER', layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'HUG', children: [label, icon] };
+  const inst = { id: 'inst', name: 'inst', type: 'INSTANCE', ...box(0, 0, 1100, 30), layoutMode: 'VERTICAL', layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'HUG', children: [row] };
+  const tree = mini({ layoutMode: 'VERTICAL', children: [inst] });
+  const find = (n, id) => (n.id === id ? n : (n.children ?? []).map((c) => find(c, id)).find(Boolean));
+  assert.equal(find(tree, 'lab').box.w, 1076);
+});
+
+test('an svg of a frame with no height keeps the size Figma exported, centred on the frame edge (Pagination 120×0 -> 124×4)', () => {
+  const dots = { id: 'dots', name: 'Pagination', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 120, height: 0 }, layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'HUG', children: [{ id: 'l1', name: 'Line', type: 'LINE', absoluteBoundingBox: { x: 0, y: 0, width: 24, height: 0 }, strokes: [{ type: 'SOLID', color: { r: 0, g: 0.5, b: 1, a: 1 } }], strokeWeight: 4 }] };
+  const manifest = { images: {}, svgs: { dots: { file: 'svg/dots.svg', bytes: 1, width: 124, height: 4 } } };
+  const tree = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'VERTICAL', children: [dots] } } } }, 'r', manifest);
+  const el = buildTemplate(tree, { overrides: {}, salt: 'm' }).template.content.find((e) => e.name === 'svg');
+  assert.equal(el.settings._height, '4px');
+  assert.equal(el.settings._margin.top, '-2px');
+  assert.equal(el.settings._margin.bottom, '-2px'); // the frame itself takes no layout room
+});
+
+test('verify: a node cut away by a clipping ancestor in Figma is not expected on top at its center', async () => {
+  const { clippedAway } = await import('../scripts/07-verify.mjs');
+  const n = (id, x, y, w, h, extra = {}) => ({ id, box: { absX: x, absY: y, w, h }, children: [], ...extra });
+  const inside = n('in', 0, 10, 100, 20), below = n('below', 0, 400, 100, 20);
+  const clipper = n('clipper', 0, 0, 100, 300, { clip: true, children: [inside, below] });
+  const root = n('root', 0, 0, 100, 500, { children: [clipper] });
+  assert.deepEqual([...clippedAway(root)], ['below']);
+});
+
+test('verify: layers Figma paints above a node are expected on top of it (strikethrough over an old price), others are not', async () => {
+  const { paintedAbove } = await import('../scripts/07-verify.mjs');
+  const n = (id, x, y, w, h, extra = {}) => ({ id, box: { absX: x, absY: y, w, h }, children: [], ...extra });
+  const price = n('price', 0, 0, 60, 28, { type: 'TEXT' });
+  const line = n('line', 0, 10, 58, 8, { fills: [{ type: 'SOLID' }] });
+  const empty = n('empty', 0, 0, 100, 100);            // paints nothing
+  const before = n('before', 0, 0, 100, 100, { fills: [{ type: 'SOLID' }] }); // below the text in Figma
+  const root = n('root', 0, 0, 100, 100, { children: [before, price, line, empty] });
+  const mapping = Object.fromEntries(['price', 'line', 'empty', 'before'].map((k) => [k, { bricksId: 'b_' + k }]));
+  assert.deepEqual([...paintedAbove(root, mapping, ['price']).get('price')], ['b_line']);
+});
+
+test('relayout: a hugging instance node respects its own minWidth (period-bar item: content 122, minWidth 150 -> 150)', () => {
+  const box = (x, y, width, height) => ({ absoluteBoundingBox: { x, y, width, height } });
+  const label = { id: 'lbl', name: 'lbl', type: 'TEXT', characters: '1 Tháng', ...box(0, 6, 70, 24), style: { fontFamily: 'Roboto', fontSize: 16, fontWeight: 500, lineHeightPx: 24 } };
+  const item = { id: 'item', name: 'item', type: 'INSTANCE', ...box(0, 0, 122, 36), minWidth: 150, layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'HUG', layoutSizingVertical: 'FIXED', primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER', children: [label] };
+  const tree = mini({ layoutMode: 'VERTICAL', children: [item] });
+  const find = (n, id) => (n.id === id ? n : (n.children ?? []).map((c) => find(c, id)).find(Boolean));
+  assert.equal(find(tree, 'item').box.w, 150);
+  assert.equal(find(tree, 'lbl').box.x, 40);              // centered: (150 - 70) / 2
+});
+
+test('breakpoint merge: a changed box-shadow is written whole (values + color + inset), not as the changed sub-key alone (f-w 1 mobile: transparent shadow)', async () => {
+  const { mergeResponsive } = await import('../responsive/merge.mjs');
+  const stroke = (w) => ({ strokes: [{ type: 'SOLID', color: { r: 0, g: 0.5, b: 0.99, a: 1 } }], strokeWeight: w, strokeAlign: 'INSIDE', children: [] });
+  const make = (w) => { const tree = mini(stroke(w)); const b = buildTemplate(tree, { overrides: {}, salt: 'x' }); return { tree, template: b.template, mapping: b.mapping }; };
+  const base = make(0.7353), mob = make(0.3153);
+  const merged = mergeResponsive({ base: { ...base, sig: () => 'x' }, variants: [{ key: 'mobile_portrait', maxWidth: 478, aliases: {}, ...mob, ws: null, sig: () => 'x' }] });
+  const el = merged.template.content[0].settings;
+  assert.equal(el._boxShadow.inset, true);
+  assert.deepEqual(el['_boxShadow:mobile_portrait'].values.spread, '0.3153');
+  assert.deepEqual(el['_boxShadow:mobile_portrait'].color, el._boxShadow.color);
+  assert.equal(el['_boxShadow:mobile_portrait'].inset, true);
+});
+
+test('a rotated node exported as svg is placed by its bounding box and not turned again (Review scrollbar 2×162)', () => {
+  const bar = { id: 'bar', name: 'Vector 1 (Stroke)', type: 'VECTOR', absoluteBoundingBox: { x: 151.5, y: 0.25, width: 2, height: 162 }, rotation: 1.5708, size: { x: 162, y: 2 }, relativeTransform: [[0, -1, 153.5], [1, 0, 0.25]], fills: [{ type: 'SOLID', color: { r: 0.95, g: 0.95, b: 0.96, a: 1 } }] };
+  const manifest = { images: {}, svgs: { bar: { file: 'svg/bar.svg', bytes: 1, width: 2, height: 162 } } };
+  const tree = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'NONE', children: [bar] } } } }, 'r', manifest);
+  const el = buildTemplate(tree, { overrides: {}, salt: 'm' }).template.content.find((e) => e.name === 'svg');
+  assert.equal(el.settings._transform, undefined);
+  assert.equal(el.settings._width, '2px');
+  assert.equal(el.settings._height, '162px');
+});
+
+test('breakpoint merge: dropping align-self stretch also resets the width: 100% that the Bricks control writes (Certificate mobile counter)', async () => {
+  const { mergeResponsive } = await import('../responsive/merge.mjs');
+  const child = (extra) => kid('num', { layoutMode: 'VERTICAL', children: [kid('c', {})], ...extra }); // a child with content to hug
+  const make = (extra) => { const tree = mini({ children: [child(extra)] }); const b = buildTemplate(tree, { overrides: {}, salt: 'x' }); return { tree, template: b.template, mapping: b.mapping }; };
+  const base = make({ layoutSizingHorizontal: 'FILL', layoutAlign: 'STRETCH' }), mob = make({ layoutSizingHorizontal: 'HUG' });
+  const merged = mergeResponsive({ base: { ...base, sig: () => 'x' }, variants: [{ key: 'mobile_portrait', maxWidth: 478, aliases: {}, ...mob, ws: null, sig: () => 'x' }] });
+  const el = merged.template.content.find((e) => e.settings._alignSelf === 'stretch' || e.settings['_alignSelf:mobile_portrait']);
+  assert.equal(el.settings['_alignSelf:mobile_portrait'], 'auto');
+  assert.equal(el.settings['_width:mobile_portrait'], 'auto');
+});
+
+// ---- the reference of the pipeline: what Figma can send, and what is done with each property (schema/)
+test('schema: the YAML reader reads Figma\'s OpenAPI file completely (independent counts from the raw text)', async () => {
+  const { parseYaml } = await import('../schema/yaml-lite.mjs');
+  const { readdirSync } = await import('node:fs');
+  const dir = fileURLToPath(new URL('../schema/source/', import.meta.url));
+  const txt = readFileSync(dir + readdirSync(dir).find((f) => f.endsWith('.yaml')), 'utf8');
+  const doc = parseYaml(txt);
+  const count = (key) => { let n = 0; (function w(y) { if (Array.isArray(y)) y.forEach(w); else if (y && typeof y === 'object') { if (key in y) n++; Object.values(y).forEach(w); } })(doc); return n; };
+  assert.equal(count('$ref'), (txt.match(/\$ref:/g) ?? []).length);
+  assert.equal(count('description'), (txt.match(/^\s+description:/gm) ?? []).length);
+  assert.equal(count('required'), (txt.match(/^\s+required:/gm) ?? []).length);
+  assert.equal(Object.keys(doc.paths).length, (txt.match(/^  \/v/gm) ?? []).length);
+});
+
+test('schema: the committed node schema is what the spec file produces', async () => {
+  const { buildSchema, SCHEMA_FILE } = await import('../schema/build-schema.mjs');
+  assert.deepEqual(JSON.parse(JSON.stringify(buildSchema())), JSON.parse(readFileSync(SCHEMA_FILE, 'utf8')));
+});
+
+test('handling: every property Figma can send on a node or a text run is classified, with a reason when it is not read', async () => {
+  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../schema/figma-nodes.schema.json', import.meta.url)), 'utf8'));
+  const { HANDLING } = await import('../schema/handling.mjs');
+  const nodeProps = new Set(Object.values(schema.nodeTypes).flatMap((n) => Object.keys(n.properties)));
+  const textProps = new Set(Object.keys(schema.objects.TypeStyle.properties));
+  assert.deepEqual([...nodeProps].filter((k) => !HANDLING.node[k]), [], 'node properties without a status in schema/handling.json');
+  assert.deepEqual([...textProps].filter((k) => !HANDLING.textStyle[k]), [], 'text style properties without a status in schema/handling.json');
+  for (const [section, props] of [['node', nodeProps], ['textStyle', textProps]]) {
+    for (const [k, e] of Object.entries(HANDLING[section])) {
+      assert.ok(['read', 'ignored', 'limit', 'gap'].includes(e.status), `${section}.${k}: status`);
+      if (e.status !== 'read') assert.ok(typeof e.why === 'string' && e.why.length >= 20, `${section}.${k}: a property that is not read needs a concrete reason`);
+      if (!props.has(k)) assert.equal(e.inSpec, false, `${section}.${k} is not in the published spec: say so with inSpec:false (a typo would hide a real property)`);
+    }
+  }
+});
+
+test('handling: a limit / gap property is reported only when the node really uses it', async () => {
+  const { nodeFlag, textFlag } = await import('../schema/handling.mjs');
+  assert.equal(nodeFlag('strokeCap', 'NONE'), null);
+  assert.match(nodeFlag('strokeCap', 'ROUND'), /strokeCap=ROUND \[limit\]/);
+  assert.equal(nodeFlag('lineTypes', ['UNORDERED']), null);              // read: built as ul / li
+  assert.equal(nodeFlag('itemReverseZIndex', false), null);
+  assert.match(nodeFlag('itemReverseZIndex', true), /\[gap\]/);
+  assert.equal(nodeFlag('arcData', { startingAngle: 0, endingAngle: 6.283185307179586, innerRadius: 0 }), null);
+  assert.match(nodeFlag('arcData', { startingAngle: 0, endingAngle: 3, innerRadius: 0.5 }), /\[limit\]/);
+  assert.equal(nodeFlag('minHeight', 540), null);                       // read
+  assert.match(nodeFlag('somethingFigmaAddsNextYear', 1), /NOT CLASSIFIED/);
+  assert.match(textFlag('leadingTrim', 'CAP_HEIGHT'), /\[limit\]/);
+});
+
+test('handling: the real design in the fixture produces no unclassified property', () => {
+  assert.ok(!JSON.stringify(tree).includes('NOT CLASSIFIED'));
+});
+
+// ---- node state: what is left to do after a verify
+test('node state: ok / minor / limit / fail, and an accepted limit holds only for the value it was accepted at', async () => {
+  const { computeStates, frameDone, fingerprintOf, summarize } = await import('../shared/node-state.mjs');
+  const items = ['a', 'b', 'c', 'd', 'e'].map((figmaId) => ({ figmaId, element: 'block' }));
+  const row = (id, check, want, got, extra = {}) => ({ id, label: id, check, want, got, ok: false, tier: 2, ...extra });
+  const rows = [
+    row('b', 'y', '10', '12', { tier: 3 }),                       // minor
+    row('c', 'x', '10', '12', { soft: true, tier: 4 }),           // text engine
+    row('d', 'h', '120', '150'),                                  // major, accepted below
+    row('e', 'h', '50', '80'),                                    // major, not accepted
+  ];
+  const limits = [{ node: 'd', check: 'h', got: '150', reason: 'Figma wraps this heading to 3 lines, Chromium to 2 (Inter metrics)' }];
+  const s = computeStates({ rows, items, limits });
+  assert.deepEqual(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.state])), { a: 'ok', b: 'minor', c: 'limit', d: 'limit', e: 'fail' });
+  assert.match(s.d.reason, /Figma wraps/);
+  assert.equal(summarize(s).fail, 1);
+  // the page now measures another value on the accepted node: it is a new failure, the old reason does not cover it
+  const drift = computeStates({ rows: [row('d', 'h', '120', '186')], items: [{ figmaId: 'd', element: 'block' }], limits });
+  assert.equal(drift.d.state, 'fail');
+  // the state remembers what it was
+  const again = computeStates({ rows: [], items: [{ figmaId: 'e', element: 'block' }], previous: { e: { state: 'fail', fp: 'x' } }, fingerprints: { e: 'y' } });
+  assert.equal(again.e.state, 'ok'); assert.equal(again.e.was, 'fail'); assert.equal(again.e.changed, true);
+  // done: no failing node and no open look / page row
+  assert.equal(frameDone({ nodes: s, rows }).done, false);
+  assert.equal(frameDone({ nodes: { a: { state: 'ok' } }, rows: [] }).done, true);
+  const lookRow = { label: 'look 0,0 80×80', check: 'vs Figma render', want: '≤ 18', got: '31', ok: false, tier: 2 };
+  assert.equal(frameDone({ nodes: { a: { state: 'ok' } }, rows: [lookRow] }).done, false);
+  assert.equal(frameDone({ nodes: { a: { state: 'ok' } }, rows: [lookRow], limits: [{ node: 'look', reason: 'heading wrap', maxMean: 5 }], visualMean: 4.9 }).done, true);
+  assert.equal(frameDone({ nodes: { a: { state: 'ok' } }, rows: [lookRow], limits: [{ node: 'look', reason: 'heading wrap', maxMean: 5 }], visualMean: 5.6 }).done, false);
+  // the fingerprint changes with the Figma node, the Bricks element and the parent, not with its children
+  const n = { id: '1', box: { w: 10 }, children: [{ id: '2' }] };
+  const f0 = fingerprintOf(n, { settings: { _width: '10px' } }, { settings: {} });
+  assert.equal(fingerprintOf({ ...n, children: [] }, { settings: { _width: '10px' } }, { settings: {} }), f0);
+  assert.notEqual(fingerprintOf({ ...n, box: { w: 11 } }, { settings: { _width: '10px' } }, { settings: {} }), f0);
+  assert.notEqual(fingerprintOf(n, { settings: { _width: '11px' } }, { settings: {} }), f0);
+  assert.notEqual(fingerprintOf(n, { settings: { _width: '10px' } }, { settings: { _display: 'flex' } }), f0);
+});
+
+test('node state: nodes that moved by exactly the amount of an accepted root node are its consequence, and only while the root stays accepted', async () => {
+  const { computeStates } = await import('../shared/node-state.mjs');
+  const items = ['h', 'a', 'b', 'c'].map((figmaId) => ({ figmaId, element: 'block' }));
+  const row = (id, check, want, got) => ({ id, label: id, check, want, got, ok: false, tier: 2 });
+  const rows = [row('h', 'h', '72', '108'), row('a', 'y', '136', '172'), row('b', 'h', '552', '588'), row('c', 'y', '100', '150')]; // c moved by 50, not 36
+  const limits = [{ node: 'h', check: 'h', got: '108', reason: 'Figma wraps to 2 lines, Chromium to 3' }, { cascade: true, root: 'h', delta: 36, reason: 'one more heading line' }];
+  const s = computeStates({ rows, items, limits });
+  assert.deepEqual(Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.state])), { h: 'limit', a: 'limit', b: 'limit', c: 'fail' });
+  assert.match(s.a.reason, /follows from h/);
+  const noRoot = computeStates({ rows, items, limits: [limits[1]] });  // the root is no longer accepted: nothing is a consequence
+  assert.equal(noRoot.a.state, 'fail');
+});
+
+test('an unordered first-level list text becomes ul / li with the indent and bullet Figma draws', () => {
+  const txt = { id: 't', name: 't', type: 'TEXT', characters: 'one\ntwo', lineTypes: ['UNORDERED', 'UNORDERED'], lineIndentations: [1, 1], absoluteBoundingBox: { x: 0, y: 0, width: 200, height: 40 }, style: { fontFamily: 'Inter', fontSize: 18, fontWeight: 700, lineHeightPx: 20 } };
+  const el = buildMini({ children: [txt] }).find((e) => e.name === 'text-basic');
+  assert.equal(el.settings.text, '<ul><li>one</li><li>two</li></ul>');
+  assert.match(el.settings._cssCustom, / ul \{ list-style: none; margin: 0; padding: 0; \}/);
+  assert.match(el.settings._cssCustom, / li \{ position: relative; margin: 0; padding-left: 1\.5em; \}/);
+  assert.match(el.settings._cssCustom, / li::before \{ content: "\\2022"; position: absolute; top: 0; left: 0\.474em; font-weight: 400; \}/);
+});
+
+test('relayout: when a parent\'s FILL resizes a node, that node\'s own children are placed again for the new size (CTA mobile: a 319px text was left at x=93)', () => {
+  const box = (x, y, width, height) => ({ absoluteBoundingBox: { x, y, width, height } });
+  const text = { id: 'txt', name: 'txt', type: 'TEXT', characters: 'abc', ...box(93, 0, 319, 120), layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', style: { fontFamily: 'Inter', fontSize: 18, fontWeight: 400, lineHeightPx: 30 } };
+  // the row was stored 505 wide (the desktop breakpoint of the instance); its parent fills it to 319
+  const row = { id: 'row', name: 'row', type: 'FRAME', ...box(0, 0, 505, 120), layoutMode: 'HORIZONTAL', primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER', layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG', children: [text] };
+  const inst = { id: 'inst', name: 'inst', type: 'INSTANCE', ...box(0, 0, 319, 144), layoutMode: 'VERTICAL', layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'HUG', children: [row] };
+  const tree = mini({ layoutMode: 'VERTICAL', children: [inst] });
+  const find = (n, id) => (n.id === id ? n : (n.children ?? []).map((c) => find(c, id)).find(Boolean));
+  assert.equal(find(tree, 'row').box.w, 319);
+  assert.equal(find(tree, 'txt').box.x, 0);
+});
+
+test('handling: an enum value that no rule maps is reported when a node has it, and a mapped one is not', async () => {
+  const { enumFlag, HANDLING } = await import('../schema/handling.mjs');
+  assert.match(enumFlag('textCase', 'SMALL_CAPS'), /\[gap\]/);
+  assert.match(enumFlag('textAutoResize', 'TRUNCATE'), /\[gap\]/);
+  assert.equal(enumFlag('textCase', 'UPPER'), null);
+  // every entry must name a value that the schema knows, so that a typo cannot hide a real value
+  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../schema/figma-nodes.schema.json', import.meta.url)), 'utf8'));
+  const values = (k) => { for (const n of Object.values(schema.nodeTypes)) if (n.properties[k]?.enum) return n.properties[k].enum; return schema.objects.TypeStyle.properties[k]?.enum ?? []; };
+  for (const [k, vals] of Object.entries(HANDLING.enums)) for (const v of Object.keys(vals)) assert.ok(values(k).includes(v), `${k}=${v} is not a value of the schema`);
 });

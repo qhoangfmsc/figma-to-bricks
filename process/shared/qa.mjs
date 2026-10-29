@@ -32,9 +32,12 @@ export function runQa(ws, job) {
   });
   const wp = new URL(env.WP_URL ?? 'http://localhost:8080');
   writeFileSync(join(dir, 'job.json'), JSON.stringify({ ...job, frames, hostPort: wp.port || 8080 }));
+  const tDocker = Date.now();
   const r = docker('run', '--rm', '--ipc=host', '--add-host=host.docker.internal:host-gateway', '-v', `${dir}:/job`, '-v', `${SCRIPT}:/qa/check.mjs:ro`, IMAGE, 'node', '/qa/check.mjs', '/job/job.json');
   if (r.status !== 0) throw new Error(`QA run failed: ${(r.stderr || r.stdout).slice(-800)}`);
-  return { result: JSON.parse(readFileSync(join(dir, 'out/result.json'), 'utf8')), outDir: join(dir, 'out') };
+  const result = JSON.parse(readFileSync(join(dir, 'out/result.json'), 'utf8'));
+  result.timing = { ...(result.timing ?? {}), docker_total: Date.now() - tDocker }; // container start + everything inside
+  return { result, outDir: join(dir, 'out') };
 }
 
 // Optimize the bitmaps of a workspace for the web: png / jpg -> webp (alpha kept, never upscaled), inside the same Docker image.

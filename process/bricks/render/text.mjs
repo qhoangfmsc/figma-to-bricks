@@ -3,7 +3,7 @@
 // (margin-top / text-indent), otherwise paragraphs are joined with <br>. Mixed styles become <span style>.
 // A gradient text fill becomes `background-clip:text` (the text node's own box is the gradient box, as in Figma).
 import { addCustomCss, colorObj, cssColor, px } from './utils/css.mjs';
-import { linearGradientCss } from './utils/gradient.mjs';
+import { linearGradientCss, linearGradientControl } from './utils/gradient.mjs';
 import { lineHeightPx } from '../policy.mjs';
 
 const TEXT_ALIGN = { LEFT: 'left', CENTER: 'center', RIGHT: 'right', JUSTIFIED: 'justify' };
@@ -31,6 +31,12 @@ function runCss(st, base = {}, baseColor = null, box = null) {
   return c.join(';');
 }
 
+// Figma draws the marker and the indent of a list text itself. Measured on three designs (Banner desktop 18px, Banner mobile 14px, CTA mobile 18px): the text
+// starts 1.5em after the box edge and the bullet glyph's ink starts 0.594em after it. The marker is drawn with the Regular "•" of Inter (ink 0.12em after its
+// origin), so its origin sits at 0.474em for every weight. Only unordered, first-level lists are built; numbers and nested levels stay a reported limit.
+export const LIST_INDENT_EM = 1.5, LIST_BULLET_LEFT_EM = 0.474;
+export const listSupported = (t) => !!t.listLines && t.listLines.every((l) => l.type === 'NONE' || (l.type === 'UNORDERED' && l.level === 1));
+
 function textContent(t, baseColor = null, box = null) {
   const pieces = t.runs ?? [{ text: t.characters }];
   const paras = [[]];
@@ -46,6 +52,15 @@ function textContent(t, baseColor = null, box = null) {
     const css = style ? runCss(style, t, baseColor, box) : '';
     return css ? `<span style="${css}">${body}</span>` : body;
   }).join(''));
+  if (listSupported(t) && t.listLines.length === html.length) {
+    // consecutive list lines become one <ul>; the other lines keep the <br> join
+    const out = [];
+    let ul = null;
+    html.forEach((h, i) => {
+      if (t.listLines[i].type === 'UNORDERED') { if (!ul) out.push((ul = { items: [] })); ul.items.push(h); } else { ul = null; out.push(h); }
+    });
+    return out.map((o, i) => (typeof o === 'string' ? (i > 0 && typeof out[i - 1] === 'string' ? `<br>${o}` : o) : `<ul>${o.items.map((x) => `<li>${x}</li>`).join('')}</ul>`)).join('');
+  }
   if (paras.length > 1 && (t.paragraphSpacing || t.paragraphIndent)) {
     return html.map((h, i) => {
       const c = ['display:block'];
@@ -97,7 +112,7 @@ export function applyText({ node, s, css, warn }) {
   const ty = typography(node);
   const grad = node.fills?.filter((f) => f.type === 'GRADIENT_LINEAR').pop();
   if (grad && !fill) {
-    addCustomCss(s, `background-image: ${linearGradientCss(grad, node.box.w, node.box.h)}; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;`);
+    s._gradient = linearGradientControl(grad, node.box.w, node.box.h, 'text'); // Bricks adds background-clip: text and the transparent fill itself
   }
   // Figma keeps double spaces inside a text; HTML collapses them, which made "SMARTER,  SCALE" 11px narrower. Such text keeps its spaces.
   const keepsSpaces = /\S {2,}\S/.test(t.characters ?? ''); // inside the text only: Figma's box ignores a leading / trailing space ("WEBINAR " is 95px wide)
@@ -113,6 +128,15 @@ export function applyText({ node, s, css, warn }) {
     ...(fill && { color: cssColor(fill) }), ...(ty['letter-spacing'] && { 'letter-spacing': ty['letter-spacing'] }),
   });
   if (node.sizing.v === 'FIXED' && t.valign !== 'TOP') warn(node, `text vertical align ${t.valign} in a fixed-height box is not applied`);
-  if (t.truncation) warn(node, 'text truncation not applied');
+  // "Truncate text" with a max line count: Bricks 1.9.8 has no line-clamp control, so it is css (listed in the report as custom css)
+  // Figma draws the list marker and the indent of a list text itself (UNORDERED / ORDERED, level in lineIndentations); neither is an attribute that can be written
+  // as a Bricks value without inventing it, so the text is built as plain lines and the difference is listed
+  if (t.listLines && listSupported(t)) {
+    addCustomCss(s, 'list-style: none; margin: 0; padding: 0;', ' ul');
+    addCustomCss(s, `position: relative; margin: 0; padding-left: ${LIST_INDENT_EM}em;`, ' li');
+    addCustomCss(s, `content: "\\2022"; position: absolute; top: 0; left: ${LIST_BULLET_LEFT_EM}em; font-weight: 400;`, ' li::before');
+  } else if (t.listLines) warn(node, `text list formatting (${[...new Set(t.listLines.map((l) => `${l.type} level ${l.level}`))].join(', ')}) not applied: only unordered first-level lists are built, Figma draws the number / nested marker and indent itself`);
+  if (t.truncation === 'ENDING' && t.maxLines > 0) addCustomCss(s, `display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: ${t.maxLines}; overflow: hidden;`);
+  else if (t.truncation) warn(node, 'text truncation without a max line count not applied');
   if (node.fills?.filter((f) => f.type === 'SOLID').length > 1) warn(node, 'text with several fills: top one used');
 }

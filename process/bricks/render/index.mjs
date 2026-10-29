@@ -29,6 +29,18 @@ import { COMPONENTS } from '../components/index.mjs';
 
 export { deepMerge };
 
+// does any visible layer (outside a clipping ancestor) reach beyond the left / right edge of the frame? (positions are relative to the parent)
+export function overflowsSideways(frame) {
+  const W = frame.box.w;
+  const walk = (n, ox) => (n.children ?? []).some((c) => {
+    if (c.visible === false || !c.box) return false;
+    const x = ox + c.box.x;
+    if (x < -0.5 || x + c.box.w > W + 0.5) return true;
+    return !c.clip && walk(c, x);
+  });
+  return walk(frame, 0);
+}
+
 export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '' } = {}) {
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
@@ -99,6 +111,8 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     const css = {}; // css the verify step expects to measure in the browser
     const ctx = { node, parent, s, css, warn, kind, root, flats, inner: comp?.wrap ? {} : undefined }; // inner: settings of the element a wrapping component puts inside the block
     applySize(ctx, { isRoot, isSlide });
+    // a page frame that does not clip, with a layer sticking out of its left / right edge: Figma's picture stops at the frame edge, a page would scroll sideways
+    if (isRoot && !node.clip && overflowsSideways(node)) s._overflow = 'hidden'; // the Bricks attribute (Style > Layout > Overflow)
     const isSlider = kind === 'slider-nested';
     const ownLayout = node.type !== 'TEXT' && !imageLeaf && !node.svg && !comp?.skipsStyle;
     if (ownLayout) {
@@ -142,6 +156,14 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
           _widthMax: 'none', _objectFit: 'fill',
         };
         return emit(node, 'block', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => emitRaw(`${node.id}#crop`, 'image', inner, id, node.name + ' (crop)') });
+      }
+      // An image that FILLs the height of a row that hugs its content (Feature: a 1:1 photo beside a 524px list): as an <img> it would drive the row to its own
+      // aspect-ratio height (558px), Figma's row is as tall as the other column and the picture fills it. Wrapper takes the placement, the picture covers it.
+      if (fill.scaleMode === 'FILL' && node.sizing.v === 'FILL' && parent?.layout?.mode === 'HORIZONTAL' && parent.sizing?.v === 'HUG') {
+        wrapperSettings = s;
+        Object.assign(wrapperSettings, { _position: wrapperSettings._position ?? 'relative', _overflow: 'hidden' });
+        const inner = { image, altText: altFor(node, ov, patch), loading: 'lazy', _position: 'absolute', _top: '0px', _left: '0px', _width: '100%', _height: '100%', _widthMax: 'none', _objectFit: 'cover' };
+        return emit(node, 'block', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => emitRaw(`${node.id}#fill`, 'image', inner, id, node.name + ' (fill)') });
       }
       s.image = image;
       s.altText = altFor(node, ov, patch);

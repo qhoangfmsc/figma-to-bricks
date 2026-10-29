@@ -9,7 +9,7 @@ Goal: turn a Figma section into a Bricks template that mirrors the Figma tree ex
 2. **Your job is only:** pull the exact data from Figma, build the structure, and rebuild it as a Bricks template that is exact to the pixel. Do not redesign, improve, simplify or "fix" the design.
 3. **Exactness:** every size, position, color, font, spacing, radius, border, shadow, opacity and text must come from the Figma attributes and be written as the matching Bricks attribute / CSS value. No rounding, no "close enough", no values taken from a screenshot, no invented defaults.
 4. **Anything that cannot be reproduced exactly is reported, never silently approximated:** list it in the final table with the Figma value and what Bricks does instead. Do not hide mismatches by loosening tolerances or deleting checks.
-5. Do only what the owner asked in the current message. Do not start extra work (new features, refactors, cleanups, uploads, deleting templates or media) without being asked; propose it at the end instead.
+5. Do only what the owner asked in the current message. Do not start extra work (new features, refactors, cleanups, uploads, deleting templates or media) without being asked. **Exception, owner's decision 2026-10-28:** inside the Figma → Bricks workflow the owner asked for, finish everything (every FAIL triaged and fixed by rule, regression guard run) before reporting; never end with a proposal or a question about next work, list what remains as limits / designer list. Long runs keep a progress report (`progress-<node>.md`, [process/shared/progress.mjs](process/shared/progress.mjs)).
 
 ## Workflow (mandatory)
 

@@ -104,8 +104,24 @@ const PAGE_MEASURE = ({ rootId, items, props, hit }) => {
     if (hiddenAncestor) continue;
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
     if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue; // the viewport is as tall as the page
-    const top = document.elementFromPoint(x, y);
-    if (top && !(el === top || el.contains(top))) covered.push({ f: it.f, name: it.name ?? '', on_top: `${top.tagName.toLowerCase()}#${top.id}`, topLabel: top.closest('[id^="brxe-"]')?.id ?? '' });
+    // The layers above this element at its center, top first. Covered = one of them PAINTS something there (a background, an image, an svg, text, a painted
+    // ::before / ::after): a transparent wrapper (an absolute "Navigation" box holding two arrows) hides nothing the eye can see, however elementFromPoint answers.
+    const stack = document.elementsFromPoint(x, y);
+    const at = stack.findIndex((e) => e === el || el.contains(e));
+    const above = at < 0 ? stack : stack.slice(0, at);
+    const paintsHere = (e) => {
+      const cs = getComputedStyle(e);
+      if (cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+      if (['IMG', 'svg', 'VIDEO', 'CANVAS', 'PICTURE'].includes(e.tagName)) return true;
+      const solid = (c) => { const m = c.match(/rgba?\(([^)]+)\)/); return !!m && (m[1].split(',').length < 4 || Number(m[1].split(',')[3]) > 0.02); };
+      if (solid(cs.backgroundColor) || cs.backgroundImage !== 'none') return true;
+      for (const pseudo of ['::before', '::after']) { const p = getComputedStyle(e, pseudo); if (p.content !== 'none' && p.display !== 'none' && (solid(p.backgroundColor) || p.backgroundImage !== 'none')) return true; }
+      return [...e.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim());
+    };
+    const top = above.find(paintsHere);
+    // something Figma itself paints above this layer (a strikethrough line over an old price, a badge on a photo) is expected on top
+    const expected = !!top && (it.over ?? []).some((id) => { const a = document.getElementById('brxe-' + id); return a && (a === top || a.contains(top)); });
+    if (top && !expected) covered.push({ f: it.f, name: it.name ?? '', on_top: `${top.tagName.toLowerCase()}#${top.id}`, topLabel: top.closest('[id^="brxe-"]')?.id ?? '' });
   }
   // images: what the page asked for and what is hidden
   const images = [...document.images].map((im) => {
@@ -122,7 +138,9 @@ const PAGE_MEASURE = ({ rootId, items, props, hit }) => {
   };
 };
 
+const T0 = Date.now();
 async function renderFrame(browserType, frame, { name }) {
+  const t = { start: Date.now() }; // phase timing (ms), written to result.json: where the time of a verify goes
   const browser = await browserType.launch({ args: browserType === chromium ? ['--no-sandbox', '--font-render-hinting=none'] : [] });
   const context = await browser.newContext({ viewport: { width: frame.width, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' });
   const page = await context.newPage();
@@ -131,28 +149,40 @@ async function renderFrame(browserType, frame, { name }) {
   page.on('pageerror', (e) => log.console.push(`pageerror: ${String(e).slice(0, 200)}`));
   page.on('requestfailed', (r) => log.failed.push(`${r.url().slice(0, 120)} ${r.failure()?.errorText ?? ''}`));
   page.on('response', async (res) => { const ct = res.headers()['content-type'] ?? ''; if (ct.startsWith('image/')) { try { log.bytes.set(res.url(), (await res.body()).length); } catch { /* streamed */ } } });
+  t.launch = Date.now();
   if (job.freezeTime) { await page.clock.install({ time: new Date(job.freezeTime) }); }
   await page.goto(job.url, { waitUntil: 'load' });
+  t.load = Date.now();
   await page.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}' });
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForFunction(() => !document.querySelector('.bricks-lazy-hidden'), null, { timeout: 15000 }).catch(() => {});
-  await page.waitForLoadState('networkidle').catch(() => {});
-  if (job.freezeTime) { await page.clock.pauseAt(new Date(new Date(job.freezeTime).getTime() + 1000)).catch(() => {}); }
-  // make the viewport as tall as the page, so every element can be hit-tested and nothing is below the fold
-  const docH = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+  // make the viewport as tall as the page FIRST, so that every element can be hit-tested, nothing is below the fold and Bricks' lazy loading (an
+  // IntersectionObserver) fires for all of them; then wait for the lazy elements that are rendered. An element hidden with display:none never leaves
+  // `.bricks-lazy-hidden` (nothing intersects it): waiting for it always ran into the 15 s timeout (it was 15 s of every 16 s of a render)
+  const pageHeight = () => page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+  let docH = await pageHeight();
   await page.setViewportSize({ width: frame.width, height: docH });
+  await page.waitForFunction(() => ![...document.querySelectorAll('.bricks-lazy-hidden')].some((e) => e.getClientRects().length), null, { timeout: 15000 }).catch(() => {});
+  await page.waitForLoadState('networkidle').catch(() => {});
+  t.settled = Date.now();
+  if (job.freezeTime) { await page.clock.pauseAt(new Date(new Date(job.freezeTime).getTime() + 1000)).catch(() => {}); }
+  const docH2 = await pageHeight(); // the page can grow while fonts and images arrive
+  if (docH2 !== docH) { docH = docH2; await page.setViewportSize({ width: frame.width, height: docH }); }
   await page.waitForTimeout(300);
+  t.sized = Date.now();
   const measured = await page.evaluate(PAGE_MEASURE, { rootId: job.rootId, items: frame.items, props: frame.props, hit: frame.hit ?? [] });
   if (measured.error) { await browser.close(); return { error: measured.error }; }
+  t.measured = Date.now();
   const shot = await page.screenshot({ clip: { x: measured.rootRect.x, y: measured.rootRect.y, width: measured.rootRect.w, height: measured.rootRect.h }, animations: 'disabled' });
   for (const im of measured.images) im.bytes = log.bytes.get(im.src) ?? null;
   await browser.close();
-  return { measured, shot, log: { console: log.console.slice(0, 20), failed: log.failed.slice(0, 20) } };
+  t.end = Date.now();
+  return { timing: { launch: t.launch - t.start, load: t.load - t.launch, settle: t.settled - t.load, resize: t.sized - t.settled, measure: t.measured - t.sized, shot_close: t.end - t.measured }, measured, shot, log: { console: log.console.slice(0, 20), failed: log.failed.slice(0, 20) } };
 }
 
-const result = { frames: {}, engines: {} };
+const result = { frames: {}, engines: {}, timing: {} };
 for (const frame of job.frames) {
   const r = await renderFrame(chromium, frame, { name: 'chromium' });
+  if (r.timing) result.timing[`${frame.key}.chromium`] = r.timing;
   if (r.error) { result.frames[frame.key] = { error: r.error }; continue; }
   writeFileSync(`${out}/${frame.key}.png`, r.shot);
   const entry = { measured: r.measured, log: r.log, shot: `${frame.key}.png` };
@@ -171,6 +201,7 @@ for (const frame of job.frames) {
     for (const [name, bt] of [['webkit', webkit], ['firefox', firefox]]) {
       try {
         const o = await renderFrame(bt, frame, { name });
+        if (o.timing) result.timing[`${frame.key}.${name}`] = o.timing;
         if (o.error) { result.engines[`${frame.key}.${name}`] = { error: o.error }; continue; }
         const vd = visualDiff(r.shot, o.shot, { masks });
         delete vd.diffPng;
@@ -180,6 +211,7 @@ for (const frame of job.frames) {
     }
   }
 }
+result.timing.total_in_container = Date.now() - T0;
 writeFileSync(`${out}/result.json`, JSON.stringify(result));
 console.log('qa done');
 process.exit(0);

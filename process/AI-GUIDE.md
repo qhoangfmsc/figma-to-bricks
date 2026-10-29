@@ -25,6 +25,44 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `test/`, `fixtures/` | offline tests (`npm test --prefix process`) | every rule change gets a test |
 | `work/<fileKey>/<node-id>/` | generated data per section; `overrides.json` is the only hand-edited file | per task |
 
+### Text widths and line breaks: the font build comes first
+
+Figma lays text out with Inter 3.x; Google Fonts serves Inter 4, whose Vietnamese capitals with stacked marks are up to 2% wider (24px Bold: 348.2px vs Figma 340.8px). That alone made headings wrap differently and shifted everything below. `wp-content/mu-plugins/figma-to-bricks-fonts/<Family>/<weight>.woff2` (see its README) makes the local site use the same build; with it 13 failing frames passed. Before triaging any text width / line-break difference, check which font file the page really loads (`document.fonts`, the request list). What stays is the text-engine class (x / w of text within 2.5px, a limit that never blocks DONE); heights and line counts get no tolerance. Production has to load the same Inter build to match Figma there.
+
+### Checklist for any rule change (lessons of the VPS Linux run, 2026-10-29)
+
+1. **Expectation or render?** For a mismatch, first decide which one is wrong: compare Figma's own picture and `raw.json` (not the summarised tree). Stale instance boxes and variable-mode values made about half of the first mismatches wrong expectations.
+2. **A number needs evidence.** A constant (an indent, a ratio, a tolerance) comes from at least two independent measurements, written next to it in a comment, and the test uses those numbers. A guess stays a guess until measured.
+3. **The other side and the other paths.** Fixing one half of a symmetric thing (margin top / bottom, x / y, desktop / breakpoint) means checking the other half. `grep` the setting you touch everywhere it is written (render, `responsive/merge.mjs`, verify), and read the comments that document its side effects.
+4. **Real data before push.** `npm test`, then `rebuild-diff.mjs <fileKey>` over every saved section: any section that changes and that you did not expect means the rule is wrong. Only then push the sections that changed.
+5. **No silent drops.** A list that skips something (ignored properties, unknown values) needs a stated reason per entry and a check against the source (`schema/`). A parser or transform you write asserts its own completeness with an independent count and fails loudly.
+6. **One section at a time.** Pilot on three different sections before a whole page; use `auto.mjs --gate` / `--resume`; numbers in reports come from the files, never typed by hand.
+
+### The reference: `schema/` (what Figma can send, and what is done with each property)
+
+Do not learn Figma one design at a time. `schema/figma-nodes.schema.json` is generated from Figma's published REST spec (`schema/source/`, `node process/schema/build-schema.mjs`): every node type with every property and enum value. `schema/handling.json` gives each property exactly one status: `read` (normalize carries it, a render rule uses it) · `ignored` (with a concrete reason it cannot change the look) · `limit` (visual, cannot be reproduced) · `gap` (visual, not built yet). `schema/COVERAGE.md` (`node process/schema/coverage.mjs`) is the readable view.
+
+- A property Figma sends that is not in `handling.json` fails the test and is reported as `NOT CLASSIFIED` in tree.md / report.md. Add it there first, with a status, before anything else.
+- A `limit` / `gap` property is listed in the report of every section whose nodes really use it (non-default value), so nothing is dropped silently.
+- A new rule that reads a property sets its status to `read`; a `gap` that gets built moves to `read`.
+
+### What is left to do: node state, one section at a time
+
+The verify step writes `nodes.state.json` per section: every checked node is `ok`, `minor`, `limit` (accepted with a reason) or `fail`, with a fingerprint of the Figma node + Bricks element + its parent. Nobody re-reads `ok` and `limit` nodes.
+
+- `node process/scripts/todo.mjs <fileKey>` lists ONLY the failing nodes (check, what Figma has, what the page has) and which sections are DONE. Use it instead of reading verify.md.
+- A difference that cannot be removed is accepted on the record: `node process/scripts/accept-limit.mjs <workspace> <frame> <figmaNodeId> <check|-> "<reason>"` (value measured is stored; a different value later fails again). `cascade <root>:<delta>` accepts the y / h consequences of an accepted root node (a heading with one more line); `look` accepts the look regions of a frame up to today's mean. Entries live in `limits.json` of the section and are listed in the report.
+- Build section by section: `node process/auto.mjs <url> --gate` stops at the first section that is not DONE; fix the rules, `rebuild-diff.mjs <fileKey> --apply` for the finished sections, then `auto.mjs <url> --resume --gate` skips the DONE ones. The page is assembled at the end from the finished templates.
+
+### Fast loop for a rule change (no full re-run)
+
+A change in `figma/` (normalize, relayout), `bricks/` or `responsive/` is checked offline first; a full page run is only for a change in `decide/`, `policy.json` or `auto.mjs`:
+
+1. `npm test --prefix process` (a test with the real Figma numbers of the case, in `test/pipeline.test.mjs`).
+2. `node process/scripts/rebuild-diff.mjs <fileKey>`: rebuilds tree + template of every section from the saved Figma data in under a second and lists, per section, the Bricks elements and the expected boxes that changed (`rebuild-diff.md`). A rule that changes sections you did not expect is wrong: fix it before anything is pushed.
+3. `node process/scripts/rebuild-diff.mjs <fileKey> --apply`: pushes + verifies only the sections that changed; then `node process/scripts/regress.mjs <fileKey> --no-rebuild`.
+4. When a file is finished: `node process/scripts/clean-work.mjs <fileKey> --apply` drops the regenerable weight (raw.json, assets, qa, verify pictures) and keeps overrides.json, state.json and every report.
+
 Data flow: `figma/` makes `tree.json` → `detect/` makes `detections.json` (owner approves) → `bricks/render/` (+ `bricks/components/` for approved ones) makes `bricks.json` + `mapping.json` → `scripts/06-push` sends it → `scripts/07-verify` measures it.
 
 ## bricks/render/ (the rules)
@@ -172,3 +210,8 @@ Each of these passed every box check and still looked wrong. They are now rules 
 | content positioned with the artboard's pixels broke at any other width | root-level absolute children are anchored by their constraint (size.mjs) |
 
 Before writing a rule that "supports" a Figma property, say what the property does to the picture and add a check that would show the picture is wrong if the rule were missing.
+
+
+## Style: attribute first (owner's decision 2026-10-28)
+
+Write a value to the Bricks control of the widget (`_margin`, `_padding`, `_gradient`, `_transform`, `_overflow`, `_display:<breakpoint>`, `iconGap`...), not to `_cssCustom`. `addCustomCss` is the last resort, for what Bricks 1.9.8 has no control for (read `wp-content/themes/bricks/includes/elements/base.php` and `assets.php` to check before adding css), and every new use needs that reason in a comment next to it.

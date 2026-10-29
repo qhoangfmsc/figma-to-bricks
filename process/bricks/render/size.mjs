@@ -31,6 +31,8 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
   if (isRoot) {
     s._width = '100%'; // artboard width is a viewport, not a fixed width
     if (node.sizing.v === 'FIXED') { s._height = px(b.h); css.height = px(b.h); }
+    // a hugging artboard with a minimum height (Banner: h HUG, minHeight 540) is as tall as its content only above that minimum
+    for (const [k, key] of [['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) if (node.limits?.[k] != null) s[key] = px(node.limits[k]);
     return;
   }
   if (node.place === 'ABSOLUTE') {
@@ -52,7 +54,20 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
     const cssDim = axis === 'h' ? 'width' : 'height';
     let sz = node.sizing[axis];
     if (node.__intrinsic && sz === 'HUG') sz = 'FIXED'; // images/svg: use the Figma box
-    const boxVal = axis === 'h' ? b.w : b.h;
+    if (sz === 'HUG' && node.type !== 'TEXT' && !(node.children ?? []).some((c) => c.visible !== false)) sz = 'FIXED'; // nothing inside to hug: the browser would collapse it to its padding, Figma paints its stored box
+    // an empty FILL child in a parent that hugs on the same axis with nothing else to size it (a 28px tooltip icon frame in a HUG container): in a browser it
+    // contributes 0 and the parent collapses to 0, Figma paints the stored box
+    if (sz === 'FILL' && !grid && parent?.sizing?.[axis] === 'HUG' && node.type !== 'TEXT' && !(node.children ?? []).some((c) => c.visible !== false)
+      && (parent.children ?? []).every((c) => c === node || c.visible === false || c.place === 'ABSOLUTE' || (c.sizing?.[axis] === 'FILL' && !(c.children ?? []).some((k) => k.visible !== false)))) sz = 'FIXED';
+    let boxVal = axis === 'h' ? b.w : b.h;
+    // a frame with no extent on this axis whose children are strokes (Figma: Pagination 120×0 with five 4px round-cap lines on its edge): the exported svg is as
+    // big as the strokes (124×4) and sits half a stroke before the frame's edge, a 0px svg would show nothing
+    if (node.svg?.width && boxVal < 0.5) {
+      const full = axis === 'h' ? node.svg.width : node.svg.height;
+      const bleed = px(-(full - boxVal) / 2); // both sides: the frame takes no room in the layout, the strokes only overflow it
+      s._margin = { ...(s._margin ?? {}), ...(axis === 'h' ? { left: bleed, right: bleed } : { top: bleed, bottom: bleed }) };
+      boxVal = full;
+    }
     if (sz === 'FIXED') {
       s[dim] = px(boxVal);
       css[cssDim] = px(boxVal);

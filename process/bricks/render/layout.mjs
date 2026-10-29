@@ -40,7 +40,9 @@ export function applyLayout({ node, s, css, warn }, kind) {
   // a CSS border sits inside the box, so it must be taken out of the padding to land on the same content area.
   let p = l.padding;
   const st = node.stroke;
-  if (st && strokeMode(node) === 'border' && st.align === 'INSIDE' && !st.inLayout && st.paints[st.paints.length - 1].type === 'SOLID') {
+  // (a CENTER / OUTSIDE stroke takes no space either: when stroke.mjs can only draw it as a border, e.g. a 4px left bar with align CENTER, the same applies)
+  const asShadows = st && st.align !== 'INSIDE' && !st.dashes && st.paints.length === 1 && (() => { const w = strokeWidths(st); return w.top === w.right && w.right === w.bottom && w.bottom === w.left; })();
+  if (st && strokeMode(node) === 'border' && !st.inLayout && !asShadows && !isGradientRing(node) && st.paints[st.paints.length - 1].type === 'SOLID') {
     const w = strokeWidths(st);
     p = Object.fromEntries(['top', 'right', 'bottom', 'left'].map((k) => [k, Math.max(0, r4(l.padding[k] - w[k]))]));
     for (const k of Object.keys(p)) if (l.padding[k] < w[k]) warn(node, `padding-${k} ${l.padding[k]} is smaller than the stroke ${w[k]}: content shifts by ${r4(w[k] - l.padding[k])}px`);

@@ -17,6 +17,7 @@ import { requireSignOff } from '../review/index.mjs';
 import { bridge } from '../bricks/bridge.mjs';
 import { runQa } from '../shared/qa.mjs';
 import { tierOf, TIER_NAME, verdictOf } from '../shared/severity.mjs';
+import { computeStates, fingerprintOf, frameDone, summarize } from '../shared/node-state.mjs';
 import { download, getRenders } from '../figma/api.mjs';
 
 const BUDGETS = JSON.parse(readFileSync(new URL('../qa/budgets.json', import.meta.url), 'utf8'));
@@ -37,6 +38,37 @@ function canon(prop, v) {
   return v;
 }
 const numeric = (v) => (/^-?[\d.]+px$/.test(v) ? parseFloat(v) : null);
+// Figma ids whose center lies outside the clip box of an ancestor with "clip content" (a collapsed list cut to 300px, a carousel track): Figma does not show them
+// either, so "on top at its center" cannot be expected of them. Counted in verify.md, and the look check against Figma's render still sees the picture.
+export function clippedAway(tree) {
+  const out = new Set();
+  (function walk(n, clip) {
+    const b = n.box;
+    const cx = b.absX + b.w / 2, cy = b.absY + b.h / 2;
+    if (clip && (cx < clip.x1 || cx > clip.x2 || cy < clip.y1 || cy > clip.y2)) out.add(n.id);
+    const next = n.clip && n !== tree ? (() => { const r = { x1: b.absX, y1: b.absY, x2: b.absX + b.w, y2: b.absY + b.h }; return clip ? { x1: Math.max(clip.x1, r.x1), y1: Math.max(clip.y1, r.y1), x2: Math.min(clip.x2, r.x2), y2: Math.min(clip.y2, r.y2) } : r; })() : clip;
+    for (const c of n.children ?? []) walk(c, next);
+  })(tree, null);
+  return out;
+}
+// Layers that Figma paints ABOVE a node and that overlap its center: later in paint order (pre-order of the tree), not inside it, painting something themselves
+// (fill, stroke, svg, text), and built as an element of their own. Returns Map(figmaId -> [bricksId]) for the ids asked for.
+export function paintedAbove(tree, mapping, ids) {
+  const order = [];
+  (function walk(n) { if (n.visible === false) return; order.push(n); for (const c of n.children ?? []) walk(c); })(tree);
+  const paints = (n) => (n.fills ?? []).length > 0 || !!n.stroke || !!n.svg || n.type === 'TEXT';
+  const within = (n, x, y) => x >= n.box.absX && x <= n.box.absX + n.box.w && y >= n.box.absY && y <= n.box.absY + n.box.h;
+  const inside = (root, n) => { let found = false; (function w(x) { if (x === n) found = true; (x.children ?? []).forEach(w); })(root); return found; };
+  const out = new Map();
+  for (const id of ids) {
+    const i = order.findIndex((n) => n.id === id);
+    if (i < 0) continue;
+    const n = order[i], cx = n.box.absX + n.box.w / 2, cy = n.box.absY + n.box.h / 2;
+    const above = order.slice(i + 1).filter((x) => mapping[x.id]?.bricksId && paints(x) && within(x, cx, cy) && !inside(n, x)).map((x) => mapping[x.id].bricksId);
+    if (above.length) out.set(id, above);
+  }
+  return out;
+}
 // content the eye must be able to see: text, buttons, links, images with an alt, svgs with a label. Decoration (alt="", aria-hidden, backgrounds) may sit under other layers.
 const isContent = (m, el) => ['text-basic', 'heading', 'button', 'text-link', 'countdown'].includes(m.element) || (m.element === 'image' && !!el?.settings?.altText) || (m.element === 'svg' && !!(el?.settings?._attributes ?? []).find((a) => a.name === 'aria-label'));
 
@@ -80,15 +112,18 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     }
   }
 
+  const clippedCache = new Map();
+  const clipped = (f) => clippedCache.get(f) ?? clippedCache.set(f, clippedAway(f.tree)).get(f);
   const job = {
     url, rootId, freezeTime: FREEZE,
     frames: frames.map((f, i) => {
       const entries = Object.entries(f.mapping).filter(([, m]) => m.bricksId && m.verify);
       const items = entries.map(([fid, m]) => ({ f: fid, b: m.bricksId, a: Object.keys(m.expect.attrs ?? {}) }));
+      f.nClipped = entries.filter(([fid, m]) => isContent(m, elements.get(m.bricksId)) && clipped(f).has(fid)).length;
       return {
         key: f.key, width: Math.round(f.tree.box.w), items,
         props: [...new Set(entries.flatMap(([, m]) => Object.keys(m.expect.css)))],
-        hit: entries.filter(([, m]) => isContent(m, elements.get(m.bricksId))).map(([fid, m]) => ({ f: fid, b: m.bricksId, name: m.element })),
+        hit: (() => { const hits = entries.filter(([fid, m]) => isContent(m, elements.get(m.bricksId)) && !clipped(f).has(fid)); const above = paintedAbove(f.tree, f.mapping, hits.map(([fid]) => fid)); return hits.map(([fid, m]) => ({ f: fid, b: m.bricksId, name: m.element, over: above.get(fid) ?? [] })); })(),
         maskIds: entries.filter(([, m]) => m.element === 'countdown').map(([fid]) => fid),
         figmaPng: f.figmaPng ?? null,
         figmaBg: context.bg?.[f.key] ?? null,
@@ -125,16 +160,16 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     for (const it of items) {
       const got = m.nodes[it.figmaId];
       const label = `${it.figmaId} ${it.element}${it.component ? ` (${it.component})` : ''}`;
-      if (!got) { rows.push({ label, check: 'exists', want: 'in DOM', got: 'missing', ok: false }); continue; }
+      if (!got) { rows.push({ id: it.figmaId, label, check: 'exists', want: 'in DOM', got: 'missing', ok: false }); continue; }
       const e = it.expect;
       for (const [k, want, have] of [['x', e.x, got.x], ['y', e.y, got.y], ['w', e.w, got.w], ['h', e.h, got.h]]) {
-        { const ok = Math.abs(want - have) <= tol; rows.push({ label, check: k, want: `${want}`, got: `${Math.round(have * 100) / 100}`, ok, soft: !ok && isSoft(it.figmaId, k, have - want) }); }
+        { const ok = Math.abs(want - have) <= tol; rows.push({ id: it.figmaId, label, check: k, want: `${want}`, got: `${Math.round(have * 100) / 100}`, ok, soft: !ok && isSoft(it.figmaId, k, have - want) }); }
       }
-      for (const [a, want] of Object.entries(e.attrs ?? {})) rows.push({ label, check: `attr ${a}`, want: String(want), got: String(got.attrs?.[a]), ok: got.attrs?.[a] === want });
+      for (const [a, want] of Object.entries(e.attrs ?? {})) rows.push({ id: it.figmaId, label, check: `attr ${a}`, want: String(want), got: String(got.attrs?.[a]), ok: got.attrs?.[a] === want });
       for (const [p, wantRaw] of Object.entries(e.css)) {
         const want = canon(p, wantRaw), have = canon(p, got.css[p]);
         const wn = numeric(want), gn = numeric(have);
-        rows.push({ label, check: p, want, got: have, ok: wn !== null && gn !== null ? Math.abs(wn - gn) <= Math.max(0.5, tol / 2) : want === have });
+        rows.push({ id: it.figmaId, label, check: p, want, got: have, ok: wn !== null && gn !== null ? Math.abs(wn - gn) <= Math.max(0.5, tol / 2) : want === have });
       }
     }
     // look vs Figma's render
@@ -151,7 +186,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     // Figma's picture is clear over a large area and no page-frame fill is known: the template would show the page's white there (Problems: white text on white)
     if (r.visual && r.visual.transparent > 0.05 && !context.bg?.[f.key]) rows.push({ label: `frame ${f.key}`, check: 'transparent area without a background', want: 'a page-frame fill behind it', got: `${Math.round(r.visual.transparent * 100)}% of Figma's picture is clear`, ok: false });
     // covered layers
-    for (const c of m.covered) rows.push({ label: `${c.f} ${c.name}`, check: 'on top at its center', want: 'itself', got: `covered by ${c.on_top}`, ok: false });
+    for (const c of m.covered) rows.push({ id: c.f, label: `${c.f} ${c.name}`, check: 'on top at its center', want: 'itself', got: `covered by ${c.on_top}`, ok: false });
     // horizontal overflow
     if (m.overflow.over) rows.push({ label: `page @${m.overflow.innerWidth}px`, check: 'horizontal scroll', want: 'none', got: `scrollWidth ${m.overflow.scrollWidth}`, ok: false });
     // image weight and hidden images that still download
@@ -167,6 +202,15 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     for (const x of rows) if (!x.ok) { x.tier = tierOf(x); if (x.tier === 4) x.soft = true; } // tier 4 = negligible: listed, not counted as a failure
     const soft = rows.filter((x) => !x.ok && x.soft);
     const bad = rows.filter((x) => !x.ok && !x.soft);
+    // state of every checked node (ok / minor / limit / fail) and whether the frame is done: what todo.mjs reads, so that only what is still wrong gets looked at
+    const stateFile = ws.readJson('nodes.state.json', { frames: {} });
+    const limits = (ws.readJson('limits.json', { accepted: [] }).accepted ?? []).filter((l) => !l.frame || l.frame === f.key);
+    const fps = Object.fromEntries(items.map((it) => { const el = elements.get(f.mapping[it.figmaId]?.bricksId); return [it.figmaId, fingerprintOf(info.get(it.figmaId), el, elements.get(el?.parent))]; }));
+    const nodeStates = computeStates({ rows, items, fingerprints: fps, limits, previous: stateFile.frames[f.key]?.nodes ?? {} });
+    const nodeSummary = summarize(nodeStates);
+    const doneInfo = frameDone({ nodes: nodeStates, rows, limits, visualMean: r.visual?.mean ?? null });
+    stateFile.frames[f.key] = { nodes: nodeStates, summary: nodeSummary, done: doneInfo.done, look: r.visual?.mean ?? null };
+    ws.writeJson('nodes.state.json', stateFile);
     const tiers = { 1: 0, 2: 0, 3: 0, 4: soft.length };
     for (const x of bad) tiers[x.tier]++;
     anyBad ||= bad.some((x) => x.tier <= 2);
@@ -175,7 +219,9 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
       `Rendered with Playwright (Chromium, in Docker) at ${Math.round(f.tree.box.w)}px · ${url} · time frozen at ${FREEZE}`, '',
       `**Verdict: ${verdictOf(tiers)}** · tier 1 blocker ${tiers[1]} · tier 2 major ${tiers[2]} · tier 3 minor ${tiers[3]} · tier 4 negligible ${tiers[4]} (listed below, not counted)`, '',
       `**${rows.length - bad.length - soft.length}/${rows.length} checks match** (position/size tolerance ${tol}px)${soft.length ? ` · **${soft.length} text-engine difference(s)** within ${SOFT_PX}px listed below, not counted as failures` : ''}`, '',
+      ...(f.nClipped ? [`**Not hit-tested:** ${f.nClipped} content node(s) are cut away by a clipping parent in Figma too (collapsed list, carousel track): "on top at its center" is not expected of them`] : []),
       r.visual ? `**Look vs Figma render:** mean difference ${Math.round(r.visual.mean * 100) / 100}/255, ${r.visual.cells.filter((c) => c.diff > limit).length} of ${r.visual.cells.length} regions (${r.visual.cell}px) above ${limit}${r.visual.masks.length ? `; ${r.visual.masks.length} live region(s) (countdown) masked` : ''} (see verify${f.suffix}.diff.png, white = different)` : `**Look vs Figma render: not measured** (${figmaErr[f.key] ?? 'no figma token'})`,
+      `**Nodes:** ${nodeSummary.ok ?? 0} ok · ${nodeSummary.minor ?? 0} minor · ${nodeSummary.limit ?? 0} limit (accepted, with reason) · ${nodeSummary.fail ?? 0} fail of ${nodeSummary.total} checked · **${doneInfo.done ? 'DONE' : 'NOT DONE'}**${doneInfo.done ? '' : ` (${doneInfo.failNodes} failing node(s), ${doneInfo.looseOpen} open look / page row(s)): node process/scripts/todo.mjs lists them`}`,
       `**Images downloaded:** ${loaded.length} · visible ${Math.round(visibleBytes / 1024)} KB · hidden by CSS but downloaded ${Math.round(hiddenBytes / 1024)} KB (${hiddenLoaded.length})`, '',
       bad.length ? '## Mismatches (worst first)\n\n| tier | node | check | Figma | rendered |\n|---|---|---|---|---|\n' + [...bad].sort((a, b) => a.tier - b.tier).map((x) => `| ${x.tier} ${TIER_NAME[x.tier]} | ${x.label} | ${x.check} | ${x.want} | ${x.got} |`).join('\n') : '## All checks pass',
       '',
@@ -190,11 +236,12 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     }
     if (r.log.console.length) md.push('## Console', '', ...r.log.console.map((c) => `- ${c}`), '');
     ws.writeText(`verify${f.suffix}.md`, md.join('\n'));
-    ws.writeJson(`verify${f.suffix}.json`, { url, tol, total: rows.length, bad, soft, tiers, verdict: verdictOf(tiers), visualMean: r.visual?.mean ?? null, imageBytes: visibleBytes, hiddenImageBytes: hiddenBytes, engines: f.key === 'base' ? result.engines : undefined });
+    ws.writeJson(`verify${f.suffix}.json`, { url, tol, total: rows.length, bad, soft, tiers, nodes: nodeSummary, done: doneInfo.done, verdict: verdictOf(tiers), visualMean: r.visual?.mean ?? null, imageBytes: visibleBytes, hiddenImageBytes: hiddenBytes, engines: f.key === 'base' ? result.engines : undefined });
     for (const [src, dst] of [[r.shot, `verify${f.suffix}.png`], [`${f.key}.diff.png`, `verify${f.suffix}.diff.png`]]) {
       try { writeFileSync(ws.file(dst), readFileSync(join(outDir, src))); } catch { /* no diff without figma png */ }
     }
     console.log(`  [${f.key} @${Math.round(f.tree.box.w)}px] ${verdictOf(tiers)} T1:${tiers[1]} T2:${tiers[2]} T3:${tiers[3]} T4:${tiers[4]} · ${rows.length - bad.length - soft.length}/${rows.length} checks match${soft.length ? ` (+${soft.length} text-engine)` : ''}${r.visual ? ` · look ${Math.round(r.visual.mean * 100) / 100}/255` : ''} · images ${Math.round(visibleBytes / 1024)} KB (+${Math.round(hiddenBytes / 1024)} KB hidden)`);
+    console.log(`    nodes: ${nodeSummary.ok ?? 0} ok · ${nodeSummary.minor ?? 0} minor · ${nodeSummary.limit ?? 0} limit · ${nodeSummary.fail ?? 0} fail / ${nodeSummary.total} · ${doneInfo.done ? 'DONE' : 'NOT DONE'}`);
     for (const x of bad.slice(0, 25)) console.log(`    ✗ ${x.label} ${x.check}: want ${x.want} · got ${x.got}`);
     if (bad.length > 25) console.log(`    … ${bad.length - 25} more in verify${f.suffix}.md`);
     summary.push({ key: f.key, total: rows.length, bad: bad.length, tiers });

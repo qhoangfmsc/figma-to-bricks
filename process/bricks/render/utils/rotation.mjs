@@ -4,12 +4,16 @@
 // equals Figma's absoluteBoundingBox. The turn itself is written where the owner can see it:
 //   pure rotation by a whole number of degrees -> Style > Transform (`_transform.rotateZ`, `_transformOrigin`); Bricks 1.9.8 keeps only whole degrees (intval)
 //   anything else (fractional angle, flip, skew)  -> Style > CSS > Custom CSS: `transform: matrix(a b c d 0 0)`, the same matrix Figma uses (both y-down)
+// An svg element (the node is exported as a file) is not turned at all: the file has the rotation baked in.
 // Not supported (warns): rotated nodes that are not absolutely placed (auto-layout flow decides their position from the rotated box), and
 // rotation without the transform data (old raw.json fetched before geometry=paths).
 import { px, addCustomCss } from './css.mjs';
 
 export function applyRotation({ node, s, css, warn }) {
   if (!node.rotation) return;
+  // an svg exported by Figma for a rotated node already has the turn in it (a 162×2 line turned 90° is a 2×162 file, the node's bounding box): the element is
+  // placed by that bounding box and not turned a second time (Review: the scrollbar became a squashed 162×2 stroke)
+  if (node.svg) return;
   const r = node.rotate;
   if (!r || node.place !== 'ABSOLUTE') {
     warn(node, `rotation ${node.rotation} rad is not applied${r ? ' (only absolutely placed nodes are supported)' : ' (no size / relativeTransform in raw.json: fetch again)'}`);

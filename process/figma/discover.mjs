@@ -1,6 +1,8 @@
 // Finds the other breakpoint frames of a section: given the node id of a section in one breakpoint frame (e.g. "Hero / Section" inside the 1440
 // frame), looks for the same-named section inside sibling frames of other widths (768, 375). Reads the file structure only (depth 5).
 import { figmaGet } from './api.mjs';
+import { pickTwin, wordsOf } from '../responsive/twin.mjs';
+import { screenOfWidth } from '../shared/progress.mjs';
 
 const num = (n) => Math.round(n?.absoluteBoundingBox?.width ?? 0);
 
@@ -28,9 +30,32 @@ export async function discoverVariants(fileKey, nodeId) {
   for (let i = path.length - 2; i >= 1; i--) {
     const frame = path[i], parent = path[i - 1];
     const found = [];
+    const isSection = (f, c) => ['FRAME', 'INSTANCE'].includes(c.type) && num(c) >= 0.9 * num(f) && (c.absoluteBoundingBox?.height ?? 0) >= 40;
     for (const sib of parent.children ?? []) {
       if (sib.id === frame.id || sib.type !== 'FRAME') continue;
-      const match = [...(sib.children ?? []), ...(sib.children ?? []).flatMap((c) => c.children ?? [])].find((c) => c.name === node.name && c.type === 'FRAME');
+      let match;
+      const baseSections = (frame.children ?? []).filter((c) => isSection(frame, c));
+      const candidates = (sib.children ?? []).filter((c) => isSection(sib, c));
+      if (baseSections.some((c) => c.id === node.id)) {
+        // the node is a section of its page frame: pair it with one section of the sibling frame (name when unique, else the text, see responsive/twin.mjs)
+        const nameCount = (list) => list.filter((c) => c.name === node.name).length;
+        const unique = nameCount(baseSections) === 1 && nameCount(candidates) === 1;
+        const withWords = async (list) => {
+          if (unique) return list.map((c) => ({ id: c.id, name: c.name, node: c, words: new Set() }));
+          // in small groups: one request for every section of a page is a very large answer, and Figma answered it with a 500
+          const full = {};
+          for (let i = 0; i < list.length; i += 4) {
+            const group = list.slice(i, i + 4).map((c) => c.id).join(',');
+            Object.assign(full, (await figmaGet(`/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(group)}`)).nodes);
+          }
+          return list.map((c) => ({ id: c.id, name: c.name, node: c, words: wordsOf(full[c.id].document) }));
+        };
+        const [b, c] = [await withWords(baseSections), await withWords(candidates)];
+        const twin = pickTwin(b.find((x) => x.id === node.id), b, c);
+        match = twin?.node;
+      } else {
+        match = [...(sib.children ?? []), ...(sib.children ?? []).flatMap((c) => c.children ?? [])].find((c) => c.name === node.name && c.type === 'FRAME');
+      }
       if (match) found.push({ id: match.id, width: num(match), frame: sib.name, bg: frameBackground(sib) });
     }
     if (found.length) {
@@ -72,7 +97,10 @@ export async function discoverSections(fileKey, nodeId) {
   // h1 belongs to the hero (or, without one, to the first section that is not a menu / header)
   // (a link to one single section only gets the h1 when it IS a hero: the page's one h1 is not that section's to take)
   const hero = kind === 'section' ? sections.find((s) => /hero/i.test(s.name)) : sections.find((s) => /hero/i.test(s.name)) ?? sections.find((s) => !/menu|header|nav/i.test(s.name)) ?? sections[0];
-  return { kind, base: { id: base.id, name: base.name, width: num(base), bg: kind === 'section' ? frameBackground(path.at(-2)) : frameBackground(base) }, sections: sections.map((s) => ({ ...s, firstSection: s.id === hero?.id })) };
+  // the screens the file draws besides the base one (the other page frames beside it): known before any section runs, for the progress report
+  const pageFrames = kind === 'page' ? stacks : kind === 'breakpoint-frame' ? frames(path.at(-2) ?? node).filter((f) => f.id !== node.id && isStack(f)) : [];
+  const screens = [...new Set(pageFrames.filter((f) => f.id !== base.id).map((f) => screenOfWidth(num(f))))].filter((k) => k !== screenOfWidth(num(base)));
+  return { kind, screens, base: { id: base.id, name: base.name, width: num(base), bg: kind === 'section' ? frameBackground(path.at(-2)) : frameBackground(base) }, sections: sections.map((s) => ({ ...s, firstSection: s.id === hero?.id })) };
 }
 
 // ---- error messages of form fields (drawn next to the page, outside the section frames)

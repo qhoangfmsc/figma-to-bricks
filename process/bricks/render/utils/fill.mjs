@@ -1,10 +1,10 @@
 // Figma fills -> Bricks `_background` (+ expected css for verify).
 //   SOLID            _background.color
-//   GRADIENT_LINEAR  background-image through _cssCustom (see gradient.mjs)
+//   GRADIENT_LINEAR  _gradient (Bricks Style > Gradient), see gradient.mjs
 //   IMAGE on a node with children -> _background.image (a leaf with an image fill becomes an `image` element instead, see index.mjs)
 // Not supported yet (warned, never guessed): radial/angular/diamond gradients, several fills (top one wins).
 import { addCustomCss, colorObj, cssColor, r4 } from './css.mjs';
-import { linearGradientCss } from './gradient.mjs';
+import { linearGradientCss, linearGradientControl } from './gradient.mjs';
 
 // Fills are listed bottom to top. An opaque normal-blend SOLID covers everything under it, so those fills are invisible in Figma and must not be painted
 // (Benefits section: image under a #0b36b2 solid showed as flat blue in Figma, the image was drawn on top of the color here).
@@ -23,7 +23,9 @@ export function applyFill({ node, s, css, warn }, { skipFill = false } = {}) {
       s._background = { color: colorObj(top) };
       css['background-color'] = cssColor(top);
     } else if (top.type === 'GRADIENT_LINEAR') {
-      addCustomCss(s, `background-image: ${linearGradientCss(top, node.box.w, node.box.h)};`);
+      // the Bricks attribute (Style > Gradient); a node that also paints a background image keeps css, both would write `background-image`
+      if ((node.fills ?? []).some((f) => f.type === 'IMAGE') && node.children?.length) addCustomCss(s, `background-image: ${linearGradientCss(top, node.box.w, node.box.h)};`);
+      else s._gradient = linearGradientControl(top, node.box.w, node.box.h);
     } else {
       warn(node, `fill type ${top.type} is not supported yet (skipped)`);
     }

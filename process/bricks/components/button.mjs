@@ -41,12 +41,13 @@ export default {
     applyText({ node: text, s, css, warn });
     s._typography['letter-spacing'] ??= '0px'; // theme default is .5px
     s._padding ??= { top: '0px', right: '0px', bottom: '0px', left: '0px' }; // theme default is .5em 1em
-    // the theme sets `gap:10px` on .bricks-button and the Bricks gap controls are not output for this element: write it as custom css
-    if (node.layout && node.layout.primaryAlign !== 'SPACE_BETWEEN') addCustomCss(s, `column-gap: ${px(node.layout.gap)}; row-gap: ${px(node.layout.gap)};`);
     if (!node.interactions?.some((i) => i.trigger === 'ON_HOVER')) addHoverFade(s); // owner default; a drawn hover was already handled with the frame's style
     if (det.params?.tag) s.tag = det.params.tag;
     s.link = linkSetting(det.params?.link);
     const icon = iconOf(node);
+    // gap: the Bricks attribute `iconGap` exists only with an icon (control `required: icon`). Without an icon Bricks has no gap control for the button and the theme
+    // writes `gap: 10px` on .bricks-button, so the Figma value (e.g. 0) can only be written as css
+    if (!icon && node.layout && node.layout.primaryAlign !== 'SPACE_BETWEEN') addCustomCss(s, `column-gap: ${px(node.layout.gap)}; row-gap: ${px(node.layout.gap)};`);
     if (icon) {
       s.icon = svgIcon(svgNode(icon));
       s.iconPosition = visibleChildren(node).indexOf(icon) < visibleChildren(node).indexOf(text) ? 'left' : 'right';

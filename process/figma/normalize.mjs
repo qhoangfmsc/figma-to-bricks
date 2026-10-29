@@ -3,43 +3,15 @@
 // Rules:
 //  * LOSSLESS for everything that has a visual meaning: values are copied as Figma gives them (only unit
 //    conversions: 0..1 colors -> hex, absolute -> parent-relative coordinates).
-//  * Nothing is silently dropped: every raw key that is neither read here nor listed in IGNORABLE ends up
-//    in node.unhandled, and is printed in tree.md / report.md.
+//  * Nothing is silently dropped: every raw key is classified in schema/handling.json; a key that is not there, or a visual one the build does not
+//    reproduce and that the node really uses, ends up in node.unhandled and is printed in tree.md / report.md.
 import { safeId } from '../shared/workspace.mjs';
+import { enumFlag, nodeFlag, textFlag } from '../schema/handling.mjs';
+import { relayoutInstances } from './relayout.mjs';
 
 const num = (v, d = 0) => (typeof v === 'number' ? Math.round(v * 10000) / 10000 : d);
 
-// raw keys this file reads
-const READ = new Set([
-  'id', 'name', 'type', 'visible', 'children', 'absoluteBoundingBox', 'size', 'relativeTransform', 'rotation',
-  'layoutMode', 'layoutWrap', 'itemSpacing', 'counterAxisSpacing', 'paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom',
-  'primaryAxisAlignItems', 'counterAxisAlignItems', 'counterAxisAlignContent', 'primaryAxisSizingMode', 'counterAxisSizingMode',
-  'layoutSizingHorizontal', 'layoutSizingVertical', 'layoutAlign', 'layoutGrow', 'layoutPositioning', 'constraints',
-  'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'fills', 'strokes', 'strokeWeight', 'individualStrokeWeights', 'strokeAlign',
-  'strokeDashes', 'strokesIncludedInLayout', 'cornerRadius', 'rectangleCornerRadii', 'cornerSmoothing', 'effects', 'opacity', 'clipsContent', 'blendMode',
-  'characters', 'style', 'characterStyleOverrides', 'styleOverrideTable', 'componentId', 'styles', 'boundVariables', 'isMask',
-  'componentProperties', 'interactions',
-  'gridColumnCount', 'gridRowCount', 'gridColumnGap', 'gridRowGap', 'gridColumnsSizing', 'gridRowsSizing', 'gridAutoTracks', 'gridItemsPositioning',
-  'gridColumnAnchorIndex', 'gridRowAnchorIndex', 'gridColumnSpan', 'gridRowSpan', 'gridChildHorizontalAlign', 'gridChildVerticalAlign',
-]);
-
-// raw keys with no effect on the rendered design (editor / prototyping / geometry caches)
-const IGNORABLE = new Set([
-  'absoluteRenderBounds', 'scrollBehavior', 'transitionNodeID', 'transitionDuration', 'transitionEasing',
-  'exportSettings', 'reactions', 'devStatus', 'componentPropertyReferences', 'componentPropertyDefinitions',
-  'overrides', 'lineTypes', 'lineIndentations', 'fillGeometry', 'strokeGeometry', 'vectorNetwork', 'fillOverrideTable',
-  'preserveRatio', 'locked', 'pluginData', 'sharedPluginData', 'strokeJoin', 'strokeMiterAngle',
-  'itemReversedZIndex', 'layoutGrids', 'gridStyleId', 'inferredAutoLayout', 'isFixed', 'annotations', 'attributes', 'description',
-  'descriptionMarkdown', 'documentationLinks', 'remote', 'key', 'backgroundColor', 'background', 'prototypeStartNodeID', 'flowStartingPoints',
-  'prototypeDevice', 'measurements', 'layoutVersion', 'explicitVariableModes', 'targetAspectRatio', 'isAsset', 'exposedInstances', 'mainComponent',
-]);
-
-const TEXT_STYLE_READ = new Set([
-  'fontFamily', 'fontPostScriptName', 'fontStyle', 'italic', 'fontWeight', 'fontSize', 'textCase', 'textDecoration', 'textAutoResize',
-  'textAlignHorizontal', 'textAlignVertical', 'letterSpacing', 'lineHeightPx', 'lineHeightPercent', 'lineHeightPercentFontSize',
-  'lineHeightUnit', 'paragraphSpacing', 'paragraphIndent', 'fills', 'textTruncation', 'maxLines',
-]);
-const TEXT_STYLE_IGNORABLE = new Set(['opentypeFlags', 'semanticWeight', 'semanticItalic', 'listSpacing', 'hangingPunctuation', 'hangingList', 'leadingTrim', 'fontVariations']);
+// what happens to every raw key (read / ignored with a reason / reported) is decided in schema/handling.json, see schema/handling.mjs
 
 export function color(c, extraOpacity = 1) {
   const h = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
@@ -117,7 +89,17 @@ function textRuns(raw) {
   });
   return runs.map(({ key, text }) => {
     const o = key ? raw.styleOverrideTable?.[key] : null;
-    return { text, ...(o && { style: normTextStyle(o) }) };
+    const style = o && normTextStyle(o);
+    // One override over the WHOLE text whose size / weight / line height is bound to a variable: the table keeps the value of the text style (Body-text-sm: 12px)
+    // while the node's own style is the value resolved for the frame's variable mode (mobile: 8px, and Figma's render bounds of the text are 8px high).
+    // Partial runs (a bold word) are real overrides and stay.
+    if (style && runs.length === 1 && o.boundVariables && raw.style) {
+      const bound = o.boundVariables, base = normTextStyle(raw.style);
+      for (const [variable, keys] of Object.entries({ fontSize: ['fontSize'], fontWeight: ['fontWeight'], fontFamily: ['fontFamily'], lineHeight: ['lineHeightPx', 'lineHeightUnit', 'lineHeightPercentFontSize'] })) {
+        if (bound[variable]) for (const k of keys) if (base[k] !== undefined) style[k] = base[k];
+      }
+    }
+    return { text, ...(style && { style }) };
   });
 }
 
@@ -220,10 +202,13 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
       ...(s.paragraphIndent && { paragraphIndent: num(s.paragraphIndent) }),
       ...(s.textTruncation && { truncation: s.textTruncation, maxLines: s.maxLines }),
     };
+    // bullet / numbered list formatting of the text layer: one entry per line (paragraph), with its level
+    if ((raw.lineTypes ?? []).some((k) => k && k !== 'NONE')) node.text.listLines = raw.lineTypes.map((type, i) => ({ type, level: raw.lineIndentations?.[i] ?? 0 }));
     const runs = textRuns(raw);
     if (runs) node.text.runs = runs;
     for (const k of Object.keys(s)) {
-      if (!TEXT_STYLE_READ.has(k) && !TEXT_STYLE_IGNORABLE.has(k)) (node.unhandled ??= []).push(`style.${k}`);
+      const flag = textFlag(k, s[k]) ?? enumFlag(k, s[k]);
+      if (flag) (node.unhandled ??= []).push(`style.${flag}`);
     }
   }
 
@@ -249,7 +234,7 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
 
   // assets
   const svg = ctx.manifest.svgs?.[safeId(raw.id)];
-  if (svg) node.svg = { file: svg.file, bytes: svg.bytes };
+  if (svg) node.svg = { file: svg.file, bytes: svg.bytes, ...(svg.width && { width: svg.width, height: svg.height }) };
   for (const f of node.fills ?? []) {
     if (f.type === 'IMAGE') {
       const a = ctx.manifest.images?.[f.imageRef];
@@ -259,7 +244,8 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
   }
 
   for (const k of Object.keys(raw)) {
-    if (!READ.has(k) && !IGNORABLE.has(k)) (node.unhandled ??= []).push(k);
+    const flag = nodeFlag(k, raw[k]) ?? enumFlag(k, raw[k]);
+    if (flag) (node.unhandled ??= []).push(flag);
   }
 
   // SVG roots are leaves for us: the whole subtree is the exported SVG
@@ -281,5 +267,7 @@ export function normalizeRoot(rawResponse, nodeId, manifest) {
     componentSets: entry.componentSets,
     styleNames: Object.fromEntries(Object.entries(entry.styles ?? {}).map(([id, s]) => [id, s.name])),
   };
-  return normalizeNode(entry.document, ctx);
+  const tree = normalizeNode(entry.document, ctx);
+  relayoutInstances(tree); // boxes inside instances are stored as laid out for the main component, see relayout.mjs
+  return tree;
 }

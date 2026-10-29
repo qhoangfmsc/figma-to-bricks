@@ -1,0 +1,614 @@
+{
+ "note": "What the pipeline does with every property Figma sends on a node. status: read (normalize.mjs carries it into tree.json, the render rules use it) \u00b7 ignored (why = a concrete reason it cannot change the look) \u00b7 limit (visual, not reproducible: reported when a node carries a non-default value) \u00b7 gap (visual, reproducible, not built yet: reported the same way). A property that is not listed here fails the coverage test.",
+ "node": {
+  "absoluteBoundingBox": {
+   "status": "read"
+  },
+  "absoluteRenderBounds": {
+   "status": "ignored",
+   "why": "painted bounds of the node: kept in raw.json as the reference for the render-bounds check, not mapped to a Bricks value"
+  },
+  "arcData": {
+   "status": "limit",
+   "why": "arc / donut of an ellipse: border-radius cannot draw a partial ellipse",
+   "default": {
+    "startingAngle": 0,
+    "endingAngle": 6.283185307179586,
+    "innerRadius": 0
+   }
+  },
+  "authorVisible": {
+   "status": "ignored",
+   "why": "FigJam only: shows the author name on a sticky note, a design frame has none"
+  },
+  "background": {
+   "status": "ignored",
+   "why": "deprecated in the spec: the background of a frame is in `fills`"
+  },
+  "backgroundColor": {
+   "status": "ignored",
+   "why": "canvas background, not part of any frame"
+  },
+  "blendMode": {
+   "status": "read"
+  },
+  "booleanOperation": {
+   "status": "ignored",
+   "why": "a BOOLEAN_OPERATION node is exported as one svg file by Figma: the operation is already in the picture"
+  },
+  "boundVariables": {
+   "status": "read"
+  },
+  "characterStyleOverrides": {
+   "status": "read"
+  },
+  "characters": {
+   "status": "read"
+  },
+  "children": {
+   "status": "read"
+  },
+  "clipsContent": {
+   "status": "read"
+  },
+  "complexStrokeProperties": {
+   "status": "ignored",
+   "why": "Figma-internal duplicate of the stroke settings that are read through strokes / strokeWeight / strokeAlign",
+   "inSpec": false
+  },
+  "componentId": {
+   "status": "read"
+  },
+  "componentProperties": {
+   "status": "read"
+  },
+  "componentPropertyDefinitions": {
+   "status": "ignored",
+   "why": "definition of the component properties; instances carry the resolved values"
+  },
+  "componentPropertyReferences": {
+   "status": "ignored",
+   "why": "which component property drives a layer: its resolved effect is already in the node values"
+  },
+  "connectorEnd": {
+   "status": "ignored",
+   "why": "FigJam only: end point of a connector line, never present on a design frame"
+  },
+  "connectorEndStrokeCap": {
+   "status": "ignored",
+   "why": "FigJam only: end cap of a connector line, never present on a design frame"
+  },
+  "connectorLineType": {
+   "status": "ignored",
+   "why": "FigJam only: routing style of a connector line, never present on a design frame"
+  },
+  "connectorStart": {
+   "status": "ignored",
+   "why": "FigJam only: start point of a connector line, never present on a design frame"
+  },
+  "connectorStartStrokeCap": {
+   "status": "ignored",
+   "why": "FigJam only: start cap of a connector line, never present on a design frame"
+  },
+  "constraints": {
+   "status": "read"
+  },
+  "cornerRadius": {
+   "status": "read"
+  },
+  "cornerSmoothing": {
+   "status": "read"
+  },
+  "counterAxisAlignContent": {
+   "status": "read"
+  },
+  "counterAxisAlignItems": {
+   "status": "read"
+  },
+  "counterAxisSizingMode": {
+   "status": "read"
+  },
+  "counterAxisSpacing": {
+   "status": "read"
+  },
+  "devStatus": {
+   "status": "ignored",
+   "why": "dev-mode handoff status"
+  },
+  "effects": {
+   "status": "read"
+  },
+  "explicitVariableModes": {
+   "status": "limit",
+   "why": "variable mode picked for a frame (mobile / desktop values of font size etc.): the REST node holds values of ONE mode, the render of the other can differ (Banner mobile button 14px, REST says 16)",
+   "default": {}
+  },
+  "exportSettings": {
+   "status": "ignored",
+   "why": "export presets for the designer, not part of the node"
+  },
+  "exposedInstances": {
+   "status": "ignored",
+   "why": "editor: instances shown in the parent panel"
+  },
+  "fillGeometry": {
+   "status": "ignored",
+   "why": "path data of the fills: vectors reach the template as the svg file Figma exports"
+  },
+  "fillOverrideTable": {
+   "status": "ignored",
+   "why": "per-vertex fill overrides of vectors: the svg export has them"
+  },
+  "fills": {
+   "status": "read"
+  },
+  "flowStartingPoints": {
+   "status": "ignored",
+   "why": "prototype flow entry points: describe click paths, not how a frame looks"
+  },
+  "gridAutoTracks": {
+   "status": "ignored",
+   "why": "not in the published spec; GRID tracks are read from gridColumnsSizing / gridRowsSizing",
+   "inSpec": false
+  },
+  "gridChildHorizontalAlign": {
+   "status": "read"
+  },
+  "gridChildVerticalAlign": {
+   "status": "read"
+  },
+  "gridColumnAnchorIndex": {
+   "status": "read"
+  },
+  "gridColumnCount": {
+   "status": "read"
+  },
+  "gridColumnGap": {
+   "status": "read"
+  },
+  "gridColumnSpan": {
+   "status": "read"
+  },
+  "gridColumnsSizing": {
+   "status": "read"
+  },
+  "gridItemsPositioning": {
+   "status": "ignored",
+   "why": "not in the published spec; cell positions are read from the per-child grid keys",
+   "inSpec": false
+  },
+  "gridRowAnchorIndex": {
+   "status": "read"
+  },
+  "gridRowCount": {
+   "status": "read"
+  },
+  "gridRowGap": {
+   "status": "read"
+  },
+  "gridRowSpan": {
+   "status": "read"
+  },
+  "gridRowsSizing": {
+   "status": "read"
+  },
+  "id": {
+   "status": "read"
+  },
+  "individualStrokeWeights": {
+   "status": "read"
+  },
+  "interactions": {
+   "status": "read"
+  },
+  "isExposedInstance": {
+   "status": "ignored",
+   "why": "editor: instance exposed in the parent panel"
+  },
+  "isFixed": {
+   "status": "limit",
+   "why": "layer fixed while the page scrolls (position: fixed): not reproduced",
+   "default": false
+  },
+  "isMask": {
+   "status": "read"
+  },
+  "isMaskOutline": {
+   "status": "limit",
+   "why": "mask drawn as outline: not reproduced",
+   "default": false
+  },
+  "itemReverseZIndex": {
+   "status": "gap",
+   "why": "stacking order of auto-layout children (first on top instead of last on top): not applied, the DOM order decides",
+   "default": false
+  },
+  "itemSpacing": {
+   "status": "read"
+  },
+  "layoutAlign": {
+   "status": "read"
+  },
+  "layoutGrids": {
+   "status": "ignored",
+   "why": "design-time grid overlays, never rendered"
+  },
+  "layoutGrow": {
+   "status": "read"
+  },
+  "layoutMode": {
+   "status": "read"
+  },
+  "layoutPositioning": {
+   "status": "read"
+  },
+  "layoutSizingHorizontal": {
+   "status": "read"
+  },
+  "layoutSizingVertical": {
+   "status": "read"
+  },
+  "layoutVersion": {
+   "status": "ignored",
+   "why": "internal layout engine version"
+  },
+  "layoutWrap": {
+   "status": "read"
+  },
+  "lineIndentations": {
+   "status": "read",
+   "why": "level of each list line, read together with lineTypes"
+  },
+  "lineTypes": {
+   "status": "read",
+   "why": "unordered first-level lists are built as ul/li by text.mjs (indent 1.5em, bullet ink at 0.594em); ordered and nested lists are reported by the text rule"
+  },
+  "locked": {
+   "status": "ignored",
+   "why": "editor lock that stops the designer from moving the layer, no visual effect"
+  },
+  "maskType": {
+   "status": "limit",
+   "why": "kind of mask (ALPHA / VECTOR / LUMINANCE): masks are only handled as a flat picture by Figma export"
+  },
+  "maxHeight": {
+   "status": "read"
+  },
+  "maxWidth": {
+   "status": "read"
+  },
+  "measurements": {
+   "status": "ignored",
+   "why": "dev-mode measurement lines"
+  },
+  "minHeight": {
+   "status": "read"
+  },
+  "minWidth": {
+   "status": "read"
+  },
+  "name": {
+   "status": "read"
+  },
+  "opacity": {
+   "status": "read"
+  },
+  "overflowDirection": {
+   "status": "limit",
+   "why": "scrolling overflow of a frame (prototype scroll area): not built as a scroll container",
+   "default": "NONE"
+  },
+  "overrides": {
+   "status": "ignored",
+   "why": "list of instance overrides: the REST node already holds the overridden values"
+  },
+  "paddingBottom": {
+   "status": "read"
+  },
+  "paddingLeft": {
+   "status": "read"
+  },
+  "paddingRight": {
+   "status": "read"
+  },
+  "paddingTop": {
+   "status": "read"
+  },
+  "pluginData": {
+   "status": "ignored",
+   "why": "private storage of a Figma plugin, no visual effect"
+  },
+  "preserveRatio": {
+   "status": "ignored",
+   "why": "only decides how the layer scales when the designer resizes it"
+  },
+  "primaryAxisAlignItems": {
+   "status": "read"
+  },
+  "primaryAxisSizingMode": {
+   "status": "read"
+  },
+  "prototypeBackgrounds": {
+   "status": "ignored",
+   "why": "prototype background"
+  },
+  "prototypeDevice": {
+   "status": "ignored",
+   "why": "prototype device frame"
+  },
+  "prototypeStartNodeID": {
+   "status": "ignored",
+   "why": "prototype flow start frame: describes click paths, not how a frame looks"
+  },
+  "rectangleCornerRadii": {
+   "status": "read"
+  },
+  "relativeTransform": {
+   "status": "read"
+  },
+  "rotation": {
+   "status": "read"
+  },
+  "scrollBehavior": {
+   "status": "ignored",
+   "why": "prototype scroll behaviour, no visual effect on the static design"
+  },
+  "sectionContentsHidden": {
+   "status": "ignored",
+   "why": "canvas section collapsed state"
+  },
+  "shapeType": {
+   "status": "ignored",
+   "why": "FigJam only: which shape a shape-with-text node draws, never present on a design frame"
+  },
+  "sharedPluginData": {
+   "status": "ignored",
+   "why": "storage shared between Figma plugins, no visual effect"
+  },
+  "size": {
+   "status": "read"
+  },
+  "strokeAlign": {
+   "status": "read"
+  },
+  "strokeCap": {
+   "status": "limit",
+   "why": "end shape of an open stroke (ROUND, ARROW...): lines are drawn as a box + border, they have no cap",
+   "default": "NONE"
+  },
+  "strokeDashes": {
+   "status": "read"
+  },
+  "strokeGeometry": {
+   "status": "ignored",
+   "why": "path data of the strokes: same, through the svg export"
+  },
+  "strokeJoin": {
+   "status": "limit",
+   "why": "corner shape of a stroke (MITER default): CSS borders have square corners and shadows follow the radius",
+   "default": "MITER"
+  },
+  "strokeMiterAngle": {
+   "status": "limit",
+   "why": "miter limit of a stroke",
+   "default": 28.96
+  },
+  "strokeWeight": {
+   "status": "read"
+  },
+  "strokes": {
+   "status": "read"
+  },
+  "strokesIncludedInLayout": {
+   "status": "read"
+  },
+  "style": {
+   "status": "read"
+  },
+  "styleOverrideTable": {
+   "status": "read"
+  },
+  "styles": {
+   "status": "read"
+  },
+  "targetAspectRatio": {
+   "status": "ignored",
+   "why": "aspect-ratio lock used while the designer resizes",
+   "inSpec": false
+  },
+  "textBackground": {
+   "status": "ignored",
+   "why": "FigJam text background"
+  },
+  "transitionDuration": {
+   "status": "ignored",
+   "why": "prototype transition"
+  },
+  "transitionEasing": {
+   "status": "ignored",
+   "why": "prototype transition"
+  },
+  "transitionNodeID": {
+   "status": "ignored",
+   "why": "prototype transition target"
+  },
+  "type": {
+   "status": "read"
+  },
+  "uniformScaleFactor": {
+   "status": "ignored",
+   "why": "scale tool factor used while the designer resizes",
+   "inSpec": false
+  },
+  "vectorNetwork": {
+   "status": "ignored",
+   "why": "vector editing network: same, through the svg export",
+   "inSpec": false
+  },
+  "visible": {
+   "status": "read"
+  }
+ },
+ "textStyle": {
+  "boundVariables": {
+   "status": "read"
+  },
+  "fills": {
+   "status": "read"
+  },
+  "fontFamily": {
+   "status": "read"
+  },
+  "fontPostScriptName": {
+   "status": "read"
+  },
+  "fontSize": {
+   "status": "read"
+  },
+  "fontStyle": {
+   "status": "read"
+  },
+  "fontVariations": {
+   "status": "limit",
+   "why": "variable-font axes (opsz, wdth, slnt...): the page loads the static weights from Google Fonts",
+   "default": [],
+   "inSpec": false
+  },
+  "fontWeight": {
+   "status": "read"
+  },
+  "hangingList": {
+   "status": "limit",
+   "why": "list markers hanging outside the text box, see node.lineTypes",
+   "default": false,
+   "inSpec": false
+  },
+  "hangingPunctuation": {
+   "status": "limit",
+   "why": "punctuation hanging outside the text box: CSS hanging-punctuation is not supported by Chromium",
+   "default": false,
+   "inSpec": false
+  },
+  "hyperlink": {
+   "status": "limit",
+   "why": "a link on a text run: the build has no per-run link (links are decided per element, URL is a designer-list item)"
+  },
+  "inheritFillStyleId": {
+   "status": "ignored",
+   "why": "id of the fill style the run inherits from: the resolved fills are in the run",
+   "inSpec": false
+  },
+  "inheritTextStyleId": {
+   "status": "ignored",
+   "why": "id of the text style the run inherits from: the resolved values are in the run",
+   "inSpec": false
+  },
+  "isOverrideOverTextStyle": {
+   "status": "ignored",
+   "why": "says the run overrides a text style; its values are in the run itself"
+  },
+  "italic": {
+   "status": "read"
+  },
+  "leadingTrim": {
+   "status": "limit",
+   "why": "trims the text box to the cap height / baseline: changes the box height, not written",
+   "default": "NONE",
+   "inSpec": false
+  },
+  "letterSpacing": {
+   "status": "read"
+  },
+  "lineHeightPercent": {
+   "status": "read"
+  },
+  "lineHeightPercentFontSize": {
+   "status": "read"
+  },
+  "lineHeightPx": {
+   "status": "read"
+  },
+  "lineHeightUnit": {
+   "status": "read"
+  },
+  "listSpacing": {
+   "status": "limit",
+   "why": "spacing between list items of a list text; lists are not built (see node.lineTypes)",
+   "default": 0
+  },
+  "maxLines": {
+   "status": "read"
+  },
+  "opentypeFlags": {
+   "status": "limit",
+   "why": "OpenType features (ligatures, tabular numbers, small caps...): not written to font-feature-settings",
+   "default": {}
+  },
+  "paragraphIndent": {
+   "status": "read"
+  },
+  "paragraphSpacing": {
+   "status": "read"
+  },
+  "semanticItalic": {
+   "status": "ignored",
+   "why": "accessibility label of the italic: `italic` / fontStyle are read"
+  },
+  "semanticWeight": {
+   "status": "ignored",
+   "why": "accessibility label of the weight (BOLD / NORMAL): the numeric fontWeight is read"
+  },
+  "textAlignHorizontal": {
+   "status": "read"
+  },
+  "textAlignVertical": {
+   "status": "read"
+  },
+  "textAutoResize": {
+   "status": "read"
+  },
+  "textCase": {
+   "status": "read"
+  },
+  "textDecoration": {
+   "status": "read"
+  },
+  "textTruncation": {
+   "status": "read"
+  }
+ },
+ "enums": {
+  "textCase": {
+   "SMALL_CAPS": {
+    "status": "gap",
+    "why": "small capitals for lower-case letters (OpenType smcp): reproducible with font-variant-caps: small-caps, not mapped yet"
+   },
+   "SMALL_CAPS_FORCED": {
+    "status": "gap",
+    "why": "small capitals for every letter: reproducible with font-variant-caps: all-small-caps, not mapped yet"
+   }
+  },
+  "textAutoResize": {
+   "TRUNCATE": {
+    "status": "gap",
+    "why": "deprecated Figma value for a text box that truncates with an ellipsis (the same as textTruncation ENDING): not mapped to the line clamp yet"
+   }
+  },
+  "textAlignVertical": {
+   "BOTTOM": {
+    "status": "limit",
+    "why": "text pinned to the bottom of a fixed-height box: text.mjs reports it, flex alignment of the text inside its own box is not written"
+   }
+  },
+  "maskType": {
+   "ALPHA": {
+    "status": "limit",
+    "why": "alpha mask: masked groups are only reproduced as the flat picture Figma exports"
+   },
+   "LUMINANCE": {
+    "status": "limit",
+    "why": "luminance mask: masked groups are only reproduced as the flat picture Figma exports"
+   }
+  }
+ }
+}

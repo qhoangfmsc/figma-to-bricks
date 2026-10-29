@@ -68,7 +68,8 @@ export async function fetchStep(urlOrDir, { fixture } = {}) {
   }
   for (const f of readdirSync(svgs)) {
     const buf = readFileSync(join(svgs, f));
-    manifest.svgs[basename(f, '.svg')] = { file: `svg/${f}`, bytes: buf.length, sha256: sha256(buf) };
+    const head = buf.subarray(0, 400).toString('utf8').match(/<svg[^>]*?\swidth="([\d.]+)"[^>]*?\sheight="([\d.]+)"/); // the size Figma exported (stroke bleed included)
+    manifest.svgs[basename(f, '.svg')] = { file: `svg/${f}`, bytes: buf.length, sha256: sha256(buf), ...(head && { width: Number(head[1]), height: Number(head[2]) }) };
   }
   ws.writeJson('assets/manifest.json', manifest);
 

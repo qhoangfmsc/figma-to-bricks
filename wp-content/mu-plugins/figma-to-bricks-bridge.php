@@ -19,6 +19,17 @@ final class F2B_Bridge {
 	public static function init() {
 		add_action( 'rest_api_init', [ __CLASS__, 'routes' ] );
 		add_action( 'wp_head', [ __CLASS__, 'print_fonts' ], 1 );
+		// local font faces come LAST, in the footer: Bricks adds its own Google Fonts stylesheet for the same family at the end of <head> (whatever the priority), and for
+		// equal family / weight / style the face defined last wins
+		add_action( 'wp_footer', [ __CLASS__, 'print_local_faces' ], 1 );
+	}
+
+	private static $local_faces = '';
+
+	public static function print_local_faces() {
+		if ( self::$local_faces ) {
+			echo '<style id="f2b-local-fonts">' . self::$local_faces . '</style>' . "\n";
+		}
 	}
 
 	/** Google Fonts used by pipeline templates: { 'Inter' => [ 'w' => [400,700], 'i' => [400] ] } */
@@ -29,11 +40,26 @@ final class F2B_Bridge {
 		}
 
 		$parts = [];
+		$faces = '';
 		foreach ( $fonts as $family => $f ) {
 			$w = array_values( array_unique( array_map( 'intval', $f['w'] ?? [] ) ) );
 			$i = array_values( array_unique( array_map( 'intval', $f['i'] ?? [] ) ) );
 			sort( $w );
 			sort( $i );
+			// Optional: font files placed in mu-plugins/figma-to-bricks-fonts/<Family>/<weight>.woff2 replace Google's for those weights (Figma lays text out with its own
+			// Inter 3.x; Google serves Inter 4, whose Vietnamese capitals are up to 2% wider). Remove the folder to go back to Google Fonts only.
+			$local = [];
+			$slug  = sanitize_file_name( $family );
+			foreach ( $w as $weight ) {
+				if ( file_exists( WPMU_PLUGIN_DIR . "/figma-to-bricks-fonts/$slug/$weight.woff2" ) ) {
+					$local[] = $weight;
+					$faces  .= "@font-face{font-family:'" . esc_attr( $family ) . "';font-style:normal;font-weight:$weight;font-display:swap;src:url('/wp-content/mu-plugins/figma-to-bricks-fonts/" . rawurlencode( $slug ) . "/$weight.woff2') format('woff2')}";
+				}
+			}
+			$w = array_values( array_diff( $w, $local ) );
+			if ( ! $w && ! $i ) {
+				continue;
+			}
 			if ( $i ) {
 				$pairs = array_merge( array_map( fn( $x ) => "0,$x", $w ), array_map( fn( $x ) => "1,$x", $i ) );
 				$parts[] = 'family=' . rawurlencode( $family ) . ':ital,wght@' . implode( ';', $pairs );
@@ -42,6 +68,10 @@ final class F2B_Bridge {
 			}
 		}
 
+		self::$local_faces = $faces;
+		if ( ! $parts ) {
+			return;
+		}
 		echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
 		echo '<link rel="stylesheet" href="' . esc_url( 'https://fonts.googleapis.com/css2?' . implode( '&', $parts ) . '&display=swap' ) . '">' . "\n";
 	}
@@ -68,6 +98,8 @@ final class F2B_Bridge {
 			[ 'methods' => 'POST', 'callback' => [ __CLASS__, 'upsert_classes' ] ] + $p,
 		] );
 		$r( '/preview/(?P<id>\d+)', [ [ 'methods' => 'POST', 'callback' => [ __CLASS__, 'preview' ] ] + $p ] );
+		$r( '/preview', [ [ 'methods' => 'DELETE', 'callback' => [ __CLASS__, 'preview_cleanup' ] ] + $p ] );
+		$r( '/page', [ [ 'methods' => 'POST', 'callback' => [ __CLASS__, 'assemble_page' ] ] + $p ] );
 		$r( '/fonts', [
 			[ 'methods' => 'GET', 'callback' => fn() => get_option( self::FONTS_OPTION, [] ) ] + $p,
 			[ 'methods' => 'POST', 'callback' => [ __CLASS__, 'set_fonts' ] ] + $p,
@@ -360,7 +392,8 @@ final class F2B_Bridge {
 
 	/**
 	 * Preview page for measuring a template at real width: a Bricks page whose only element is that template.
-	 * Upserted per template id, so repeated calls return the same URL.
+	 * ONE shared page (slug f2b-preview), rewritten for every template: the deliverable of a run is the templates plus one page with all of them
+	 * in order (assemble_page), so the preview page is moved to the trash when the run ends (preview_cleanup).
 	 */
 	public static function preview( $req ) {
 		$tpl = self::find( $req['id'] );
@@ -368,14 +401,20 @@ final class F2B_Bridge {
 			return new WP_Error( 'f2b_not_found', 'template not found', [ 'status' => 404 ] );
 		}
 
-		$slug = 'f2b-preview-' . $tpl->ID;
+		$slug = 'f2b-preview';
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
-		$id   = $page ? $page->ID : wp_insert_post( [
+		if ( $page && $page->post_status === 'trash' ) {
+			wp_untrash_post( $page->ID );
+		}
+		$id = $page ? $page->ID : wp_insert_post( [
 			'post_type'   => 'page',
 			'post_status' => 'publish',
-			'post_title'  => 'f2b preview ' . $tpl->ID,
+			'post_title'  => 'f2b preview',
 			'post_name'   => $slug,
 		] );
+		if ( $page && $page->post_status !== 'publish' ) {
+			wp_update_post( [ 'ID' => $id, 'post_status' => 'publish' ] );
+		}
 
 		update_post_meta( $id, BRICKS_DB_EDITOR_MODE, 'bricks' );
 		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, [ [
@@ -387,6 +426,54 @@ final class F2B_Bridge {
 		] ] );
 
 		return [ 'pageId' => $id, 'url' => add_query_arg( 'page_id', $id, home_url( '/' ) ) ];
+	}
+
+	/** Move the preview page(s) to the trash: the shared one and the per-template ones older versions of the pipeline left (f2b-preview-<id>). */
+	public static function preview_cleanup() {
+		global $wpdb;
+		$ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status <> 'trash' AND ( post_name = 'f2b-preview' OR post_name LIKE 'f2b-preview-%' )" );
+		foreach ( $ids as $id ) {
+			wp_trash_post( (int) $id );
+		}
+		return [ 'trashed' => array_map( 'intval', $ids ) ];
+	}
+
+	/**
+	 * The deliverable page: a Bricks page that holds the templates in the given order (body { key, title, template_ids: [..] }).
+	 * Upserted by key, so a re-run updates the same page.
+	 */
+	public static function assemble_page( $req ) {
+		$ids = array_values( array_filter( array_map( 'intval', (array) ( $req['template_ids'] ?? [] ) ) ) );
+		$title = trim( (string) ( $req['title'] ?? '' ) );
+		$key = sanitize_key( (string) ( $req['key'] ?? '' ) );
+		if ( ! $ids || $title === '' || $key === '' ) {
+			return new WP_Error( 'f2b_invalid', 'key, title and template_ids are required', [ 'status' => 400 ] );
+		}
+		$content = [];
+		foreach ( $ids as $i => $tid ) {
+			if ( ! self::find( $tid ) ) {
+				return new WP_Error( 'f2b_not_found', "template $tid not found", [ 'status' => 404 ] );
+			}
+			$content[] = [
+				'id'       => substr( md5( "f2b-page-$tid-$i" ), 0, 6 ),
+				'name'     => 'template',
+				'parent'   => 0,
+				'children' => [],
+				'settings' => [ 'template' => $tid ],
+			];
+		}
+		$found = get_posts( [ 'post_type' => 'page', 'post_status' => [ 'publish', 'draft', 'private', 'trash' ], 'meta_key' => '_f2b_page_key', 'meta_value' => $key, 'numberposts' => 1 ] );
+		$page = $found ? $found[0] : null;
+		if ( $page && $page->post_status === 'trash' ) {
+			wp_untrash_post( $page->ID );
+		}
+		$id = $page ? $page->ID : wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $title ] );
+		wp_update_post( [ 'ID' => $id, 'post_title' => $title, 'post_status' => 'publish' ] );
+		update_post_meta( $id, '_f2b_page_key', $key );
+		update_post_meta( $id, BRICKS_DB_EDITOR_MODE, 'bricks' );
+		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, $content );
+
+		return [ 'pageId' => $id, 'url' => get_permalink( $id ), 'builderUrl' => add_query_arg( 'bricks', 'run', get_permalink( $id ) ), 'templates' => $ids ];
 	}
 
 	/** Merge fonts: body { fonts: [ { family, weights: [400,700], italicWeights?: [400] } ] } */

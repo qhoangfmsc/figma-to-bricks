@@ -5,7 +5,8 @@
 // -> sign-off (autopilot) -> export -> build (merge breakpoints) -> push -> verify (Playwright: boxes, look vs Figma, covered, scroll, weight, engines).
 // Owner decision 2026-10-27: "one Figma link and Bricks comes out"; review happens afterwards on scorecard.md + decisions.md, not before.
 // It stops only for a real blocker (no token, no node, Docker down, citations the code cannot verify). Never touches git.
-import { spawnSync } from 'node:child_process';
+import { runLines } from './shared/spawn-lines.mjs';
+import { Progress, screenOf } from './shared/progress.mjs';
 import { dirname, join } from 'node:path';
 import { resolveWorkspace } from './shared/workspace.mjs';
 import { fetchStep } from './scripts/01-fetch.mjs';
@@ -15,6 +16,9 @@ import { decide, writeDecisionReport } from './decide/index.mjs';
 import { discoverVariants, discoverFormErrors } from './figma/discover.mjs';
 import { signOff, gate } from './review/index.mjs';
 import { parseFigmaUrl } from './figma/url.mjs';
+import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './figma/api.mjs';
+import { writePlan, assemblePage, plansFile, sectionTitles } from './shared/deliverable.mjs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { writeFileSync } from 'node:fs';
 import { discoverSections } from './figma/discover.mjs';
@@ -24,6 +28,10 @@ const url = args.find((a) => !a.startsWith('--'));
 const responsive = !args.includes('--no-responsive');
 const planOnly = args.includes('--plan');
 const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerCase();
+// one section at a time (owner's decision 2026-10-29): --gate stops at the first section that is not DONE (a failing node left, see scripts/todo.mjs), so its rule bugs are
+// fixed before the next section is built; --resume skips the sections that are DONE already. Fix the rules, run scripts/rebuild-diff.mjs --apply for the finished sections,
+// then run again with --resume --gate.
+const stopAtUndone = args.includes('--gate'), resume = args.includes('--resume');
 if (!url) { console.error('usage: node process/auto.mjs "<figma url of a page, a breakpoint frame or a section>" [--plan] [--only=<name>] [--no-responsive] [--no-cross]'); process.exit(1); }
 
 const ref = parseFigmaUrl(url);
@@ -47,17 +55,31 @@ async function prepare(u, opts) {
   return { ws, result };
 }
 
-// one section frame -> a verified template (and its tablet / mobile frames merged in)
-async function runSection(sectionUrl, sectionId, { firstSection, bg }) {
+// one section frame -> a verified template (and its tablet / mobile frames merged in), in two halves so that they can overlap:
+//   prepareSection: reads Figma (network), decides, signs off      finishSection: export, build, push, verify (WordPress + Docker)
+// While section k is in finishSection, section k+1 is already in prepareSection (owner's decision 2026-10-28: two at a time, never two verifies at once:
+// one shared preview page, and Figma's rate limit stays as it is).
+async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, title }) {
+  await refreshRunCache(ref.fileKey); // a changed file version drops the structure cache
   console.log(`\n== SECTION ${sectionUrl}`);
   const { ws: base, result } = await prepare(sectionUrl, { firstSection, variant: false, parentBg: bg });
+  progress.prepared(idx, 'desktop');
+  // template name = "<design name> - <section>" (owner's naming convention 2026-10-28); everything else of overrides.json stays
+  const ov = base.readJson('overrides.json', {});
+  ov.template = { ...(ov.template ?? {}), title, reason: 'naming convention: "<design name> - <section>"' };
+  base.writeJson('overrides.json', ov);
+  progress.report(idx, 'desktop', 2);
   const context = { bg: { base: bg } };
   const variants = [];
+  if (!responsive) progress.found(idx, []);
   if (responsive) {
     const found = await discoverVariants(ref.fileKey, sectionId);
     console.log(`  base ${found.base.width}px · variants: ${found.variants.map((v) => `${v.key} ${v.width}px [${v.id}]`).join(', ') || 'none'}${found.others.length ? ` · ignored wide frames: ${found.others.join(', ')}` : ''}`);
+    progress.found(idx, found.variants.map((v) => v.key));
     for (const v of found.variants) {
       const { ws } = await prepare(urlOf(v.id), { firstSection, variant: true, parentBg: v.bg ?? bg });
+      progress.prepared(idx, v.key);
+      progress.report(idx, v.key, 2);
       context.bg[v.key] = v.bg ?? bg;
       variants.push({ key: v.key, workspace: ws.dir.split('/').pop(), maxWidth: v.maxWidth, aliases: {}, ws });
     }
@@ -70,8 +92,29 @@ async function runSection(sectionUrl, sectionId, { firstSection, bg }) {
     const g = gate(w);
     if (!g.ok) throw new Error(`BLOCKED in ${w.dir}: ${g.reason}`);
   }
-  const run = spawnSync('node', [join(dirname(new URL(import.meta.url).pathname), 'run.mjs'), sectionUrl, '--from=export', ...(args.includes('--no-cross') ? ['--no-cross'] : [])], { encoding: 'utf8', maxBuffer: 1 << 28 });
-  for (const line of (run.stdout ?? '').split('\n')) if (/^\s+\[|rror|summary\.md|created template|updated template|exported/.test(line) && !/^\s+!/.test(line)) console.log(line.slice(0, 190));
+  return { base, result, variants, sectionUrl, sectionId, idx, title };
+}
+
+async function finishSection({ base, result, variants, sectionUrl, sectionId, idx }) {
+  progress.at(idx, 'desktop', 'export');
+  const pendingFrames = () => ['base', ...variants.map((v) => v.key)];
+  const verifiedKeys = new Set();
+  const run = await runLines('node', [join(dirname(new URL(import.meta.url).pathname), 'run.mjs'), sectionUrl, '--from=export', ...(args.includes('--no-cross') ? ['--no-cross'] : [])], (line) => {
+    const step = /^\[\d\/7\] (\w+)/.exec(line);
+    if (step) { // the step that starts means the one before it is finished
+      const next = pendingFrames().find((k) => !verifiedKeys.has(k)) ?? 'base';
+      if (step[1] === 'push') progress.built(idx);
+      if (step[1] === 'verify') progress.pushed(idx);
+      progress.at(idx, step[1] === 'verify' ? next : 'desktop', step[1] === 'export' ? 'export ảnh/svg' : step[1] === 'build' ? 'build template' : step[1] === 'push' ? 'đẩy lên WordPress' : 'verify bằng Playwright');
+    }
+    const exp = /^\s+\[(\w+)\]$/.exec(line);
+    if (exp) progress.at(idx, exp[1], 'export ảnh/svg');
+    const fr = /^\s+\[(base|[a-z_]+) @\d+px\] (\S+)/.exec(line);
+    if (fr) { verifiedKeys.add(fr[1]); progress.verified(idx, fr[1], fr[2]); progress.report(idx, fr[1], 6, fr[2]); const next = pendingFrames().find((k) => !verifiedKeys.has(k)); if (next) progress.at(idx, next, 'verify bằng Playwright'); }
+    if (/^\s+\[|rror|summary\.md|created template|updated template|exported/.test(line) && !/^\s+!/.test(line)) console.log(line.slice(0, 190));
+  });
+  progress.built(idx); progress.pushed(idx);
+  for (const k of pendingFrames()) if (!verifiedKeys.has(k)) progress.verified(idx, k, base.has(k === 'base' ? 'verify.json' : `verify.${k}.json`) ? '' : 'không đo được');
   if (run.status !== 0 && !base.has('verify.json')) throw new Error(`run.mjs failed: ${(run.stderr || run.stdout).slice(-400)}`);
 
   const frames = [{ key: 'base', v: base.has('verify.json') ? base.readJson('verify.json') : null }, ...variants.map((v) => ({ key: v.key, v: base.has(`verify.${v.key}.json`) ? base.readJson(`verify.${v.key}.json`) : null }))];
@@ -93,27 +136,84 @@ async function runSection(sectionUrl, sectionId, { firstSection, bg }) {
 }
 
 console.log(`\n== AUTOPILOT ${url}`);
+enableRunCache();
+await refreshRunCache(ref.fileKey);
 const plan = await discoverSections(ref.fileKey, ref.nodeId);
 let sections = plan.sections.filter((s) => !only || s.name.toLowerCase().includes(only));
 console.log(`  ${plan.kind}: base frame "${plan.base.name}" ${plan.base.width}px · ${sections.length} section(s): ${sections.map((s) => `${s.name} [${s.id}]${s.firstSection ? ' (h1)' : ''}`).join(' · ')}`);
 if (planOnly) process.exit(0);
 
+// naming: "<design name> - <section>"; the full page plan (all sections, in page order) is written only by a run over the whole page
+const designName = (await figmaGet(`/v1/files/${ref.fileKey}?depth=1`)).name;
+const wholePage = !only && plan.kind !== 'section';
+const planned = wholePage ? writePlan(ref.fileKey, ref.nodeId, designName, plan.sections)
+  : existsSync(plansFile(ref.fileKey, ref.nodeId)) ? JSON.parse(readFileSync(plansFile(ref.fileKey, ref.nodeId), 'utf8')) : null;
+const titleOf = (s) => planned?.sections.find((x) => x.id === s.id)?.title ?? sectionTitles(designName, [s])[0];
 const done = [];
-for (const s of sections) {
-  try { done.push(await runSection(urlOf(s.id), s.id, { firstSection: s.firstSection, bg: plan.base.bg })); }
-  catch (e) { console.error(`\n✋ ${s.name} [${s.id}] stopped: ${e.message.slice(0, 400)}`); done.push({ name: s.name, id: s.id, error: e.message.slice(0, 300), frames: [], bad: -1, result: { decisions: [], needs: [], designer: [] } }); }
+const progress = new Progress({ dir: resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, ''), node: ref.nodeId.replace(':', '-'), title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, sections, screens: plan.screens });
+// section k+1 is prepared (Figma, network) while section k is finished (WordPress + Docker); a failure of either stops only that section
+const sectionState = (s) => { const f = join(resolveWorkspace(urlOf(s.id)).dir, 'nodes.state.json'); if (!existsSync(f)) return null; const fr = Object.values(JSON.parse(readFileSync(f, 'utf8')).frames); return { frames: fr.length, done: fr.length > 0 && fr.every((x) => x.done), failing: fr.reduce((a, x) => a + (x.summary?.fail ?? 0), 0) }; };
+// a section that is DONE already still belongs in the page report: its frames, template and designer list come from the files of the earlier run
+function resumedEntry(s) {
+  const w = resolveWorkspace(urlOf(s.id));
+  const keys = w.has('responsive.json') ? w.readJson('responsive.json').variants.map((v) => v.key) : [];
+  const frames = ['base', ...keys].map((key) => ({ key, v: w.has(key === 'base' ? 'verify.json' : `verify.${key}.json`) ? w.readJson(key === 'base' ? 'verify.json' : `verify.${key}.json`) : null }));
+  const card = w.has('scorecard.md') ? w.readText?.('scorecard.md') ?? readFileSync(w.file('scorecard.md'), 'utf8') : '';
+  const list = (head) => (card.split(`## ${head}`)[1] ?? '').split('\n## ')[0].split('\n').filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+  const bad = frames.reduce((a, f) => a + (f.v?.tiers ? f.v.tiers[1] + f.v.tiers[2] : (f.v?.bad?.length ?? 0)), 0);
+  return { name: w.readJson('tree.json').name, id: s.id, dir: w.dir, template: w.readJson('state.json', {}).builderUrl, frames, bad, resumed: true, result: { decisions: [], needs: list('Needs a look'), designer: list('For the designer') } };
 }
+const startPrepare = (i) => prepared[i] = resume && sectionState(sections[i])?.done ? Promise.resolve({ skip: true }) : prepareSection(urlOf(sections[i].id), sections[i].id, { firstSection: sections[i].firstSection, bg: plan.base.bg, idx: i, title: titleOf(sections[i]) }).then((ctx) => ({ ctx }), (err) => ({ err }));
+const prepared = [];
+if (sections.length) startPrepare(0);
+for (const [idx, s] of sections.entries()) {
+  progress.begin(idx);
+  const p = await prepared[idx];
+  if (idx + 1 < sections.length) startPrepare(idx + 1);
+  if (p.skip) { // DONE in an earlier run: nothing to build or measure
+    done.push(resumedEntry(s));
+    progress.end(idx, 'done');
+    console.log(`[báo cáo] ${idx + 1}/${sections.length} = "${titleOf(s)}": đã xong từ lần chạy trước (bỏ qua)`);
+    continue;
+  }
+  try {
+    if (p.err) throw p.err;
+    done.push(await finishSection(p.ctx));
+    progress.end(idx, 'done');
+    console.log(`[báo cáo] ${idx + 1}/${sections.length} ✓ "${titleOf(s)}": xong giai đoạn 1,2,3,4,5,6 ở mọi màn hình (giai đoạn 7 sửa lỗi và 8 ghép page chạy khi cả trang xong)`);
+    const st = sectionState(s);
+    if (stopAtUndone && st && !st.done) {
+      console.log(`\n[CỔNG] "${titleOf(s)}" chưa xong: ${st.failing} node còn sai. Sửa rule rồi chạy: node process/scripts/todo.mjs ${ref.fileKey} --only=${JSON.stringify(s.name)} · node process/scripts/rebuild-diff.mjs ${ref.fileKey} --apply · node process/auto.mjs "<url>" --resume --gate`);
+      break;
+    }
+  } catch (e) {
+    progress.end(idx, 'stopped', e.message.slice(0, 60));
+    console.error(`\n✋ ${s.name} [${s.id}] stopped: ${e.message.slice(0, 400)}`);
+    done.push({ name: s.name, id: s.id, error: e.message.slice(0, 300), frames: [], bad: -1, result: { decisions: [], needs: [], designer: [] } });
+  }
+}
+console.log(`  figma structure cache: ${JSON.stringify(runCacheStats())}`);
 
 // page report: one table, the designer list, everything that needs a look
-const rows = done.map((d) => d.error ? `| ${d.name} | STOPPED: ${d.error.replace(/\|/g, '/').slice(0, 120)} | | | |` : `| ${d.name} | ${d.frames.map((f) => f.v ? `${f.key} ${f.v.verdict ?? ''} ${Math.round(f.v.visualMean * 100) / 100}` : `${f.key} -`).join(' · ')} | ${d.bad} | ${d.result.decisions.length} | ${d.template ?? ''} |`);
+// the state of the checked nodes of a section: what is right, what is an accepted limit (with its reason in limits.json), what is still wrong
+const nodeLine = (dir) => {
+  const f = dir && join(dir, 'nodes.state.json');
+  if (!f || !existsSync(f)) return '-';
+  const fr = Object.values(JSON.parse(readFileSync(f, 'utf8')).frames);
+  const sum = (k) => fr.reduce((a, x) => a + (x.summary?.[k] ?? 0), 0);
+  return `${fr.every((x) => x.done) ? '**DONE**' : '**NOT DONE**'}: ${sum('ok')} ok · ${sum('minor')} minor · ${sum('limit')} limit · ${sum('fail')} fail`;
+};
+const rows = done.map((d) => d.error ? `| ${d.name} | STOPPED: ${d.error.replace(/\|/g, '/').slice(0, 120)} | | | |` : `| ${d.name} | ${d.frames.map((f) => f.v ? `${f.key} ${f.v.verdict ?? ''} ${Math.round(f.v.visualMean * 100) / 100}` : `${f.key} -`).join(' · ')} | ${d.bad} | ${nodeLine(d.dir)} | ${d.template ?? ''} |`);
 const page = [
   `# Page report: ${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, '', `${done.length} section(s), base ${plan.base.width}px, tablet / mobile frames merged per section.`, '',
-  '| section | verdict and look vs Figma (/255) per frame | blockers + major | decisions by rule | template |', '|---|---|---|---|---|', ...rows, '',
+  '| section | verdict and look vs Figma (/255) per frame | blockers + major (raw, before accepted limits) | nodes (state) | template |', '|---|---|---|---|---|', ...rows, '',
   '## For the designer', '', ...(() => { const all = done.flatMap((d) => d.result.designer.map((x) => `${d.name}: ${x}`)); return all.length ? all.map((x) => `- ${x}`) : ['_none_']; })(), '',
   '## Needs a look', '', ...(() => { const all = done.flatMap((d) => d.result.needs.map((x) => `${d.name}: ${x}`)); return all.length ? all.map((x) => `- ${x}`) : ['_none_']; })(), '',
   '## Where to look', '', ...done.filter((d) => d.dir).map((d) => `- ${d.name}: ${d.dir}/scorecard.md, decisions.md, verify*.diff.png`), '',
 ];
-const out = join(dirname(done.find((d) => d.dir)?.dir ?? '.'), `page-${ref.nodeId.replace(':', '-')}.md`);
+// a partial run (--only, one section link) must not overwrite the report of the whole page
+const out = join(dirname(done.find((d) => d.dir)?.dir ?? '.'), `page-${ref.nodeId.replace(':', '-')}${wholePage ? '' : '.partial'}.md`);
 writeFileSync(out, page.join('\n'));
 console.log(`\n== done: ${out}`);
+if (wholePage) await assemblePage(ref.fileKey, ref.nodeId); // stage 8 (the HOÀN TẤT message comes after the fix loop: scripts/assemble-page.mjs <fileKey> <node> --final)
 process.exitCode = done.some((d) => d.error) ? 2 : 0;
