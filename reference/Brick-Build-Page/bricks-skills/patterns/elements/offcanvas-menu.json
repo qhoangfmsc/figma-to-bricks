@@ -1,0 +1,62 @@
+{
+  "content": [
+    { "id": "ocsec1", "name": "section", "parent": 0, "children": ["occon1"], "label": "Header Bar (mobile menu)",
+      "settings": { "tag": "header", "_padding": { "top": "16px", "bottom": "16px" },
+        "_border": { "width": { "bottom": "1px" }, "style": "solid", "color": { "hex": "#e2e8f0" } } } },
+    { "id": "occon1", "name": "container", "parent": "ocsec1", "children": ["oclgo1", "ocopn1"],
+      "settings": { "_direction": "row", "_justifyContent": "space-between", "_alignItems": "center" } },
+    { "id": "oclgo1", "name": "logo", "parent": "occon1", "children": [],
+      "settings": { "logoText": "Acme", "logoHeight": "32" } },
+    { "id": "ocopn1", "name": "toggle", "parent": "occon1", "children": [], "label": "Toggle (Open)",
+      "settings": { "toggleSelector": "#mobile-menu", "ariaLabel": "Open menu", "animation": "squeeze", "barColor": { "hex": "#0f172a" } } },
+
+    { "id": "ocpnl1", "name": "offcanvas", "parent": 0, "children": ["ocinr1", "ocbkd1"], "label": "Offcanvas Menu",
+      "settings": {
+        "_cssId": "mobile-menu",
+        "ariaLabel": "Mobile menu",
+        "direction": "right",
+        "effect": "slide",
+        "closeOn": "backdrop",
+        "noScrollBody": true,
+        "width": "320px",
+        "transitionDuration": "0.3s"
+      } },
+    { "id": "ocinr1", "name": "block", "parent": "ocpnl1", "children": ["octop1", "ocnav1", "occta1"], "label": "Content",
+      "settings": {
+        "_hidden": { "_cssClasses": "brx-offcanvas-inner" },
+        "_widthMax": "85vw", "_rowGap": "32px",
+        "_padding": { "top": "24px", "right": "24px", "bottom": "24px", "left": "24px" },
+        "_background": { "color": { "hex": "#ffffff" } }
+      } },
+    { "id": "octop1", "name": "block", "parent": "ocinr1", "children": ["octtl1", "occls1"], "label": "Panel Header",
+      "settings": { "_direction": "row", "_justifyContent": "space-between", "_alignItems": "center" } },
+    { "id": "octtl1", "name": "text-basic", "parent": "octop1", "children": [],
+      "settings": { "text": "Menu", "tag": "p", "_typography": { "font-weight": "700", "font-size": "1.125rem" } } },
+    { "id": "occls1", "name": "toggle", "parent": "octop1", "children": [], "label": "Toggle (Close)",
+      "settings": { "toggleSelector": "#mobile-menu", "ariaLabel": "Close menu", "animation": "squeeze" } },
+    { "id": "ocnav1", "name": "block", "parent": "ocinr1", "children": ["oclk01", "oclk02", "oclk03", "oclk04"], "label": "Menu Links",
+      "settings": { "tag": "nav", "_rowGap": "4px" } },
+    { "id": "oclk01", "name": "text-link", "parent": "ocnav1", "children": [],
+      "settings": { "text": "Features", "link": { "type": "external", "url": "/features" }, "_cssGlobalClasses": ["oclink"] } },
+    { "id": "oclk02", "name": "text-link", "parent": "ocnav1", "children": [],
+      "settings": { "text": "Pricing", "link": { "type": "external", "url": "/pricing" }, "_cssGlobalClasses": ["oclink"] } },
+    { "id": "oclk03", "name": "text-link", "parent": "ocnav1", "children": [],
+      "settings": { "text": "Blog", "link": { "type": "external", "url": "/blog" }, "_cssGlobalClasses": ["oclink"] } },
+    { "id": "oclk04", "name": "text-link", "parent": "ocnav1", "children": [],
+      "settings": { "text": "Contact", "link": { "type": "external", "url": "/contact" }, "_cssGlobalClasses": ["oclink"] } },
+    { "id": "occta1", "name": "button", "parent": "ocinr1", "children": [],
+      "settings": { "text": "Get started", "tag": "a", "link": { "type": "external", "url": "/signup" }, "style": "primary", "_width": "100%" } },
+    { "id": "ocbkd1", "name": "block", "parent": "ocpnl1", "children": [], "label": "Backdrop",
+      "settings": { "_hidden": { "_cssClasses": "brx-offcanvas-backdrop" }, "_background": { "color": { "rgb": "rgba(15, 23, 42, 0.5)" } } } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [
+    { "id": "oclink", "name": "offcanvas-link",
+      "settings": { "_padding": { "top": "12px", "bottom": "12px" }, "_typography": { "font-size": "1.125rem", "font-weight": "500", "color": { "hex": "#0f172a" } },
+        "_typography:hover": { "color": { "hex": "#2563eb" } },
+        "_border": { "width": { "bottom": "1px" }, "style": "solid", "color": { "hex": "#f1f5f9" } } } }
+  ],
+  "globalElements": []
+}

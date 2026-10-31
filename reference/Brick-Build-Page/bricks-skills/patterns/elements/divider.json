@@ -1,0 +1,24 @@
+{
+  "content": [
+    { "id": "dvsec1", "name": "section", "parent": 0, "children": ["dvcon1"], "label": "Dividers",
+      "settings": { "tag": "section", "_padding": { "top": "48px", "bottom": "48px" } } },
+    { "id": "dvcon1", "name": "container", "parent": "dvsec1", "children": ["dvpln1", "dvicn1", "dvrow1"], "settings": { "_rowGap": "40px" } },
+    { "id": "dvpln1", "name": "divider", "parent": "dvcon1", "children": [], "label": "Plain",
+      "settings": { "style": "solid", "height": "1px", "width": "100%", "color": { "hex": "#e2e8f0" } } },
+    { "id": "dvicn1", "name": "divider", "parent": "dvcon1", "children": [], "label": "With centered icon",
+      "settings": { "style": "dashed", "height": "1px", "width": "100%", "color": { "hex": "#cbd5e1" },
+        "icon": { "library": "ionicons", "icon": "ion-ios-star" }, "iconPosition": "center", "iconSpacing": "16px",
+        "iconTypography": { "color": { "hex": "#f59e0b" }, "font-size": "18px" } } },
+    { "id": "dvrow1", "name": "block", "parent": "dvcon1", "children": ["dvtx01", "dvvrt1", "dvtx02"], "label": "Inline items with vertical divider",
+      "settings": { "_direction": "row", "_alignItems": "center", "_columnGap": "16px" } },
+    { "id": "dvtx01", "name": "text-basic", "parent": "dvrow1", "children": [], "settings": { "text": "Free shipping", "tag": "span" } },
+    { "id": "dvvrt1", "name": "divider", "parent": "dvrow1", "children": [], "label": "Vertical",
+      "settings": { "direction": "vertical", "style": "solid", "height": "20px", "width": "1px", "color": { "hex": "#cbd5e1" } } },
+    { "id": "dvtx02", "name": "text-basic", "parent": "dvrow1", "children": [], "settings": { "text": "30-day returns", "tag": "span" } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

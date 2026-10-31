@@ -17,5 +17,7 @@ import breadcrumbs from './breadcrumbs.mjs';
 import counter from './counter.mjs';
 import countdown from './countdown.mjs';
 import tooltipStyle from './tooltip-style.mjs';
+import menu from './menu.mjs';
+import readmore from './readmore.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, readmore].map((c) => [c.id, c]));

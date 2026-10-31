@@ -18,7 +18,8 @@ import { signOff, gate } from './review/index.mjs';
 import { parseFigmaUrl } from './figma/url.mjs';
 import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './figma/api.mjs';
 import { writePlan, assemblePage, plansFile, sectionTitles } from './shared/deliverable.mjs';
-import { existsSync, readFileSync } from 'node:fs';
+import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, groupQuestions, consumeConfirmation, planProblems } from './plan/index.mjs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 
 import { writeFileSync } from 'node:fs';
 import { discoverSections } from './figma/discover.mjs';
@@ -32,6 +33,11 @@ const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerC
 // fixed before the next section is built; --resume skips the sections that are DONE already. Fix the rules, run scripts/rebuild-diff.mjs --apply for the finished sections,
 // then run again with --resume --gate.
 const stopAtUndone = args.includes('--gate'), resume = args.includes('--resume');
+// the Plan (owner decision 2026-10-29): before anything is built the sections are read, a plan-<node>.md with only the questions the build really needs is written
+// and the run stops (exit code 3) until the owner filled it and ran `node process/scripts/plan.mjs "<url>" confirm`. --no-confirm = the old behaviour (no questions);
+// The plan is shown even when there is nothing to fill (then the owner only says "ok").
+const askOwner = !args.includes('--no-confirm');
+let confirmedAnswers = null; // the values of a confirmed plan, applied to every section after decide()
 if (!url) { console.error('usage: node process/auto.mjs "<figma url of a page, a breakpoint frame or a section>" [--plan] [--only=<name>] [--no-responsive] [--no-cross]'); process.exit(1); }
 
 const ref = parseFigmaUrl(url);
@@ -50,6 +56,7 @@ async function prepare(u, opts) {
   if (prev) { prev.components = prev.components.filter((c) => !String(c.note ?? '').startsWith('autopilot')); ws.writeJson('detections.json', prev); }
   detectStep(ws.dir);
   const result = decide(ws, { ...opts, formErrors: await formErrorsFor(ws.ref.nodeId) });
+  if (confirmedAnswers) { const r = applyAnswers(ws, confirmedAnswers); if (r.applied.length) console.log(`  plan: ${r.applied.length} value(s) from plan-${ref.nodeId.replace(':', '-')}.md applied`); }
   writeDecisionReport(ws, result, ws.readJson('tree.json').name);
   detectStep(ws.dir); // validates the citations of what decide wrote
   return { ws, result };
@@ -59,7 +66,7 @@ async function prepare(u, opts) {
 //   prepareSection: reads Figma (network), decides, signs off      finishSection: export, build, push, verify (WordPress + Docker)
 // While section k is in finishSection, section k+1 is already in prepareSection (owner's decision 2026-10-28: two at a time, never two verifies at once:
 // one shared preview page, and Figma's rate limit stays as it is).
-async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, title }) {
+async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, title, sign = true }) {
   await refreshRunCache(ref.fileKey); // a changed file version drops the structure cache
   console.log(`\n== SECTION ${sectionUrl}`);
   const { ws: base, result } = await prepare(sectionUrl, { firstSection, variant: false, parentBg: bg });
@@ -86,17 +93,24 @@ async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, ti
     if (variants.length) base.writeJson('responsive.json', { note: 'written by process/auto.mjs (breakpoint frames of the same section found in the Figma file)', variants: variants.map(({ ws, ...v }) => v) });
   }
   base.writeJson('context.json', context); // what shows behind a transparent section, per frame: verify lays Figma's render over it
-  // only a problem the code cannot verify (bad citations) blocks; anything else does not
+  const ctx = { base, result, variants, sectionUrl, sectionId, idx, title };
+  if (sign) signAll(ctx);
+  return ctx;
+}
+
+// only a problem the code cannot verify (bad citations) blocks; anything else does not. Sign-off is what opens export / build / push / verify.
+function signAll({ base, variants }) {
   for (const w of [base, ...variants.map((v) => v.ws)]) {
-    signOff(w, { by: 'autopilot', note: NOTE });
+    if (confirmedAnswers) signOff(w, { by: 'owner (plan)', note: 'the owner filled and confirmed plan-<node>.md; every other decision follows the rules (decisions.md)' });
+    else signOff(w, { by: 'autopilot', note: NOTE });
     const g = gate(w);
     if (!g.ok) throw new Error(`BLOCKED in ${w.dir}: ${g.reason}`);
   }
-  return { base, result, variants, sectionUrl, sectionId, idx, title };
 }
 
 async function finishSection({ base, result, variants, sectionUrl, sectionId, idx }) {
   progress.at(idx, 'desktop', 'export');
+  const startedAt = Date.now();
   const pendingFrames = () => ['base', ...variants.map((v) => v.key)];
   const verifiedKeys = new Set();
   const run = await runLines('node', [join(dirname(new URL(import.meta.url).pathname), 'run.mjs'), sectionUrl, '--from=export', ...(args.includes('--no-cross') ? ['--no-cross'] : [])], (line) => {
@@ -115,7 +129,10 @@ async function finishSection({ base, result, variants, sectionUrl, sectionId, id
   });
   progress.built(idx); progress.pushed(idx);
   for (const k of pendingFrames()) if (!verifiedKeys.has(k)) progress.verified(idx, k, base.has(k === 'base' ? 'verify.json' : `verify.${k}.json`) ? '' : 'không đo được');
-  if (run.status !== 0 && !base.has('verify.json')) throw new Error(`run.mjs failed: ${(run.stderr || run.stdout).slice(-400)}`);
+  // run.mjs also exits non-zero when verify finds problems, so a failed run is told apart by its result file: verify.json must have been written by THIS run (an old one
+  // used to hide a crashed build: the numbers of the previous build were reported as the new ones)
+  const fresh = base.has('verify.json') && statSync(base.file('verify.json')).mtimeMs >= startedAt - 2000;
+  if (run.status !== 0 && !fresh) throw new Error(`run.mjs failed: ${(run.stderr || run.stdout).slice(-400)}`);
 
   const frames = [{ key: 'base', v: base.has('verify.json') ? base.readJson('verify.json') : null }, ...variants.map((v) => ({ key: v.key, v: base.has(`verify.${v.key}.json`) ? base.readJson(`verify.${v.key}.json`) : null }))];
   const state = base.readJson('state.json', {});
@@ -165,6 +182,41 @@ function resumedEntry(s) {
 }
 const startPrepare = (i) => prepared[i] = resume && sectionState(sections[i])?.done ? Promise.resolve({ skip: true }) : prepareSection(urlOf(sections[i].id), sections[i].id, { firstSection: sections[i].firstSection, bg: plan.base.bg, idx: i, title: titleOf(sections[i]) }).then((ctx) => ({ ctx }), (err) => ({ err }));
 const prepared = [];
+
+// ---- THE PLAN GATE: read every section first, write plan-<node>.md, stop until the owner has filled and confirmed it
+const nodeKey = ref.nodeId.replace(':', '-');
+const planDir = resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, '');
+if (askOwner) {
+  const bad = planProblems(planDir, nodeKey);
+  if (bad.length) { console.log(`\n== PLAN marked "Xác nhận: có" but a value is wrong, nothing was built:\n${bad.map((p) => `   - ${p}`).join('\n')}\n   Fix it in plan-${nodeKey}.md and run again.`); process.exit(3); }
+  confirmedAnswers = loadConfirmed(planDir, nodeKey);
+}
+if (askOwner && !confirmedAnswers && sections.length) {
+  console.log('\n== PLAN: reading every section before anything is built');
+  const model = { title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, fileKey: ref.fileKey, nodeId: ref.nodeId, url, sections: [] };
+  for (const [idx, s] of sections.entries()) {
+    try {
+      const ctx = await prepareSection(urlOf(s.id), s.id, { firstSection: s.firstSection, bg: plan.base.bg, idx, title: titleOf(s), sign: false });
+      const det = ctx.base.readJson('detections.json');
+      const count = (rows, f) => Object.entries(rows.reduce((a, r) => (a[f(r)] = (a[f(r)] ?? 0) + 1, a), {})).map(([k, n]) => `${k} ×${n}`);
+      model.sections.push({
+        name: s.name, id: s.id,
+        build: [...count(det.components.filter((c) => c.status === 'approved'), (c) => c.component), 'còn lại là block'].join(', '),
+        decided: count(ctx.result.decisions, (d) => d.kind),
+        questions: groupQuestions(ctx.result.questions ?? []),
+      });
+    } catch (e) {
+      console.error(`\n✋ ${s.name} [${s.id}] could not be read for the plan: ${e.message.slice(0, 300)}`);
+      model.sections.push({ name: s.name, id: s.id, build: `lỗi khi đọc: ${e.message.slice(0, 80)}`, decided: [], questions: [] });
+    }
+  }
+  const file = writePlanDoc(planDir, nodeKey, model);
+  const asked = model.sections.reduce((a, s) => a + s.questions.length, 0);
+  console.log(`\n== PLAN written: ${file}\n   ${sections.length} section(s) · ${asked} group(s) of questions`);
+  // the owner always sees the plan before a build, also when there is nothing to fill (then it is one "ok")
+  console.log(`   ${asked ? 'Fill the values (blank = safe default)' : 'Nothing to fill'}, set the line "Xác nhận: không" to "Xác nhận: có", then run again:\n     node process/auto.mjs "${url}"`);
+  process.exit(3);
+}
 if (sections.length) startPrepare(0);
 for (const [idx, s] of sections.entries()) {
   progress.begin(idx);
@@ -193,6 +245,7 @@ for (const [idx, s] of sections.entries()) {
   }
 }
 console.log(`  figma structure cache: ${JSON.stringify(runCacheStats())}`);
+if (confirmedAnswers) consumeConfirmation(planDir, nodeKey); // one confirmation = one build: the next run of this link shows the Plan again
 
 // page report: one table, the designer list, everything that needs a look
 // the state of the checked nodes of a section: what is right, what is an accepted limit (with its reason in limits.json), what is still wrong

@@ -1,0 +1,18 @@
+{
+  "content": [
+    { "id": "chsec1", "name": "section", "parent": 0, "children": ["chcon1"], "label": "Embeds",
+      "settings": { "tag": "section", "_padding": { "top": "48px", "bottom": "48px" } } },
+    { "id": "chcon1", "name": "container", "parent": "chsec1", "children": ["chcod1", "chhtm1", "chsc01"], "settings": { "_widthMax": "760px", "_rowGap": "32px" } },
+    { "id": "chcod1", "name": "code", "parent": "chcon1", "children": [], "label": "Code (display only, not executed)",
+      "settings": { "code": "yarn add @acme/sdk\nimport { createClient } from '@acme/sdk';", "prettify": "tomorrow-night" } },
+    { "id": "chhtm1", "name": "html", "parent": "chcon1", "children": [], "label": "Raw HTML",
+      "settings": { "html": "<details class=\"note\">\n  <summary>Why do we ask for this?</summary>\n  <p>We only use your email to send the receipt.</p>\n</details>" } },
+    { "id": "chsc01", "name": "shortcode", "parent": "chcon1", "children": [], "label": "Shortcode (replace with a real plugin shortcode)",
+      "settings": { "shortcode": "[contact-form-7 id=\"123\" title=\"Contact form\"]", "showPlaceholder": true } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

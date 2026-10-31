@@ -1,0 +1,421 @@
+[
+  {
+    "id": "595bf0",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "e9fef6",
+      "bf57ad"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "72px",
+      "_alignItems": "center",
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_justifyContent:tablet_portrait": "center",
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_position:tablet_portrait": "relative",
+      "_rowGap:tablet_portrait": "0",
+      "_cssCustom": "#brxe-595bf0 { font-optical-sizing: none; }"
+    },
+    "label": "Section - 12"
+  },
+  {
+    "id": "e9fef6",
+    "name": "div",
+    "parent": "595bf0",
+    "children": [
+      "5ec137"
+    ],
+    "settings": {
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "26.83px",
+      "_left:tablet_portrait": "0px",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "363px",
+      "_display": "none",
+      "_display:tablet_portrait": "block",
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_aspectRatio": "375/363",
+      "_cssCustom": "#brxe-e9fef6 { display: none; }\n@media (max-width: 991px) { #brxe-e9fef6 { display: block; } }"
+    },
+    "label": "image 479"
+  },
+  {
+    "id": "5ec137",
+    "name": "image",
+    "parent": "e9fef6",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/636ed025-c507-42c3-b5a7-f8245fc515de/f6e44.png"
+      },
+      "_position": "absolute",
+      "_top": "0%",
+      "_left": "-150.13%",
+      "_width": "400.27%",
+      "_height": "100%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 479 image"
+  },
+  {
+    "id": "bf57ad",
+    "name": "container",
+    "parent": "595bf0",
+    "children": [
+      "bcec63",
+      "dae8ba",
+      "f29724"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1141px",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "48px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_position": "relative",
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_overflow": "hidden",
+      "_widthMax:tablet_portrait": "343px",
+      "_rowGap:tablet_portrait": "32px",
+      "_alignItems:tablet_portrait": "flex-start",
+      "_position:tablet_portrait": "relative",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "container"
+  },
+  {
+    "id": "bcec63",
+    "name": "div",
+    "parent": "bf57ad",
+    "children": [
+      "a325e5"
+    ],
+    "settings": {
+      "_position": "absolute",
+      "_top": "-0.59px",
+      "_left": "0px",
+      "_width": "1141px",
+      "_height": "363px",
+      "_display:tablet_portrait": "none",
+      "_overflow": "hidden",
+      "_cssCustom": "@media (max-width: 991px) { #brxe-bcec63 { display: none; } }"
+    },
+    "label": "image 479"
+  },
+  {
+    "id": "a325e5",
+    "name": "image",
+    "parent": "bcec63",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/636ed025-c507-42c3-b5a7-f8245fc515de/f6e44.png"
+      },
+      "_position": "absolute",
+      "_top": "0%",
+      "_left": "-15.78%",
+      "_width": "131.55%",
+      "_height": "100%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 479 image"
+  },
+  {
+    "id": "dae8ba",
+    "name": "block",
+    "parent": "bf57ad",
+    "children": [
+      "cb0c84",
+      "cbdd93"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_position": "relative"
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "cb0c84",
+    "name": "heading",
+    "parent": "dae8ba",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Bứt phá hiệu suất cùng nhân sự AI",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      }
+    },
+    "label": "Title"
+  },
+  {
+    "id": "cbdd93",
+    "name": "block",
+    "parent": "dae8ba",
+    "children": [
+      "9cc5f4"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "165px",
+        "bottom": "0px",
+        "left": "165px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Content Item/Paragraph"
+  },
+  {
+    "id": "9cc5f4",
+    "name": "text-basic",
+    "parent": "cbdd93",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Tối ưu hóa quy trình doanh nghiệp, bảo mật dữ liệu tuyệt đối và vận hành tự động 24/7 trên hạ tầng VPS OpenClaw mạnh mẽ nhất hiện nay.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "f29724",
+    "name": "block",
+    "parent": "bf57ad",
+    "children": [
+      "cdb7cf",
+      "576354"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_position": "relative"
+    },
+    "label": "Button and Guarantee Container"
+  },
+  {
+    "id": "cdb7cf",
+    "name": "button",
+    "parent": "f29724",
+    "children": [],
+    "settings": {
+      "_width": "auto",
+      "_padding": {
+        "top": "12px",
+        "right": "32px",
+        "bottom": "12px",
+        "left": "32px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#007cfc"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "text": "Đăng ký ngay VPS OpenClaw",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#fcfcfc"
+        },
+        "letter-spacing": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "8px",
+        "right": "24px",
+        "bottom": "8px",
+        "left": "24px"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#fcfcfc"
+        },
+        "letter-spacing": "0px"
+      }
+    },
+    "label": "Button V2"
+  },
+  {
+    "id": "576354",
+    "name": "block",
+    "parent": "f29724",
+    "children": [
+      "a596be",
+      "65a904"
+    ],
+    "settings": {
+      "_width": "auto",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "8px",
+      "_alignItems": "center"
+    },
+    "label": "Guarantee Container"
+  },
+  {
+    "id": "a596be",
+    "name": "image",
+    "parent": "576354",
+    "children": [],
+    "settings": {
+      "_width": "20px",
+      "_flexShrink": "0",
+      "_height": "20px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/636ed025-c507-42c3-b5a7-f8245fc515de/d31dc.svg"
+      }
+    },
+    "label": "Guarantee Icon"
+  },
+  {
+    "id": "65a904",
+    "name": "text-basic",
+    "parent": "576354",
+    "children": [],
+    "settings": {
+      "text": "Đảm bảo hoàn tiền trong 30 ngày",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "14px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Guarantee Text"
+  }
+]

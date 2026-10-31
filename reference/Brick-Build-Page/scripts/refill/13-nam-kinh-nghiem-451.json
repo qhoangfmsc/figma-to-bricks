@@ -1,0 +1,3110 @@
+[
+  {
+    "id": "cb081d",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "85cfdf",
+      "08b5db",
+      "6f9d94"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "48px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_rowGap:tablet_portrait": "32px",
+      "_justifyContent:tablet_portrait": "center",
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_cssCustom": "#brxe-cb081d { font-optical-sizing: none; }\n#brxe-cb081d, #brxe-cb081d * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }"
+    },
+    "label": "Section - 14"
+  },
+  {
+    "id": "85cfdf",
+    "name": "container",
+    "parent": "cb081d",
+    "children": [
+      "388378",
+      "e65098"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1140px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "stretch",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "32px",
+      "_alignItems:tablet_portrait": "center"
+    },
+    "label": "container"
+  },
+  {
+    "id": "388378",
+    "name": "block",
+    "parent": "85cfdf",
+    "children": [
+      "4c9fd0",
+      "1f1100"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_heightMin": "726px",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width:tablet_portrait": "100%",
+      "_heightMin:tablet_portrait": "auto",
+      "_rowGap:tablet_portrait": "32px",
+      "_alignItems:tablet_portrait": "center"
+    },
+    "label": "Statistic"
+  },
+  {
+    "id": "4c9fd0",
+    "name": "block",
+    "parent": "388378",
+    "children": [
+      "51f520",
+      "d0e087",
+      "7712ad"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "51f520",
+    "name": "heading",
+    "parent": "4c9fd0",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "13+ NĂM KINH NGHIỆM.<br>KHẲNG ĐỊNH VỊ THẾ DẪN ĐẦU",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Header text"
+  },
+  {
+    "id": "d0e087",
+    "name": "text-basic",
+    "parent": "4c9fd0",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Khám phá các gói VPS đặc biệt với cấu hình mạnh mẽ, đáp ứng mọi nhu cầu website của bạn. Số lượng và thời gian có hạn. Săn ngay ưu đãi.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Paragraph text"
+  },
+  {
+    "id": "7712ad",
+    "name": "text-basic",
+    "parent": "4c9fd0",
+    "children": [],
+    "settings": {
+      "text": "Dịch vụ hosting tốc độ cao của Vietnix đã xuất hiện trên nhiều trang báo uy tín và đài truyền hình lớn của Việt nam",
+      "_width:tablet_portrait": "100%",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      },
+      "_display": "none",
+      "_display:tablet_portrait": "flex"
+    },
+    "label": "Main Description"
+  },
+  {
+    "id": "1f1100",
+    "name": "block",
+    "parent": "388378",
+    "children": [
+      "1f95aa",
+      "5cde1e",
+      "31cded",
+      "a60883",
+      "ab07ff"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "grid",
+      "_gridTemplateColumns": "repeat(2, minmax(0, 1fr))",
+      "_gridGap": "24px",
+      "_gridTemplateRows": "repeat(3, minmax(0, 1fr))",
+      "_height": "476px",
+      "_width:tablet_portrait": "100%",
+      "_gridGap:tablet_portrait": "16px",
+      "_height:tablet_portrait": "377px"
+    },
+    "label": "NUMBER"
+  },
+  {
+    "id": "1f95aa",
+    "name": "block",
+    "parent": "1f1100",
+    "children": [
+      "9325f6",
+      "099855",
+      "148894"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "1",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "8px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_position": "relative",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "90",
+        "colors": [
+          {
+            "color": {
+              "hex": "#007cfc"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "hex": "#0064cc"
+            },
+            "stop": "100"
+          }
+        ]
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#fafafa"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden",
+      "_rowGap:tablet_portrait": "4px",
+      "_cssCustom": "#brxe-1f95aa { grid-column: 1 / span 2; }"
+    },
+    "label": "Statistic item"
+  },
+  {
+    "id": "9325f6",
+    "name": "heading",
+    "parent": "1f95aa",
+    "children": [],
+    "settings": {
+      "text": "12+",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Statistic value"
+  },
+  {
+    "id": "099855",
+    "name": "text-basic",
+    "parent": "1f95aa",
+    "children": [],
+    "settings": {
+      "text": "Năm cung cấp Hosting, VPS tốc độ cao",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Statistic description"
+  },
+  {
+    "id": "148894",
+    "name": "image",
+    "parent": "1f95aa",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "-55.43px",
+      "_left": "390.90px",
+      "_width": "175.5px",
+      "_height": "206px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/c2418.svg"
+      },
+      "_transform": {
+        "rotate": "-20.55",
+        "skewX": "-2.77"
+      },
+      "_top:tablet_portrait": "-43.83px",
+      "_left:tablet_portrait": "236.39px",
+      "_width:tablet_portrait": "112.6px",
+      "_height:tablet_portrait": "162.8px",
+      "_transform:tablet_portrait": {
+        "rotate": "-26.18",
+        "skewX": "-12.44"
+      }
+    },
+    "label": "Vector"
+  },
+  {
+    "id": "5cde1e",
+    "name": "block",
+    "parent": "1f1100",
+    "children": [
+      "696e07",
+      "96d924"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "1",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "8px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#fafafa"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden",
+      "_rowGap:tablet_portrait": "4px"
+    },
+    "label": "Statistic item"
+  },
+  {
+    "id": "696e07",
+    "name": "heading",
+    "parent": "5cde1e",
+    "children": [],
+    "settings": {
+      "text": "80.000+",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic value"
+  },
+  {
+    "id": "96d924",
+    "name": "text-basic",
+    "parent": "5cde1e",
+    "children": [],
+    "settings": {
+      "text": "Khách hàng",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic description"
+  },
+  {
+    "id": "31cded",
+    "name": "block",
+    "parent": "1f1100",
+    "children": [
+      "c440fa",
+      "3ac0ad"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "1",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "8px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#fafafa"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden",
+      "_rowGap:tablet_portrait": "4px"
+    },
+    "label": "Statistic item"
+  },
+  {
+    "id": "c440fa",
+    "name": "heading",
+    "parent": "31cded",
+    "children": [],
+    "settings": {
+      "text": "100.000+",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic value"
+  },
+  {
+    "id": "3ac0ad",
+    "name": "text-basic",
+    "parent": "31cded",
+    "children": [],
+    "settings": {
+      "text": "Dịch vụ đã kích hoạt",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_width:tablet_portrait": "100%",
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic description"
+  },
+  {
+    "id": "a60883",
+    "name": "block",
+    "parent": "1f1100",
+    "children": [
+      "94a514",
+      "2598cb"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "1",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "8px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#fafafa"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden",
+      "_rowGap:tablet_portrait": "4px"
+    },
+    "label": "Statistic item"
+  },
+  {
+    "id": "94a514",
+    "name": "heading",
+    "parent": "a60883",
+    "children": [],
+    "settings": {
+      "text": "97%",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic value"
+  },
+  {
+    "id": "2598cb",
+    "name": "text-basic",
+    "parent": "a60883",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Đánh giá 5 sao từ khách hàng",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic description"
+  },
+  {
+    "id": "ab07ff",
+    "name": "block",
+    "parent": "1f1100",
+    "children": [
+      "8945f3",
+      "fddd4c"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "1",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "8px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#fafafa"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden",
+      "_rowGap:tablet_portrait": "4px"
+    },
+    "label": "Statistic item"
+  },
+  {
+    "id": "8945f3",
+    "name": "heading",
+    "parent": "ab07ff",
+    "children": [],
+    "settings": {
+      "text": "80+",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "800",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic value"
+  },
+  {
+    "id": "fddd4c",
+    "name": "text-basic",
+    "parent": "ab07ff",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Chuyên gia và nhân sự ",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Statistic description"
+  },
+  {
+    "id": "e65098",
+    "name": "block",
+    "parent": "85cfdf",
+    "children": [
+      "80bbb6",
+      "679e02",
+      "2a3a65"
+    ],
+    "settings": {
+      "_width": "558px",
+      "_flexShrink": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "28px",
+          "right": "28px",
+          "bottom": "28px",
+          "left": "28px"
+        }
+      },
+      "_overflow": "hidden",
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Image container"
+  },
+  {
+    "id": "80bbb6",
+    "name": "block",
+    "parent": "e65098",
+    "children": [
+      "a49835",
+      "4d4a84"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "stretch",
+      "_height": "173px",
+      "_flexShrink": "0"
+    },
+    "label": "Image row"
+  },
+  {
+    "id": "a49835",
+    "name": "div",
+    "parent": "80bbb6",
+    "children": [
+      "7c6575"
+    ],
+    "settings": {
+      "_width": "308px",
+      "_flexShrink": "0",
+      "_height": "173px",
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "7c6575",
+    "name": "image",
+    "parent": "a49835",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/f22c8.png"
+      },
+      "_position": "absolute",
+      "_top": "-26.3%",
+      "_left": "-8.78%",
+      "_width": "115.8%",
+      "_height": "137.51%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "4d4a84",
+    "name": "image",
+    "parent": "80bbb6",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_height": "173px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/a147e.png"
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      }
+    },
+    "label": "Image"
+  },
+  {
+    "id": "679e02",
+    "name": "div",
+    "parent": "e65098",
+    "children": [
+      "82d764"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_height": "300.38px",
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "82d764",
+    "name": "image",
+    "parent": "679e02",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/4ba15.png"
+      },
+      "_position": "absolute",
+      "_top": "-18.56%",
+      "_left": "-6.21%",
+      "_width": "119.32%",
+      "_height": "119.32%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "2a3a65",
+    "name": "block",
+    "parent": "e65098",
+    "children": [
+      "ebad8b",
+      "63e0f5"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "stretch",
+      "_height": "180.62px",
+      "_flexShrink": "0"
+    },
+    "label": "Image row"
+  },
+  {
+    "id": "ebad8b",
+    "name": "image",
+    "parent": "2a3a65",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/332e5.png"
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_height": "100%"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "63e0f5",
+    "name": "div",
+    "parent": "2a3a65",
+    "children": [
+      "6b48c7"
+    ],
+    "settings": {
+      "_width": "255px",
+      "_flexShrink": "0",
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_height": "100%",
+      "_position": "relative",
+      "_overflow": "hidden"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "6b48c7",
+    "name": "image",
+    "parent": "63e0f5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/70d60.png"
+      },
+      "_position": "absolute",
+      "_top": "-82.82%",
+      "_left": "0.24%",
+      "_width": "100%",
+      "_height": "319.77%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "08b5db",
+    "name": "block",
+    "parent": "cb081d",
+    "children": [
+      "fc0523",
+      "193571",
+      "701926"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_heightMin:tablet_portrait": "446.27px",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "12px",
+      "_alignItems:tablet_portrait": "flex-start",
+      "_padding:tablet_portrait": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_display": "none"
+    },
+    "label": "Image container"
+  },
+  {
+    "id": "fc0523",
+    "name": "block",
+    "parent": "08b5db",
+    "children": [
+      "f91cbf",
+      "ecc900"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "row",
+      "_columnGap:tablet_portrait": "12px",
+      "_alignItems:tablet_portrait": "stretch",
+      "_height:tablet_portrait": "106.42px",
+      "_flexShrink:tablet_portrait": "0"
+    },
+    "label": "Image row"
+  },
+  {
+    "id": "f91cbf",
+    "name": "div",
+    "parent": "fc0523",
+    "children": [
+      "6151a2"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "189.19px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "106.42px",
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.46px",
+          "right": "2.46px",
+          "bottom": "2.46px",
+          "left": "2.46px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "9.84px",
+          "right": "9.84px",
+          "bottom": "9.84px",
+          "left": "9.84px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_aspectRatio": "189.19/106.419"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "6151a2",
+    "name": "image",
+    "parent": "f91cbf",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/f22c8.png"
+      },
+      "_position": "absolute",
+      "_top": "-26.3%",
+      "_left": "-8.78%",
+      "_width": "115.8%",
+      "_height": "137.51%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "ecc900",
+    "name": "image",
+    "parent": "fc0523",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/a147e.png"
+      },
+      "_flexGrow:tablet_portrait": "1",
+      "_flexBasis:tablet_portrait": "0",
+      "_height:tablet_portrait": "106.34px",
+      "_objectFit:tablet_portrait": "cover",
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.46px",
+          "right": "2.46px",
+          "bottom": "2.46px",
+          "left": "2.46px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "9.84px",
+          "right": "9.84px",
+          "bottom": "9.84px",
+          "left": "9.84px"
+        }
+      }
+    },
+    "label": "Image"
+  },
+  {
+    "id": "193571",
+    "name": "div",
+    "parent": "08b5db",
+    "children": [
+      "fc02db"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "183.94px",
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.46px",
+          "right": "2.46px",
+          "bottom": "2.46px",
+          "left": "2.46px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "12.29px",
+          "right": "12.29px",
+          "bottom": "12.29px",
+          "left": "12.29px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_aspectRatio": "327/183.938"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "fc02db",
+    "name": "image",
+    "parent": "193571",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/4ba15.png"
+      },
+      "_position": "absolute",
+      "_top": "-18.56%",
+      "_left": "-6.21%",
+      "_width": "119.32%",
+      "_height": "119.32%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "701926",
+    "name": "block",
+    "parent": "08b5db",
+    "children": [
+      "da9977",
+      "92d951"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "row",
+      "_columnGap:tablet_portrait": "12px",
+      "_alignItems:tablet_portrait": "stretch",
+      "_height:tablet_portrait": "115.91px",
+      "_flexShrink:tablet_portrait": "0"
+    },
+    "label": "Image row"
+  },
+  {
+    "id": "da9977",
+    "name": "image",
+    "parent": "701926",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/332e5.png"
+      },
+      "_flexGrow:tablet_portrait": "1",
+      "_flexBasis:tablet_portrait": "0",
+      "_objectFit:tablet_portrait": "cover",
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.46px",
+          "right": "2.46px",
+          "bottom": "2.46px",
+          "left": "2.46px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "9.84px",
+          "right": "9.84px",
+          "bottom": "9.84px",
+          "left": "9.84px"
+        }
+      },
+      "_height:tablet_portrait": "100%"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "92d951",
+    "name": "div",
+    "parent": "701926",
+    "children": [
+      "7127bc"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "156.75px",
+      "_flexShrink:tablet_portrait": "0",
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.46px",
+          "right": "2.46px",
+          "bottom": "2.46px",
+          "left": "2.46px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.32)"
+        },
+        "radius": {
+          "top": "12.29px",
+          "right": "12.29px",
+          "bottom": "12.29px",
+          "left": "12.29px"
+        }
+      },
+      "_height:tablet_portrait": "100%",
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_aspectRatio": "156.747/115.912"
+    },
+    "label": "Image"
+  },
+  {
+    "id": "7127bc",
+    "name": "image",
+    "parent": "92d951",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/86917a20-cd0c-4145-99ee-2fcdf01c6beb/70d60.png"
+      },
+      "_position": "absolute",
+      "_top": "-82.82%",
+      "_left": "0.24%",
+      "_width": "100%",
+      "_height": "319.77%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Image image"
+  },
+  {
+    "id": "6f9d94",
+    "name": "block",
+    "parent": "cb081d",
+    "children": [
+      "a7c923",
+      "8d13d5"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "24px",
+      "_alignItems:tablet_portrait": "center",
+      "_display": "none"
+    },
+    "label": "Frame 1000002752"
+  },
+  {
+    "id": "a7c923",
+    "name": "block",
+    "parent": "6f9d94",
+    "children": [
+      "7d5903",
+      "9754f9"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "16px",
+      "_justifyContent:tablet_portrait": "center",
+      "_alignItems:tablet_portrait": "center"
+    },
+    "label": "title"
+  },
+  {
+    "id": "7d5903",
+    "name": "heading",
+    "parent": "a7c923",
+    "children": [],
+    "settings": {
+      "text": "Tin dùng bởi 80.000+ khách hàng",
+      "tag": "h3",
+      "_width:tablet_portrait": "100%",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Customer trust text"
+  },
+  {
+    "id": "9754f9",
+    "name": "block",
+    "parent": "a7c923",
+    "children": [
+      "e49506",
+      "11ce79",
+      "26a56d",
+      "0d54c4",
+      "b3afd6",
+      "209d11",
+      "a0679a"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "auto",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "row",
+      "_alignItems:tablet_portrait": "center",
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "2.25",
+          "blur": "6.75",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.08)"
+        }
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "e49506",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "cd08f3"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "cd08f3",
+    "name": "image",
+    "parent": "e49506",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/fe647.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "11.25px",
+      "_left:tablet_portrait": "3.94px",
+      "_width:tablet_portrait": "28.12px",
+      "_height:tablet_portrait": "14.06px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "11ce79",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "1436b0"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#007cfc"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "1436b0",
+    "name": "image",
+    "parent": "11ce79",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/77771.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "2.25px",
+      "_left:tablet_portrait": "-6.75px",
+      "_width:tablet_portrait": "49.5px",
+      "_height:tablet_portrait": "32.06px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-levinci 1"
+  },
+  {
+    "id": "26a56d",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "8a0bbc"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "8a0bbc",
+    "name": "image",
+    "parent": "26a56d",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/04b61.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "2.25px",
+      "_left:tablet_portrait": "-6.75px",
+      "_width:tablet_portrait": "49.5px",
+      "_height:tablet_portrait": "32.06px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-levinci 1"
+  },
+  {
+    "id": "0d54c4",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "3e03cc"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#007cfc"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "3e03cc",
+    "name": "image",
+    "parent": "0d54c4",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/224f6.svg"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "10.69px",
+      "_left:tablet_portrait": "6.75px",
+      "_width:tablet_portrait": "26.44px",
+      "_height:tablet_portrait": "16.31px",
+      "_objectFit:tablet_portrait": "fill"
+    },
+    "label": "Logo glyph"
+  },
+  {
+    "id": "b3afd6",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "ef8b47"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "ef8b47",
+    "name": "image",
+    "parent": "b3afd6",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/3289c.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "9px",
+      "_left:tablet_portrait": "3.38px",
+      "_width:tablet_portrait": "29.25px",
+      "_height:tablet_portrait": "18.56px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-levinci 1"
+  },
+  {
+    "id": "209d11",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "7ac43a"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "36px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#007cfc"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "-15.19px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "7ac43a",
+    "name": "image",
+    "parent": "209d11",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/1deac.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "12.94px",
+      "_left:tablet_portrait": "3.94px",
+      "_width:tablet_portrait": "27.56px",
+      "_height:tablet_portrait": "10.69px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "Seosona-Logo 1"
+  },
+  {
+    "id": "a0679a",
+    "name": "div",
+    "parent": "9754f9",
+    "children": [
+      "70f0d9"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "101.25px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "36px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "2.25px",
+          "right": "2.25px",
+          "bottom": "2.25px",
+          "left": "2.25px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.5)"
+        },
+        "radius": {
+          "top": "561.94px",
+          "right": "561.94px",
+          "bottom": "561.94px",
+          "left": "561.94px"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "Logo"
+  },
+  {
+    "id": "70f0d9",
+    "name": "heading",
+    "parent": "a0679a",
+    "children": [],
+    "settings": {
+      "text": "80.000+",
+      "tag": "h3",
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "4.5px",
+      "_left:tablet_portrait": "6.75px",
+      "_width:tablet_portrait": "88px",
+      "_height:tablet_portrait": "27px",
+      "_margin:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "20.25px",
+        "line-height": "27px",
+        "font-weight": "700",
+        "text-align": "center"
+      },
+      "_gradient:tablet_portrait": {
+        "applyTo": "text",
+        "gradientType": "linear",
+        "angle": "90",
+        "colors": [
+          {
+            "color": {
+              "hex": "#007cfc"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "hex": "#48cdff"
+            },
+            "stop": "100"
+          }
+        ]
+      }
+    },
+    "label": "Customer trust statistic"
+  },
+  {
+    "id": "8d13d5",
+    "name": "block",
+    "parent": "6f9d94",
+    "children": [
+      "e66a66",
+      "e937c9",
+      "ddd25a",
+      "3fc61f"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "375px",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "16px",
+      "_alignItems:tablet_portrait": "flex-start",
+      "_position:tablet_portrait": "relative",
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "List-of-brand"
+  },
+  {
+    "id": "e66a66",
+    "name": "block",
+    "parent": "8d13d5",
+    "children": [
+      "c1ecbf",
+      "ee40ed",
+      "8b67da",
+      "f0475a",
+      "7ad038",
+      "7de45b",
+      "064e6c",
+      "aa24b8"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "row",
+      "_columnGap:tablet_portrait": "16px",
+      "_alignItems:tablet_portrait": "flex-start",
+      "_flexWrap:tablet_portrait": "nowrap",
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "row"
+  },
+  {
+    "id": "c1ecbf",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "15bf30"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "15bf30",
+    "name": "image",
+    "parent": "c1ecbf",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/571bb.svg"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "7.54px",
+      "_left:tablet_portrait": "24.5px",
+      "_width:tablet_portrait": "72.52px",
+      "_height:tablet_portrait": "45.22px",
+      "_objectFit:tablet_portrait": "fill"
+    },
+    "label": "brand-logo mark"
+  },
+  {
+    "id": "ee40ed",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "62d488"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "62d488",
+    "name": "image",
+    "parent": "ee40ed",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/8b266.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "19.78px",
+      "_left:tablet_portrait": "6.59px",
+      "_width:tablet_portrait": "108.33px",
+      "_height:tablet_portrait": "20.72px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-vnw 1"
+  },
+  {
+    "id": "8b67da",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "c9840d"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "c9840d",
+    "name": "image",
+    "parent": "8b67da",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/b4d11.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "13.19px",
+      "_left:tablet_portrait": "16.96px",
+      "_width:tablet_portrait": "87.61px",
+      "_height:tablet_portrait": "33.91px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "Seosona-Logo 1"
+  },
+  {
+    "id": "f0475a",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "223dfd"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "223dfd",
+    "name": "image",
+    "parent": "f0475a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/c9162.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "-11.3px",
+      "_left:tablet_portrait": "-3.77px",
+      "_width:tablet_portrait": "128.11px",
+      "_height:tablet_portrait": "82.9px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-levinci 1"
+  },
+  {
+    "id": "7ad038",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "5c6c34"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "5c6c34",
+    "name": "image",
+    "parent": "7ad038",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/475f0.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "-9.42px",
+      "_left:tablet_portrait": "2.83px",
+      "_width:tablet_portrait": "114.92px",
+      "_height:tablet_portrait": "79.13px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-o2skin 1"
+  },
+  {
+    "id": "7de45b",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "92d5c9"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "92d5c9",
+    "name": "image",
+    "parent": "7de45b",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/04b61.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "0px",
+      "_left:tablet_portrait": "-9.42px",
+      "_width:tablet_portrait": "139.42px",
+      "_height:tablet_portrait": "60.29px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-myaloha 1"
+  },
+  {
+    "id": "064e6c",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "c8ee73"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "c8ee73",
+    "name": "image",
+    "parent": "064e6c",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/0425f.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "0.94px",
+      "_left:tablet_portrait": "1.88px",
+      "_width:tablet_portrait": "116.81px",
+      "_height:tablet_portrait": "58.4px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-gtv 1"
+  },
+  {
+    "id": "aa24b8",
+    "name": "div",
+    "parent": "e66a66",
+    "children": [
+      "d74fa0"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "d74fa0",
+    "name": "image",
+    "parent": "aa24b8",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/8f00a.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "7.54px",
+      "_left:tablet_portrait": "34.85px",
+      "_width:tablet_portrait": "50.87px",
+      "_height:tablet_portrait": "45.22px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-sago-media-2048x1824 1"
+  },
+  {
+    "id": "e937c9",
+    "name": "block",
+    "parent": "8d13d5",
+    "children": [
+      "5b6637",
+      "f140af",
+      "22afce",
+      "b98a52",
+      "01f482",
+      "2abca1",
+      "ad3fa7",
+      "157dc4"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "100%",
+      "_display:tablet_portrait": "flex",
+      "_direction:tablet_portrait": "row",
+      "_columnGap:tablet_portrait": "16px",
+      "_justifyContent:tablet_portrait": "flex-end",
+      "_alignItems:tablet_portrait": "center",
+      "_flexWrap:tablet_portrait": "nowrap",
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "row"
+  },
+  {
+    "id": "5b6637",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "5581ea"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "5581ea",
+    "name": "image",
+    "parent": "5b6637",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/b5f28.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "14.13px",
+      "_left:tablet_portrait": "6.59px",
+      "_width:tablet_portrait": "108.33px",
+      "_height:tablet_portrait": "32.03px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo 1"
+  },
+  {
+    "id": "f140af",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "13ea73"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "13ea73",
+    "name": "image",
+    "parent": "f140af",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/02862.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "-9.42px",
+      "_left:tablet_portrait": "-16.96px",
+      "_width:tablet_portrait": "155.43px",
+      "_height:tablet_portrait": "79.13px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "22afce",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "6a90a0"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "6a90a0",
+    "name": "image",
+    "parent": "22afce",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/07c59.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "0.94px",
+      "_left:tablet_portrait": "-5.65px",
+      "_width:tablet_portrait": "131.88px",
+      "_height:tablet_portrait": "59.35px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-okachi-chu-do-3-scaled 1"
+  },
+  {
+    "id": "b98a52",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "8185a0"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "8185a0",
+    "name": "image",
+    "parent": "b98a52",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/79ad0.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "14.13px",
+      "_left:tablet_portrait": "5.65px",
+      "_width:tablet_portrait": "109.27px",
+      "_height:tablet_portrait": "32.97px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "alobuylogo 1"
+  },
+  {
+    "id": "01f482",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "95a1ce"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "95a1ce",
+    "name": "image",
+    "parent": "01f482",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/cafcb.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "9.28px",
+      "_left:tablet_portrait": "19.78px",
+      "_width:tablet_portrait": "81.95px",
+      "_height:tablet_portrait": "41.72px",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "2abca1",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "97d32a"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "97d32a",
+    "name": "image",
+    "parent": "2abca1",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/b64bb.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "5.93px",
+      "_left:tablet_portrait": "13.19px",
+      "_width:tablet_portrait": "95.14px",
+      "_height:tablet_portrait": "48.44px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "ad3fa7",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "331856"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "331856",
+    "name": "image",
+    "parent": "ad3fa7",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/fe647.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "4.71px",
+      "_left:tablet_portrait": "11.3px",
+      "_width:tablet_portrait": "98.91px",
+      "_height:tablet_portrait": "50.87px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "157dc4",
+    "name": "div",
+    "parent": "e937c9",
+    "children": [
+      "7acbd7"
+    ],
+    "settings": {
+      "_width:tablet_portrait": "121.52px",
+      "_flexShrink:tablet_portrait": "0",
+      "_height:tablet_portrait": "60.29px",
+      "_position:tablet_portrait": "relative",
+      "_background:tablet_portrait": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border:tablet_portrait": {
+        "radius": {
+          "top": "6.08px",
+          "right": "6.08px",
+          "bottom": "6.08px",
+          "left": "6.08px"
+        }
+      },
+      "_boxShadow:tablet_portrait": {
+        "values": {
+          "offsetX": "0",
+          "offsetY": "0.76",
+          "blur": "2.28",
+          "spread": "0"
+        },
+        "color": {
+          "rgb": "rgba(0, 0, 0, 0.1)"
+        }
+      },
+      "_overflow:tablet_portrait": "hidden"
+    },
+    "label": "brand-logo"
+  },
+  {
+    "id": "7acbd7",
+    "name": "image",
+    "parent": "157dc4",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7d87001b-8634-48e3-b567-f0ddca3a1c05/3289c.png"
+      },
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "7.13px",
+      "_left:tablet_portrait": "16.01px",
+      "_width:tablet_portrait": "89.49px",
+      "_height:tablet_portrait": "46.02px",
+      "_objectFit:tablet_portrait": "contain"
+    },
+    "label": "logo-fpt-jetking 1"
+  },
+  {
+    "id": "ddd25a",
+    "name": "div",
+    "parent": "8d13d5",
+    "children": [],
+    "settings": {
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "-0.28px",
+      "_left:tablet_portrait": "0px",
+      "_width:tablet_portrait": "84px",
+      "_height:tablet_portrait": "178px",
+      "_gradient:tablet_portrait": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "90",
+        "colors": [
+          {
+            "color": {
+              "hex": "#00070e"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(0, 7, 14, 0)"
+            },
+            "stop": "100"
+          }
+        ]
+      }
+    },
+    "label": "Rounded rectangle"
+  },
+  {
+    "id": "3fc61f",
+    "name": "div",
+    "parent": "8d13d5",
+    "children": [],
+    "settings": {
+      "_position:tablet_portrait": "absolute",
+      "_top:tablet_portrait": "-0.28px",
+      "_width:tablet_portrait": "84px",
+      "_height:tablet_portrait": "178px",
+      "_gradient:tablet_portrait": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "90",
+        "colors": [
+          {
+            "color": {
+              "hex": "#00070e"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(0, 7, 14, 0)"
+            },
+            "stop": "100"
+          }
+        ]
+      },
+      "_right:tablet_portrait": "0px"
+    },
+    "label": "Rounded rectangle"
+  }
+]

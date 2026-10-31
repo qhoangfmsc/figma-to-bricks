@@ -1,0 +1,48 @@
+{
+  "content": [
+    { "id": "vdsec1", "name": "section", "parent": 0, "children": ["vdcon1"], "label": "Video Section",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "vdcon1", "name": "container", "parent": "vdsec1", "children": ["vdhd01", "vdgrd1"], "settings": { "_rowGap": "32px" } },
+    { "id": "vdhd01", "name": "heading", "parent": "vdcon1", "children": [],
+      "settings": { "text": "See it in action", "tag": "h2", "_typography": { "font-size": "clamp(1.75rem, 3.5vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "vdgrd1", "name": "div", "parent": "vdcon1", "children": ["vdyt01", "vdfl01"], "label": "Videos",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "repeat(2, minmax(0, 1fr))", "_gridGap": "32px",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+    { "id": "vdyt01", "name": "video", "parent": "vdgrd1", "children": [], "label": "YouTube (click-to-load facade)",
+      "settings": {
+        "videoType": "youtube",
+        "youTubeId": "aqz-KE-bpKQ",
+        "iframeTitle": "Product walkthrough",
+        "aspectRatio": "16/9",
+        "youtubeControls": true,
+        "youtubeRel": false,
+        "youtubeDoNotTrack": true,
+        "previewImage": "default",
+        "previewImageSize": "maxresdefault",
+        "overlayIcon": { "library": "ionicons", "icon": "ion-ios-play-circle" },
+        "overlayIconTypography": { "font-size": "72px", "color": { "hex": "#ffffff" } },
+        "overlayAriaLabel": "Play video",
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } },
+        "_overflow": "hidden"
+      } },
+    { "id": "vdfl01", "name": "video", "parent": "vdgrd1", "children": [], "label": "Self-hosted file (muted loop)",
+      "settings": {
+        "videoType": "file",
+        "fileUrl": "https://example.com/wp-content/uploads/demo-loop.mp4",
+        "aspectRatio": "16/9",
+        "fileAutoplay": true,
+        "fileMute": true,
+        "fileLoop": true,
+        "fileInline": true,
+        "fileControls": false,
+        "filePreload": "metadata",
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } },
+        "_overflow": "hidden"
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

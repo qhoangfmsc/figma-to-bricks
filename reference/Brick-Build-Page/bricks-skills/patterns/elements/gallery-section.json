@@ -1,0 +1,38 @@
+{
+  "content": [
+    { "id": "glsec1", "name": "section", "parent": 0, "children": ["glcon1"], "label": "Gallery Section",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "glcon1", "name": "container", "parent": "glsec1", "children": ["glhd01", "glgal1"], "settings": { "_rowGap": "32px" } },
+    { "id": "glhd01", "name": "heading", "parent": "glcon1", "children": [],
+      "settings": { "text": "Inside our studio", "tag": "h2", "_typography": { "font-size": "clamp(1.75rem, 3.5vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "glgal1", "name": "image-gallery", "parent": "glcon1", "children": [], "label": "Gallery (replace with media library images)",
+      "settings": {
+        "items": {
+          "images": [
+            { "url": "https://picsum.photos/id/1011/1200/900", "full": "https://picsum.photos/id/1011/1200/900" },
+            { "url": "https://picsum.photos/id/1015/1200/900", "full": "https://picsum.photos/id/1015/1200/900" },
+            { "url": "https://picsum.photos/id/1025/1200/900", "full": "https://picsum.photos/id/1025/1200/900" },
+            { "url": "https://picsum.photos/id/1035/1200/900", "full": "https://picsum.photos/id/1035/1200/900" },
+            { "url": "https://picsum.photos/id/1043/1200/900", "full": "https://picsum.photos/id/1043/1200/900" },
+            { "url": "https://picsum.photos/id/1050/1200/900", "full": "https://picsum.photos/id/1050/1200/900" }
+          ],
+          "size": "large"
+        },
+        "layout": "grid",
+        "columns": 3,
+        "columns:tablet_portrait": 2,
+        "columns:mobile_portrait": 1,
+        "gutter": "16px",
+        "imageRatio": "4/3",
+        "link": "lightbox",
+        "lightboxThumbnails": true,
+        "lightboxCaption": false,
+        "loadingAttribute": "lazy"
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

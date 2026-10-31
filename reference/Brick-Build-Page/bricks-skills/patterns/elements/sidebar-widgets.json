@@ -1,0 +1,20 @@
+{
+  "content": [
+    { "id": "swasd1", "name": "block", "parent": 0, "children": ["swcat1", "swpst1", "swsdb1"], "label": "Blog Sidebar",
+      "settings": { "tag": "aside", "_rowGap": "32px", "_widthMax": "320px" } },
+    { "id": "swcat1", "name": "wordpress", "parent": "swasd1", "children": [], "label": "WP Widget: Categories",
+      "settings": { "type": "categories", "title": "Categories", "titletag": "h3", "showCount": true,
+        "titleTypography": { "font-size": "1.125rem", "font-weight": "700" } } },
+    { "id": "swpst1", "name": "wordpress", "parent": "swasd1", "children": [], "label": "WP Widget: Recent Posts",
+      "settings": { "type": "posts", "title": "Recent posts", "titletag": "h3", "postsNumber": 4, "postsDate": true,
+        "postsFeaturedImage": true, "postsFeaturedImageSize": "thumbnail", "postsImageWidth": "64px", "postsImageHeight": "64px",
+        "titleTypography": { "font-size": "1.125rem", "font-weight": "700" } } },
+    { "id": "swsdb1", "name": "sidebar", "parent": "swasd1", "children": [], "label": "WP Sidebar (select registered sidebar after paste)",
+      "settings": { "sidebar": "", "titleTypography": { "font-size": "1.125rem", "font-weight": "700" } } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

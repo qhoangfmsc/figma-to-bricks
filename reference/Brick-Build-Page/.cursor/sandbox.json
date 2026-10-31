@@ -1,0 +1,11 @@
+{
+  "networkPolicy": {
+    "allow": [
+      "api.figma.com",
+      "www.figma.com",
+      "*.figma.com",
+      "localhost",
+      "127.0.0.1/32"
+    ]
+  }
+}

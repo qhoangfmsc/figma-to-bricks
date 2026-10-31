@@ -1,0 +1,1498 @@
+[
+  {
+    "id": "da12c8",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "d620c6"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_rowGap": "72px",
+      "_padding": {
+        "top": "48px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_rowGap:tablet_portrait": "24px",
+      "_justifyContent:tablet_portrait": "center",
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-da12c8 { font-optical-sizing: none; }"
+    },
+    "label": "Section - 11"
+  },
+  {
+    "id": "d620c6",
+    "name": "container",
+    "parent": "da12c8",
+    "children": [
+      "e3ecbf",
+      "80dad7"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1140px",
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "24px",
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "24px",
+      "_columnGap:tablet_portrait": "0px",
+      "_alignItems:tablet_portrait": "stretch"
+    },
+    "label": "Frame 1000002666"
+  },
+  {
+    "id": "e3ecbf",
+    "name": "block",
+    "parent": "d620c6",
+    "children": [
+      "e85786",
+      "b1ba63"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_width": "669.6px",
+      "_flexShrink": "0",
+      "_height": "554px",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_cssCustom": "#brxe-e3ecbf.is-open { height: auto !important; }\n#brxe-e3ecbf .xt-less { display: none; }\n#brxe-e3ecbf.is-open .xt-more { display: none; }\n#brxe-e3ecbf.is-open .xt-less { display: inline; }\n#brxe-e3ecbf.is-open .xt-btn { position: static !important; background: none !important; height: auto !important;\n  width: 100% !important; padding: 8px 0 12px !important; }\n#brxe-e3ecbf.is-open .xt-caret { transform: rotate(180deg); }\n#brxe-e3ecbf .xt-btn { cursor: pointer; user-select: none; }",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "584px",
+      "_padding:tablet_portrait": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_order:tablet_portrait": "2",
+      "_flexShrink:tablet_portrait": "1"
+    },
+    "label": "Frame 1000002664"
+  },
+  {
+    "id": "e85786",
+    "name": "block",
+    "parent": "e3ecbf",
+    "children": [
+      "a2883f",
+      "0cf62e",
+      "a143da",
+      "cd6f50",
+      "017497"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      }
+    },
+    "label": "SEO Text/Full section"
+  },
+  {
+    "id": "a2883f",
+    "name": "block",
+    "parent": "e85786",
+    "children": [
+      "6ea323"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "12px",
+        "left": "0px"
+      }
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "6ea323",
+    "name": "heading",
+    "parent": "a2883f",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "VPS Linux: Giải pháp máy chủ ảo mạnh mẽ cho mọi nhu cầu",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "VPS Linux: Giải pháp máy chủ ảo mạnh mẽ cho mọi nhu cầu"
+  },
+  {
+    "id": "0cf62e",
+    "name": "block",
+    "parent": "e85786",
+    "children": [
+      "be8277"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "12px",
+        "left": "0px"
+      }
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "be8277",
+    "name": "text-basic",
+    "parent": "0cf62e",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Trong thời đại công nghệ số ngày nay, việc sở hữu một máy chủ mạnh mẽ và linh hoạt là điều cần thiết đối với nhiều cá nhân và doanh nghiệp. VPS (Virtual Private Server) Windows nổi lên như một giải pháp tối ưu, mang đến sự kết hợp hoàn hảo giữa hiệu suất, tính ổn định và khả năng tùy biến cao.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Intro"
+  },
+  {
+    "id": "a143da",
+    "name": "block",
+    "parent": "e85786",
+    "children": [
+      "2628fa",
+      "1fbf0a"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "16px",
+      "_width": "100%",
+      "_justifyContent": "center",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      }
+    },
+    "label": "SEO Text/TOC"
+  },
+  {
+    "id": "2628fa",
+    "name": "block",
+    "parent": "a143da",
+    "children": [
+      "c227ba",
+      "724443"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "center",
+      "_columnGap": "8px",
+      "_width": "100%"
+    },
+    "label": "action bar"
+  },
+  {
+    "id": "c227ba",
+    "name": "text-basic",
+    "parent": "2628fa",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Nội dung chính",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Nội dung chính"
+  },
+  {
+    "id": "724443",
+    "name": "image",
+    "parent": "2628fa",
+    "children": [],
+    "settings": {
+      "_width": "20px",
+      "_flexShrink": "0",
+      "_height": "20px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/96452.svg",
+        "external": true
+      }
+    },
+    "label": "CaretUp"
+  },
+  {
+    "id": "1fbf0a",
+    "name": "block",
+    "parent": "a143da",
+    "children": [
+      "e7241a",
+      "5fcd75",
+      "be2be5",
+      "a642b2",
+      "a2d6d2",
+      "0d63cd",
+      "7319b6",
+      "ded4c3",
+      "d9d498"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "8px",
+      "_width": "100%"
+    },
+    "label": "Title List"
+  },
+  {
+    "id": "e7241a",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "8f0810"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "8f0810",
+    "name": "text-basic",
+    "parent": "e7241a",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "VPS Linux là gì?",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "VPS Linux là gì?"
+  },
+  {
+    "id": "5fcd75",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "d38054"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "d38054",
+    "name": "text-basic",
+    "parent": "5fcd75",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Ưu điểm vượt trội của VPS Linux",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Ưu điểm vượt trội của VPS Linux"
+  },
+  {
+    "id": "be2be5",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "9e115e"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "9e115e",
+    "name": "text-basic",
+    "parent": "be2be5",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "<ul style=\"margin:0;padding-left:24px;list-style:disc\"><li>Tính tương thích cao</li></ul>",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Tính tương thích cao"
+  },
+  {
+    "id": "a642b2",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "b21479"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "b21479",
+    "name": "text-basic",
+    "parent": "a642b2",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "<ul style=\"margin:0;padding-left:24px;list-style:disc\"><li>Hiệu suất ổn định</li></ul>",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Hiệu suất ổn định"
+  },
+  {
+    "id": "a2d6d2",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "2a0f28"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "2a0f28",
+    "name": "text-basic",
+    "parent": "a2d6d2",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "<ul style=\"margin:0;padding-left:24px;list-style:disc\"><li>Khả năng tùy biến linh hoạt</li></ul>",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Khả năng tùy biến linh hoạt"
+  },
+  {
+    "id": "0d63cd",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "7d692a"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "7d692a",
+    "name": "text-basic",
+    "parent": "0d63cd",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Các trường hợp sử dụng phổ biến của VPS Linux",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Các trường hợp sử dụng phổ biến của VPS Linux"
+  },
+  {
+    "id": "7319b6",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "034eea"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "034eea",
+    "name": "text-basic",
+    "parent": "7319b6",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "<ul style=\"margin:0;padding-left:24px;list-style:disc\"><li>Lưu trữ website và ứng dụng web</li></ul>",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Lưu trữ website và ứng dụng web"
+  },
+  {
+    "id": "ded4c3",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "714a87"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "714a87",
+    "name": "text-basic",
+    "parent": "ded4c3",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "<ul style=\"margin:0;padding-left:24px;list-style:disc\"><li>Chạy ứng dụng doanh nghiệp</li></ul>",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Chạy ứng dụng doanh nghiệp"
+  },
+  {
+    "id": "d9d498",
+    "name": "block",
+    "parent": "1fbf0a",
+    "children": [
+      "6ad264"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "6ad264",
+    "name": "text-basic",
+    "parent": "d9d498",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Lựa chọn nhà cung cấp VPS Linux uy tín",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Lựa chọn nhà cung cấp VPS Linux uy tín"
+  },
+  {
+    "id": "cd6f50",
+    "name": "block",
+    "parent": "e85786",
+    "children": [
+      "e8e8bd"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%",
+      "_padding": {
+        "top": "20px",
+        "right": "0px",
+        "bottom": "12px",
+        "left": "0px"
+      }
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "e8e8bd",
+    "name": "heading",
+    "parent": "cd6f50",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "VPS Linux là gì?",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "VPS Linux là gì?"
+  },
+  {
+    "id": "017497",
+    "name": "block",
+    "parent": "e85786",
+    "children": [
+      "703317"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "12px",
+        "left": "0px"
+      }
+    },
+    "label": "SEO Text/Typography"
+  },
+  {
+    "id": "703317",
+    "name": "text-basic",
+    "parent": "017497",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Trong thời đại công nghệ số ngày nay, việc sở hữu một máy chủ mạnh mẽ và linh hoạt là điều cần thiết đối với nhiều cá nhân và doanh nghiệp. VPS (Virtual Private Server) Windows nổi lên như một giải pháp tối ưu, mang đến sự kết hợp hoàn hảo giữa hiệu suất, tính ổn định và khả năng tùy biến cao.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Body"
+  },
+  {
+    "id": "b1ba63",
+    "name": "block",
+    "parent": "e3ecbf",
+    "children": [
+      "bd93c4",
+      "a2f411"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-end",
+      "_columnGap": "8px",
+      "_justifyContent": "center",
+      "_position": "absolute",
+      "_bottom": "0px",
+      "_left": "0px",
+      "_width": "100%",
+      "_height": "120px",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "20px",
+        "left": "0px"
+      },
+      "_cssClasses": "xt-btn",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "180",
+        "colors": [
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0)"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "hex": "#ffffff"
+            },
+            "stop": "50"
+          }
+        ]
+      },
+      "_attributes": [
+        {
+          "id": "xtbtn1",
+          "name": "role",
+          "value": "button"
+        },
+        {
+          "id": "xtbtn2",
+          "name": "tabindex",
+          "value": "0"
+        }
+      ],
+      "_interactions": [
+        {
+          "id": "xttgl1",
+          "trigger": "click",
+          "action": "toggleAttribute",
+          "target": "custom",
+          "targetSelector": "#brxe-e3ecbf",
+          "actionAttributeKey": "class",
+          "actionAttributeValue": "is-open"
+        }
+      ],
+      "_left:tablet_portrait": "0px",
+      "_width:tablet_portrait": "100%"
+    },
+    "label": "Xem thêm"
+  },
+  {
+    "id": "bd93c4",
+    "name": "text-basic",
+    "parent": "b1ba63",
+    "children": [],
+    "settings": {
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#007cfc"
+        }
+      },
+      "_whiteSpace": "nowrap",
+      "text": "<span class=\"xt-more\">Xem thêm</span><span class=\"xt-less\">Thu gọn</span>"
+    },
+    "label": "Xem thêm label"
+  },
+  {
+    "id": "a2f411",
+    "name": "image",
+    "parent": "b1ba63",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/3d265.svg"
+      },
+      "_width": "16px",
+      "_height": "16px",
+      "_flexShrink": "0",
+      "_cssClasses": "xt-caret"
+    },
+    "label": "CaretDown"
+  },
+  {
+    "id": "80dad7",
+    "name": "block",
+    "parent": "d620c6",
+    "children": [
+      "b06a28",
+      "9bbbed",
+      "0b5234",
+      "15d4ea",
+      "81ae70",
+      "c48eb4",
+      "5bc6c7"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_rowGap": "12px",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_widthMin": "1px",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_width:tablet_portrait": "100%",
+      "_padding:tablet_portrait": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto",
+      "_order:tablet_portrait": "1"
+    },
+    "label": "Frame 1000002665"
+  },
+  {
+    "id": "b06a28",
+    "name": "heading",
+    "parent": "80dad7",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "KHAI THÁC TIỀM NĂNG CỦA VPS FOREX",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "_display:tablet_portrait": "none",
+      "_display": "block"
+    },
+    "label": "KHAI THÁC TIỀM NĂNG CỦA VPS FOREX"
+  },
+  {
+    "id": "9bbbed",
+    "name": "heading",
+    "parent": "80dad7",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "KHAI THÁC TIỀM NĂNG CỦA WEB HOSTING VIETNIX",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "tag": "h3",
+      "_display": "none",
+      "_display:tablet_portrait": "block"
+    },
+    "label": "KHAI THÁC TIỀM NĂNG CỦA WEB HOSTING VIETNIX"
+  },
+  {
+    "id": "0b5234",
+    "name": "block",
+    "parent": "80dad7",
+    "children": [
+      "8cda42",
+      "46a690"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "12px",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Post"
+  },
+  {
+    "id": "8cda42",
+    "name": "image",
+    "parent": "0b5234",
+    "children": [],
+    "settings": {
+      "_width": "137px",
+      "_flexShrink": "0",
+      "_height": "72px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/0dad7.png",
+        "external": true
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "radius": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        }
+      }
+    },
+    "label": "image 473"
+  },
+  {
+    "id": "46a690",
+    "name": "text-basic",
+    "parent": "0b5234",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Hướng dẫn upload website lên hosting chi tiết từ A-Z",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#000000"
+        }
+      }
+    },
+    "label": "Hướng dẫn upload website lên hosting chi tiết từ A-Z"
+  },
+  {
+    "id": "15d4ea",
+    "name": "block",
+    "parent": "80dad7",
+    "children": [
+      "768540",
+      "0a02d4"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "12px",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Post"
+  },
+  {
+    "id": "768540",
+    "name": "image",
+    "parent": "15d4ea",
+    "children": [],
+    "settings": {
+      "_width": "137px",
+      "_flexShrink": "0",
+      "_height": "72px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/0dad7.png",
+        "external": true
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "radius": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        }
+      }
+    },
+    "label": "image 473"
+  },
+  {
+    "id": "0a02d4",
+    "name": "text-basic",
+    "parent": "15d4ea",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Hướng dẫn upload website lên hosting chi tiết từ A-Z",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#000000"
+        }
+      }
+    },
+    "label": "Hướng dẫn upload website lên hosting chi tiết từ A-Z"
+  },
+  {
+    "id": "81ae70",
+    "name": "block",
+    "parent": "80dad7",
+    "children": [
+      "760bdc",
+      "a6f6d1"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "12px",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Post"
+  },
+  {
+    "id": "760bdc",
+    "name": "image",
+    "parent": "81ae70",
+    "children": [],
+    "settings": {
+      "_width": "137px",
+      "_flexShrink": "0",
+      "_height": "72px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/0dad7.png",
+        "external": true
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "radius": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        }
+      }
+    },
+    "label": "image 473"
+  },
+  {
+    "id": "a6f6d1",
+    "name": "text-basic",
+    "parent": "81ae70",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Hướng dẫn upload website lên hosting chi tiết từ A-Z",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#000000"
+        }
+      }
+    },
+    "label": "Hướng dẫn upload website lên hosting chi tiết từ A-Z"
+  },
+  {
+    "id": "c48eb4",
+    "name": "block",
+    "parent": "80dad7",
+    "children": [
+      "2426fb",
+      "7e2f10"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "12px",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Post"
+  },
+  {
+    "id": "2426fb",
+    "name": "image",
+    "parent": "c48eb4",
+    "children": [],
+    "settings": {
+      "_width": "137px",
+      "_flexShrink": "0",
+      "_height": "72px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/0dad7.png",
+        "external": true
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "radius": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        }
+      }
+    },
+    "label": "image 473"
+  },
+  {
+    "id": "7e2f10",
+    "name": "text-basic",
+    "parent": "c48eb4",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Hướng dẫn upload website lên hosting chi tiết từ A-Z",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#000000"
+        }
+      }
+    },
+    "label": "Hướng dẫn upload website lên hosting chi tiết từ A-Z"
+  },
+  {
+    "id": "5bc6c7",
+    "name": "block",
+    "parent": "80dad7",
+    "children": [
+      "d7c643",
+      "9e9e7c"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "12px",
+      "_width": "100%",
+      "_padding": {
+        "top": "8px",
+        "right": "8px",
+        "bottom": "8px",
+        "left": "8px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "12px",
+          "right": "12px",
+          "bottom": "12px",
+          "left": "12px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Post"
+  },
+  {
+    "id": "d7c643",
+    "name": "image",
+    "parent": "5bc6c7",
+    "children": [],
+    "settings": {
+      "_width": "137px",
+      "_flexShrink": "0",
+      "_height": "72px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/c39eaa10-b0d6-45ab-abb2-a3de012bef0d/0dad7.png",
+        "external": true
+      },
+      "_objectFit": "cover",
+      "_border": {
+        "radius": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        }
+      }
+    },
+    "label": "image 473"
+  },
+  {
+    "id": "9e9e7c",
+    "name": "text-basic",
+    "parent": "5bc6c7",
+    "children": [],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "text": "Hướng dẫn upload website lên hosting chi tiết từ A-Z",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#000000"
+        }
+      }
+    },
+    "label": "Hướng dẫn upload website lên hosting chi tiết từ A-Z"
+  }
+]

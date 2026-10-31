@@ -1,0 +1,28 @@
+{
+  "content": [
+    { "id": "bttop1", "name": "back-to-top", "parent": 0, "children": ["bticn1"], "label": "Back to Top (fixed, appears after scroll)",
+      "settings": {
+        "ariaLabel": "Back to top",
+        "position": "fixed",
+        "positionRight": "24px",
+        "positionBottom": "24px",
+        "visibleAfter": "600",
+        "smoothScroll": true,
+        "moveFocusToTop": true,
+        "_width": "48px",
+        "_height": "48px",
+        "_justifyContent": "center",
+        "_alignItems": "center",
+        "_background": { "color": { "hex": "#0f172a" } },
+        "_border": { "radius": { "top": "999px", "right": "999px", "bottom": "999px", "left": "999px" } },
+        "_boxShadow": { "values": { "offsetX": "0", "offsetY": "8", "blur": "24", "spread": "0" }, "color": { "rgb": "rgba(15, 23, 42, 0.25)" } }
+      } },
+    { "id": "bticn1", "name": "icon", "parent": "bttop1", "children": [], "label": "Icon",
+      "settings": { "icon": { "library": "ionicons", "icon": "ion-ios-arrow-round-up" }, "iconSize": "28px", "iconColor": { "hex": "#ffffff" } } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

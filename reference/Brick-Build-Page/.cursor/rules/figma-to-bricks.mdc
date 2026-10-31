@@ -1,0 +1,12 @@
+---
+description: Mandatory rules for converting Figma designs to Bricks Builder pages, section templates, or element JSON. Apply for any Figma, Bricks, PLAN/DO/DONE flow, template, or review-gate (G0-G4) task.
+alwaysApply: false
+---
+
+# Figma → Bricks rules
+
+The rules live in a single source of truth. Read and follow them before acting:
+
+@rule_for_flow.md
+
+For the step-by-step process, read `flow_figma_to_bricks.md`, or use the `figma-to-bricks` skill.

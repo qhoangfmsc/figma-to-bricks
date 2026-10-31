@@ -1,0 +1,48 @@
+{
+  "name": "search-results",
+  "title": "Search Results",
+  "type": "search",
+  "content": [
+    { "id": "srsec1", "name": "section", "parent": 0, "children": ["srcon1"], "label": "Search Results",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "srcon1", "name": "container", "parent": "srsec1", "children": ["srhdr1", "srlst1", "srpag1"],
+      "settings": { "_widthMax": "860px", "_rowGap": "32px" } },
+    { "id": "srhdr1", "name": "block", "parent": "srcon1", "children": ["srttl1", "srfrm1", "srsum1"], "label": "Search Header",
+      "settings": { "tag": "header", "_rowGap": "16px" } },
+    { "id": "srttl1", "name": "heading", "parent": "srhdr1", "children": [],
+      "settings": { "text": "Results for “{search_term}”", "tag": "h1", "_typography": { "font-size": "clamp(1.75rem, 3.5vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "srfrm1", "name": "search", "parent": "srhdr1", "children": [], "label": "Refine Search",
+      "settings": { "searchType": "input", "placeholder": "Search again…", "ariaLabel": "Search", "buttonText": "Search",
+        "inputHeight": "48px", "inputBorder": { "width": { "top": "1px", "right": "1px", "bottom": "1px", "left": "1px" }, "style": "solid", "color": { "hex": "#cbd5e1" }, "radius": { "top": "8px", "right": "8px", "bottom": "8px", "left": "8px" } } } },
+    { "id": "srsum1", "name": "query-results-summary", "parent": "srhdr1", "children": [],
+      "settings": { "queryId": "srloop", "statsFormat": "%total% results", "noResultsText": "Nothing matched your search. Try different keywords.",
+        "_typography": { "color": { "hex": "#64748b" } } } },
+    { "id": "srlst1", "name": "div", "parent": "srcon1", "children": ["srloop"], "label": "Results List",
+      "settings": { "_display": "flex", "_direction": "column", "_rowGap": "24px" } },
+    { "id": "srloop", "name": "block", "parent": "srlst1", "children": ["srtyp1", "srrtl1", "srexc1"], "label": "Result (loop)",
+      "settings": {
+        "tag": "article",
+        "hasLoop": true,
+        "query": { "objectType": "post", "is_archive_main_query": true },
+        "_rowGap": "6px",
+        "_padding": { "bottom": "24px" },
+        "_border": { "width": { "bottom": "1px" }, "style": "solid", "color": { "hex": "#e2e8f0" } } } },
+    { "id": "srtyp1", "name": "text-basic", "parent": "srloop", "children": [],
+      "settings": { "text": "{post_type} · {post_date}", "tag": "p",
+        "_typography": { "font-size": "0.8125rem", "text-transform": "uppercase", "letter-spacing": "0.05em", "color": { "hex": "#2563eb" } } } },
+    { "id": "srrtl1", "name": "heading", "parent": "srloop", "children": [],
+      "settings": { "text": "{post_title}", "tag": "h2", "link": { "type": "meta", "useDynamicData": "{post_url}" },
+        "_typography": { "font-size": "1.25rem", "font-weight": "600" } } },
+    { "id": "srexc1", "name": "text-basic", "parent": "srloop", "children": [],
+      "settings": { "text": "{post_excerpt:30}", "tag": "p", "_typography": { "color": { "hex": "#475569" } } } },
+    { "id": "srpag1", "name": "pagination", "parent": "srcon1", "children": [],
+      "settings": { "queryId": "srloop", "midSize": 2, "endSize": 1, "_justifyContent": "center" } }
+  ],
+  "pageSettings": {},
+  "templateSettings": {
+    "templateConditions": [ { "main": "search" } ],
+    "templatePreviewType": "search"
+  },
+  "global_classes": [],
+  "globalVariables": []
+}

@@ -1,0 +1,46 @@
+{
+  "content": [
+    { "id": "stsec1", "name": "section", "parent": 0, "children": ["stcon1"], "label": "Stats",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" },
+        "_background": { "color": { "hex": "#0f172a" } } } },
+    { "id": "stcon1", "name": "container", "parent": "stsec1", "children": ["stgrd1"], "settings": {} },
+    { "id": "stgrd1", "name": "div", "parent": "stcon1", "children": ["stit01", "stit02", "stit03", "stit04"], "label": "Stats Grid",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "repeat(4, minmax(0, 1fr))", "_gridGap": "32px",
+        "_gridTemplateColumns:tablet_portrait": "repeat(2, minmax(0, 1fr))", "_typography": { "text-align": "center" } } },
+
+    { "id": "stit01", "name": "block", "parent": "stgrd1", "children": ["stcn01", "stlb01"], "label": "Stat", "settings": { "_alignItems": "center", "_rowGap": "4px" } },
+    { "id": "stcn01", "name": "counter", "parent": "stit01", "children": [],
+      "settings": { "countFrom": "0", "countTo": "12500", "duration": 2000, "suffix": "+", "thousandSeparator": true, "separatorText": ",",
+        "_cssGlobalClasses": ["stnum1"] } },
+    { "id": "stlb01", "name": "text-basic", "parent": "stit01", "children": [],
+      "settings": { "text": "Active customers", "tag": "p", "_cssGlobalClasses": ["stlbl1"] } },
+
+    { "id": "stit02", "name": "block", "parent": "stgrd1", "children": ["stcn02", "stlb02"], "label": "Stat", "settings": { "_alignItems": "center", "_rowGap": "4px" } },
+    { "id": "stcn02", "name": "counter", "parent": "stit02", "children": [],
+      "settings": { "countFrom": "0", "countTo": "99.9", "duration": 2000, "suffix": "%", "_cssGlobalClasses": ["stnum1"] } },
+    { "id": "stlb02", "name": "text-basic", "parent": "stit02", "children": [],
+      "settings": { "text": "Uptime", "tag": "p", "_cssGlobalClasses": ["stlbl1"] } },
+
+    { "id": "stit03", "name": "block", "parent": "stgrd1", "children": ["stcn03", "stlb03"], "label": "Stat", "settings": { "_alignItems": "center", "_rowGap": "4px" } },
+    { "id": "stcn03", "name": "counter", "parent": "stit03", "children": [],
+      "settings": { "countFrom": "0", "countTo": "40", "duration": 1500, "suffix": "+", "_cssGlobalClasses": ["stnum1"] } },
+    { "id": "stlb03", "name": "text-basic", "parent": "stit03", "children": [],
+      "settings": { "text": "Countries", "tag": "p", "_cssGlobalClasses": ["stlbl1"] } },
+
+    { "id": "stit04", "name": "block", "parent": "stgrd1", "children": ["stcn04", "stlb04"], "label": "Stat", "settings": { "_alignItems": "center", "_rowGap": "4px" } },
+    { "id": "stcn04", "name": "counter", "parent": "stit04", "children": [],
+      "settings": { "countFrom": "0", "countTo": "24", "duration": 1500, "suffix": "/7", "_cssGlobalClasses": ["stnum1"] } },
+    { "id": "stlb04", "name": "text-basic", "parent": "stit04", "children": [],
+      "settings": { "text": "Support", "tag": "p", "_cssGlobalClasses": ["stlbl1"] } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [
+    { "id": "stnum1", "name": "stat__number",
+      "settings": { "_typography": { "font-size": "clamp(2.25rem, 5vw, 3.5rem)", "font-weight": "800", "line-height": "1", "color": { "hex": "#ffffff" } } } },
+    { "id": "stlbl1", "name": "stat__label",
+      "settings": { "_typography": { "font-size": "0.9375rem", "color": { "hex": "#94a3b8" } } } }
+  ],
+  "globalElements": []
+}

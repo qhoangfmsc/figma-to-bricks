@@ -183,6 +183,21 @@ Theme CSS defaults leak into native elements (button: padding, letter-spacing, g
 **Add a detect rule:** `detect/rules/<component>.mjs` exports `detect<Name>(tree)` returning `[{ component, node, confidence, evidence, params, note }]`;
 call it from `runRules` in `detect/index.mjs`. Rules must be conservative (precision over recall): the AI pass covers the rest. Add a test.
 
+## Lessons from the usable-widgets work (2026-10-29): a widget can look right and not work
+
+Found by clicking the built page (`scripts/interact.mjs`), none of them visible in the box / look checks:
+
+- **A control is not on every element.** `_direction`, `_rowGap`, `_columnGap` exist on container / block / div / section only (`container.php`). On `accordion-nested` they are ignored, the
+  flex root laid its items in a row. Check the control list of the element's PHP file before writing a setting on it; what has no control is written as custom css (`flexDirectionCss`).
+- **An id selector beats the theme's open / closed rule.** `#brxe-<id> { display: flex }` (from a Figma auto layout) wins over `.accordion-content-wrapper { display: none }` and
+  `.tab-pane { display: none }`: the block can never close. The `display` is dropped from the block and given back only while open (`.brx-open`), see `components/accordion.mjs`, `tabs.mjs`.
+- **Theme defaults leak into a widget** (accordion title `padding: 15px 0; margin-bottom: -1px`, content `padding: 0 0 15px`): start from zero, Figma values win (`THEME_RESET`).
+- **Elements Bricks needs that Figma does not draw** (`extraChildren`) are keyed `<host>#extraN`; the responsive merge pairs them with their host (`responsive/merge.mjs`), otherwise every
+  breakpoint frame adds its own copy. `like: <figma node id>` copies the settings of a drawn element (the drawn answer's look), css selectors in the copy are rewritten to the new id.
+- **A crashed build can hide behind an old result.** `auto.mjs` now treats a non-zero `run.mjs` as a failure unless `verify.json` was written by that run. Never use `--no-responsive`
+  on a section whose workspace already has `responsive.json` (the variant workspaces are not fetched and the build stops).
+- **Measure on the rebuilt result, not on what was there**: check the file's modification time before trusting a number.
+
 ## Rules for this code
 
 - Deterministic: same `tree.json` + same `overrides.json` → same output. No network, no randomness, no AI in `bricks/render/`.

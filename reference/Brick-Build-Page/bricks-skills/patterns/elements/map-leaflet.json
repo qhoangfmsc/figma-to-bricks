@@ -1,0 +1,30 @@
+{
+  "content": [
+    { "id": "mlsec1", "name": "section", "parent": 0, "children": ["mlcon1"], "label": "OpenStreetMap (Leaflet)",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "mlcon1", "name": "container", "parent": "mlsec1", "children": ["mlmap1"], "settings": {} },
+    { "id": "mlmap1", "name": "map-leaflet", "parent": "mlcon1", "children": [],
+      "settings": {
+        "center": "16.0544, 108.2022",
+        "zoom": 5,
+        "height": "460px",
+        "scrollWheelZoom": "center",
+        "layers": [
+          { "id": "mlly01", "name": "OpenStreetMap", "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "maxZoom": 19,
+            "attribution": "&copy; OpenStreetMap contributors" }
+        ],
+        "markers": [
+          { "id": "mlmk01", "coordinates": "21.0285, 105.8542", "label": "Hanoi office" },
+          { "id": "mlmk02", "coordinates": "16.0544, 108.2022", "label": "Da Nang office" },
+          { "id": "mlmk03", "coordinates": "10.7769, 106.7009", "label": "Ho Chi Minh City office" }
+        ],
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } },
+        "_overflow": "hidden"
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

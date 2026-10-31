@@ -1,0 +1,3155 @@
+[
+  {
+    "id": "a89935",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "1faa29"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "48px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_justifyContent:tablet_portrait": "center",
+      "_cssCustom": "#brxe-a89935 { font-optical-sizing: none; }"
+    },
+    "label": "Section - 13"
+  },
+  {
+    "id": "1faa29",
+    "name": "container",
+    "parent": "a89935",
+    "children": [
+      "0bffec",
+      "10fd9f",
+      "7f69cd"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_width": "1140px",
+      "_widthMax": "100%"
+    },
+    "label": "container"
+  },
+  {
+    "id": "0bffec",
+    "name": "block",
+    "parent": "1faa29",
+    "children": [
+      "b77312"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_rowGap": "16px",
+      "_width": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_alignItems:tablet_portrait": "flex-start",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "b77312",
+    "name": "heading",
+    "parent": "0bffec",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Đánh giá chất lượng dịch vụ vietnix từ khách hàng",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      }
+    },
+    "label": "Đánh giá chất lượng dịch vụ"
+  },
+  {
+    "id": "10fd9f",
+    "name": "block",
+    "parent": "1faa29",
+    "children": [
+      "875086",
+      "9056f4"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "10px",
+      "_width": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "40px",
+        "left": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 1000002681"
+  },
+  {
+    "id": "875086",
+    "name": "block",
+    "parent": "10fd9f",
+    "children": [
+      "6d34a9",
+      "643ec7",
+      "e7f267",
+      "c4967c"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_justifyContent": "space-between",
+      "_width": "1140px",
+      "_widthMax": "100%",
+      "_cssCustom": "@media (max-width: 991px) { #brxe-875086 { display: none; } }"
+    },
+    "label": "Ratting"
+  },
+  {
+    "id": "6d34a9",
+    "name": "block",
+    "parent": "875086",
+    "children": [
+      "669ee4",
+      "96a93a",
+      "522587"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start"
+    },
+    "label": "Trustpilot"
+  },
+  {
+    "id": "669ee4",
+    "name": "block",
+    "parent": "6d34a9",
+    "children": [
+      "3720eb"
+    ],
+    "settings": {
+      "_height": "32px",
+      "_width": "103px"
+    },
+    "label": "Trustpilot logo"
+  },
+  {
+    "id": "3720eb",
+    "name": "image",
+    "parent": "669ee4",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/c61f8.svg"
+      },
+      "_width": "103px",
+      "_height": "32px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Trustpilot logo image"
+  },
+  {
+    "id": "96a93a",
+    "name": "block",
+    "parent": "6d34a9",
+    "children": [
+      "e8336d",
+      "e166c1",
+      "0ce648",
+      "b585e6",
+      "b8d99c"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Trustpilot stars"
+  },
+  {
+    "id": "e8336d",
+    "name": "image",
+    "parent": "96a93a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/5af82.svg"
+      },
+      "_width": "30px",
+      "_height": "30px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "e166c1",
+    "name": "image",
+    "parent": "96a93a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/5af82.svg"
+      },
+      "_width": "30px",
+      "_height": "30px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "0ce648",
+    "name": "image",
+    "parent": "96a93a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/5af82.svg"
+      },
+      "_width": "30px",
+      "_height": "30px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "b585e6",
+    "name": "image",
+    "parent": "96a93a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/5af82.svg"
+      },
+      "_width": "30px",
+      "_height": "30px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "b8d99c",
+    "name": "image",
+    "parent": "96a93a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/5af82.svg"
+      },
+      "_width": "30px",
+      "_height": "30px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "522587",
+    "name": "block",
+    "parent": "6d34a9",
+    "children": [
+      "6e2102"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "6e2102",
+    "name": "text-basic",
+    "parent": "522587",
+    "children": [],
+    "settings": {
+      "text": "Đánh giá: 4.9/5 | 11 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "20px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "Đánh giá: 4.9/5 | 11 Reviews"
+  },
+  {
+    "id": "643ec7",
+    "name": "block",
+    "parent": "875086",
+    "children": [
+      "09c5b1",
+      "52d1ce",
+      "5fb0ea"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start"
+    },
+    "label": "Google"
+  },
+  {
+    "id": "09c5b1",
+    "name": "block",
+    "parent": "643ec7",
+    "children": [
+      "22636d"
+    ],
+    "settings": {
+      "_height": "32px",
+      "_width": "72.908px"
+    },
+    "label": "Google logo"
+  },
+  {
+    "id": "22636d",
+    "name": "image",
+    "parent": "09c5b1",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/2d77f.svg"
+      },
+      "_width": "72.908px",
+      "_height": "32px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Google logo image"
+  },
+  {
+    "id": "52d1ce",
+    "name": "block",
+    "parent": "643ec7",
+    "children": [
+      "872bfd",
+      "02c6ec",
+      "75850d",
+      "92081a",
+      "56db4f"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Google stars"
+  },
+  {
+    "id": "872bfd",
+    "name": "div",
+    "parent": "52d1ce",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-872bfd { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "02c6ec",
+    "name": "div",
+    "parent": "52d1ce",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-02c6ec { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "75850d",
+    "name": "div",
+    "parent": "52d1ce",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-75850d { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "92081a",
+    "name": "div",
+    "parent": "52d1ce",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-92081a { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "56db4f",
+    "name": "div",
+    "parent": "52d1ce",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-56db4f { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "5fb0ea",
+    "name": "block",
+    "parent": "643ec7",
+    "children": [
+      "151fdb"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "151fdb",
+    "name": "text-basic",
+    "parent": "5fb0ea",
+    "children": [],
+    "settings": {
+      "text": "Đánh giá: 5/5 | 11 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "20px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "Đánh giá: 5/5 | 11 Reviews"
+  },
+  {
+    "id": "e7f267",
+    "name": "block",
+    "parent": "875086",
+    "children": [
+      "45159e",
+      "c8c63a",
+      "b33e20"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start"
+    },
+    "label": "Hostadvice"
+  },
+  {
+    "id": "45159e",
+    "name": "block",
+    "parent": "e7f267",
+    "children": [
+      "e48902"
+    ],
+    "settings": {
+      "_height": "32px",
+      "_width": "119px"
+    },
+    "label": "Hostadvice logo"
+  },
+  {
+    "id": "e48902",
+    "name": "image",
+    "parent": "45159e",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/23e66.svg"
+      },
+      "_width": "119px",
+      "_height": "18px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Hostadvice logo image"
+  },
+  {
+    "id": "c8c63a",
+    "name": "block",
+    "parent": "e7f267",
+    "children": [
+      "b286f2",
+      "ee2800",
+      "c7ea67",
+      "95a2d5",
+      "8e60a5"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Hostadvice stars"
+  },
+  {
+    "id": "b286f2",
+    "name": "div",
+    "parent": "c8c63a",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-b286f2 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "ee2800",
+    "name": "div",
+    "parent": "c8c63a",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-ee2800 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "c7ea67",
+    "name": "div",
+    "parent": "c8c63a",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-c7ea67 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "95a2d5",
+    "name": "div",
+    "parent": "c8c63a",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-95a2d5 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "8e60a5",
+    "name": "div",
+    "parent": "c8c63a",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-8e60a5 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "b33e20",
+    "name": "block",
+    "parent": "e7f267",
+    "children": [
+      "bcdcca"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "bcdcca",
+    "name": "text-basic",
+    "parent": "b33e20",
+    "children": [],
+    "settings": {
+      "text": "Đánh giá: 4.9/5 | 110 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "20px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "Đánh giá: 4.9/5 | 110 Reviews"
+  },
+  {
+    "id": "c4967c",
+    "name": "block",
+    "parent": "875086",
+    "children": [
+      "8c8bb1",
+      "54db65",
+      "0ce35c"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start"
+    },
+    "label": "Facebook"
+  },
+  {
+    "id": "8c8bb1",
+    "name": "block",
+    "parent": "c4967c",
+    "children": [
+      "ca1d0a"
+    ],
+    "settings": {
+      "_height": "32px",
+      "_width": "92.976px"
+    },
+    "label": "Facebook logo"
+  },
+  {
+    "id": "ca1d0a",
+    "name": "image",
+    "parent": "8c8bb1",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/18e96.svg"
+      },
+      "_width": "92.976px",
+      "_height": "18px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Facebook logo image"
+  },
+  {
+    "id": "54db65",
+    "name": "block",
+    "parent": "c4967c",
+    "children": [
+      "568702",
+      "c0e914",
+      "700b8c",
+      "03cda1",
+      "7a662a"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Facebook stars"
+  },
+  {
+    "id": "568702",
+    "name": "div",
+    "parent": "54db65",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-568702 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "c0e914",
+    "name": "div",
+    "parent": "54db65",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-c0e914 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "700b8c",
+    "name": "div",
+    "parent": "54db65",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-700b8c { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "03cda1",
+    "name": "div",
+    "parent": "54db65",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-03cda1 { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "7a662a",
+    "name": "div",
+    "parent": "54db65",
+    "children": [],
+    "settings": {
+      "_width": "30px",
+      "_height": "30px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-7a662a { background: linear-gradient(90deg, #f3b847, #f49846); clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "0ce35c",
+    "name": "block",
+    "parent": "c4967c",
+    "children": [
+      "60cf51"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "60cf51",
+    "name": "text-basic",
+    "parent": "0ce35c",
+    "children": [],
+    "settings": {
+      "text": "Đánh giá: 4.7 | 97 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "20px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "Đánh giá: 4.7 | 97 Reviews"
+  },
+  {
+    "id": "9056f4",
+    "name": "block",
+    "parent": "10fd9f",
+    "children": [
+      "2cca63",
+      "398011",
+      "4cbde1",
+      "f3641a"
+    ],
+    "settings": {
+      "_display": "none",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px",
+      "_width": "100%",
+      "_flexWrap": "nowrap",
+      "_overflow": "hidden",
+      "_cssCustom": "#brxe-9056f4 { display: none; }\n@media (max-width: 991px) { #brxe-9056f4 { display: flex; } }"
+    },
+    "label": "Ratting mobile"
+  },
+  {
+    "id": "2cca63",
+    "name": "block",
+    "parent": "9056f4",
+    "children": [
+      "bf826f",
+      "f301e3",
+      "81e4fc"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "152px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "8px"
+      }
+    },
+    "label": "Trustpilot"
+  },
+  {
+    "id": "bf826f",
+    "name": "block",
+    "parent": "2cca63",
+    "children": [
+      "8ecec2"
+    ],
+    "settings": {
+      "_height": "24px",
+      "_width": "77.25px"
+    },
+    "label": "Trustpilot logo"
+  },
+  {
+    "id": "8ecec2",
+    "name": "image",
+    "parent": "bf826f",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/d3c4c.svg"
+      },
+      "_width": "77.25px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Trustpilot logo image"
+  },
+  {
+    "id": "f301e3",
+    "name": "block",
+    "parent": "2cca63",
+    "children": [
+      "19b0ed",
+      "a58b60",
+      "397062",
+      "0d288f",
+      "34a2be"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "3.458px"
+    },
+    "label": "Trustpilot stars"
+  },
+  {
+    "id": "19b0ed",
+    "name": "image",
+    "parent": "f301e3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/02fcb.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "a58b60",
+    "name": "image",
+    "parent": "f301e3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/02fcb.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "397062",
+    "name": "image",
+    "parent": "f301e3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/02fcb.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "0d288f",
+    "name": "image",
+    "parent": "f301e3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/02fcb.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "34a2be",
+    "name": "image",
+    "parent": "f301e3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/02fcb.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "81e4fc",
+    "name": "block",
+    "parent": "2cca63",
+    "children": [
+      "141685"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "141685",
+    "name": "text-basic",
+    "parent": "81e4fc",
+    "children": [],
+    "settings": {
+      "text": "4.9/5 | 11 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "22px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "4.9/5 | 11 Reviews"
+  },
+  {
+    "id": "398011",
+    "name": "block",
+    "parent": "9056f4",
+    "children": [
+      "99f07c",
+      "8a82fd",
+      "2350a5"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "152px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "8px"
+      }
+    },
+    "label": "Google"
+  },
+  {
+    "id": "99f07c",
+    "name": "block",
+    "parent": "398011",
+    "children": [
+      "e19920"
+    ],
+    "settings": {
+      "_height": "24px",
+      "_width": "54.682px"
+    },
+    "label": "Google logo"
+  },
+  {
+    "id": "e19920",
+    "name": "image",
+    "parent": "99f07c",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/660a7.svg"
+      },
+      "_width": "54.682px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Google logo image"
+  },
+  {
+    "id": "8a82fd",
+    "name": "block",
+    "parent": "398011",
+    "children": [
+      "dc6120",
+      "3e47b7",
+      "8fee98",
+      "d04e88",
+      "43c14a"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Google stars"
+  },
+  {
+    "id": "dc6120",
+    "name": "image",
+    "parent": "8a82fd",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "3e47b7",
+    "name": "image",
+    "parent": "8a82fd",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "8fee98",
+    "name": "image",
+    "parent": "8a82fd",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "d04e88",
+    "name": "image",
+    "parent": "8a82fd",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "43c14a",
+    "name": "image",
+    "parent": "8a82fd",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "2350a5",
+    "name": "block",
+    "parent": "398011",
+    "children": [
+      "2e92ac"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "2e92ac",
+    "name": "text-basic",
+    "parent": "2350a5",
+    "children": [],
+    "settings": {
+      "text": "5/5 | 11 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "22px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "5/5 | 11 Reviews"
+  },
+  {
+    "id": "4cbde1",
+    "name": "block",
+    "parent": "9056f4",
+    "children": [
+      "fb0d90",
+      "2e11e5",
+      "2cdb98"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "152px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "8px"
+      }
+    },
+    "label": "Hostadvice"
+  },
+  {
+    "id": "fb0d90",
+    "name": "block",
+    "parent": "4cbde1",
+    "children": [
+      "006639"
+    ],
+    "settings": {
+      "_height": "24px",
+      "_width": "102.472px"
+    },
+    "label": "Hostadvice logo"
+  },
+  {
+    "id": "006639",
+    "name": "image",
+    "parent": "fb0d90",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/7a98d.svg"
+      },
+      "_width": "102.472px",
+      "_height": "15.5px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Hostadvice logo image"
+  },
+  {
+    "id": "2e11e5",
+    "name": "block",
+    "parent": "4cbde1",
+    "children": [
+      "f893b6",
+      "64a540",
+      "91d991",
+      "292551",
+      "51c39b"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Hostadvice stars"
+  },
+  {
+    "id": "f893b6",
+    "name": "image",
+    "parent": "2e11e5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "64a540",
+    "name": "image",
+    "parent": "2e11e5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "91d991",
+    "name": "image",
+    "parent": "2e11e5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "292551",
+    "name": "image",
+    "parent": "2e11e5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "51c39b",
+    "name": "image",
+    "parent": "2e11e5",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "2cdb98",
+    "name": "block",
+    "parent": "4cbde1",
+    "children": [
+      "e2fc2c"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "e2fc2c",
+    "name": "text-basic",
+    "parent": "2cdb98",
+    "children": [],
+    "settings": {
+      "text": "4.9/5 | 110 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "22px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "4.9/5 | 110 Reviews"
+  },
+  {
+    "id": "f3641a",
+    "name": "block",
+    "parent": "9056f4",
+    "children": [
+      "8a982f",
+      "3683d3",
+      "c07475"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_width": "152px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "8px"
+      }
+    },
+    "label": "Facebook"
+  },
+  {
+    "id": "8a982f",
+    "name": "block",
+    "parent": "f3641a",
+    "children": [
+      "d9ef73"
+    ],
+    "settings": {
+      "_height": "24px",
+      "_width": "100%"
+    },
+    "label": "Facebook logo"
+  },
+  {
+    "id": "d9ef73",
+    "name": "image",
+    "parent": "8a982f",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/56509.svg"
+      },
+      "_width": "80.063px",
+      "_height": "15.5px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Facebook logo image"
+  },
+  {
+    "id": "3683d3",
+    "name": "block",
+    "parent": "f3641a",
+    "children": [
+      "bc6de1",
+      "0588b8",
+      "7d1fe4",
+      "9ea0ba",
+      "2c8982"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "4px"
+    },
+    "label": "Facebook stars"
+  },
+  {
+    "id": "bc6de1",
+    "name": "image",
+    "parent": "3683d3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "0588b8",
+    "name": "image",
+    "parent": "3683d3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "7d1fe4",
+    "name": "image",
+    "parent": "3683d3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "9ea0ba",
+    "name": "image",
+    "parent": "3683d3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "2c8982",
+    "name": "image",
+    "parent": "3683d3",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6e246ee9-dc23-4f74-a197-8d3d09de66cf/41939.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Star"
+  },
+  {
+    "id": "c07475",
+    "name": "block",
+    "parent": "f3641a",
+    "children": [
+      "d285b6"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "4px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Frame 4"
+  },
+  {
+    "id": "d285b6",
+    "name": "text-basic",
+    "parent": "c07475",
+    "children": [],
+    "settings": {
+      "text": "4.7 | 97 Reviews",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "12px",
+        "line-height": "22px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#000000"
+        }
+      },
+      "_whiteSpace": "nowrap"
+    },
+    "label": "4.7 | 97 Reviews"
+  },
+  {
+    "id": "7f69cd",
+    "name": "block",
+    "parent": "1faa29",
+    "children": [
+      "5d8fba",
+      "42abf2",
+      "0f9a2a"
+    ],
+    "settings": {
+      "_width": "1140px",
+      "_widthMax": "100%",
+      "_position": "relative"
+    },
+    "label": "Frame 1000002666"
+  },
+  {
+    "id": "5d8fba",
+    "name": "slider-nested",
+    "parent": "7f69cd",
+    "children": [
+      "2ae8a2",
+      "57acbd",
+      "8223f7"
+    ],
+    "settings": {
+      "optionsType": "custom",
+      "options": "{\"type\": \"loop\", \"start\": 1, \"focus\": \"center\", \"fixedWidth\": 751, \"gap\": 24, \"arrows\": true, \"pagination\": false, \"autoplay\": false, \"padding\": {\"left\": 25}, \"speed\": 500, \"breakpoints\": {\"991\": {\"fixedWidth\": \"100%\", \"focus\": 0, \"gap\": 16, \"padding\": 0, \"start\": 0}}}",
+      "_cssCustom": "#brxe-5d8fba { position: relative; padding-bottom: 72px; }\n#brxe-5d8fba .splide__arrows { position: static; }\n#brxe-5d8fba .splide__arrow { position: absolute; top: auto; bottom: 0; transform: none; width: 48px; height: 48px;\n  border: 1.5px solid #f2f3f5; border-radius: 999px; background: transparent; opacity: 1; cursor: pointer;\n  display: flex; align-items: center; justify-content: center; padding: 0; }\n#brxe-5d8fba .splide__arrow--prev { left: 0; right: auto; opacity: .2; }\n#brxe-5d8fba .splide__arrow--prev:hover:not(:disabled) { opacity: 1; }\n#brxe-5d8fba .splide__arrow--next { left: 80px; right: auto; }\n#brxe-5d8fba .splide__arrow svg { width: 14px; height: 14px; fill: #f2f3f5; transform: none; }\n#brxe-5d8fba .splide__arrow--prev svg { transform: scaleX(-1); }\n@media (max-width: 991px) {\n  #brxe-5d8fba { padding-bottom: 52px; }\n  #brxe-5d8fba .splide__arrow { width: 36px; height: 36px; }\n  #brxe-5d8fba .splide__arrow--next { left: 60px; }\n}"
+    },
+    "label": "Slider"
+  },
+  {
+    "id": "2ae8a2",
+    "name": "block",
+    "parent": "5d8fba",
+    "children": [
+      "68cf50",
+      "6476c4"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "24px",
+      "_width": "751px",
+      "_height": "343px",
+      "_flexShrink": "0",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_cssCustom": "#brxe-2ae8a2::after { content: ''; position: absolute; inset: 0; border: 4px solid #f7f7f7; border-radius: 16px; pointer-events: none; z-index: 3; }",
+      "_hidden": {
+        "_cssClasses": "splide__slide"
+      },
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "auto",
+      "_direction:tablet_portrait": "column",
+      "_columnGap:tablet_portrait": "0",
+      "_rowGap:tablet_portrait": "16px"
+    },
+    "label": "Frame 1000002677"
+  },
+  {
+    "id": "68cf50",
+    "name": "div",
+    "parent": "2ae8a2",
+    "children": [
+      "29b459"
+    ],
+    "settings": {
+      "_width": "234px",
+      "_height": "100%",
+      "_flexShrink": "0",
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "418px"
+    },
+    "label": "image 474"
+  },
+  {
+    "id": "29b459",
+    "name": "image",
+    "parent": "68cf50",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/144a1.png"
+      },
+      "_position": "absolute",
+      "_top": "0%",
+      "_left": "-4.73%",
+      "_width": "109.73%",
+      "_height": "100%",
+      "_widthMax": "none",
+      "_objectFit": "fill",
+      "_left:tablet_portrait": "0%",
+      "_width:tablet_portrait": "100%",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "image 474 image"
+  },
+  {
+    "id": "6476c4",
+    "name": "block",
+    "parent": "2ae8a2",
+    "children": [
+      "dce7b7",
+      "3a5d00",
+      "d5afb0",
+      "a32397"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_widthMin": "1px",
+      "_height": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "24px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_width:tablet_portrait": "100%",
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto",
+      "_height:tablet_portrait": "auto",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      }
+    },
+    "label": "Frame 1000002679"
+  },
+  {
+    "id": "dce7b7",
+    "name": "image",
+    "parent": "6476c4",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/e44c2.svg"
+      },
+      "_width": "36px",
+      "_height": "36px",
+      "_objectFit": "fill",
+      "_flexShrink": "0",
+      "_border": {
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      }
+    },
+    "label": "Quote icon"
+  },
+  {
+    "id": "3a5d00",
+    "name": "block",
+    "parent": "6476c4",
+    "children": [
+      "3ba091",
+      "d5cd07"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "8px",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002680"
+  },
+  {
+    "id": "3ba091",
+    "name": "block",
+    "parent": "3a5d00",
+    "children": [
+      "3d33c2",
+      "668352",
+      "21f704",
+      "cca0dd",
+      "570cea"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "2.4px"
+    },
+    "label": "_Star-Rating"
+  },
+  {
+    "id": "3d33c2",
+    "name": "div",
+    "parent": "3ba091",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-3d33c2 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "668352",
+    "name": "div",
+    "parent": "3ba091",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-668352 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "21f704",
+    "name": "div",
+    "parent": "3ba091",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-21f704 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "cca0dd",
+    "name": "div",
+    "parent": "3ba091",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-cca0dd { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "570cea",
+    "name": "div",
+    "parent": "3ba091",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-570cea { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "d5cd07",
+    "name": "block",
+    "parent": "3a5d00",
+    "children": [
+      "6ef2eb"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "10px",
+      "_width": "100%",
+      "_height": "120px",
+      "_overflow": "hidden",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "_content-text"
+  },
+  {
+    "id": "6ef2eb",
+    "name": "text-basic",
+    "parent": "d5cd07",
+    "children": [],
+    "settings": {
+      "text": "Hosting của Vietnix với tốc độ tải trang cực nhanh, bảo mật cao và ổn định đã góp phần đáng kể vào thành công của các chiến dịch SEO tại GTV SEO. Đội ngũ hỗ trợ cũng rất tuyệt vời, luôn sẵn sàng 24/7. GTV SEO chắc chắn sẽ tiếp tục hợp tác trong tương lai.",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Hosting của Vietnix…"
+  },
+  {
+    "id": "d5afb0",
+    "name": "image",
+    "parent": "6476c4",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/b4816.svg"
+      },
+      "_width": "100%",
+      "_height": "1px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Vector 2287"
+  },
+  {
+    "id": "a32397",
+    "name": "block",
+    "parent": "6476c4",
+    "children": [
+      "d4cd15",
+      "e322f0"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002674"
+  },
+  {
+    "id": "d4cd15",
+    "name": "heading",
+    "parent": "a32397",
+    "children": [],
+    "settings": {
+      "text": "Nguyễn Tân Kiệt",
+      "tag": "h3",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Nguyễn Tân Kiệt"
+  },
+  {
+    "id": "e322f0",
+    "name": "text-basic",
+    "parent": "a32397",
+    "children": [],
+    "settings": {
+      "text": "Founder - Sago Media",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "14px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Founder - Sago Media"
+  },
+  {
+    "id": "57acbd",
+    "name": "block",
+    "parent": "5d8fba",
+    "children": [
+      "275c97",
+      "382fe2"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "24px",
+      "_width": "751px",
+      "_height": "343px",
+      "_flexShrink": "0",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_cssCustom": "#brxe-57acbd::after { content: ''; position: absolute; inset: 0; border: 4px solid #f7f7f7; border-radius: 16px; pointer-events: none; z-index: 3; }",
+      "_hidden": {
+        "_cssClasses": "splide__slide"
+      },
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "auto",
+      "_direction:tablet_portrait": "column",
+      "_columnGap:tablet_portrait": "0",
+      "_rowGap:tablet_portrait": "16px"
+    },
+    "label": "Frame 1000002677"
+  },
+  {
+    "id": "275c97",
+    "name": "div",
+    "parent": "57acbd",
+    "children": [
+      "b9c792"
+    ],
+    "settings": {
+      "_width": "234px",
+      "_height": "100%",
+      "_flexShrink": "0",
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "418px"
+    },
+    "label": "image 474"
+  },
+  {
+    "id": "b9c792",
+    "name": "image",
+    "parent": "275c97",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/144a1.png"
+      },
+      "_position": "absolute",
+      "_top": "0%",
+      "_left": "-4.73%",
+      "_width": "109.73%",
+      "_height": "100%",
+      "_widthMax": "none",
+      "_objectFit": "fill",
+      "_left:tablet_portrait": "0%",
+      "_width:tablet_portrait": "100%",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "image 474 image"
+  },
+  {
+    "id": "382fe2",
+    "name": "block",
+    "parent": "57acbd",
+    "children": [
+      "823588",
+      "d527bf",
+      "d6870e",
+      "786ae1"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_widthMin": "1px",
+      "_height": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "24px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_width:tablet_portrait": "100%",
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto",
+      "_height:tablet_portrait": "auto",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      }
+    },
+    "label": "Frame 1000002679"
+  },
+  {
+    "id": "823588",
+    "name": "image",
+    "parent": "382fe2",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/ab0e4.svg"
+      },
+      "_width": "36px",
+      "_height": "36px",
+      "_objectFit": "fill",
+      "_flexShrink": "0",
+      "_border": {
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      }
+    },
+    "label": "Quote icon"
+  },
+  {
+    "id": "d527bf",
+    "name": "block",
+    "parent": "382fe2",
+    "children": [
+      "d14999",
+      "d0a233"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "8px",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002680"
+  },
+  {
+    "id": "d14999",
+    "name": "block",
+    "parent": "d527bf",
+    "children": [
+      "5ac09f",
+      "1079a0",
+      "7356f9",
+      "27faa1",
+      "1fe2cb"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "2.4px"
+    },
+    "label": "_Star-Rating"
+  },
+  {
+    "id": "5ac09f",
+    "name": "div",
+    "parent": "d14999",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-5ac09f { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "1079a0",
+    "name": "div",
+    "parent": "d14999",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-1079a0 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "7356f9",
+    "name": "div",
+    "parent": "d14999",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-7356f9 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "27faa1",
+    "name": "div",
+    "parent": "d14999",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-27faa1 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "1fe2cb",
+    "name": "div",
+    "parent": "d14999",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-1fe2cb { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "d0a233",
+    "name": "block",
+    "parent": "d527bf",
+    "children": [
+      "b9b3db"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "10px",
+      "_width": "100%",
+      "_height": "120px",
+      "_overflow": "hidden",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "_content-text"
+  },
+  {
+    "id": "b9b3db",
+    "name": "text-basic",
+    "parent": "d0a233",
+    "children": [],
+    "settings": {
+      "text": "Hosting của Vietnix với tốc độ tải trang cực nhanh, bảo mật cao và ổn định đã góp phần đáng kể vào thành công của các chiến dịch SEO tại GTV SEO. Đội ngũ hỗ trợ cũng rất tuyệt vời, luôn sẵn sàng 24/7. GTV SEO chắc chắn sẽ tiếp tục hợp tác trong tương lai.",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Hosting của Vietnix…"
+  },
+  {
+    "id": "d6870e",
+    "name": "image",
+    "parent": "382fe2",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/b4816.svg"
+      },
+      "_width": "100%",
+      "_height": "1px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Vector 2287"
+  },
+  {
+    "id": "786ae1",
+    "name": "block",
+    "parent": "382fe2",
+    "children": [
+      "e44e0c",
+      "dcd41f"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002674"
+  },
+  {
+    "id": "e44e0c",
+    "name": "heading",
+    "parent": "786ae1",
+    "children": [],
+    "settings": {
+      "text": "Nguyễn Tân Kiệt",
+      "tag": "h3",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Nguyễn Tân Kiệt"
+  },
+  {
+    "id": "dcd41f",
+    "name": "text-basic",
+    "parent": "786ae1",
+    "children": [],
+    "settings": {
+      "text": "Founder - Sago Media",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "14px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Founder - Sago Media"
+  },
+  {
+    "id": "8223f7",
+    "name": "block",
+    "parent": "5d8fba",
+    "children": [
+      "1402ff",
+      "a405af"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "24px",
+      "_width": "751px",
+      "_height": "343px",
+      "_flexShrink": "0",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_cssCustom": "#brxe-8223f7::after { content: ''; position: absolute; inset: 0; border: 4px solid #f7f7f7; border-radius: 16px; pointer-events: none; z-index: 3; }",
+      "_hidden": {
+        "_cssClasses": "splide__slide"
+      },
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "auto",
+      "_direction:tablet_portrait": "column",
+      "_columnGap:tablet_portrait": "0",
+      "_rowGap:tablet_portrait": "16px"
+    },
+    "label": "Frame 1000002677"
+  },
+  {
+    "id": "1402ff",
+    "name": "div",
+    "parent": "8223f7",
+    "children": [
+      "8084fd"
+    ],
+    "settings": {
+      "_width": "234px",
+      "_height": "100%",
+      "_flexShrink": "0",
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "418px"
+    },
+    "label": "image 474"
+  },
+  {
+    "id": "8084fd",
+    "name": "image",
+    "parent": "1402ff",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/144a1.png"
+      },
+      "_position": "absolute",
+      "_top": "0%",
+      "_left": "-4.73%",
+      "_width": "109.73%",
+      "_height": "100%",
+      "_widthMax": "none",
+      "_objectFit": "fill",
+      "_left:tablet_portrait": "0%",
+      "_width:tablet_portrait": "100%",
+      "_objectFit:tablet_portrait": "cover"
+    },
+    "label": "image 474 image"
+  },
+  {
+    "id": "a405af",
+    "name": "block",
+    "parent": "8223f7",
+    "children": [
+      "aca091",
+      "b3a4f0",
+      "5b0abb",
+      "416f10"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_widthMin": "1px",
+      "_height": "100%",
+      "_padding": {
+        "top": "0px",
+        "right": "24px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_width:tablet_portrait": "100%",
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto",
+      "_height:tablet_portrait": "auto",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      }
+    },
+    "label": "Frame 1000002679"
+  },
+  {
+    "id": "aca091",
+    "name": "image",
+    "parent": "a405af",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/e44c2.svg"
+      },
+      "_width": "36px",
+      "_height": "36px",
+      "_objectFit": "fill",
+      "_flexShrink": "0",
+      "_border": {
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      }
+    },
+    "label": "Quote icon"
+  },
+  {
+    "id": "b3a4f0",
+    "name": "block",
+    "parent": "a405af",
+    "children": [
+      "88c9ce",
+      "0ff9b1"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "8px",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002680"
+  },
+  {
+    "id": "88c9ce",
+    "name": "block",
+    "parent": "b3a4f0",
+    "children": [
+      "be8d37",
+      "f63cdb",
+      "4405f4",
+      "62526a",
+      "a57640"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "row",
+      "_alignItems": "flex-start",
+      "_columnGap": "2.4px"
+    },
+    "label": "_Star-Rating"
+  },
+  {
+    "id": "be8d37",
+    "name": "div",
+    "parent": "88c9ce",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-be8d37 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "f63cdb",
+    "name": "div",
+    "parent": "88c9ce",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-f63cdb { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "4405f4",
+    "name": "div",
+    "parent": "88c9ce",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-4405f4 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "62526a",
+    "name": "div",
+    "parent": "88c9ce",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-62526a { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "a57640",
+    "name": "div",
+    "parent": "88c9ce",
+    "children": [],
+    "settings": {
+      "_width": "12px",
+      "_height": "12px",
+      "_flexShrink": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_cssCustom": "#brxe-a57640 { background: #ff9038; clip-path: polygon(50% 2%, 62% 36%, 98% 37%, 69% 58%, 80% 94%, 50% 72%, 20% 94%, 31% 58%, 2% 37%, 38% 36%); }"
+    },
+    "label": "Start"
+  },
+  {
+    "id": "0ff9b1",
+    "name": "block",
+    "parent": "b3a4f0",
+    "children": [
+      "123882"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_rowGap": "10px",
+      "_width": "100%",
+      "_height": "120px",
+      "_overflow": "hidden",
+      "_padding": {
+        "top": "0px",
+        "right": "8px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "_content-text"
+  },
+  {
+    "id": "123882",
+    "name": "text-basic",
+    "parent": "0ff9b1",
+    "children": [],
+    "settings": {
+      "text": "Hosting của Vietnix với tốc độ tải trang cực nhanh, bảo mật cao và ổn định đã góp phần đáng kể vào thành công của các chiến dịch SEO tại GTV SEO. Đội ngũ hỗ trợ cũng rất tuyệt vời, luôn sẵn sàng 24/7. GTV SEO chắc chắn sẽ tiếp tục hợp tác trong tương lai.",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Hosting của Vietnix…"
+  },
+  {
+    "id": "5b0abb",
+    "name": "image",
+    "parent": "a405af",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/57e4a533-7f44-4042-9549-8368d4a2c844/b4816.svg"
+      },
+      "_width": "100%",
+      "_height": "1px",
+      "_objectFit": "fill",
+      "_flexShrink": "0"
+    },
+    "label": "Vector 2287"
+  },
+  {
+    "id": "416f10",
+    "name": "block",
+    "parent": "a405af",
+    "children": [
+      "225747",
+      "96178d"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_width": "100%"
+    },
+    "label": "Frame 1000002674"
+  },
+  {
+    "id": "225747",
+    "name": "heading",
+    "parent": "416f10",
+    "children": [],
+    "settings": {
+      "text": "Nguyễn Tân Kiệt",
+      "tag": "h3",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Nguyễn Tân Kiệt"
+  },
+  {
+    "id": "96178d",
+    "name": "text-basic",
+    "parent": "416f10",
+    "children": [],
+    "settings": {
+      "text": "Founder - Sago Media",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "14px",
+        "line-height": "24px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#282829"
+        }
+      }
+    },
+    "label": "Founder - Sago Media"
+  },
+  {
+    "id": "42abf2",
+    "name": "div",
+    "parent": "7f69cd",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0px",
+      "_left": "0px",
+      "_width": "184px",
+      "_height": "343px",
+      "_pointerEvents": "none",
+      "_zIndex": "5",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "90",
+        "colors": [
+          {
+            "color": {
+              "hex": "#00070e"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(0, 7, 14, 0)"
+            },
+            "stop": "100"
+          }
+        ]
+      },
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Rectangle 6957"
+  },
+  {
+    "id": "0f9a2a",
+    "name": "div",
+    "parent": "7f69cd",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0px",
+      "_right": "-1px",
+      "_width": "184px",
+      "_height": "343px",
+      "_pointerEvents": "none",
+      "_zIndex": "5",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "270",
+        "colors": [
+          {
+            "color": {
+              "hex": "#00070e"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(0, 7, 14, 0)"
+            },
+            "stop": "100"
+          }
+        ]
+      },
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Rectangle 6958"
+  }
+]

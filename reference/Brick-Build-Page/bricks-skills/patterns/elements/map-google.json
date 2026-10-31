@@ -1,0 +1,31 @@
+{
+  "content": [
+    { "id": "mgsec1", "name": "section", "parent": 0, "children": ["mgcon1"], "label": "Google Maps",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "mgcon1", "name": "container", "parent": "mgsec1", "children": ["mgifr1", "mgapi1"], "settings": { "_rowGap": "32px" } },
+    { "id": "mgifr1", "name": "map", "parent": "mgcon1", "children": [], "label": "Map (iframe, no API key)",
+      "settings": { "renderMode": "iframe", "address": "Hoan Kiem Lake, Hanoi, Vietnam", "zoom": 15, "height": "360px", "type": "roadmap",
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } }, "_overflow": "hidden" } },
+    { "id": "mgapi1", "name": "map", "parent": "mgcon1", "children": [], "label": "Map (API, multiple markers — needs Google API key)",
+      "settings": {
+        "renderMode": "api",
+        "addresses": [
+          { "id": "mgad01", "latitude": "21.0285", "longitude": "105.8542" },
+          { "id": "mgad02", "latitude": "10.7769", "longitude": "106.7009" }
+        ],
+        "height": "420px",
+        "type": "roadmap",
+        "markerCluster": true,
+        "scrollwheel": false,
+        "zoomControl": true,
+        "streetViewControl": false,
+        "fullscreenControl": true,
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } }, "_overflow": "hidden"
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

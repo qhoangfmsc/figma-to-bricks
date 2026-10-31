@@ -1,0 +1,14 @@
+{
+  "content": [
+    { "id": "tesec1", "name": "section", "parent": 0, "children": ["tecon1"], "label": "Shared CTA (template embed)",
+      "settings": { "tag": "section", "_padding": { "top": "48px", "bottom": "48px" } } },
+    { "id": "tecon1", "name": "container", "parent": "tesec1", "children": ["tetpl1"], "settings": {} },
+    { "id": "tetpl1", "name": "template", "parent": "tecon1", "children": [], "label": "Template (select section template after paste)",
+      "settings": { "template": "", "noRoot": true } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

@@ -1,0 +1,35 @@
+{
+  "content": [
+    { "id": "atsec1", "name": "section", "parent": 0, "children": ["atcon1"], "label": "Hero (typing headline)",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(4rem, 10vw, 8rem)", "bottom": "clamp(4rem, 10vw, 8rem)" },
+        "_background": { "color": { "hex": "#0f172a" } } } },
+    { "id": "atcon1", "name": "container", "parent": "atsec1", "children": ["attyp1", "atsub1"],
+      "settings": { "_alignItems": "center", "_rowGap": "20px", "_typography": { "text-align": "center" } } },
+    { "id": "attyp1", "name": "animated-typing", "parent": "atcon1", "children": [],
+      "settings": {
+        "tag": "h1",
+        "prefix": "We build websites that ",
+        "suffix": "",
+        "strings": [
+          { "id": "atst01", "text": "convert." },
+          { "id": "atst02", "text": "load fast." },
+          { "id": "atst03", "text": "rank well." }
+        ],
+        "typeSpeed": 60,
+        "backSpeed": 30,
+        "startDelay": 400,
+        "backDelay": 1500,
+        "cursorChar": "|",
+        "loop": true,
+        "_typography": { "font-size": "clamp(2.25rem, 5vw, 4rem)", "font-weight": "800", "line-height": "1.15", "color": { "hex": "#ffffff" } }
+      } },
+    { "id": "atsub1", "name": "text-basic", "parent": "atcon1", "children": [],
+      "settings": { "text": "Strategy, design and WordPress development under one roof.", "tag": "p",
+        "_typography": { "font-size": "1.25rem", "color": { "hex": "#94a3b8" } } } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

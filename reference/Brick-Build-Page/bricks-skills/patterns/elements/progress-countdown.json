@@ -1,0 +1,56 @@
+{
+  "content": [
+    { "id": "pcsec1", "name": "section", "parent": 0, "children": ["pccon1"], "label": "Skills + Launch Countdown",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "pccon1", "name": "container", "parent": "pcsec1", "children": ["pcgrd1"], "settings": {} },
+    { "id": "pcgrd1", "name": "div", "parent": "pccon1", "children": ["pccl01", "pccl02"], "label": "Two Columns",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "repeat(2, minmax(0, 1fr))", "_gridGap": "48px", "_alignItems": "center",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+
+    { "id": "pccl01", "name": "block", "parent": "pcgrd1", "children": ["pch001", "pcbar1"], "label": "Skills", "settings": { "_rowGap": "20px" } },
+    { "id": "pch001", "name": "heading", "parent": "pccl01", "children": [],
+      "settings": { "text": "What we are good at", "tag": "h2", "_typography": { "font-size": "1.75rem", "font-weight": "700" } } },
+    { "id": "pcbar1", "name": "progress-bar", "parent": "pccl01", "children": [],
+      "settings": {
+        "bars": [
+          { "id": "pcbr01", "title": "Web design", "percentage": 92 },
+          { "id": "pcbr02", "title": "WordPress development", "percentage": 88 },
+          { "id": "pcbr03", "title": "SEO", "percentage": 75, "color": { "hex": "#16a34a" } }
+        ],
+        "height": "10px",
+        "barSpacing": "20px",
+        "showPercentage": true,
+        "barColor": { "hex": "#2563eb" },
+        "barBackgroundColor": { "hex": "#e2e8f0" },
+        "labelTypography": { "font-weight": "600", "font-size": "0.9375rem" }
+      } },
+
+    { "id": "pccl02", "name": "block", "parent": "pcgrd1", "children": ["pch002", "pccnt1"], "label": "Countdown",
+      "settings": { "_rowGap": "20px", "_padding": { "top": "32px", "right": "32px", "bottom": "32px", "left": "32px" },
+        "_background": { "color": { "hex": "#0f172a" } },
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } } } },
+    { "id": "pch002", "name": "heading", "parent": "pccl02", "children": [],
+      "settings": { "text": "Launch starts in", "tag": "h2", "_typography": { "font-size": "1.5rem", "font-weight": "700", "color": { "hex": "#ffffff" } } } },
+    { "id": "pccnt1", "name": "countdown", "parent": "pccl02", "children": [],
+      "settings": {
+        "date": "2026-12-31 23:59",
+        "timezone": "UTC+07:00",
+        "fields": [
+          { "id": "pcfd01", "format": "%D", "suffix": " days" },
+          { "id": "pcfd02", "format": "%H", "suffix": " hrs" },
+          { "id": "pcfd03", "format": "%M", "suffix": " min" },
+          { "id": "pcfd04", "format": "%S", "suffix": " sec" }
+        ],
+        "action": "text",
+        "actionText": "We are live!",
+        "gutter": { "top": "0", "right": "20px", "bottom": "0", "left": "0" },
+        "typography": { "font-size": "2rem", "font-weight": "800", "color": { "hex": "#ffffff" } },
+        "typographySuffix": { "font-size": "0.875rem", "color": { "hex": "#94a3b8" } }
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

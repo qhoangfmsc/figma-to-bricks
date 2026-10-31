@@ -1,0 +1,35 @@
+{
+  "content": [
+    { "id": "mqsec1", "name": "section", "parent": 0, "children": ["mqcon1"], "label": "Store Locator (map synced with loop)",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "mqcon1", "name": "container", "parent": "mqsec1", "children": ["mqlay1"], "settings": {} },
+    { "id": "mqlay1", "name": "div", "parent": "mqcon1", "children": ["mqlst1", "mqmap1"], "label": "List + Map",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "360px minmax(0, 1fr)", "_gridGap": "32px", "_alignItems": "start",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+    { "id": "mqlst1", "name": "div", "parent": "mqlay1", "children": ["mqloop"], "label": "Store List",
+      "settings": { "_display": "flex", "_direction": "column", "_rowGap": "12px" } },
+    { "id": "mqloop", "name": "block", "parent": "mqlst1", "children": ["mqttl1", "mqadr1", "mqcnn1"], "label": "Store (loop)",
+      "settings": {
+        "hasLoop": true,
+        "query": { "objectType": "post", "post_type": ["store"], "posts_per_page": "-1", "orderby": "title", "order": "ASC" },
+        "_rowGap": "4px",
+        "_padding": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" },
+        "_border": { "width": { "top": "1px", "right": "1px", "bottom": "1px", "left": "1px" }, "style": "solid", "color": { "hex": "#e2e8f0" },
+          "radius": { "top": "12px", "right": "12px", "bottom": "12px", "left": "12px" } } } },
+    { "id": "mqttl1", "name": "heading", "parent": "mqloop", "children": [],
+      "settings": { "text": "{post_title}", "tag": "h3", "_typography": { "font-size": "1.0625rem", "font-weight": "600" } } },
+    { "id": "mqadr1", "name": "text-basic", "parent": "mqloop", "children": [],
+      "settings": { "text": "{acf_store_address}", "tag": "p", "_typography": { "color": { "hex": "#64748b" }, "font-size": "0.9375rem" } } },
+    { "id": "mqcnn1", "name": "map-connector", "parent": "mqloop", "children": [], "label": "Map Connector (location data)",
+      "settings": { "latitude": "{acf_store_lat}", "longitude": "{acf_store_lng}" } },
+    { "id": "mqmap1", "name": "map", "parent": "mqlay1", "children": [], "label": "Map (sync with Store loop — needs Google API key)",
+      "settings": { "syncQuery": "mqloop", "height": "560px", "markerCluster": true, "fitMapOnMarkersChange": true, "scrollwheel": false,
+        "mapNoResultsText": "No stores found",
+        "_position": "sticky", "_top": "24px", "_position:tablet_portrait": "static" } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

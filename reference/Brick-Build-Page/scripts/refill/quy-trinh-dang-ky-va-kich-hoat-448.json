@@ -1,0 +1,2288 @@
+[
+  {
+    "id": "0170c8",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "824f3c",
+      "217f85",
+      "91d186",
+      "b45637",
+      "b9b580"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "72px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "56px",
+        "right": "0px",
+        "bottom": "56px",
+        "left": "0px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_justifyContent:tablet_portrait": "center",
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_rowGap:tablet_portrait": "0",
+      "_cssCustom": "#brxe-0170c8 { font-optical-sizing: none; }\n@media (max-width: 991px) { #brxe-824f3c { display: none !important; } #brxe-217f85, #brxe-91d186, #brxe-b45637, #brxe-b9b580 { display: flex !important; } }"
+    },
+    "label": "Section - 09"
+  },
+  {
+    "id": "824f3c",
+    "name": "container",
+    "parent": "0170c8",
+    "children": [
+      "282fea",
+      "7b14c6",
+      "c2cfb6"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1141px",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_position": "relative"
+    },
+    "label": "container"
+  },
+  {
+    "id": "282fea",
+    "name": "image",
+    "parent": "824f3c",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0.36px",
+      "_left": "65px",
+      "_width": "1010px",
+      "_height": "1021px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/64a6e.png"
+      },
+      "_objectFit": "cover",
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Accent-background"
+  },
+  {
+    "id": "7b14c6",
+    "name": "block",
+    "parent": "824f3c",
+    "children": [
+      "501164",
+      "8dcd2b"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      }
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "501164",
+    "name": "heading",
+    "parent": "7b14c6",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Quy trình đăng ký và kích hoạt",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      },
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Title"
+  },
+  {
+    "id": "8dcd2b",
+    "name": "block",
+    "parent": "7b14c6",
+    "children": [
+      "6469ad"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "171px",
+        "bottom": "0px",
+        "left": "171px"
+      }
+    },
+    "label": "Content Item/Paragraph"
+  },
+  {
+    "id": "6469ad",
+    "name": "text-basic",
+    "parent": "8dcd2b",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Cài đặt dễ dàng với quy trình tối ưu.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Subtitle"
+  },
+  {
+    "id": "c2cfb6",
+    "name": "block",
+    "parent": "824f3c",
+    "children": [
+      "89675b",
+      "96339e"
+    ],
+    "settings": {
+      "_width": "1140px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "stretch"
+    },
+    "label": "service"
+  },
+  {
+    "id": "89675b",
+    "name": "block",
+    "parent": "c2cfb6",
+    "children": [
+      "1ce830",
+      "891eb6",
+      "5591f9"
+    ],
+    "settings": {
+      "_width": "267px",
+      "_flexShrink": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start"
+    },
+    "label": "Container"
+  },
+  {
+    "id": "1ce830",
+    "name": "block",
+    "parent": "89675b",
+    "children": [
+      "4814e2",
+      "3f95e9",
+      "68bcb5"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "0",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "12px",
+      "_justifyContent": "center",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_height": "297.7px",
+      "_flexShrink": "0"
+    },
+    "label": "Step Container"
+  },
+  {
+    "id": "4814e2",
+    "name": "image",
+    "parent": "1ce830",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0px",
+      "_left": "193px",
+      "_width": "1px",
+      "_height": "100%",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/0da70.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Vector 2283"
+  },
+  {
+    "id": "3f95e9",
+    "name": "button",
+    "parent": "1ce830",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 1",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_flexShrink:tablet_portrait": "1",
+      "_cssCustom": "#brxe-3f95e9 { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "68bcb5",
+    "name": "image",
+    "parent": "1ce830",
+    "children": [],
+    "settings": {
+      "_width": "32px",
+      "_flexShrink": "0",
+      "_height": "32px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/4bec9.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_margin": {
+        "top": "-4px",
+        "right": "-4px",
+        "bottom": "-4px",
+        "left": "-4px"
+      },
+      "_objectFit": "fill"
+    },
+    "label": "Ellipse 1"
+  },
+  {
+    "id": "891eb6",
+    "name": "block",
+    "parent": "89675b",
+    "children": [
+      "e3c7e0",
+      "2a90c9",
+      "9f122a"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "0",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "12px",
+      "_justifyContent": "center",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "32px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_height": "297.7px",
+      "_flexShrink": "0"
+    },
+    "label": "Step Container"
+  },
+  {
+    "id": "e3c7e0",
+    "name": "image",
+    "parent": "891eb6",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0px",
+      "_left": "193px",
+      "_width": "1px",
+      "_height": "100%",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/1f588.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Vector 2283"
+  },
+  {
+    "id": "2a90c9",
+    "name": "button",
+    "parent": "891eb6",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 2",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_flexShrink:tablet_portrait": "1",
+      "_cssCustom": "#brxe-2a90c9 { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "9f122a",
+    "name": "image",
+    "parent": "891eb6",
+    "children": [],
+    "settings": {
+      "_width": "32px",
+      "_flexShrink": "0",
+      "_height": "32px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/4bec9.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_margin": {
+        "top": "-4px",
+        "right": "-4px",
+        "bottom": "-4px",
+        "left": "-4px"
+      },
+      "_objectFit": "fill"
+    },
+    "label": "Ellipse 1"
+  },
+  {
+    "id": "5591f9",
+    "name": "block",
+    "parent": "89675b",
+    "children": [
+      "2d381f",
+      "031fb9",
+      "ac0a89"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_flexGrow": "0",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "12px",
+      "_justifyContent": "center",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "32px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_position": "relative",
+      "_overflow": "hidden",
+      "_height": "297.7px",
+      "_flexShrink": "0"
+    },
+    "label": "Step Container"
+  },
+  {
+    "id": "2d381f",
+    "name": "image",
+    "parent": "5591f9",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0px",
+      "_left": "193px",
+      "_width": "1px",
+      "_height": "100%",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/597a2.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_objectFit": "fill"
+    },
+    "label": "Vector 2283"
+  },
+  {
+    "id": "031fb9",
+    "name": "button",
+    "parent": "5591f9",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_flexShrink": "0",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 3",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_flexShrink:tablet_portrait": "1",
+      "_cssCustom": "#brxe-031fb9 { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "ac0a89",
+    "name": "image",
+    "parent": "5591f9",
+    "children": [],
+    "settings": {
+      "_width": "32px",
+      "_flexShrink": "0",
+      "_height": "32px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/4bec9.svg"
+      },
+      "_display:tablet_portrait": "none",
+      "_margin": {
+        "top": "-4px",
+        "right": "-4px",
+        "bottom": "-4px",
+        "left": "-4px"
+      },
+      "_objectFit": "fill"
+    },
+    "label": "Ellipse 1"
+  },
+  {
+    "id": "96339e",
+    "name": "block",
+    "parent": "c2cfb6",
+    "children": [
+      "618c61",
+      "28f488",
+      "0be3f7"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_display:tablet_portrait": "none"
+    },
+    "label": "Container"
+  },
+  {
+    "id": "618c61",
+    "name": "block",
+    "parent": "96339e",
+    "children": [
+      "0f16be"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "10px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "0f16be",
+    "name": "block",
+    "parent": "618c61",
+    "children": [
+      "61fa41",
+      "92744c"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.08)"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_cssCustom": "#brxe-0f16be { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden"
+    },
+    "label": "Step 1"
+  },
+  {
+    "id": "61fa41",
+    "name": "block",
+    "parent": "0f16be",
+    "children": [
+      "d7e80f",
+      "66b1be",
+      "3cfb57"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "d7e80f",
+    "name": "image",
+    "parent": "61fa41",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/6787c.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-d7e80f { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-d7e80f img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "66b1be",
+    "name": "text-basic",
+    "parent": "61fa41",
+    "children": [],
+    "settings": {
+      "text": "Chọn Gói Dịch Vụ",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "3cfb57",
+    "name": "text-basic",
+    "parent": "61fa41",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Lựa chọn gói VPS OpenClaw phù hợp với nhu cầu hoặc tự tùy chỉnh cấu hình riêng.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "92744c",
+    "name": "block",
+    "parent": "0f16be",
+    "children": [
+      "bc7310"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_height": "223.03px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_position": "relative",
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/ac897.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 02"
+  },
+  {
+    "id": "bc7310",
+    "name": "image",
+    "parent": "92744c",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_width": "32px",
+      "_height": "32px",
+      "_border": {
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/f64b3.svg"
+      },
+      "_right": "7.5px",
+      "_bottom": "8px",
+      "_padding": {
+        "top": "4px",
+        "right": "4px",
+        "bottom": "4px",
+        "left": "4px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(0, 7, 14, 0.5)"
+        }
+      },
+      "_cssCustom": "#brxe-bc7310 { box-sizing: border-box; } #brxe-bc7310 img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "28f488",
+    "name": "block",
+    "parent": "96339e",
+    "children": [
+      "cebab0"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "10px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "32px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "cebab0",
+    "name": "block",
+    "parent": "28f488",
+    "children": [
+      "478558",
+      "dd4bd8"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.08)"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_cssCustom": "#brxe-cebab0 { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden"
+    },
+    "label": "Step 2"
+  },
+  {
+    "id": "478558",
+    "name": "block",
+    "parent": "cebab0",
+    "children": [
+      "624d75",
+      "520ef7",
+      "b6d405"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "624d75",
+    "name": "image",
+    "parent": "478558",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/0d33c.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-624d75 { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-624d75 img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "520ef7",
+    "name": "text-basic",
+    "parent": "478558",
+    "children": [],
+    "settings": {
+      "text": "Hoàn Tất Cài Đặt",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "b6d405",
+    "name": "text-basic",
+    "parent": "478558",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Kết nối qua SSH để chạy trình hướng dẫn, sau đó thêm API keys và kết nối các ứng dụng nhắn tin.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "dd4bd8",
+    "name": "block",
+    "parent": "cebab0",
+    "children": [
+      "4648a3"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_height": "223.03px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_position": "relative",
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/d5ef9.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 3"
+  },
+  {
+    "id": "4648a3",
+    "name": "image",
+    "parent": "dd4bd8",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_width": "32px",
+      "_height": "32px",
+      "_border": {
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/f64b3.svg"
+      },
+      "_right": "7.5px",
+      "_bottom": "8px",
+      "_padding": {
+        "top": "4px",
+        "right": "4px",
+        "bottom": "4px",
+        "left": "4px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(0, 7, 14, 0.5)"
+        }
+      },
+      "_cssCustom": "#brxe-4648a3 { box-sizing: border-box; } #brxe-4648a3 img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "0be3f7",
+    "name": "block",
+    "parent": "96339e",
+    "children": [
+      "e3149a"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "10px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "32px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "e3149a",
+    "name": "block",
+    "parent": "0be3f7",
+    "children": [
+      "b3c1b8",
+      "3fdf66"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "16px",
+        "right": "16px",
+        "bottom": "16px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.08)"
+        }
+      },
+      "_border": {
+        "radius": {
+          "top": "24px",
+          "right": "24px",
+          "bottom": "24px",
+          "left": "24px"
+        }
+      },
+      "_cssCustom": "#brxe-e3149a { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden"
+    },
+    "label": "Step 3"
+  },
+  {
+    "id": "b3c1b8",
+    "name": "block",
+    "parent": "e3149a",
+    "children": [
+      "ef1c1f",
+      "cf09f3",
+      "85c540"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "ef1c1f",
+    "name": "image",
+    "parent": "b3c1b8",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/36faf.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-ef1c1f { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-ef1c1f img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "cf09f3",
+    "name": "text-basic",
+    "parent": "b3c1b8",
+    "children": [],
+    "settings": {
+      "text": "Bắt Đầu Sử Dụng",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "30px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "85c540",
+    "name": "text-basic",
+    "parent": "b3c1b8",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Tương tác trực tiếp qua giao diện dòng lệnh hoặc truy cập giao diện quản trị (Control UI) an toàn qua SSH tunnel.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "3fdf66",
+    "name": "block",
+    "parent": "e3149a",
+    "children": [
+      "72cf0a"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_height": "223.03px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_position": "relative",
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/da140.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 3"
+  },
+  {
+    "id": "72cf0a",
+    "name": "image",
+    "parent": "3fdf66",
+    "children": [],
+    "settings": {
+      "_position": "absolute",
+      "_width": "32px",
+      "_height": "32px",
+      "_border": {
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/64307d07-69a3-40a4-a3fd-f272ce454fc1/f64b3.svg"
+      },
+      "_right": "7.5px",
+      "_bottom": "8px",
+      "_padding": {
+        "top": "4px",
+        "right": "4px",
+        "bottom": "4px",
+        "left": "4px"
+      },
+      "_background": {
+        "color": {
+          "rgb": "rgba(0, 7, 14, 0.5)"
+        }
+      },
+      "_cssCustom": "#brxe-72cf0a { box-sizing: border-box; } #brxe-72cf0a img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "217f85",
+    "name": "block",
+    "parent": "0170c8",
+    "children": [
+      "a699c1",
+      "3a7814"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "none",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "Head"
+  },
+  {
+    "id": "a699c1",
+    "name": "heading",
+    "parent": "217f85",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Bắt đầu chỉ với 3 bước đơn giản",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      }
+    },
+    "label": "Bắt đầu chỉ với 3 bước đơn giản"
+  },
+  {
+    "id": "3a7814",
+    "name": "text-basic",
+    "parent": "217f85",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Cài đặt dễ dàng với quy trình tối ưu.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Cài đặt dễ dàng với quy trình tối ưu."
+  },
+  {
+    "id": "91d186",
+    "name": "block",
+    "parent": "0170c8",
+    "children": [
+      "a1d170",
+      "8a6f08"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "none",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "a1d170",
+    "name": "button",
+    "parent": "91d186",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 1",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_cssCustom": "#brxe-a1d170 { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "8a6f08",
+    "name": "block",
+    "parent": "91d186",
+    "children": [
+      "6bf259",
+      "7f2915"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/19c51.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_cssCustom": "#brxe-8a6f08 { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "180",
+        "colors": [
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "100"
+          }
+        ]
+      }
+    },
+    "label": "Step 1"
+  },
+  {
+    "id": "6bf259",
+    "name": "block",
+    "parent": "8a6f08",
+    "children": [
+      "e3ec87",
+      "54faa9",
+      "65be39"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "e3ec87",
+    "name": "image",
+    "parent": "6bf259",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/6787c.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-e3ec87 { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-e3ec87 img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "54faa9",
+    "name": "text-basic",
+    "parent": "6bf259",
+    "children": [],
+    "settings": {
+      "text": "Chọn gói và Thanh toán",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "65be39",
+    "name": "text-basic",
+    "parent": "6bf259",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Chọn gói VPS phù hợp với nhu cầu. Thanh toán qua Chuyển khoản, Momo, hoặc Thẻ quốc tế.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "7f2915",
+    "name": "block",
+    "parent": "8a6f08",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "_height": "179.44px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#f7f7f7"
+        },
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 02"
+  },
+  {
+    "id": "b45637",
+    "name": "block",
+    "parent": "0170c8",
+    "children": [
+      "4c62e0",
+      "533595"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "none",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "24px",
+        "right": "0px",
+        "bottom": "24px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "4c62e0",
+    "name": "button",
+    "parent": "b45637",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 2",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_cssCustom": "#brxe-4c62e0 { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "533595",
+    "name": "block",
+    "parent": "b45637",
+    "children": [
+      "dbcaaf",
+      "f743d7"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/19c51.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_cssCustom": "#brxe-533595 { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "180",
+        "colors": [
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "100"
+          }
+        ]
+      }
+    },
+    "label": "Step 1"
+  },
+  {
+    "id": "dbcaaf",
+    "name": "block",
+    "parent": "533595",
+    "children": [
+      "c83850",
+      "fc897b",
+      "844b23"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "c83850",
+    "name": "image",
+    "parent": "dbcaaf",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/1e4b7.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-c83850 { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-c83850 img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "fc897b",
+    "name": "text-basic",
+    "parent": "dbcaaf",
+    "children": [],
+    "settings": {
+      "text": "Nhận thông tin qua Email",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "844b23",
+    "name": "text-basic",
+    "parent": "dbcaaf",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Ngay sau khi thanh toán, bạn sẽ nhận email chứa IP, Username, Password để truy cập VPS.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "f743d7",
+    "name": "block",
+    "parent": "533595",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "_height": "179.44px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#f7f7f7"
+        },
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 02"
+  },
+  {
+    "id": "b9b580",
+    "name": "block",
+    "parent": "0170c8",
+    "children": [
+      "49abaa",
+      "c45de7"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "none",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "24px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "div"
+  },
+  {
+    "id": "49abaa",
+    "name": "button",
+    "parent": "b9b580",
+    "children": [],
+    "settings": {
+      "_width": "107px",
+      "_padding": {
+        "top": "3px",
+        "right": "19px",
+        "bottom": "3px",
+        "left": "19px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#14b5ff"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "text": "Bước 3",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#1eafff"
+        },
+        "text-align": "center"
+      },
+      "_cssCustom": "#brxe-49abaa { white-space: nowrap; }"
+    },
+    "label": "tag"
+  },
+  {
+    "id": "c45de7",
+    "name": "block",
+    "parent": "b9b580",
+    "children": [
+      "474a47",
+      "5e9e69"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "12px",
+        "right": "12px",
+        "bottom": "12px",
+        "left": "12px"
+      },
+      "_background": {
+        "image": {
+          "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/19c51.png",
+          "external": true
+        },
+        "size": "cover",
+        "position": "center center",
+        "repeat": "no-repeat"
+      },
+      "_border": {
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_cssCustom": "#brxe-c45de7 { -webkit-backdrop-filter: blur(12.5px); backdrop-filter: blur(12.5px); }",
+      "_overflow": "hidden",
+      "_gradient": {
+        "applyTo": "background",
+        "gradientType": "linear",
+        "angle": "180",
+        "colors": [
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "0"
+          },
+          {
+            "color": {
+              "rgb": "rgba(255, 255, 255, 0.08)"
+            },
+            "stop": "100"
+          }
+        ]
+      }
+    },
+    "label": "Step 1"
+  },
+  {
+    "id": "474a47",
+    "name": "block",
+    "parent": "c45de7",
+    "children": [
+      "2aa45a",
+      "984f47",
+      "7f0eff"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "12px",
+      "_alignItems": "flex-start"
+    },
+    "label": "Stept"
+  },
+  {
+    "id": "2aa45a",
+    "name": "image",
+    "parent": "474a47",
+    "children": [],
+    "settings": {
+      "_width": "48px",
+      "_height": "48px",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(30, 175, 255, 0.5)"
+        },
+        "radius": {
+          "top": "999px",
+          "right": "999px",
+          "bottom": "999px",
+          "left": "999px"
+        }
+      },
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/7bd13f59-b7a9-4e8d-b06e-b28828d8f5bd/36faf.svg"
+      },
+      "_padding": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_flexShrink": "0",
+      "_cssCustom": "#brxe-2aa45a { box-sizing: border-box; background: radial-gradient(circle closest-side, rgba(30, 175, 255, 0.5), rgba(30, 175, 255, 0)); } #brxe-2aa45a img { display: block; width: 100%; height: 100%; }"
+    },
+    "label": "Play"
+  },
+  {
+    "id": "984f47",
+    "name": "text-basic",
+    "parent": "474a47",
+    "children": [],
+    "settings": {
+      "text": "Đăng nhập và Trade",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "24px",
+        "font-weight": "500",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Step Name"
+  },
+  {
+    "id": "7f0eff",
+    "name": "text-basic",
+    "parent": "474a47",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Mở Remote Desktop trên máy tính/điện thoại, đăng nhập vào VPS và bắt đầu cài MT4/MT5.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Step Description"
+  },
+  {
+    "id": "5e9e69",
+    "name": "block",
+    "parent": "c45de7",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "_height": "179.44px",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "flex-start",
+      "_background": {
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_border": {
+        "width": {
+          "top": "4px",
+          "right": "4px",
+          "bottom": "4px",
+          "left": "4px"
+        },
+        "style": "solid",
+        "color": {
+          "hex": "#f7f7f7"
+        },
+        "radius": {
+          "top": "8px",
+          "right": "8px",
+          "bottom": "8px",
+          "left": "8px"
+        }
+      },
+      "_overflow": "hidden"
+    },
+    "label": "Card 02"
+  }
+]

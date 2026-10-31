@@ -1,0 +1,49 @@
+{
+  "content": [
+    { "id": "pxbar1", "name": "post-reading-progress-bar", "parent": 0, "children": [], "label": "Reading Progress (fixed top)",
+      "settings": { "barPosition": "top", "barHeight": "4px", "barColor": { "hex": "#2563eb" }, "barBackgroundColor": { "rgb": "rgba(37, 99, 235, 0.12)" },
+        "contentSelector": ".brxe-post-content" } },
+    { "id": "pxsec1", "name": "section", "parent": 0, "children": ["pxcon1"], "label": "Article + TOC Sidebar",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "pxcon1", "name": "container", "parent": "pxsec1", "children": ["pxlay1"], "settings": {} },
+    { "id": "pxlay1", "name": "div", "parent": "pxcon1", "children": ["pxmain", "pxasd1"], "label": "Content + Sidebar",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "minmax(0, 1fr) 280px", "_gridGap": "56px", "_alignItems": "start",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+    { "id": "pxmain", "name": "block", "parent": "pxlay1", "children": ["pxcnt1", "pxshr1"], "label": "Main", "settings": { "_rowGap": "32px" } },
+    { "id": "pxcnt1", "name": "post-content", "parent": "pxmain", "children": [], "settings": {} },
+    { "id": "pxshr1", "name": "post-sharing", "parent": "pxmain", "children": [], "label": "Share Buttons",
+      "settings": {
+        "items": [
+          { "id": "pxsh01", "service": "facebook" },
+          { "id": "pxsh02", "service": "twitter" },
+          { "id": "pxsh03", "service": "linkedin" },
+          { "id": "pxsh04", "service": "email" }
+        ],
+        "brandColors": true,
+        "newTab": true,
+        "direction": "row"
+      } },
+    { "id": "pxasd1", "name": "block", "parent": "pxlay1", "children": ["pxtth1", "pxtoc1"], "label": "TOC Sidebar",
+      "settings": { "tag": "aside", "_rowGap": "12px", "_display:tablet_portrait": "none" } },
+    { "id": "pxtth1", "name": "text-basic", "parent": "pxasd1", "children": [],
+      "settings": { "text": "On this page", "tag": "p",
+        "_typography": { "font-size": "0.8125rem", "font-weight": "700", "text-transform": "uppercase", "letter-spacing": "0.05em", "color": { "hex": "#64748b" } } } },
+    { "id": "pxtoc1", "name": "post-toc", "parent": "pxasd1", "children": [],
+      "settings": {
+        "contentSelector": ".brxe-post-content",
+        "headingSelectors": "h2, h3",
+        "collapseInactive": true,
+        "sticky": true,
+        "stickyTop": "96px",
+        "headingsOffset": 96,
+        "itemPadding": { "top": "6px", "bottom": "6px", "left": "12px" },
+        "itemTypography": { "font-size": "0.9375rem", "color": { "hex": "#475569" } },
+        "itemBorderActive": { "width": { "left": "2px" }, "style": "solid", "color": { "hex": "#2563eb" } }
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

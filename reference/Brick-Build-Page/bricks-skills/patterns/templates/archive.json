@@ -1,0 +1,48 @@
+{
+  "name": "archive",
+  "title": "Archive",
+  "type": "archive",
+  "content": [
+    { "id": "arsec1", "name": "section", "parent": 0, "children": ["arcon1"], "label": "Archive",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "arcon1", "name": "container", "parent": "arsec1", "children": ["arhdr1", "arpst1", "arpag1"],
+      "settings": { "_rowGap": "40px" } },
+    { "id": "arhdr1", "name": "block", "parent": "arcon1", "children": ["arbrd1", "arttl1", "ardsc1"], "label": "Archive Header",
+      "settings": { "tag": "header", "_rowGap": "12px" } },
+    { "id": "arbrd1", "name": "breadcrumbs", "parent": "arhdr1", "children": [],
+      "settings": { "homeLabel": "Home", "separatorType": "text", "separatorText": "/", "gap": "8px",
+        "itemTypography": { "color": { "hex": "#64748b" }, "font-size": "0.875rem" },
+        "currentItemTypography": { "color": { "hex": "#0f172a" }, "font-size": "0.875rem" } } },
+    { "id": "arttl1", "name": "heading", "parent": "arhdr1", "children": [],
+      "settings": { "text": "{archive_title}", "tag": "h1", "_typography": { "font-size": "clamp(2rem, 4vw, 3rem)", "font-weight": "700" } } },
+    { "id": "ardsc1", "name": "text-basic", "parent": "arhdr1", "children": [],
+      "settings": { "text": "{archive_description}", "tag": "p", "_typography": { "color": { "hex": "#64748b" }, "font-size": "1.125rem" } } },
+    { "id": "arpst1", "name": "posts", "parent": "arcon1", "children": [], "label": "Posts (main query)",
+      "settings": {
+        "query": { "objectType": "post", "is_archive_main_query": true },
+        "layout": "grid",
+        "columns": 3, "columns:tablet_portrait": 2, "columns:mobile_portrait": 1,
+        "gutter": "32px",
+        "imageLink": true,
+        "fields": [
+          { "id": "arfd01", "dynamicData": "{post_terms_category:plain}", "tag": "div",
+            "dynamicMargin": { "top": "16px" },
+            "dynamicTypography": { "font-size": "0.8125rem", "text-transform": "uppercase", "letter-spacing": "0.05em", "color": { "hex": "#2563eb" } } },
+          { "id": "arfd02", "dynamicData": "{post_title:link}", "tag": "h3",
+            "dynamicMargin": { "top": "8px" },
+            "dynamicTypography": { "font-size": "1.25rem", "font-weight": "600", "line-height": "1.3" } },
+          { "id": "arfd03", "dynamicData": "{post_excerpt:20}", "tag": "p",
+            "dynamicMargin": { "top": "8px" },
+            "dynamicTypography": { "color": { "hex": "#64748b" } } }
+        ] } },
+    { "id": "arpag1", "name": "pagination", "parent": "arcon1", "children": [], "label": "Pagination (main query)",
+      "settings": { "midSize": 2, "endSize": 1, "_justifyContent": "center" } }
+  ],
+  "pageSettings": {},
+  "templateSettings": {
+    "templateConditions": [ { "main": "archiveType", "archiveType": ["any"] } ],
+    "templatePreviewType": "archive-term"
+  },
+  "global_classes": [],
+  "globalVariables": []
+}

@@ -1,11 +1,18 @@
 ---
-description: Figma link -> Bricks templates, automatic (a page, a breakpoint frame or one section), the owner is not asked anything
+description: Figma link -> Bricks templates, automatic after ONE Plan the owner fills (a page, a breakpoint frame or one section)
 argument-hint: <figma-url-with-node-id> [--interactive] [extra requirements]
 ---
 
 Run the Figma → Bricks workflow for: $ARGUMENTS
 
-Owner decision (2026-10-27, confirmed in the chat): **this is the only workflow the owner starts, and it is automatic.** One link in, verified Bricks templates out; every decision follows the recommendation (the rules of `process/decide/` and `process/policy.json`); the owner reviews afterwards. The owner is **not asked questions** and nothing waits for an OK. The old question-by-question flow runs only when the arguments contain `--interactive` (then follow `process/SEMANTICS.md` section 3 and never sign off on your own).
+Owner decision (2026-10-27, confirmed in the chat): **this is the only workflow the owner starts, and it is automatic.** One link in, verified Bricks templates out; every decision follows the recommendation (the rules of `process/decide/` and `process/policy.json`); the owner reviews afterwards. The owner is **not asked questions during the run** and nothing waits for an OK, except the one Plan below (2026-10-29). The old question-by-question flow runs only when the arguments contain `--interactive` (then follow `process/SEMANTICS.md` section 3 and never sign off on your own).
+
+**Owner decision 2026-10-29 (the Plan, one closed process):** the owner opens a new chat, types this command with a Figma link, gets ONE Plan, fills it, confirms it, and from then on everything is done by you until the page is finished. **Nothing is asked in the chat and no command is shown to the owner: the Plan file is the only place for questions, answers and the confirmation.**
+
+1. **Plan.** Run `node process/auto.mjs "<url>"`. It reads every section, writes `process/work/<fileKey>/plan-<node>.md` and stops with exit code 3 (normal, not an error). Reply with a few lines only: the path of the Plan file (as a clickable link), the number of sections, what they become (FAQ accordion, menu, slider, tabs, buttons…) and how many groups of questions the file holds. **Do not list or ask the questions in the chat**; they are in the file under their own headings with a Figma link per item. Tell the owner to fill the file, change the line `Xác nhận: không` to `Xác nhận: có`, and say "xong".
+2. **After "xong".** Run `node process/auto.mjs "<url>"` again. It reads the confirmed file (a wrong value stops it with the reason: report that reason in one line and wait), builds every section in one go (signed off as `owner (plan)`), then you run the fix loop, assemble the page and give the final report below. Blank values keep the safe default (`#`, empty alt, empty answer) and stay on the designer list; **never fill a value yourself or guess one**. If the owner types values in the chat anyway, write them into the file with `node process/scripts/plan.mjs "<url>" set <key> "<value>"` and ask nothing more.
+3. After the confirmation the owner is not asked anything until the final report. "Done" means the page is assembled (`assemble-page.mjs <fileKey> <node> --final`, message HOÀN TẤT), not only the sections.
+4. `--no-confirm` skips the Plan (the old fully automatic run); use it only when the owner asks. What is not built is listed in `process/BACKLOG-usable-output.md`; quote the items that touch this design in the report.
 
 The first token of the arguments is the Figma URL; the rest are extra requirements (e.g. "this row is a slider").
 
@@ -30,7 +37,7 @@ The first token of the arguments is the Figma URL; the rest are extra requiremen
 
 ## When you may talk to the owner during the run
 
-Only for a real blocker: no `node-id`, no token, Docker or WordPress down and not startable, `auto.mjs` reports BLOCKED (citations the code cannot verify) and you cannot fix it. Do not ask for decisions, do not ask for an OK, do not paste `detections.md`. If something is unclear, take the recommendation and say so in the report.
+For the Plan hand-off (exit code 3: point to the file, see above), and for a real blocker: no `node-id`, no token, Docker or WordPress down and not startable, `auto.mjs` reports BLOCKED (citations the code cannot verify) and you cannot fix it. Do not ask for other decisions, do not ask for an OK, do not paste `detections.md`. If something is unclear, take the recommendation and say so in the report.
 
 ## Deliverable, naming, reports, style (owner's decisions 2026-10-28)
 

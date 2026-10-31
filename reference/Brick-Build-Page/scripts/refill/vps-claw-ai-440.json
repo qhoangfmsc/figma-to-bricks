@@ -1,0 +1,1034 @@
+[
+  {
+    "id": "8754c0",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "ce7409"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "72px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "56px",
+        "right": "0px",
+        "bottom": "56px",
+        "left": "0px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_justifyContent:tablet_portrait": "center",
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_rowGap:tablet_portrait": "0",
+      "_cssCustom": "#brxe-8754c0 { font-optical-sizing: none; }"
+    },
+    "label": "Section - 07"
+  },
+  {
+    "id": "ce7409",
+    "name": "container",
+    "parent": "8754c0",
+    "children": [
+      "389af4",
+      "f10180"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1140px",
+      "_display": "flex",
+      "_direction": "column",
+      "_justifyContent": "center",
+      "_alignItems": "flex-start",
+      "_border": {
+        "radius": {
+          "top": "32px",
+          "right": "32px",
+          "bottom": "0px",
+          "left": "0px"
+        }
+      }
+    },
+    "label": "Container"
+  },
+  {
+    "id": "389af4",
+    "name": "block",
+    "parent": "ce7409",
+    "children": [
+      "d4841b"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_alignItems:tablet_portrait": "flex-start",
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "d4841b",
+    "name": "heading",
+    "parent": "389af4",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "VPS OpenClaw Được Thiết Kế Cho Ai?",
+      "tag": "h2",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      }
+    },
+    "label": "Title"
+  },
+  {
+    "id": "f10180",
+    "name": "block",
+    "parent": "ce7409",
+    "children": [
+      "4376d7",
+      "58acce"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "flex-start",
+      "_rowGap:tablet_portrait": "16px"
+    },
+    "label": "Frame 25"
+  },
+  {
+    "id": "4376d7",
+    "name": "block",
+    "parent": "f10180",
+    "children": [
+      "b17fbd",
+      "32b94a"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "center",
+      "_border": {
+        "radius": {
+          "top": "32px",
+          "right": "32px",
+          "bottom": "0px",
+          "left": "0px"
+        }
+      },
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "16px",
+      "_alignItems:tablet_portrait": "stretch"
+    },
+    "label": "Container"
+  },
+  {
+    "id": "b17fbd",
+    "name": "block",
+    "parent": "4376d7",
+    "children": [
+      "9aedda",
+      "e2d3d5",
+      "ece047",
+      "04b6bc"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_alignSelf": "stretch",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_position": "relative",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_rowGap:tablet_portrait": "16px",
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto"
+    },
+    "label": "P"
+  },
+  {
+    "id": "9aedda",
+    "name": "div",
+    "parent": "b17fbd",
+    "children": [
+      "f434c0"
+    ],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0.5px",
+      "_left": "0.5px",
+      "_width": "558px",
+      "_height": "264px",
+      "_opacity": "0.32",
+      "_top:tablet_portrait": "0.12px",
+      "_left:tablet_portrait": "1px",
+      "_width:tablet_portrait": "342px",
+      "_height:tablet_portrait": "162px",
+      "_transform": {
+        "scaleX": "-1"
+      },
+      "_overflow": "hidden"
+    },
+    "label": "image 2"
+  },
+  {
+    "id": "f434c0",
+    "name": "image",
+    "parent": "9aedda",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/7d46c.png"
+      },
+      "_position": "absolute",
+      "_top": "-75.39%",
+      "_left": "0%",
+      "_width": "133.56%",
+      "_height": "175.39%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 2 image"
+  },
+  {
+    "id": "e2d3d5",
+    "name": "image",
+    "parent": "b17fbd",
+    "children": [],
+    "settings": {
+      "_width": "519px",
+      "_height": "254px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/6d1f4.png"
+      },
+      "_objectFit": "cover",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "156.24px"
+    },
+    "label": "image 9"
+  },
+  {
+    "id": "ece047",
+    "name": "heading",
+    "parent": "b17fbd",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Developers &amp; Tech Teams",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "32px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "04b6bc",
+    "name": "text-basic",
+    "parent": "b17fbd",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Tự động hóa quy trình viết code, review lỗi và triển khai CI/CD trực tiếp qua tin nhắn Slack/Discord.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "32b94a",
+    "name": "block",
+    "parent": "4376d7",
+    "children": [
+      "4c5550",
+      "753a46",
+      "8dccc0",
+      "19db6b"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_alignSelf": "stretch",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_position": "relative",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_rowGap:tablet_portrait": "16px",
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto"
+    },
+    "label": "P"
+  },
+  {
+    "id": "4c5550",
+    "name": "div",
+    "parent": "32b94a",
+    "children": [
+      "cad971"
+    ],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0.5px",
+      "_left": "0.5px",
+      "_width": "558px",
+      "_height": "264px",
+      "_opacity": "0.32",
+      "_top:tablet_portrait": "0.12px",
+      "_left:tablet_portrait": "1px",
+      "_width:tablet_portrait": "342px",
+      "_height:tablet_portrait": "162px",
+      "_transform": {
+        "scaleX": "-1"
+      },
+      "_overflow": "hidden"
+    },
+    "label": "image 2"
+  },
+  {
+    "id": "cad971",
+    "name": "image",
+    "parent": "4c5550",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/7d46c.png"
+      },
+      "_position": "absolute",
+      "_top": "-75.39%",
+      "_left": "0%",
+      "_width": "133.56%",
+      "_height": "175.39%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 2 image"
+  },
+  {
+    "id": "753a46",
+    "name": "image",
+    "parent": "32b94a",
+    "children": [],
+    "settings": {
+      "_width": "519px",
+      "_height": "254px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/6d1f4.png"
+      },
+      "_objectFit": "cover",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "156.24px"
+    },
+    "label": "image 9"
+  },
+  {
+    "id": "8dccc0",
+    "name": "heading",
+    "parent": "32b94a",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Marketers &amp; Ecommerce",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "32px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "19db6b",
+    "name": "text-basic",
+    "parent": "32b94a",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Xây dựng bot chăm sóc khách hàng đa kênh tự động chốt đơn, gửi thông báo cá nhân hóa theo hành vi người dùng.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "58acce",
+    "name": "block",
+    "parent": "f10180",
+    "children": [
+      "0402a3",
+      "441d0d"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "24px",
+      "_alignItems": "center",
+      "_border": {
+        "radius": {
+          "top": "32px",
+          "right": "32px",
+          "bottom": "0px",
+          "left": "0px"
+        }
+      },
+      "_direction:tablet_portrait": "column",
+      "_rowGap:tablet_portrait": "16px",
+      "_alignItems:tablet_portrait": "stretch"
+    },
+    "label": "Container"
+  },
+  {
+    "id": "0402a3",
+    "name": "block",
+    "parent": "58acce",
+    "children": [
+      "f9fd8b",
+      "3b1444",
+      "c268fa",
+      "bcf4d3"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_alignSelf": "stretch",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_position": "relative",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_rowGap:tablet_portrait": "16px",
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto"
+    },
+    "label": "P"
+  },
+  {
+    "id": "f9fd8b",
+    "name": "div",
+    "parent": "0402a3",
+    "children": [
+      "3824c0"
+    ],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0.5px",
+      "_left": "0.5px",
+      "_width": "558px",
+      "_height": "264px",
+      "_opacity": "0.32",
+      "_top:tablet_portrait": "0.12px",
+      "_left:tablet_portrait": "1px",
+      "_width:tablet_portrait": "342px",
+      "_height:tablet_portrait": "162px",
+      "_transform": {
+        "scaleX": "-1"
+      },
+      "_overflow": "hidden"
+    },
+    "label": "image 2"
+  },
+  {
+    "id": "3824c0",
+    "name": "image",
+    "parent": "f9fd8b",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/7d46c.png"
+      },
+      "_position": "absolute",
+      "_top": "-75.39%",
+      "_left": "0%",
+      "_width": "133.56%",
+      "_height": "175.39%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 2 image"
+  },
+  {
+    "id": "3b1444",
+    "name": "image",
+    "parent": "0402a3",
+    "children": [],
+    "settings": {
+      "_width": "519px",
+      "_height": "254px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/6d1f4.png"
+      },
+      "_objectFit": "cover",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "156.24px"
+    },
+    "label": "image 9"
+  },
+  {
+    "id": "c268fa",
+    "name": "heading",
+    "parent": "0402a3",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Traders &amp; Crypto Investors",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "32px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "bcf4d3",
+    "name": "text-basic",
+    "parent": "0402a3",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Treo bot phân tích thị trường thực tế (EA), thực hiện lệnh giao dịch 24/24 với độ ổn định tuyệt đối.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "441d0d",
+    "name": "block",
+    "parent": "58acce",
+    "children": [
+      "16df06",
+      "c174c2",
+      "dcd743",
+      "c4175e"
+    ],
+    "settings": {
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_alignSelf": "stretch",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "24px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_position": "relative",
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "20px",
+          "right": "20px",
+          "bottom": "20px",
+          "left": "20px"
+        }
+      },
+      "_overflow": "hidden",
+      "_width:tablet_portrait": "100%",
+      "_rowGap:tablet_portrait": "16px",
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border:tablet_portrait": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_flexGrow:tablet_portrait": "0",
+      "_flexBasis:tablet_portrait": "auto"
+    },
+    "label": "P"
+  },
+  {
+    "id": "16df06",
+    "name": "div",
+    "parent": "441d0d",
+    "children": [
+      "7306cb"
+    ],
+    "settings": {
+      "_position": "absolute",
+      "_top": "0.5px",
+      "_left": "0.5px",
+      "_width": "558px",
+      "_height": "264px",
+      "_opacity": "0.32",
+      "_top:tablet_portrait": "0.12px",
+      "_left:tablet_portrait": "1px",
+      "_width:tablet_portrait": "342px",
+      "_height:tablet_portrait": "162px",
+      "_transform": {
+        "scaleX": "-1"
+      },
+      "_overflow": "hidden"
+    },
+    "label": "image 2"
+  },
+  {
+    "id": "7306cb",
+    "name": "image",
+    "parent": "16df06",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/7d46c.png"
+      },
+      "_position": "absolute",
+      "_top": "-75.39%",
+      "_left": "0%",
+      "_width": "133.56%",
+      "_height": "175.39%",
+      "_widthMax": "none",
+      "_objectFit": "fill"
+    },
+    "label": "image 2 image"
+  },
+  {
+    "id": "c174c2",
+    "name": "image",
+    "parent": "441d0d",
+    "children": [],
+    "settings": {
+      "_width": "519px",
+      "_height": "254px",
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/4e7e072d-bc85-43b5-8c99-bd44afc3a9df/6d1f4.png"
+      },
+      "_objectFit": "cover",
+      "_width:tablet_portrait": "100%",
+      "_height:tablet_portrait": "156.24px"
+    },
+    "label": "image 9"
+  },
+  {
+    "id": "dcd743",
+    "name": "heading",
+    "parent": "441d0d",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Power Users",
+      "tag": "h3",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "20px",
+        "line-height": "32px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  },
+  {
+    "id": "c4175e",
+    "name": "text-basic",
+    "parent": "441d0d",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "text": "Sở hữu \"quản gia kỹ thuật số\" để quản lý email, lịch trình, tóm tắt tin tức và điều khiển thiết bị thông minh ngay trên Telegram.",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Description"
+  }
+]

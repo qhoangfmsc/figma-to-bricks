@@ -1,0 +1,29 @@
+{
+  "content": [
+    { "id": "bcsec1", "name": "section", "parent": 0, "children": ["bccon1"], "label": "Breadcrumb Bar",
+      "settings": { "tag": "section", "_padding": { "top": "16px", "bottom": "16px" }, "_background": { "color": { "hex": "#f8fafc" } } } },
+    { "id": "bccon1", "name": "container", "parent": "bcsec1", "children": ["bcbrd1"], "settings": {} },
+    { "id": "bcbrd1", "name": "breadcrumbs", "parent": "bccon1", "children": [],
+      "settings": {
+        "homeLabel": "Home",
+        "homeIcon": { "library": "ionicons", "icon": "ion-md-home" },
+        "homeIconPosition": "before",
+        "separatorType": "icon",
+        "separatorIcon": { "library": "ionicons", "icon": "ion-ios-arrow-forward" },
+        "separatorColor": { "hex": "#94a3b8" },
+        "separatorSize": "12px",
+        "gap": "10px",
+        "singularStructure": [
+          { "id": "bcst01", "postType": ["post"], "showTaxonomy": true, "taxonomy": "category" },
+          { "id": "bcst02", "postType": ["page"], "showParentPosts": true }
+        ],
+        "itemTypography": { "font-size": "0.875rem", "color": { "hex": "#64748b" } },
+        "currentItemTypography": { "font-size": "0.875rem", "font-weight": "600", "color": { "hex": "#0f172a" } }
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

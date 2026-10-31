@@ -1,0 +1,22 @@
+{
+  "content": [
+    { "id": "sfsec1", "name": "section", "parent": 0, "children": ["sfcon1"], "label": "Social Feeds",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "sfcon1", "name": "container", "parent": "sfsec1", "children": ["sfhd01", "sfgrd1"], "settings": { "_rowGap": "32px" } },
+    { "id": "sfhd01", "name": "heading", "parent": "sfcon1", "children": [],
+      "settings": { "text": "Follow along", "tag": "h2", "_typography": { "font-size": "clamp(1.75rem, 3.5vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "sfgrd1", "name": "div", "parent": "sfcon1", "children": ["sfig01", "sffb01"], "label": "Feeds",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "minmax(0, 2fr) minmax(0, 1fr)", "_gridGap": "32px",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+    { "id": "sfig01", "name": "instagram-feed", "parent": "sfgrd1", "children": [], "label": "Instagram (token in Bricks → Settings → API keys)",
+      "settings": { "numberOfPosts": 6, "columns": 3, "imageGap": "8px", "imageAspectRatio": "1/1", "imageLink": true,
+        "followText": "Follow us @yourhandle", "followPosition": "bottom", "cacheDuration": "3600" } },
+    { "id": "sffb01", "name": "facebook-page", "parent": "sfgrd1", "children": [], "label": "Facebook Page (replace href)",
+      "settings": { "href": "https://www.facebook.com/yourpage", "tabs": "timeline", "height": 500, "smallHeader": true, "hideCta": false } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

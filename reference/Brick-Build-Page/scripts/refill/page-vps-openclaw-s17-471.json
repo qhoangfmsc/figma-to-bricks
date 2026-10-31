@@ -1,0 +1,743 @@
+[
+  {
+    "id": "7a6286",
+    "name": "section",
+    "parent": 0,
+    "children": [
+      "586277"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "48px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "32px",
+        "right": "16px",
+        "bottom": "32px",
+        "left": "16px"
+      },
+      "_background": {
+        "color": {
+          "hex": "#00070e"
+        }
+      },
+      "_cssCustom": "#brxe-7a6286 { font-optical-sizing: none; }"
+    },
+    "label": "Section - 16"
+  },
+  {
+    "id": "586277",
+    "name": "container",
+    "parent": "7a6286",
+    "children": [
+      "2be0dd",
+      "d2ff12"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_widthMax": "1140px",
+      "_display": "flex",
+      "_direction": "column",
+      "_justifyContent": "center",
+      "_alignItems": "center"
+    },
+    "label": "container"
+  },
+  {
+    "id": "2be0dd",
+    "name": "block",
+    "parent": "586277",
+    "children": [
+      "21b080",
+      "70ccff"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "16px",
+      "_alignItems": "center",
+      "_padding": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "48px",
+        "left": "0px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "32px",
+        "left": "0px"
+      }
+    },
+    "label": "_Title"
+  },
+  {
+    "id": "21b080",
+    "name": "heading",
+    "parent": "2be0dd",
+    "children": [],
+    "settings": {
+      "text": "Các câu hỏi thường gặp về vps forex tại vietnix",
+      "tag": "h2",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "36px",
+        "line-height": "48px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "24px",
+        "line-height": "36px",
+        "font-weight": "700",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center",
+        "text-transform": "uppercase"
+      }
+    },
+    "label": "Tiêu đề"
+  },
+  {
+    "id": "70ccff",
+    "name": "block",
+    "parent": "2be0dd",
+    "children": [
+      "4d9d96"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "column",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "0px",
+        "right": "171px",
+        "bottom": "0px",
+        "left": "171px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      }
+    },
+    "label": "Content Item/Paragraph"
+  },
+  {
+    "id": "4d9d96",
+    "name": "text-basic",
+    "parent": "70ccff",
+    "children": [],
+    "settings": {
+      "text": "Các câu hỏi được gặp nhiều nhất khi mua VPS Forex tại Vietnix. Nếu không có câu trả lời bạn tìm kiếm. <span style=\"color:#1eafff\">Liên hệ miễn phí với tư vấn viên.</span>",
+      "_width": "100%",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        },
+        "text-align": "center"
+      }
+    },
+    "label": "Mô tả"
+  },
+  {
+    "id": "d2ff12",
+    "name": "accordion-nested",
+    "parent": "586277",
+    "children": [
+      "ad301a",
+      "27a46e",
+      "7ae1df"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_cssCustom": "#brxe-d2ff12 { flex-direction: column; row-gap: 12px; }\n#brxe-d2ff12 .faq-icon-minus { display: none; }\n#brxe-d2ff12 .brx-open .faq-icon-minus { display: block; }\n#brxe-d2ff12 .brx-open .faq-icon-plus { display: none; }\n#brxe-d2ff12 .brx-open .accordion-title-wrapper .brxe-heading { color: #14b5ff; }\n@media (max-width: 991px) { #brxe-d2ff12 .brx-open .accordion-title-wrapper .brxe-heading { color: #1eafff; } }"
+    },
+    "label": "VNX faq list"
+  },
+  {
+    "id": "ad301a",
+    "name": "block",
+    "parent": "d2ff12",
+    "children": [
+      "ea81c6",
+      "8cdb8b"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "20px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_background:hover": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.04)"
+        }
+      }
+    },
+    "label": "FAQ"
+  },
+  {
+    "id": "ea81c6",
+    "name": "block",
+    "parent": "ad301a",
+    "children": [
+      "035eb8",
+      "45683a"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "8px",
+      "_alignItems": "center",
+      "_justifyContent": "space-between",
+      "_cursor": "pointer",
+      "_hidden": {
+        "_cssClasses": "accordion-title-wrapper"
+      }
+    },
+    "label": "_toggle-title"
+  },
+  {
+    "id": "035eb8",
+    "name": "heading",
+    "parent": "ea81c6",
+    "children": [],
+    "settings": {
+      "text": "VPS Forex giải quyết bài toán \"đứt cáp quang biển\" tại Việt Nam như thế nào?",
+      "tag": "h3",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      }
+    },
+    "label": "Question"
+  },
+  {
+    "id": "45683a",
+    "name": "block",
+    "parent": "ea81c6",
+    "children": [
+      "0686ef",
+      "32a8b1"
+    ],
+    "settings": {
+      "_width": "24px",
+      "_height": "24px",
+      "_flexShrink": "0"
+    },
+    "label": "Icon"
+  },
+  {
+    "id": "0686ef",
+    "name": "image",
+    "parent": "45683a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6913d1b9-cab5-4210-910d-fd61ce0e4e88/f6a33.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-plus"
+    },
+    "label": "Plus"
+  },
+  {
+    "id": "32a8b1",
+    "name": "image",
+    "parent": "45683a",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/277d2f03-10ef-4ed9-9071-1bf2054cfff0/632db.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-minus"
+    },
+    "label": "Minus"
+  },
+  {
+    "id": "8cdb8b",
+    "name": "block",
+    "parent": "ad301a",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "_hidden": {
+        "_cssClasses": "accordion-content-wrapper"
+      }
+    },
+    "label": "Content"
+  },
+  {
+    "id": "27a46e",
+    "name": "block",
+    "parent": "d2ff12",
+    "children": [
+      "cd6295",
+      "edfc43"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "20px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_background:hover": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.04)"
+        }
+      },
+      "_cssClasses": "brx-open"
+    },
+    "label": "FAQ"
+  },
+  {
+    "id": "cd6295",
+    "name": "block",
+    "parent": "27a46e",
+    "children": [
+      "cfe999",
+      "141c15"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "8px",
+      "_alignItems": "center",
+      "_justifyContent": "space-between",
+      "_cursor": "pointer",
+      "_hidden": {
+        "_cssClasses": "accordion-title-wrapper"
+      }
+    },
+    "label": "_toggle-title"
+  },
+  {
+    "id": "cfe999",
+    "name": "heading",
+    "parent": "cd6295",
+    "children": [],
+    "settings": {
+      "text": "Tại sao tôi ping từ máy tính ở Việt Nam đến VPS thấy cao (200ms+), nhưng vẫn được khuyên dùng để giao dịch nhanh?",
+      "tag": "h3",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      }
+    },
+    "label": "Question"
+  },
+  {
+    "id": "141c15",
+    "name": "block",
+    "parent": "cd6295",
+    "children": [
+      "24d6cb",
+      "a3dfe1"
+    ],
+    "settings": {
+      "_width": "24px",
+      "_height": "24px",
+      "_flexShrink": "0"
+    },
+    "label": "Icon"
+  },
+  {
+    "id": "24d6cb",
+    "name": "image",
+    "parent": "141c15",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6913d1b9-cab5-4210-910d-fd61ce0e4e88/f6a33.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-plus"
+    },
+    "label": "Plus"
+  },
+  {
+    "id": "a3dfe1",
+    "name": "image",
+    "parent": "141c15",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/277d2f03-10ef-4ed9-9071-1bf2054cfff0/632db.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-minus"
+    },
+    "label": "Minus"
+  },
+  {
+    "id": "edfc43",
+    "name": "block",
+    "parent": "27a46e",
+    "children": [
+      "7db62f"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_hidden": {
+        "_cssClasses": "accordion-content-wrapper"
+      }
+    },
+    "label": "Content"
+  },
+  {
+    "id": "7db62f",
+    "name": "text",
+    "parent": "edfc43",
+    "children": [],
+    "settings": {
+      "text": "<p style=\"margin:0\">Latency hiển thị (Visual Latency): Thời gian để hình ảnh truyền từ VPS về màn hình máy tính của bạn (cái này cao do khoảng cách VN - Mỹ/Âu xa).</p><p style=\"margin:0\">Latency khớp lệnh (Execution Latency): Thời gian lệnh đi từ VPS đến Server của sàn. Quan trọng: Lợi nhuận của bạn phụ thuộc vào số 2. Vì VPS đặt ngay cạnh Server của sàn, độ trễ này thường < 5ms (nhanh gấp 100 lần so với mạng nhà bạn). Việc bạn nhìn thấy màn hình hơi trễ không ảnh hưởng đến tốc độ khớp lệnh của Robot.</p>",
+      "_width": "100%",
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "400",
+        "color": {
+          "hex": "#ffffff"
+        }
+      }
+    },
+    "label": "Answer"
+  },
+  {
+    "id": "7ae1df",
+    "name": "block",
+    "parent": "d2ff12",
+    "children": [
+      "43fedd",
+      "f553e1"
+    ],
+    "settings": {
+      "_display": "flex",
+      "_direction": "column",
+      "_rowGap": "20px",
+      "_alignItems": "flex-start",
+      "_padding": {
+        "top": "19px",
+        "right": "19px",
+        "bottom": "19px",
+        "left": "19px"
+      },
+      "_padding:tablet_portrait": {
+        "top": "11px",
+        "right": "11px",
+        "bottom": "11px",
+        "left": "11px"
+      },
+      "_border": {
+        "width": {
+          "top": "1px",
+          "right": "1px",
+          "bottom": "1px",
+          "left": "1px"
+        },
+        "style": "solid",
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.2)"
+        },
+        "radius": {
+          "top": "16px",
+          "right": "16px",
+          "bottom": "16px",
+          "left": "16px"
+        }
+      },
+      "_background:hover": {
+        "color": {
+          "rgb": "rgba(255, 255, 255, 0.04)"
+        }
+      }
+    },
+    "label": "FAQ"
+  },
+  {
+    "id": "43fedd",
+    "name": "block",
+    "parent": "7ae1df",
+    "children": [
+      "c8e8cc",
+      "f447e8"
+    ],
+    "settings": {
+      "_width": "100%",
+      "_display": "flex",
+      "_direction": "row",
+      "_columnGap": "8px",
+      "_alignItems": "center",
+      "_justifyContent": "space-between",
+      "_cursor": "pointer",
+      "_hidden": {
+        "_cssClasses": "accordion-title-wrapper"
+      }
+    },
+    "label": "_toggle-title"
+  },
+  {
+    "id": "c8e8cc",
+    "name": "heading",
+    "parent": "43fedd",
+    "children": [],
+    "settings": {
+      "text": "Cấu hình VPS tối thiểu bao nhiêu là đủ để chạy mượt 1-2 phần mềm MT4/MT5?",
+      "tag": "h3",
+      "_flexGrow": "1",
+      "_flexBasis": "0",
+      "_margin": {
+        "top": "0px",
+        "right": "0px",
+        "bottom": "0px",
+        "left": "0px"
+      },
+      "_typography": {
+        "font-family": "Inter",
+        "font-size": "18px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      },
+      "_typography:tablet_portrait": {
+        "font-family": "Inter",
+        "font-size": "16px",
+        "line-height": "30px",
+        "font-weight": "600",
+        "color": {
+          "hex": "#f2f3f5"
+        }
+      }
+    },
+    "label": "Question"
+  },
+  {
+    "id": "f447e8",
+    "name": "block",
+    "parent": "43fedd",
+    "children": [
+      "2c3fdb",
+      "8851e1"
+    ],
+    "settings": {
+      "_width": "24px",
+      "_height": "24px",
+      "_flexShrink": "0"
+    },
+    "label": "Icon"
+  },
+  {
+    "id": "2c3fdb",
+    "name": "image",
+    "parent": "f447e8",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/6913d1b9-cab5-4210-910d-fd61ce0e4e88/f6a33.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-plus"
+    },
+    "label": "Plus"
+  },
+  {
+    "id": "8851e1",
+    "name": "image",
+    "parent": "f447e8",
+    "children": [],
+    "settings": {
+      "image": {
+        "url": "https://www.figma.com/api/mcp/asset/277d2f03-10ef-4ed9-9071-1bf2054cfff0/632db.svg"
+      },
+      "_width": "24px",
+      "_height": "24px",
+      "_objectFit": "fill",
+      "_cssClasses": "faq-icon-minus"
+    },
+    "label": "Minus"
+  },
+  {
+    "id": "f553e1",
+    "name": "block",
+    "parent": "7ae1df",
+    "children": [],
+    "settings": {
+      "_width": "100%",
+      "_hidden": {
+        "_cssClasses": "accordion-content-wrapper"
+      }
+    },
+    "label": "Content"
+  }
+]

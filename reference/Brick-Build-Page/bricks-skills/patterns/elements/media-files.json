@@ -1,0 +1,46 @@
+{
+  "content": [
+    { "id": "mfsec1", "name": "section", "parent": 0, "children": ["mfcon1"], "label": "Media Resources",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "mfcon1", "name": "container", "parent": "mfsec1", "children": ["mfhd01", "mfgrd1"], "settings": { "_rowGap": "32px" } },
+    { "id": "mfhd01", "name": "heading", "parent": "mfcon1", "children": [],
+      "settings": { "text": "Resources", "tag": "h2", "_typography": { "font-size": "clamp(1.75rem, 3.5vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "mfgrd1", "name": "div", "parent": "mfcon1", "children": ["mfcd01", "mfcd02"], "label": "Cards",
+      "settings": { "_display": "grid", "_gridTemplateColumns": "repeat(2, minmax(0, 1fr))", "_gridGap": "24px",
+        "_gridTemplateColumns:tablet_portrait": "1fr" } },
+
+    { "id": "mfcd01", "name": "block", "parent": "mfgrd1", "children": ["mfsvg1", "mfh101", "mfaud1"], "label": "Podcast Card",
+      "settings": { "_rowGap": "12px", "_cssGlobalClasses": ["mfcard"] } },
+    { "id": "mfsvg1", "name": "svg", "parent": "mfcd01", "children": [], "label": "SVG (icon set)",
+      "settings": { "source": "iconSet", "iconSet": { "library": "ionicons", "icon": "ion-ios-play-circle" },
+        "width": "40px", "height": "40px", "fill": { "hex": "#2563eb" } } },
+    { "id": "mfh101", "name": "heading", "parent": "mfcd01", "children": [],
+      "settings": { "text": "Episode 12: Shipping faster", "tag": "h3", "_typography": { "font-size": "1.25rem", "font-weight": "600" } } },
+    { "id": "mfaud1", "name": "audio", "parent": "mfcd01", "children": [], "label": "Audio (external URL)",
+      "settings": { "source": "external", "external": "https://example.com/wp-content/uploads/episode-12.mp3",
+        "titleCustom": "Shipping faster", "title": true, "artist": false, "preload": "metadata", "theme": "light" } },
+
+    { "id": "mfcd02", "name": "block", "parent": "mfgrd1", "children": ["mfsvg2", "mfh102", "mffil1"], "label": "Download Card",
+      "settings": { "_rowGap": "12px", "_cssGlobalClasses": ["mfcard"] } },
+    { "id": "mfsvg2", "name": "svg", "parent": "mfcd02", "children": [], "label": "SVG (icon set)",
+      "settings": { "source": "iconSet", "iconSet": { "library": "ionicons", "icon": "ion-ios-document" },
+        "width": "40px", "height": "40px", "fill": { "hex": "#2563eb" } } },
+    { "id": "mfh102", "name": "heading", "parent": "mfcd02", "children": [],
+      "settings": { "text": "2026 Product Guide (PDF)", "tag": "h3", "_typography": { "font-size": "1.25rem", "font-weight": "600" } } },
+    { "id": "mffil1", "name": "file", "parent": "mfcd02", "children": [], "label": "File (external PDF)",
+      "settings": { "source": "external", "external": "https://example.com/wp-content/uploads/product-guide-2026.pdf",
+        "customFileName": "product-guide-2026.pdf", "downloadButtonText": "Download PDF", "buttonStyle": "primary",
+        "openInNewTab": true, "hidePdfPreview": true } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [
+    { "id": "mfcard", "name": "resource-card",
+      "settings": { "_padding": { "top": "28px", "right": "28px", "bottom": "28px", "left": "28px" },
+        "_background": { "color": { "hex": "#f8fafc" } },
+        "_border": { "width": { "top": "1px", "right": "1px", "bottom": "1px", "left": "1px" }, "style": "solid", "color": { "hex": "#e2e8f0" },
+          "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } } } }
+  ],
+  "globalElements": []
+}

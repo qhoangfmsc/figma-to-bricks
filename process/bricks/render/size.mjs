@@ -2,6 +2,7 @@
 //   FIXED -> px · HUG -> auto (+ no shrink) · FILL -> flex:1 1 <figma px> on the parent's main axis, align-self:stretch on the cross axis
 //   place ABSOLUTE (child of a non-auto-layout node) -> position:absolute + left/top/width/height
 import { addCustomCss, pct, px } from './utils/css.mjs';
+import { svgBleed } from './utils/svg-bleed.mjs';
 
 // A child of the artboard follows the viewport the way the Figma horizontal constraint says (CENTER, RIGHT, LEFT_RIGHT, SCALE): the root is as wide as
 // the viewport (100%). Left-anchored children keep their pixel x. The Figma horizontal constraint says how (CENTER, RIGHT, LEFT_RIGHT, SCALE); every formula gives the exact Figma
@@ -35,7 +36,15 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
     for (const [k, key] of [['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) if (node.limits?.[k] != null) s[key] = px(node.limits[k]);
     return;
   }
+  const bleed = svgBleed(node); // svg exported with its drop shadow around the node box (utils/svg-bleed.mjs)
+  if (bleed) node.__svgBleed = bleed;
   if (node.place === 'ABSOLUTE') {
+    if (bleed) {
+      Object.assign(s, { _position: 'absolute', _left: px(b.x - bleed.left), _top: px(b.y - bleed.top), _width: px(bleed.w), _height: px(bleed.h), _widthMax: 'none' });
+      Object.assign(css, { width: px(bleed.w), height: px(bleed.h) });
+      if (parent && parent === root) anchorToParent({ ...node, box: { ...b, x: b.x - bleed.left, w: bleed.w } }, parent, s, true);
+      return;
+    }
     Object.assign(s, { _position: 'absolute', _left: px(b.x), _top: px(b.y), _width: px(b.w), _height: px(b.h) });
     Object.assign(css, { width: px(b.w), height: px(b.h) });
     if (parent?.box && b.w > parent.box.w + 0.01) s._widthMax = 'none'; // wider than its parent in Figma: the theme's `max-width:100%` on images would squeeze it
@@ -68,7 +77,15 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
       s._margin = { ...(s._margin ?? {}), ...(axis === 'h' ? { left: bleed, right: bleed } : { top: bleed, bottom: bleed }) };
       boxVal = full;
     }
-    if (sz === 'FIXED') {
+    if (sz === 'FIXED' && bleed) {
+      // the svg is bigger than its layout box: full size, negative margins give the room back so siblings stay where Figma puts them
+      const full = axis === 'h' ? bleed.w : bleed.h;
+      s[dim] = px(full);
+      css[cssDim] = px(full);
+      s._margin = { ...(s._margin ?? {}), ...(axis === 'h' ? { left: px(-bleed.left), right: px(-bleed.right) } : { top: px(-bleed.top), bottom: px(-bleed.bottom) }) };
+      if (axis === 'h') s._widthMax = 'none';
+      if (axis === primary) s._flexShrink = 0;
+    } else if (sz === 'FIXED') {
       s[dim] = px(boxVal);
       css[cssDim] = px(boxVal);
       if (axis === primary) s._flexShrink = 0;

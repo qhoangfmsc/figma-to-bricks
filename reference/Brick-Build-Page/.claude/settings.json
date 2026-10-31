@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/:*)",
+      "Bash(python3 -m scripts.:*)",
+      "Bash(python3 -m py_compile:*)",
+      "Bash(python3 -:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(cmp:*)",
+      "Bash(sed -n:*)",
+      "Bash(curl -s https://api.figma.com:*)",
+      "Bash(curl -s http://localhost:8080:*)",
+      "WebFetch(domain:api.figma.com)",
+      "WebFetch(domain:www.figma.com)",
+      "mcp__bricks-mcp"
+    ],
+    "ask": [
+      "Bash(rm:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

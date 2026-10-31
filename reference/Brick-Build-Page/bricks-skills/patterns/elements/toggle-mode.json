@@ -1,0 +1,24 @@
+{
+  "content": [
+    { "id": "tmsec1", "name": "section", "parent": 0, "children": ["tmcon1"], "label": "Header Utility Bar",
+      "settings": { "tag": "section", "_padding": { "top": "12px", "bottom": "12px" } } },
+    { "id": "tmcon1", "name": "container", "parent": "tmsec1", "children": ["tmtxt1", "tmtgl1"],
+      "settings": { "_direction": "row", "_justifyContent": "flex-end", "_alignItems": "center", "_columnGap": "12px" } },
+    { "id": "tmtxt1", "name": "text-basic", "parent": "tmcon1", "children": [],
+      "settings": { "text": "Theme", "tag": "span", "_typography": { "font-size": "0.875rem", "color": { "hex": "#64748b" } } } },
+    { "id": "tmtgl1", "name": "toggle-mode", "parent": "tmcon1", "children": [], "label": "Light / Dark Toggle",
+      "settings": {
+        "ariaLabel": "Toggle dark mode",
+        "icon": { "library": "ionicons", "icon": "ion-ios-sunny" },
+        "iconColor": { "hex": "#f59e0b" },
+        "iconDark": { "library": "ionicons", "icon": "ion-ios-moon" },
+        "iconDarkColor": { "hex": "#e2e8f0" },
+        "iconSize": "22px"
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

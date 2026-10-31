@@ -1,0 +1,56 @@
+{
+  "name": "single-post",
+  "title": "Single Post",
+  "type": "single",
+  "content": [
+    { "id": "spsec1", "name": "section", "parent": 0, "children": ["spcon1"], "label": "Article",
+      "settings": { "tag": "article", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "spcon1", "name": "container", "parent": "spsec1", "children": ["sphdr1", "spimg1", "spexc1", "spcnt1", "spaut1", "spnav1", "spcom1"], "label": "Reading Column",
+      "settings": { "_widthMax": "760px", "_rowGap": "32px" } },
+    { "id": "sphdr1", "name": "block", "parent": "spcon1", "children": ["sptax1", "spttl1", "spmrw1"], "label": "Post Header",
+      "settings": { "tag": "header", "_rowGap": "16px" } },
+    { "id": "sptax1", "name": "post-taxonomy", "parent": "sphdr1", "children": [], "label": "Category",
+      "settings": { "taxonomy": "category", "style": "primary", "size": "sm", "gap": "8px" } },
+    { "id": "spttl1", "name": "post-title", "parent": "sphdr1", "children": [],
+      "settings": { "tag": "h1", "_typography": { "font-size": "clamp(2rem, 4vw, 2.75rem)", "line-height": "1.2", "font-weight": "700" } } },
+    { "id": "spmrw1", "name": "block", "parent": "sphdr1", "children": ["spmet1", "sprtm1"], "label": "Meta Row",
+      "settings": { "_direction": "row", "_flexWrap": "wrap", "_alignItems": "center", "_columnGap": "16px", "_rowGap": "8px",
+        "_typography": { "color": { "hex": "#64748b" }, "font-size": "0.9375rem" } } },
+    { "id": "spmet1", "name": "post-meta", "parent": "spmrw1", "children": [],
+      "settings": {
+        "meta": [
+          { "id": "spme01", "dynamicData": "{author_name}" },
+          { "id": "spme02", "dynamicData": "{post_date}" }
+        ],
+        "separator": "·", "gutter": "8px" } },
+    { "id": "sprtm1", "name": "post-reading-time", "parent": "spmrw1", "children": [],
+      "settings": { "prefix": "· ", "suffix": " min read", "calculationMethod": "words", "wordsPerMinute": 220 } },
+    { "id": "spimg1", "name": "image", "parent": "spcon1", "children": [], "label": "Featured Image",
+      "settings": { "image": { "useDynamicData": "{featured_image}", "size": "large" }, "altText": "{post_title}", "loading": "eager",
+        "_width": "100%", "_aspectRatio": "16/9", "_objectFit": "cover",
+        "_border": { "radius": { "top": "16px", "right": "16px", "bottom": "16px", "left": "16px" } } } },
+    { "id": "spexc1", "name": "post-excerpt", "parent": "spcon1", "children": [], "label": "Lead",
+      "settings": { "length": 40, "_typography": { "font-size": "1.25rem", "line-height": "1.6", "color": { "hex": "#334155" } } } },
+    { "id": "spcnt1", "name": "post-content", "parent": "spcon1", "children": [],
+      "settings": { "_typography": { "font-size": "1.0625rem", "line-height": "1.75" } } },
+    { "id": "spaut1", "name": "post-author", "parent": "spcon1", "children": [], "label": "Author Box",
+      "settings": { "avatar": true, "avatarSize": "64px", "avatarPosition": "left", "name": true, "bio": true,
+        "postsLink": true, "postsText": "All posts by this author", "postsStyle": "primary",
+        "_padding": { "top": "24px", "right": "24px", "bottom": "24px", "left": "24px" },
+        "_background": { "color": { "hex": "#f8fafc" } },
+        "_border": { "radius": { "top": "12px", "right": "12px", "bottom": "12px", "left": "12px" } } } },
+    { "id": "spnav1", "name": "post-navigation", "parent": "spcon1", "children": [],
+      "settings": { "label": true, "prevLabel": "Previous article", "nextLabel": "Next article", "title": true, "titleTag": "h3",
+        "image": true, "imageSize": "thumbnail", "inSameTerm": true, "taxonomy": "category" } },
+    { "id": "spcom1", "name": "post-comments", "parent": "spcon1", "children": [],
+      "settings": { "source": "bricks", "title": true, "titleTag": "h2", "avatar": true, "formTitle": true,
+        "formTitleText": "Leave a comment", "label": true, "submitButtonText": "Post comment", "submitButtonStyle": "primary" } }
+  ],
+  "pageSettings": {},
+  "templateSettings": {
+    "templateConditions": [ { "main": "postType", "postType": ["post"] } ],
+    "templatePreviewType": "single"
+  },
+  "global_classes": [],
+  "globalVariables": []
+}

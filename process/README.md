@@ -94,6 +94,17 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Autopilot: one link in, Bricks out
 
+**The Plan (owner's decision 2026-10-29).** Before anything is built, `auto.mjs` reads every section and writes one `plan-<node>.md` next to the section workspaces (`process/plan/index.mjs`):
+a table of the sections and what each becomes, then one heading per group of questions, each with a Figma link per item and one line to fill. Only content the Figma file does
+not draw is asked: link URLs of buttons and menu items, alt text of content images, answers of the FAQ items drawn closed, content of the tabs not drawn, autoplay / loop of a slider,
+and "is this an accordion?" for a block that only looks like one. The run stops with exit code 3. Claude points to the file (nothing is asked in the chat); the owner fills it and changes the line `Xác nhận: không` to `Xác nhận: có`, then Claude runs
+`auto.mjs` again: everything is built in one go, signed off as `owner (plan)`, the fix loop runs and the page is assembled. A wrong value in a confirmed Plan stops the run and names it; a build resets the line to `không`,
+so the next run of the same link shows the Plan again with the values filled in (`plan.mjs set / confirm` exist for scripts, the owner does not need them). Answers are keyed by the Figma node id and re-applied after `decide()` on every run (`decide()` rebuilds
+its own entries, so nothing the owner typed is stored in them). Blank = the safe default (`#`, empty alt, empty answer block). `--no-confirm` skips the Plan.
+
+After a build, `node process/scripts/interact.mjs "<preview page url>"` clicks the built page in the Docker browser: accordion items toggle, tabs show only their own pane,
+a slider's next arrow moves the track. "Looks like Figma" (verify) and "works" (interact) are two different checks.
+
 `node process/auto.mjs "<figma url of a section frame>" [--first-section] [--no-responsive] [--no-cross]` runs the whole pipeline without questions:
 fetch, tree, detect, `decide/index.mjs` (headings from text size, ul/li for repeated groups, flat-image only for text-free decoration, icons decorative,
 alt left empty and listed for the designer), `figma/discover.mjs` (the same section in the other breakpoint frames of the file), sign-off recorded as

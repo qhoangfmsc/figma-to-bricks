@@ -1545,3 +1545,420 @@ test('handling: an enum value that no rule maps is reported when a node has it, 
   const values = (k) => { for (const n of Object.values(schema.nodeTypes)) if (n.properties[k]?.enum) return n.properties[k].enum; return schema.objects.TypeStyle.properties[k]?.enum ?? []; };
   for (const [k, vals] of Object.entries(HANDLING.enums)) for (const v of Object.keys(vals)) assert.ok(values(k).includes(v), `${k}=${v} is not a value of the schema`);
 });
+
+// ---- the Plan (process/plan/index.mjs): the document the owner fills before the build
+import { renderPlan, parsePlan, validateAnswers, applyAnswers as applyPlanAnswers, writePlan as writePlanDoc, confirmPlan, loadConfirmed, planProblems, groupQuestions as groupPlanQuestions, keyOf } from '../plan/index.mjs';
+import { readFileSync as readSync2 } from 'node:fs';
+
+const planModel = () => ({
+  title: 'Demo', fileKey: 'FK', nodeId: '1:2', url: 'https://www.figma.com/design/FK/x?node-id=1-2',
+  sections: [{ name: 'Hero', id: '1:3', build: 'button ×2', decided: ['heading ×1'], questions: groupPlanQuestions([
+    { group: 'link', node: '1:10', label: 'Nút "Đăng ký"' }, { group: 'link', node: 'I1:11;5:6', label: 'Mục menu "Bảng giá"' }, { group: 'alt', node: '1:12', label: 'Ảnh "Photo"' },
+  ]) }, { name: 'Footer', id: '1:4', build: 'block', decided: [], questions: [] }],
+});
+
+test('plan: one heading per group, a Figma link per line, the key of every value is group:node, and the file reads back', () => {
+  const md = renderPlan(planModel());
+  assert.match(md, /### \[Q1\] Link của 2 nút \/ mục menu/);
+  assert.match(md, /### \[Q2\] Mô tả \(alt\) của 1 ảnh nội dung/);
+  assert.match(md, /\(\[Figma\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=I1-11;5-6\)\)/); // instance ids keep every colon replaced
+  assert.match(md, /Không có gì cần điền ở section này/);
+  assert.deepEqual(parsePlan(md), { 'link:1:10': '', 'link:I1:11;5:6': '', 'alt:1:12': '' });
+});
+
+test('plan: values are validated (a link needs a scheme, # or /; a blank value is fine) and a multi-line value is kept', () => {
+  assert.deepEqual(validateAnswers({ 'link:a': '', 'link:b': '#', 'link:c': '/gia', 'link:d': 'https://x.vn/a?b=1', 'link:e': 'mailto:a@b.vn', 'alt:f': 'Cúp vàng' }), []);
+  assert.equal(validateAnswers({ 'link:a': 'x.vn/gia' }).length, 1);
+  assert.equal(validateAnswers({ 'link:a': 'two words' }).length, 1);
+  const md = renderPlan(planModel()).replace('`alt:1:12`: ', '`alt:1:12`: Cúp vàng\n  giải thưởng 2024');
+  assert.equal(parsePlan(md)['alt:1:12'], 'Cúp vàng\ngiải thưởng 2024');
+});
+
+test('plan: generating the file again keeps what the owner typed; the confirmation is the line "Xác nhận: có" of the same file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'f2b-plan-'));
+  const file = writePlanDoc(dir, '1-2', planModel());
+  assert.match(readSync2(file, 'utf8'), /^Xác nhận: không$/m);
+  assert.equal(loadConfirmed(dir, '1-2'), null); // not confirmed
+  writeFileSync(file, readSync2(file, 'utf8').replace('`link:1:10`: ', '`link:1:10`: https://x.vn/dang-ky'));
+  writePlanDoc(dir, '1-2', planModel()); // the next run writes the file again
+  assert.equal(parsePlan(readSync2(file, 'utf8'))['link:1:10'], 'https://x.vn/dang-ky');
+  assert.equal(loadConfirmed(dir, '1-2'), null); // typing values does not confirm
+  // the owner edits the line by hand, no command
+  writeFileSync(file, readSync2(file, 'utf8').replace('Xác nhận: không', 'Xác nhận: có'));
+  assert.deepEqual(loadConfirmed(dir, '1-2'), { 'link:1:10': 'https://x.vn/dang-ky' });
+  // marked confirmed with a wrong value: nothing is built on it, the problem is named
+  writeFileSync(file, readSync2(file, 'utf8').replace('https://x.vn/dang-ky', 'khong hop le'));
+  assert.equal(loadConfirmed(dir, '1-2'), null);
+  assert.equal(planProblems(dir, '1-2').length, 1);
+  assert.throws(() => confirmPlan(dir, '1-2'), /cannot confirm/);
+  // the command does the same as editing the line
+  writeFileSync(file, readSync2(file, 'utf8').replace('khong hop le', '/dang-ky').replace('Xác nhận: có', 'Xác nhận: không'));
+  assert.equal(confirmPlan(dir, '1-2').answered, 1);
+  assert.match(readSync2(file, 'utf8'), /^Xác nhận: có$/m);
+});
+
+test('plan: a confirmed value reaches the button / text link and the image alt; a value for a node that is gone is reported, and alt keeps the autopilot reason so the next run rebuilds it', () => {
+  const files = {
+    'detections.json': { components: [
+      { id: 'd1', component: 'button', node: '1:10', status: 'approved', params: { link: null } },
+      { id: 'd2', component: 'link', node: '1:11', status: 'approved', params: { link: null } },
+      { id: 'd3', component: 'button', node: '1:13', status: 'rejected', params: {} },
+    ] },
+    'overrides.json': { nodes: { '1:12': { alt: '', reason: 'autopilot: image, alt left empty until the designer provides it' } } },
+  };
+  const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
+  const r = applyPlanAnswers(ws, { [keyOf('link', '1:10')]: '/dang-ky', [keyOf('link', '1:11')]: 'https://x.vn', [keyOf('alt', '1:12')]: 'Cúp vàng', [keyOf('link', '1:13')]: '/x', [keyOf('alt', '9:9')]: 'gone' });
+  assert.equal(files['detections.json'].components[0].params.link, '/dang-ky');
+  assert.equal(files['detections.json'].components[1].params.link, 'https://x.vn');
+  assert.equal(files['overrides.json'].nodes['1:12'].alt, 'Cúp vàng');
+  assert.match(files['overrides.json'].nodes['1:12'].reason, /^autopilot/);
+  assert.deepEqual(r.unused.sort(), ['alt:9:9', 'link:1:13']); // a rejected button (merged into a form) takes no link
+});
+
+test('plan: decide records a question for every button, menu label and content image, and not for a button that became the submit of a form', () => {
+  const txt = (id, chars, size, extra = {}) => ({ id, name: id, type: 'TEXT', visible: true, text: { characters: chars, fontSize: size }, ...extra });
+  const tree = { id: 'r', name: 'Section', type: 'FRAME', children: [
+    txt('h', 'Title', 40),
+    { id: 'b1', name: 'Button', type: 'FRAME', children: [txt('bt', 'Đăng ký', 16)] },
+    { id: 'b2', name: 'Submit', type: 'FRAME', children: [txt('st', 'Gửi', 16)] },
+    { id: 'img', name: 'Photo', type: 'RECTANGLE', fills: [{ type: 'IMAGE' }], children: [] },
+    { id: 'bg', name: 'Background glow', type: 'RECTANGLE', fills: [{ type: 'IMAGE' }], children: [] },
+  ] };
+  const det = { version: 1, sections: [], components: [
+    { id: 'd1', status: 'proposed', source: 'rule', component: 'button', node: 'b1' },
+    { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'b2' },
+    { id: 'd3', status: 'proposed', source: 'rule', component: 'form', node: 'r', params: { fields: [{ node: 'f1', type: 'text' }, { node: 'f2', type: 'email' }], submit: 'b2' } },
+  ] };
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
+  assert.deepEqual(out.questions.map((q) => keyOf(q.group, q.node)).sort(), ['alt:img', 'link:b1']);
+  assert.equal(out.questions.find((q) => q.node === 'b1').label, 'Nút "Đăng ký"');
+});
+
+// ---- usable widgets (2026-10-29): accordion / tabs / menu detection, their content from the Plan, decide's structural approval
+import { detectAccordions } from '../detect/rules/accordion.mjs';
+import { detectTabs } from '../detect/rules/tabs.mjs';
+import { detectMenus } from '../detect/rules/menu.mjs';
+import { detectCarousels } from '../detect/rules/carousel.mjs';
+
+// hand-made NORMALIZED nodes for the rule tests
+const nn = (id, name, type, extra = {}) => ({ id, name, type, visible: true, box: { x: 0, y: 0, w: 100, h: 30, absX: 0, absY: 0 }, children: [], ...extra });
+const nt = (id, chars) => nn(id, id, 'TEXT', { text: { characters: chars, fontSize: 16 } });
+const faqItem = (i, state, y, open) => nn(`it${i}`, 'FAQ', 'INSTANCE', {
+  componentSet: 'FAQ', props: { State: state }, box: { x: 0, y, w: 800, h: open ? 120 : 60, absX: 0, absY: y },
+  children: [nn(`row${i}`, '_toggle-title', 'FRAME', { children: [nt(`q${i}`, `Question ${i}?`)] }), ...(open ? [nn(`d${i}`, '_description', 'FRAME', { children: [nt(`a${i}`, `Answer ${i}`)] })] : [])],
+});
+
+test('detect accordion: designer variants (State=Collapsed / Expand) are E1 high; a stack of equal-width rows where only some show content is a low guess; a card of unequal parts is not one', () => {
+  const list = nn('list', 'faq-list', 'INSTANCE', { layout: { mode: 'VERTICAL' }, children: [faqItem(1, 'Collapsed', 0), faqItem(2, 'Expand', 60, true), faqItem(3, 'Collapsed', 180)] });
+  const [a] = detectAccordions(nn('root', 'faq', 'FRAME', { children: [list] }));
+  assert.deepEqual([a.component, a.node, a.level, a.confidence], ['accordion', 'list', 'E1', 'high']);
+  assert.ok(a.cite.some((c) => c.field === 'props.State' && c.equals === 'Expand'));
+  // plain frames, no variants, no name: only the shape
+  const row = (i, y, open) => nn(`r${i}`, `Frame ${i}`, 'FRAME', { box: { x: 0, y, w: 600, h: 50, absX: 0, absY: y }, children: [nn(`t${i}`, 'Row', 'FRAME', { children: [nt(`x${i}`, `Q${i}`)] }), ...(open ? [nn(`c${i}`, 'Body', 'FRAME', { children: [nt(`y${i}`, 'A')] })] : [])] });
+  const stack = nn('stack', 'Frame 9', 'FRAME', { layout: { mode: 'VERTICAL' }, children: [row(1, 0), row(2, 60, true), row(3, 200)] });
+  const [g] = detectAccordions(nn('root2', 'x', 'FRAME', { children: [stack] }));
+  assert.deepEqual([g.level, g.confidence], ['E2', 'low']);
+  // a card: a pill, a body and a button of different widths
+  const card = nn('card', 'Frame 1', 'FRAME', { layout: { mode: 'VERTICAL' }, children: [
+    nn('pill', 'Frame 2', 'FRAME', { box: { x: 0, y: 0, w: 306, h: 30, absX: 0, absY: 0 }, children: [nt('pt', 'Tag')] }),
+    nn('body', 'Frame 3', 'FRAME', { box: { x: 0, y: 34, w: 534, h: 230, absX: 0, absY: 34 }, children: [nt('bt', 'Title'), nt('bd', 'Text')] }),
+    nn('btn', 'Button', 'INSTANCE', { box: { x: 0, y: 268, w: 51, h: 40, absX: 0, absY: 268 }, children: [nt('bl', 'Go')] })] });
+  assert.deepEqual(detectAccordions(nn('root3', 'x', 'FRAME', { children: [card] })), []);
+});
+
+test('detect tabs: a horizontal tab bar of >= 2 titles above a content frame, only with a hint (variant or name)', () => {
+  const tab = (i, active) => nn(`tab${i}`, 'Tab', 'FRAME', { componentSet: 'Tab', props: { Active: active }, children: [nt(`tt${i}`, `Tab ${i}`)] });
+  const make = (bar) => nn('wrap', 'Period', 'FRAME', { children: [bar, nn('content', 'Content', 'FRAME', { box: { x: 0, y: 60, w: 300, h: 100, absX: 0, absY: 60 }, children: [nt('c1', 'Pane')] })] });
+  const bar = nn('bar', 'Tab List', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [tab(1, true), tab(2, false)] });
+  const [t] = detectTabs(make(bar));
+  assert.deepEqual([t.component, t.node, t.level], ['tabs', 'wrap', 'E1']);
+  const plain = nn('bar2', 'Bar', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [nn('a', 'Item', 'FRAME', { children: [nt('ta', 'A')] }), nn('b', 'Item', 'FRAME', { children: [nt('tb', 'B')] })] });
+  assert.deepEqual(detectTabs(make(plain)), []); // two frames in a column are everywhere: no hint, no tabs
+});
+
+test('detect menu: a row of links named like a menu is a menu and not a carousel, also when the frame cuts it off; a row of cards is still a carousel candidate', () => {
+  const item = (i) => nn(`mi${i}`, '_sub-menu-item', 'FRAME', { box: { x: i * 120, y: 0, w: 110, h: 40, absX: i * 120, absY: 0 }, children: [nt(`ml${i}`, `Mục ${i}`)] });
+  const row = nn('menu', '_menu', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 400, h: 40, absX: 0, absY: 0 }, children: [0, 1, 2, 3, 4].map(item) });
+  const tree = nn('root', '_sub-menu', 'FRAME', { children: [row] });
+  assert.equal(detectMenus(tree)[0].node, 'menu');
+  assert.deepEqual(detectCarousels(tree), []);
+  const card = (i) => nn(`c${i}`, 'card', 'FRAME', { box: { x: i * 120, y: 0, w: 100, h: 60, absX: i * 120, absY: 0 }, children: [nt(`ct${i}`, `Card ${i}`)] });
+  const cards = nn('row2', 'Awards', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 250, h: 60, absX: 0, absY: 0 }, children: [0, 1, 2, 3].map(card) });
+  const t2 = nn('root2', 'x', 'FRAME', { children: [cards] });
+  assert.deepEqual(detectMenus(t2), []); // no menu name anywhere
+  assert.equal(detectCarousels(t2)[0]?.node, 'row2');
+});
+
+const faqRaw = (closedCount = 2) => {
+  const item = (i, open) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', children: [kid(`ti${i}`, { name: 'Title', children: [txt(`tt${i}`, `Q${i}`)] }),
+    ...(open ? [kid(`co${i}`, { name: 'Content', paddingLeft: 12, paddingRight: 12, paddingTop: 8, paddingBottom: 8, layoutMode: 'VERTICAL', children: [txt(`an${i}`, `Answer ${i}`)] })] : [])] });
+  return mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, true), ...Array.from({ length: closedCount }, (_, i) => item(i + 2, false))] })] });
+};
+
+test('accordion: an answer typed in the Plan becomes a content block with the settings of the drawn open answer and a text with its typography; a blank one stays empty', () => {
+  const tree = faqRaw();
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Có, chuyển miễn phí.\nLiên hệ để được hỗ trợ.' } } } }] };
+  const b = buildWith(tree, det);
+  const drawn = byFigma(b, 'co1');
+  const mine = b.template.content.find((e) => e.parent === byFigma(b, 'it2').id && e.label === 'Content');
+  assert.equal(mine.settings._hidden._cssClasses, 'accordion-content-wrapper');
+  assert.deepEqual(mine.settings._padding, drawn.settings._padding); // the look of the drawn answer block
+  const text = b.template.content.find((e) => e.parent === mine.id);
+  assert.equal(text.name, 'text-basic');
+  assert.equal(text.settings.text, 'Có, chuyển miễn phí.<br>Liên hệ để được hỗ trợ.');
+  assert.deepEqual(text.settings._typography['font-size'], byFigma(b, 'an1').settings._typography['font-size']);
+  assert.equal(text.settings._height, undefined);
+  // item 3 has no answer: an empty block, still warned
+  assert.ok(b.template.content.some((e) => e.parent === byFigma(b, 'it3').id && /empty/.test(e.label)));
+  assert.equal(b.warnings.filter((w) => /no answer in the Plan/.test(w.msg)).length, 1);
+});
+
+test('accordion answers are HTML-escaped', () => {
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: '<b>1 < 2</b> & 3' } } } }] };
+  const b = buildWith(faqRaw(1), det);
+  const text = b.template.content.find((e) => e.parent === b.template.content.find((x) => x.parent === byFigma(b, 'it2').id && x.label === 'Content').id);
+  assert.equal(text.settings.text, '&lt;b&gt;1 &lt; 2&lt;/b&gt; &amp; 3');
+});
+
+test('tabs: the content typed in the Plan fills a pane Figma does not draw, with the settings of the drawn pane', () => {
+  const tab = (i) => kid(`tb${i}`, { name: 'Tab', children: [txt(`tl${i}`, `Gói ${i}`)] });
+  const tree = mini({ children: [kid('tabs', { name: 'Tabs', layoutMode: 'VERTICAL', children: [
+    kid('bar', { name: 'Bar', layoutMode: 'HORIZONTAL', children: [tab(1), tab(2)] }),
+    kid('cnt', { name: 'Content', layoutMode: 'VERTICAL', children: [kid('pane1', { name: 'Pane', paddingLeft: 20, paddingRight: 20, paddingTop: 10, paddingBottom: 10, layoutMode: 'VERTICAL', children: [txt('p1t', 'Nội dung gói 1')] })] })] })] });
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: { content: { panes: { tb2: 'Nội dung gói 2' } } } }] };
+  const b = buildWith(tree, det);
+  const mine = b.template.content.find((e) => e.parent === byFigma(b, 'cnt').id && e.label === 'Pane 2');
+  assert.equal(mine.settings._hidden._cssClasses, 'tab-pane');
+  assert.deepEqual(mine.settings._padding, byFigma(b, 'pane1').settings._padding);
+  assert.equal(b.template.content.find((e) => e.parent === mine.id).settings.text, 'Nội dung gói 2');
+  assert.equal(b.warnings.filter((w) => /empty pane/.test(w.msg)).length, 0);
+});
+
+test('menu component: nav > ul > li > text-link with the URLs from the Plan, "#" for the others; the nav is the block that holds the row and nothing else with text', () => {
+  const item = (i) => kid(`mi${i}`, { name: '_sub-menu-item', children: [txt(`ml${i}`, `Mục ${i}`)] });
+  const tree = mini({ children: [kid('wrap', { name: 'Wrap', layoutMode: 'HORIZONTAL', children: [kid('menu', { name: '_menu', layoutMode: 'HORIZONTAL', children: [item(1), item(2), item(3)] }), kid('arrows', { name: 'Navigation', children: [kid('ar1', { name: 'arrow' })] })] })] });
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'menu', node: 'menu', status: 'approved', params: { links: { ml2: '#gia' } } }] };
+  const b = buildWith(tree, det);
+  assert.equal(byFigma(b, 'menu').settings.tag, 'ul');
+  assert.equal(byFigma(b, 'wrap').settings.tag, 'nav');
+  assert.equal(byFigma(b, 'mi1').settings.tag, 'li');
+  assert.equal(byFigma(b, 'ml1').name, 'text-link');
+  assert.deepEqual([byFigma(b, 'ml1').settings.link.url, byFigma(b, 'ml2').settings.link.url], ['#', '#gia']);
+  assert.equal(byFigma(b, 'ml2').settings.text, 'Mục 2');
+  // the root frame is never turned into a nav (it is the section)
+  const t2 = mini({ children: [kid('menu', { name: '_menu', layoutMode: 'HORIZONTAL', children: [item(1), item(2), item(3)] })] });
+  const b2 = buildWith(t2, { ...emptyDetections(), components: [{ id: 'd1', component: 'menu', node: 'menu', status: 'approved', params: {} }] });
+  assert.equal(b2.template.content[0].settings.tag, 'section');
+});
+
+test('decide: accordion / tabs / menu / carousel are approved by structure and ask the Plan for what Figma does not draw; a shape-only accordion stays proposed with a confirm question', () => {
+  const list = nn('list', 'faq-list', 'INSTANCE', { layout: { mode: 'VERTICAL' }, children: [faqItem(1, 'Collapsed', 0), faqItem(2, 'Expand', 60, true), faqItem(3, 'Collapsed', 180)] });
+  const menuItem = (i) => nn(`mi${i}`, '_sub-menu-item', 'FRAME', { box: { x: i * 120, y: 0, w: 110, h: 40, absX: i * 120, absY: 0 }, children: [nt(`ml${i}`, `Mục ${i}`)] });
+  const menu = nn('menu', '_menu', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 400, h: 40, absX: 0, absY: 0 }, children: [0, 1, 2].map(menuItem) });
+  const tree = nn('root', 'Section', 'FRAME', { children: [list, menu] });
+  const det = { version: 1, sections: [], components: [
+    ...detectAccordions(tree).map((c, i) => ({ id: `a${i}`, status: 'proposed', source: 'rule', ...c })),
+    ...detectMenus(tree).map((c, i) => ({ id: `m${i}`, status: 'proposed', source: 'rule', ...c })),
+    { id: 'g1', status: 'proposed', source: 'rule', component: 'accordion', node: 'stack', confidence: 'low', params: {} },
+  ] };
+  tree.children.push(nn('stack', 'Frame 9', 'FRAME', { layout: { mode: 'VERTICAL' }, children: [nn('s1', 'r', 'FRAME', { children: [nt('s1t', 'Q')] }), nn('s2', 'r', 'FRAME', { children: [nt('s2t', 'Q2')] })] }));
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
+  const status = Object.fromEntries(files['detections.json'].components.filter((c) => c.source === 'rule').map((c) => [c.component + ':' + c.node, c.status]));
+  assert.deepEqual(status, { 'accordion:list': 'approved', 'menu:menu': 'approved', 'accordion:stack': 'proposed' });
+  const keys = out.questions.map((q) => `${q.group}:${q.node}`).sort();
+  // faq-list: items 1 and 3 are drawn closed (title only); the guessed stack: both rows closed; the menu: one URL per label
+  assert.deepEqual(keys, ['answer:it1', 'answer:it3', 'answer:s1', 'answer:s2', 'confirm:stack', 'link:ml0', 'link:ml1', 'link:ml2']);
+});
+
+test('plan: answers reach the accordion, the tabs, the menu links, the slider options; "có" on a guessed accordion approves it and drops the list that was on it', () => {
+  const item = (id, kidsN) => ({ id, children: Array.from({ length: kidsN }, (_, i) => ({ id: `${id}k${i}`, children: [] })) });
+  const tree = { id: 'r', children: [
+    { id: 'acc', children: [item('it1', 2), item('it2', 1)] },
+    { id: 'tabs', children: [{ id: 'bar', children: [{ id: 'tb1', children: [] }, { id: 'tb2', children: [] }] }, { id: 'cnt', children: [] }] },
+    { id: 'menu', children: [{ id: 'mi1', children: [{ id: 'ml1', children: [] }] }] },
+    { id: 'guess', children: [] },
+  ] };
+  const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [
+    { id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }, { id: 'd2', component: 'tabs', node: 'tabs', status: 'approved', params: {} },
+    { id: 'd3', component: 'menu', node: 'menu', status: 'approved', params: {} }, { id: 'd4', component: 'carousel', node: 'sl', status: 'approved', params: {} },
+    { id: 'd5', component: 'accordion', node: 'guess', status: 'proposed', params: {} }, { id: 'd6', component: 'semantic', node: 'guess', status: 'approved', params: { tag: 'ul' } },
+  ] } };
+  const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
+  const r = applyPlanAnswers(ws, { 'answer:it2': 'Trả lời hai', 'pane:tb2': 'Gói hai', 'link:ml1': '/gioi-thieu', 'autoplay:sl': '5', 'loop:sl': 'có', 'confirm:guess': 'có', 'answer:ghost': 'x' });
+  const c = (id) => files['detections.json'].components.find((x) => x.id === id);
+  assert.equal(c('d1').params.content.answers.it2, 'Trả lời hai');
+  assert.equal(c('d2').params.content.panes.tb2, 'Gói hai');
+  assert.equal(c('d3').params.links.ml1, '/gioi-thieu');
+  assert.deepEqual(c('d4').params.settings, { autoplay: true, interval: 5000, type: 'loop' });
+  assert.equal(c('d5').status, 'approved');
+  assert.equal(c('d6').status, 'rejected');
+  assert.deepEqual(r.unused, ['answer:ghost']);
+});
+
+// ---- accordion / tabs behaviour traps found by clicking the built page (2026-10-29)
+test('accordion: the root gets its direction and gap as css (no control on this element), a flex content block gives its display back only while the item is open', () => {
+  const tree = faqRaw(1);
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const acc = byFigma(b, 'acc');
+  assert.match(acc.settings._cssCustom, /flex-direction: column;/); // `_direction` is a container control only: the root would be a row
+  const drawn = byFigma(b, 'co1');
+  assert.equal(drawn.settings._display, undefined); // an id-selector display would beat the theme's `.accordion-content-wrapper { display: none }`
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open > \.accordion-content-wrapper \{ display: flex; \}/);
+  // the theme's own padding of the rows is reset unless Figma has one
+  assert.deepEqual(byFigma(b, 'ti1').settings._padding, { top: '0px', right: '0px', bottom: '0px', left: '0px' });
+});
+
+test('accordion: a typed answer follows the same rule: the new content block has no display of its own and the item opens it with the drawn block\'s display', () => {
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Trả lời' } } } }] };
+  const b = buildWith(faqRaw(1), det);
+  const mine = b.template.content.find((e) => e.parent === byFigma(b, 'it2').id && e.label === 'Content');
+  assert.equal(mine.settings._display, undefined);
+  assert.match(byFigma(b, 'it2').settings._cssCustom, /\.brx-open > \.accordion-content-wrapper \{ display: flex; \}/);
+});
+
+test('tabs: a pane with a flex layout gets its display back only while it is open, so the other panes can hide', () => {
+  const tab = (i) => kid(`tb${i}`, { name: 'Tab', children: [txt(`tl${i}`, `Gói ${i}`)] });
+  const pane = (i) => kid(`pane${i}`, { name: 'Pane', layoutMode: 'VERTICAL', children: [txt(`pt${i}`, `Nội dung ${i}`)] });
+  const tree = mini({ children: [kid('tabs', { name: 'Tabs', layoutMode: 'VERTICAL', children: [kid('bar', { name: 'Bar', layoutMode: 'HORIZONTAL', children: [tab(1), tab(2)] }), kid('cnt', { name: 'Content', layoutMode: 'VERTICAL', children: [pane(1), pane(2)] })] })] });
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
+  assert.equal(byFigma(b, 'pane1').settings._display, undefined);
+  assert.match(byFigma(b, 'pane1').settings._cssCustom, /\.brx-open \{ display: flex; \}/);
+  assert.equal(byFigma(b, 'tabs').settings._cssCustom, undefined); // vertical tabs: the theme's root is already a column
+});
+
+test('responsive merge: an element Bricks needs that Figma does not draw ("<node>#extra0") is shared by the base and the variant frame, not doubled', () => {
+  const node = (id, name, children = []) => ({ id, name, type: 'FRAME', children });
+  const el = (id, parent, name, settings = {}, label = id) => ({ id, parent, name, settings, label });
+  const map = (pairs) => Object.fromEntries(pairs.map(([f, b, element]) => [f, { bricksId: b, element, verify: true, expect: { x: 0, y: 0, w: 1, h: 1, css: {} } }]));
+  const baseTree = node('r', 'Sec', [node('i', 'Item', [node('t', 'Title')])]);
+  const vTree = node('vr', 'Sec', [node('vi', 'Item', [node('vt', 'Title')])]);
+  const base = { tree: baseTree, template: { title: 'x', type: 'section', content: [el('R', 0, 'section'), el('I', 'R', 'block'), el('T', 'I', 'heading', { text: 'Q' }), el('X', 'I', 'block', {}, 'Content (empty)')] }, mapping: map([['r', 'R', 'section'], ['i', 'I', 'block'], ['t', 'T', 'heading'], ['i#extra0', 'X', 'block']]) };
+  const variant = { key: 'tablet_portrait', maxWidth: 991, aliases: {}, tree: vTree, template: { content: [el('VR', 0, 'section'), el('VI', 'VR', 'block'), el('VT', 'VI', 'heading', { text: 'Q' }), el('VX', 'VI', 'block', {}, 'Content (empty)')] }, mapping: map([['vr', 'VR', 'section'], ['vi', 'VI', 'block'], ['vt', 'VT', 'heading'], ['vi#extra0', 'VX', 'block']]), sig: () => 'x' };
+  const { template, mappings } = mergeResponsive({ base: { ...base, sig: () => 'x' }, variants: [variant] });
+  assert.equal(template.content.filter((e) => e.label === 'Content (empty)').length, 1);
+  assert.equal(mappings.tablet_portrait['vi#extra0'].bricksId, 'X');
+});
+
+test('plan: a confirmation is used up by one build, the values typed stay in the file for the next Plan', async () => {
+  const { consumeConfirmation } = await import('../plan/index.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'f2b-plan-'));
+  const file = writePlanDoc(dir, '1-2', planModel());
+  writeFileSync(file, readSync2(file, 'utf8').replace('`link:1:10`: ', '`link:1:10`: https://x.vn/dang-ky'));
+  confirmPlan(dir, '1-2');
+  assert.ok(loadConfirmed(dir, '1-2'));
+  consumeConfirmation(dir, '1-2');
+  assert.equal(loadConfirmed(dir, '1-2'), null); // the next run of the same link stops at the Plan again
+  assert.equal(parsePlan(readSync2(file, 'utf8'))['link:1:10'], 'https://x.vn/dang-ky'); // and the answer is already there
+  consumeConfirmation(dir, 'nothing'); // no file: no error
+});
+
+// ---- read more ("Xem thêm")
+import { detectReadMore } from '../detect/rules/readmore.mjs';
+
+test('detect read more: a clipped frame whose content runs past its height + a "Xem thêm" button; a clipped frame alone, or a button alone, is nothing', () => {
+  const para = (id, y) => nn(id, 'Typography', 'FRAME', { box: { x: 0, y, w: 800, h: 150, absX: 0, absY: y }, children: [nt(`${id}t`, 'Text')] });
+  const clipped = (extra = {}) => nn('full', 'Full section', 'INSTANCE', { clip: true, props: { Expand: 'No' }, box: { x: 0, y: 0, w: 800, h: 300, absX: 0, absY: 0 }, children: [para('p1', 0), para('p2', 150), para('p3', 300)], ...extra });
+  const btn = nn('btn', 'Button', 'INSTANCE', { children: [nt('bt', 'Xem thêm')] });
+  const [r] = detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped(), btn] }));
+  assert.deepEqual([r.component, r.node, r.level, r.params.button], ['readmore', 'full', 'E1', 'btn']);
+  assert.ok(r.cite.some((c) => c.field === 'props.Expand' && c.equals === 'No'));
+  // no designer variant: the shape alone (clip + content past the height) is enough
+  assert.equal(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped({ props: {} }), btn] }))[0].level, 'E2');
+  assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped()] })), []); // no button
+  assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped({ clip: false }), btn] })), []); // does not clip
+  assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped(), nn('b2', 'Button', 'INSTANCE', { children: [nt('b2t', 'Đăng ký')] })] })), []); // another button
+});
+
+test('read more: the button becomes a real <button> that toggles a class on the clipped frame; one css rule gives the open frame its full height', () => {
+  const tree = mini({ children: [
+    kid('wrap', { name: 'Full section', clipsContent: true, layoutMode: 'VERTICAL', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 100 }, children: [kid('p1', { absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 300 }, children: [txt('t1', 'Long text')] })] }),
+    kid('btn', { name: 'Button', layoutMode: 'HORIZONTAL', children: [txt('bt', 'Xem thêm')] }),
+  ] });
+  const det = { ...emptyDetections(), components: [
+    { id: 'd1', component: 'readmore', node: 'wrap', status: 'approved', params: { button: 'btn' } },
+    { id: 'd2', component: 'button', node: 'btn', status: 'approved', params: {} },
+  ] };
+  const b = buildWith(tree, det);
+  const wrap = byFigma(b, 'wrap'), btn = byFigma(b, 'btn');
+  const cls = wrap.settings._cssClasses.split(' ').find((c) => c.startsWith('read-more-'));
+  assert.ok(cls);
+  assert.match(wrap.settings._cssCustom, /\.read-more-open \{ height: auto !important; max-height: none !important; overflow: visible !important; \}/);
+  assert.equal(btn.name, 'button');
+  assert.equal(btn.settings.tag, 'button');
+  assert.equal(btn.settings.link, undefined); // a "#" link would jump to the top of the page
+  const [i] = btn.settings._interactions;
+  assert.deepEqual([i.trigger, i.action, i.target, i.targetSelector, i.actionAttributeKey, i.actionAttributeValue], ['click', 'toggleAttribute', 'custom', `.${cls}`, 'class', 'read-more-open']);
+});
+
+test('decide: a read more is approved and its button is not asked for a URL', () => {
+  const para = (id, y) => nn(id, 'Typography', 'FRAME', { box: { x: 0, y, w: 800, h: 150, absX: 0, absY: y }, children: [nt(`${id}t`, 'Text')] });
+  const full = nn('full', 'Full section', 'INSTANCE', { clip: true, props: { Expand: 'No' }, box: { x: 0, y: 0, w: 800, h: 300, absX: 0, absY: 0 }, children: [para('p1', 0), para('p2', 150), para('p3', 300)] });
+  const btn = nn('btn', 'Button', 'INSTANCE', { layout: { mode: 'HORIZONTAL' }, fills: [{ type: 'SOLID', hex: '#fff' }], children: [nt('bt', 'Xem thêm')] });
+  const tree = nn('root', 'SEO', 'FRAME', { children: [full, btn] });
+  const det = { version: 1, sections: [], components: [
+    ...detectReadMore(tree).map((c, i) => ({ id: `r${i}`, status: 'proposed', source: 'rule', ...c })),
+    { id: 'b1', status: 'proposed', source: 'rule', component: 'button', node: 'btn' },
+  ] };
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
+  const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
+  assert.equal(files['detections.json'].components.find((c) => c.component === 'readmore').status, 'approved');
+  assert.deepEqual(out.questions.filter((q) => q.group === 'link'), []);
+  assert.equal(out.designer.filter((d) => d.includes('[btn]')).length, 0);
+});
+
+test('read more: the class is the same in every breakpoint frame (it comes from names the frames share, not from node ids or copy)', () => {
+  const mk = (ids) => mini({ children: [
+    kid(ids[0], { name: 'Full section', clipsContent: true, layoutMode: 'VERTICAL', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 100 }, children: [kid(ids[1], { absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 300 }, children: [txt(ids[2], ids[2] === 't1' ? 'Tiêu đề desktop' : 'Tiêu đề khác của mobile')] })] }),
+    kid(ids[3], { name: 'Button', layoutMode: 'HORIZONTAL', children: [txt(ids[4], 'Xem thêm')] }),
+  ] });
+  const cls = (ids) => {
+    const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'readmore', node: ids[0], status: 'approved', params: { button: ids[3] } }, { id: 'd2', component: 'button', node: ids[3], status: 'approved', params: {} }] };
+    const b = buildWith(mk(ids), det);
+    return [byFigma(b, ids[0]).settings._cssClasses, byFigma(b, ids[3]).settings._interactions[0]];
+  };
+  const [c1, i1] = cls(['w1', 'p1', 't1', 'b1', 'bt1']), [c2, i2] = cls(['w2', 'p2', 't2', 'b2', 'bt2']);
+  assert.equal(c1, c2);
+  assert.deepEqual(i1, i2); // identical interactions: the merge pairs the two buttons into one
+});
+
+// ---- svg exported with its drop shadow: the svg is bigger than the node box (Pagepeed vnx-service bubbles drew 13.6% too small)
+import { svgBleed } from '../bricks/render/utils/svg-bleed.mjs';
+test('svg bleed: drop shadow extent from the numbers of 5 measured svgs', () => {
+  const n = (w, h, svgW, svgH, e) => ({ box: { w, h }, svg: { width: svgW, height: svgH }, effects: [{ type: 'DROP_SHADOW', x: 0, ...e }] });
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 0.05, `${a} vs ${b}`);
+  const bubble = svgBleed(n(92.4264, 92.4264, 107, 107, { y: 4.7663, blur: 9.5327, spread: -2.3832 })); // circle centre inside the svg: (53.5, 48.72) -> left 7.29, top 2.51
+  near(bubble.left, 7.287); near(bubble.top, 2.52); near(bubble.right, 7.287); assert.equal(bubble.w, 107);
+  const small = svgBleed(n(58.5736, 58.5736, 81, 81, { y: 7.4624, blur: 14.9247, spread: -3.7312 })); // circle centre (40.5, 33.03) -> left 11.21, top 3.75
+  near(small.left, 11.21); near(small.top, 3.75);
+  const logo = svgBleed(n(180.16, 61.93, 189, 70, { y: 4, blur: 4, spread: 0 }));
+  near(logo.left, 4.42); near(logo.top, 0.04); near(logo.bottom, 8.04);
+  const wide = svgBleed(n(36, 36, 60, 60, { y: 2, blur: 12, spread: 0 }));
+  near(wide.left, 12); near(wide.top, 10); near(wide.bottom, 14);
+  assert.equal(svgBleed(n(36, 36, 36, 36, { y: 0, blur: 0, spread: 0 })), null, 'svg of the box size: nothing to do');
+  assert.equal(svgBleed(n(36, 36, 80, 80, { y: 2, blur: 12, spread: 0 })), null, 'not explained by the shadow: no guess');
+});
+
+test('svg bleed: the element takes the svg size, negative margins keep the layout box, mapping expects the svg box', () => {
+  const kidRaw = { id: 'bub', name: 'bubble', type: 'GROUP', absoluteBoundingBox: { x: 20, y: 30, width: 92.4264, height: 92.4264 }, effects: [{ type: 'DROP_SHADOW', visible: true, color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 4.7663 }, radius: 9.5327, spread: -2.3832 }], children: [] };
+  const t = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, children: [kidRaw] } } } }, 'r', { images: {}, svgs: { bub: { file: 'svg/bub.svg', bytes: 1, width: 107, height: 107 } } });
+  const b = buildTemplate(t, { overrides: {}, salt: 'x' });
+  const el = b.template.content.find((e) => e.id === b.mapping.bub.bricksId);
+  assert.equal(el.settings._width, '107px');
+  assert.equal(el.settings._height, '107px');
+  assert.equal(el.settings._left, '12.7132px');
+  assert.equal(b.mapping.bub.expect.w, 107);
+  assert.equal(Math.round(b.mapping.bub.expect.x * 10) / 10, 12.7);
+});
+
+test('group drop shadow follows the children: filter drop-shadow, not the box-shadow of the group rectangle', () => {
+  const raw2 = { id: 'grp', name: '_5-minute', type: 'GROUP', absoluteBoundingBox: { x: 0, y: 0, width: 159, height: 159 }, effects: [{ type: 'DROP_SHADOW', visible: true, color: { r: 0, g: 0, b: 0, a: 0.1 }, offset: { x: 0, y: 9.3072 }, radius: 18.6143, spread: -4.6536 }],
+    children: [{ id: 'dot', name: 'Ellipse', type: 'ELLIPSE', absoluteBoundingBox: { x: 0, y: 0, width: 159, height: 159 }, fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] }] };
+  const t = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, children: [raw2] } } } }, 'r', { images: {}, svgs: {} });
+  const b = buildTemplate(t, { overrides: {}, salt: 'x' });
+  const el = b.template.content.find((e) => e.id === b.mapping.grp.bricksId);
+  assert.equal(el.settings._boxShadow, undefined);
+  assert.match(el.settings._cssCustom, /filter: drop-shadow\(0px 9\.3072px 18\.6143px rgba\(0, 0, 0, 0\.1\)\);/);
+  assert.ok(b.warnings.some((w) => /spread -4\.6536px is not applicable/.test(w.msg)));
+});

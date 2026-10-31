@@ -23,6 +23,16 @@ export function jsonParam(v) {
 // stable 6-char id for repeater items (Bricks repeater rows carry an id)
 export const rowId = (...parts) => createHash('sha1').update(parts.join('|')).digest('hex').slice(0, 6).replace(/^[0-9]/, 'a');
 
+// `_direction`, `_rowGap` and `_columnGap` are controls of container / block / div / section only (container.php): the root of accordion-nested / tabs-nested ignores
+// them, so a flex root would lay its items in a row (the FAQ items came out side by side) and drop the gap. They are written as the one custom css Bricks 1.9.8
+// has no control for.
+export const flexDirectionCss = (node) => {
+  const l = node.layout ?? {};
+  const horizontal = l.mode === 'HORIZONTAL';
+  const gap = l.primaryAlign !== 'SPACE_BETWEEN' && l.gap != null ? ` ${horizontal ? 'column' : 'row'}-gap: ${l.gap}px;` : '';
+  return [{ decl: `flex-direction: ${horizontal ? 'row' : 'column'};${gap}`, suffix: '' }];
+};
+
 export const hidden = (cssClass) => ({ _hidden: { _cssClasses: cssClass } });
 
 // ---- shared by the semantic components ----
@@ -66,7 +76,7 @@ export function boxLook(n, warn) {
 
 // Browsers give ul / ol / dl / dd / figure default margins and paddings (and bullets): a semantic tag must not move the Figma layout.
 // `defaults` are only used where the build did not already write that key (e.g. the Figma padding wins); `css` goes to the element's custom css.
-const ZERO = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
+export const ZERO = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
 const RESET_TAGS = new Set(['ul', 'ol', 'li', 'dl', 'dt', 'dd', 'figure', 'figcaption', 'nav', 'article', 'address']);
 export const tagReset = (tag) => (RESET_TAGS.has(tag)
   ? { defaults: { _margin: { ...ZERO }, _padding: { ...ZERO } }, css: ['ul', 'ol'].includes(tag) ? [{ decl: 'list-style: none;', suffix: '' }] : [] }

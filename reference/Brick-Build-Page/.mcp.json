@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "bricks-mcp": {
+      "url": "http://localhost:8080/index.php?rest_route=/bricks-mcp-bridge/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer tnr2oCBEYRv86uDMFKp9UV4NNZsSeVBFjHng4M87rjN8hrjefyQLZJYjbnMsIE6J"
+      },
+      "type": "http"
+    },
+    "figma-desktop": {
+      "url": "http://127.0.0.1:3845/mcp",
+      "type": "http"
+    }
+  }
+}

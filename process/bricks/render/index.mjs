@@ -175,6 +175,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
     const applied = comp?.apply?.(ctx, det) ?? null;
     if (patch?.settings) Object.assign(s, deepMerge(s, patch.settings));
+    for (const k of patch?.dropSettings ?? []) delete s[k]; // e.g. `_display` of an accordion content block: the theme's open / closed rule must decide it (see components/accordion.mjs)
     for (const [k, v] of Object.entries(patch?.defaults ?? {})) s[k] ??= v; // an ancestor's component gives defaults that never override what the build wrote
     for (const c of patch?.css ?? []) addCustomCss(s, c.decl, c.suffix ?? ''); // css an ancestor's component writes on this element (e.g. the shared tooltip look on the root)
     emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
@@ -201,7 +202,9 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     mapping[node.id] = {
       bricksId: id, element: kind, verify: ov.verify !== false,
       ...(component && { component: component.id, detection: component.detection }),
-      expect: { x: r4(node.box.absX - rootAbs.x), y: r4(node.box.absY - rootAbs.y), w: node.box.w, h: node.box.h, css, ...(component?.attrs && { attrs: component.attrs }) },
+      expect: node.__svgBleed
+        ? { x: r4(node.box.absX - node.__svgBleed.left - rootAbs.x), y: r4(node.box.absY - node.__svgBleed.top - rootAbs.y), w: node.__svgBleed.w, h: node.__svgBleed.h, css, ...(component?.attrs && { attrs: component.attrs }) }
+        : { x: r4(node.box.absX - rootAbs.x), y: r4(node.box.absY - rootAbs.y), w: node.box.w, h: node.box.h, css, ...(component?.attrs && { attrs: component.attrs }) },
     };
     after?.(id);
     if (inner) emitRaw(`${node.id}#inner`, inner.name, inner.settings, id, inner.name); // wrapping component: the block keeps the Figma frame, the real element sits inside
@@ -212,8 +215,32 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       }
     }
     // elements Bricks needs that Figma does not draw (e.g. an empty tab pane): created empty, never invented content
-    (extra ?? []).forEach((x, i) => emitRaw(`${node.id}#extra${i}`, x.name ?? 'block', x.settings ?? {}, id, x.label ?? x.name ?? 'block'));
+    (extra ?? []).forEach((x, i) => emitExtra(`${node.id}#extra${i}`, x, id));
     return id;
+  }
+  // An element Bricks needs that Figma does not draw. `children` nest ({ name, label, settings, children }). `like` = the Figma node id of a drawn element of the
+  // same kind (the open FAQ item's answer): the new element takes its settings (fill, padding, typography...) once every node is emitted, and `text` replaces its text.
+  const pendingLike = [];
+  function emitExtra(key, x, parent) {
+    const id = emitRaw(key, x.name ?? 'block', { ...(x.settings ?? {}) }, parent, x.label ?? x.name ?? 'block');
+    if (x.like || x.text !== undefined) pendingLike.push({ id, like: x.like, text: x.text, drop: x.drop });
+    (x.children ?? []).forEach((c, j) => emitExtra(`${key}.${j}`, c, id));
+    return id;
+  }
+  const FIXED_HEIGHT = ['_height', '_heightMin', '_heightMax'];
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\r?\n/g, '<br>');
+  function resolveLike() {
+    for (const { id, like, text, drop } of pendingLike) {
+      const el = elements.find((e) => e.id === id), src = like && elements.find((e) => e.id === mapping[like]?.bricksId);
+      if (!like) { if (el && text !== undefined) el.settings.text = esc(text); continue; } // nothing drawn to copy: Bricks defaults, the text is still the owner's
+      if (!el || !src) { if (el) warn({ id: like, name: '?' }, `copy of node ${like} not possible: it is not built, ${el.label} keeps Bricks defaults`); continue; }
+      const copy = structuredClone(src.settings);
+      for (const k of [...FIXED_HEIGHT, ...(drop ?? [])]) delete copy[k]; // the new content is longer or shorter than the drawn one: its height follows the text
+      if (copy._typography?.['white-space']) copy._typography = Object.fromEntries(Object.entries(copy._typography).filter(([k]) => k !== 'white-space')); // a one-line drawn text must not make a longer one overflow
+      if (typeof copy._cssCustom === 'string') copy._cssCustom = copy._cssCustom.replaceAll(`#brxe-${src.id}`, `#brxe-${el.id}`); // the copied rules named the source element
+      el.settings = { ...copy, ...el.settings };
+      if (text !== undefined) el.settings.text = esc(text);
+    }
   }
 
   // approved detections -> what the build will do. A detection whose node cannot become the component stays a block and is warned.
@@ -238,6 +265,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   (function markHug(n, inHug) { n.__inHug = inHug; const h = inHug || n.sizing?.h === 'HUG'; for (const c of n.children ?? []) markHug(c, h); })(root, false);
 
   mapNode(root, null, 0, { isRoot: true });
+  resolveLike();
 
   // The Bricks builder (not the frontend) gives every EMPTY element `min-width/min-height: 90px` through a zero-specificity rule
   // (:where(.brx-draggable.brx-empty)), so a 12x12 shape looks 90x90 there. An explicit 0 minimum on empty blocks keeps the builder canvas at the Figma size.

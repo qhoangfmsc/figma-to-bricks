@@ -1,0 +1,19 @@
+{
+  "content": [
+    { "id": "alsec1", "name": "section", "parent": 0, "children": ["alcon1"], "label": "Alerts",
+      "settings": { "tag": "section", "_padding": { "top": "48px", "bottom": "48px" } } },
+    { "id": "alcon1", "name": "container", "parent": "alsec1", "children": ["alinf1", "alsuc1", "alwrn1"],
+      "settings": { "_widthMax": "760px", "_rowGap": "16px" } },
+    { "id": "alinf1", "name": "alert", "parent": "alcon1", "children": [], "label": "Info",
+      "settings": { "type": "info", "content": "<p><strong>Heads up:</strong> scheduled maintenance on Sunday 02:00–03:00 (UTC+7).</p>" } },
+    { "id": "alsuc1", "name": "alert", "parent": "alcon1", "children": [], "label": "Success (dismissable)",
+      "settings": { "type": "success", "dismissable": true, "content": "<p>Your settings were saved.</p>" } },
+    { "id": "alwrn1", "name": "alert", "parent": "alcon1", "children": [], "label": "Warning",
+      "settings": { "type": "warning", "content": "<p>Your trial ends in 3 days. <a href=\"/pricing\">Choose a plan</a>.</p>" } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

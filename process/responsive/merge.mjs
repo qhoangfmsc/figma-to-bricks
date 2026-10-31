@@ -88,6 +88,15 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
     const range = ranges.find((r) => r.key === v.key);
     const { pairs } = matchTrees(base.tree, v.tree, { aliases: v.aliases });
     const vNode = new Map(); (function rec(n) { vNode.set(n.id, n); (n.children ?? []).forEach(rec); })(v.tree);
+    // Elements Bricks needs that Figma does not draw (the content block of a closed FAQ item) are keyed "<host node>#extraN" and are not in the tree: they follow their
+    // host node, so the base frame and the variant frame share ONE element instead of getting one each.
+    for (const [vFid, bFid] of [...pairs]) {
+      for (const k of Object.keys(v.mapping)) {
+        if (!k.startsWith(`${vFid}#extra`)) continue;
+        const bKey = bFid + k.slice(vFid.length);
+        if (base.mapping[bKey]?.bricksId) { pairs.set(k, bKey); vNode.set(k, vNode.get(vFid)); }
+      }
+    }
     const vParent = new Map(); (function rec(n) { for (const c of n.children ?? []) { vParent.set(c.id, n); rec(c); } })(v.tree);
     const vElOf = (fid) => { const id = v.mapping[fid]?.bricksId; return id ? v.template.content.find((e) => e.id === id) : null; };
     const vMap = {};

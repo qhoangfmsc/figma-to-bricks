@@ -1,0 +1,12 @@
+{
+  "autoRun": {
+    "allow_instructions": [
+      "Always allow running the project's Python tooling without asking: `python3 scripts/<name>.py ...`, `python3 -m scripts.<module> ...`, `python3 -m py_compile scripts/...`, and inline `python3 - <<EOF` snippets that only import from `scripts.lib` in this repository. This includes their network access to api.figma.com, www.figma.com (Figma REST + MCP assets) and the local WordPress at localhost:8080 (Bricks MCP bridge, screenshots).",
+      "Always allow read-only inspection commands in this repository (ls, cat, head, sed -n, grep, rg, wc, cmp, curl -s to figma.com or localhost:8080).",
+      "Always allow inline `python3 - <<'EOF'` analysis snippets (re, json, pathlib, etc.) that only read and parse local files inside this repository, such as notes/**/review.html, and only print results. Also always allow `kill $(cat /tmp/*.pid)` and `cd` into repository subdirectories to stop or run local preview servers started by the agent."
+    ],
+    "block_instructions": [
+      "Ask before deleting files outside scripts/refill, scripts/data, notes, plans, or before any rm -rf on the repository root, .cursor, scripts/lib, bricks-skills, review-skill or snippets."
+    ]
+  }
+}

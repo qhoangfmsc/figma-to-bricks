@@ -1,0 +1,43 @@
+{
+  "name": "error-404",
+  "title": "404 Not Found",
+  "type": "error",
+  "content": [
+    { "id": "e4sec1", "name": "section", "parent": 0, "children": ["e4con1"], "label": "404",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(4rem, 10vw, 8rem)", "bottom": "clamp(4rem, 10vw, 8rem)" } } },
+    { "id": "e4con1", "name": "container", "parent": "e4sec1", "children": ["e4cod1", "e4ttl1", "e4txt1", "e4src1", "e4btn1", "e4rec1"],
+      "settings": { "_widthMax": "640px", "_alignItems": "center", "_rowGap": "20px", "_typography": { "text-align": "center" } } },
+    { "id": "e4cod1", "name": "heading", "parent": "e4con1", "children": [], "label": "Error Code",
+      "settings": { "text": "404", "tag": "div",
+        "_typography": { "font-size": "clamp(5rem, 15vw, 9rem)", "font-weight": "800", "line-height": "1", "color": { "hex": "#2563eb" } } } },
+    { "id": "e4ttl1", "name": "heading", "parent": "e4con1", "children": [],
+      "settings": { "text": "Page not found", "tag": "h1", "_typography": { "font-size": "clamp(1.75rem, 4vw, 2.5rem)", "font-weight": "700" } } },
+    { "id": "e4txt1", "name": "text-basic", "parent": "e4con1", "children": [],
+      "settings": { "text": "The page you are looking for was moved, removed or never existed. Try searching instead.", "tag": "p",
+        "_typography": { "color": { "hex": "#64748b" }, "font-size": "1.125rem" } } },
+    { "id": "e4src1", "name": "search", "parent": "e4con1", "children": [],
+      "settings": { "searchType": "input", "placeholder": "Search the site…", "ariaLabel": "Search", "_width": "100%" } },
+    { "id": "e4btn1", "name": "button", "parent": "e4con1", "children": [],
+      "settings": { "text": "Back to homepage", "tag": "a", "link": { "type": "external", "url": "/" }, "style": "primary", "size": "md" } },
+    { "id": "e4rec1", "name": "block", "parent": "e4con1", "children": ["e4rh01", "e4rls1"], "label": "Recent Posts",
+      "settings": { "_margin": { "top": "40px" }, "_rowGap": "12px", "_width": "100%" } },
+    { "id": "e4rh01", "name": "heading", "parent": "e4rec1", "children": [],
+      "settings": { "text": "Latest articles", "tag": "h2", "_typography": { "font-size": "1.25rem", "font-weight": "600" } } },
+    { "id": "e4rls1", "name": "div", "parent": "e4rec1", "children": ["e4loop"], "label": "Recent List",
+      "settings": { "tag": "ul", "_display": "flex", "_direction": "column", "_rowGap": "8px", "_padding": { "left": "0" } } },
+    { "id": "e4loop", "name": "div", "parent": "e4rls1", "children": ["e4lnk1"], "label": "Recent Item (loop)",
+      "settings": { "tag": "li", "hasLoop": true,
+        "query": { "objectType": "post", "post_type": ["post"], "posts_per_page": "3", "orderby": "date", "order": "DESC" },
+        "_cssCustom": "%root% { list-style: none; }" } },
+    { "id": "e4lnk1", "name": "text-link", "parent": "e4loop", "children": [],
+      "settings": { "text": "{post_title}", "link": { "type": "meta", "useDynamicData": "{post_url}" },
+        "_typography": { "color": { "hex": "#2563eb" }, "font-weight": "500" } } }
+  ],
+  "pageSettings": {},
+  "templateSettings": {
+    "templateConditions": [ { "main": "error" } ],
+    "templatePreviewType": "error"
+  },
+  "global_classes": [],
+  "globalVariables": []
+}

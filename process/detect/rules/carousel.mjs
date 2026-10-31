@@ -6,9 +6,13 @@
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const sig = (n) => `${n.type}[${visibleKids(n).map(sig).join(',')}]`;
 const NAME = /slider|carousel|swiper|slides?\b/i;
+// A row of short links that rules/menu.mjs claims is a MENU, not a carousel, even when the frame cuts it off (a 9-item menu wider than its frame).
+// A layer named slider / carousel still wins.
+import { detectMenus } from './menu.mjs';
 
 export function detectCarousels(tree) {
   const found = [];
+  const menuRows = new Set(detectMenus(tree).map((m) => m.node));
   (function walk(n, parent) {
     if (n.visible === false) return;
     const kids = visibleKids(n);
@@ -16,6 +20,7 @@ export function detectCarousels(tree) {
       const last = kids.at(-1);
       const overflow = last.box.x + last.box.w > n.box.w + 1;
       const named = NAME.test(n.name) || NAME.test(n.componentSet ?? '');
+      if (!named && menuRows.has(n.id)) { kids.forEach((c) => walk(c, n)); return; } // a menu (rules/menu.mjs), not a carousel
       const sibs = parent ? visibleKids(parent) : [];
       const next = sibs[sibs.indexOf(n) + 1];
       const strip = next && next.box.h <= 16 && next.box.w <= n.box.w && next.box.absY >= n.box.absY + n.box.h - 1 && (next.svg || next.type === 'INSTANCE' || visibleKids(next).length >= 3);

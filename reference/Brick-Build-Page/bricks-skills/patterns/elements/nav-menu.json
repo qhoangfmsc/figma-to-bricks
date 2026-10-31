@@ -1,0 +1,32 @@
+{
+  "content": [
+    { "id": "nmsec1", "name": "section", "parent": 0, "children": ["nmcon1"], "label": "Header (WP menu)",
+      "settings": { "tag": "header", "_padding": { "top": "16px", "bottom": "16px" } } },
+    { "id": "nmcon1", "name": "container", "parent": "nmsec1", "children": ["nmlgo1", "nmmnu1"],
+      "settings": { "_direction": "row", "_justifyContent": "space-between", "_alignItems": "center" } },
+    { "id": "nmlgo1", "name": "logo", "parent": "nmcon1", "children": [],
+      "settings": { "logoText": "Acme", "logoHeight": "32" } },
+    { "id": "nmmnu1", "name": "nav-menu", "parent": "nmcon1", "children": [], "label": "Nav Menu (select WP menu after paste)",
+      "settings": {
+        "menu": "",
+        "ariaLabel": "Primary",
+        "menuGap": "28px",
+        "menuTypography": { "font-weight": "500", "color": { "hex": "#0f172a" } },
+        "menuActiveTypography": { "color": { "hex": "#2563eb" } },
+        "subMenuBackground": { "color": { "hex": "#ffffff" } },
+        "subMenuPadding": { "top": "10px", "right": "16px", "bottom": "10px", "left": "16px" },
+        "mobileMenu": "tablet_portrait",
+        "mobileMenuPosition": "right",
+        "mobileMenuWidth": "320px",
+        "mobileMenuBackground": { "color": { "hex": "#0f172a" } },
+        "mobileMenuTypography": { "font-size": "1.125rem", "color": { "hex": "#ffffff" } },
+        "mobileMenuToggleColor": { "hex": "#0f172a" },
+        "mobileMenuToggleColorClose": { "hex": "#ffffff" }
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

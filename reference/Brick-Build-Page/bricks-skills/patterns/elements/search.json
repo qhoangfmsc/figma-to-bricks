@@ -1,0 +1,38 @@
+{
+  "content": [
+    { "id": "sesec1", "name": "section", "parent": 0, "children": ["secon1"], "label": "Search Variants",
+      "settings": { "tag": "section", "_padding": { "top": "clamp(3rem, 6vw, 5rem)", "bottom": "clamp(3rem, 6vw, 5rem)" } } },
+    { "id": "secon1", "name": "container", "parent": "sesec1", "children": ["seinp1", "seovr1"],
+      "settings": { "_direction": "row", "_alignItems": "center", "_columnGap": "24px", "_flexWrap": "wrap" } },
+    { "id": "seinp1", "name": "search", "parent": "secon1", "children": [], "label": "Inline Search (posts only)",
+      "settings": {
+        "searchType": "input",
+        "placeholder": "Search articles…",
+        "ariaLabel": "Search articles",
+        "buttonAriaLabel": "Submit search",
+        "icon": { "library": "ionicons", "icon": "ion-ios-search" },
+        "additionalParams": [ { "id": "seprm1", "paramKey": "post_type", "paramValue": "post" } ],
+        "inputHeight": "48px",
+        "inputWidth": "360px",
+        "inputBackgroundColor": { "hex": "#f8fafc" },
+        "inputBorder": { "width": { "top": "1px", "right": "1px", "bottom": "1px", "left": "1px" }, "style": "solid", "color": { "hex": "#cbd5e1" },
+          "radius": { "top": "8px", "right": "8px", "bottom": "8px", "left": "8px" } }
+      } },
+    { "id": "seovr1", "name": "search", "parent": "secon1", "children": [], "label": "Icon + Fullscreen Overlay",
+      "settings": {
+        "searchType": "overlay",
+        "placeholder": "Type and press Enter",
+        "ariaLabel": "Open search",
+        "icon": { "library": "ionicons", "icon": "ion-ios-search" },
+        "iconTypography": { "font-size": "22px", "color": { "hex": "#0f172a" } },
+        "searchOverlayTitle": "What are you looking for?",
+        "searchOverlayBackground": { "color": { "hex": "#0f172a" } },
+        "searchOverlayTitleTypography": { "color": { "hex": "#ffffff" } }
+      } }
+  ],
+  "source": "bricksCopiedElements",
+  "sourceUrl": "https://example.com",
+  "version": "2.4.2",
+  "globalClasses": [],
+  "globalElements": []
+}

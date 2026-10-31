@@ -31,11 +31,11 @@ rows of the catalog below. Nothing is skipped because it "looks fine as blocks".
 | Icon (vector or icon font) | `svg` (decorative, no text) or `icon` | `svg` | decorative or meaningful (needs a label) |
 | Row/grid of similar items, no controls | `block` with `tag: ul` + items `tag: li`, or Bricks `list` | tag via `overrides.json` | list or just layout; columns; which items |
 | Checklist (icon + text rows) | `list` (icon list) or `ul/li` | gap | which |
-| Menu / on-page anchors / sub-menu | `nav-menu` or `nav-nested` (`nav` tag), links | gap | anchors or pages; URLs; sticky; mobile behaviour (later) |
+| Menu / on-page anchors / sub-menu | `nav > ul > li > text-link` (component `menu`); `nav-nested` only when Figma draws the hamburger / open panel | built (2026-10-29): `rules/menu.mjs`, `components/menu.mjs` | URLs (the Plan asks); sticky; mobile menu only if Figma draws it |
 | Breadcrumbs | `breadcrumbs` | gap | static or dynamic |
-| Row of slides + arrows + dots | `slider-nested` (arrows, pagination, autoplay, loop) | basic: slides + pagination on/off; arrows/autoplay not set | what is a slide, arrows (which Figma nodes), dots, autoplay, loop, slides per view |
-| Title rows with open/closed state | `accordion-nested` | basic | which is open, answers for closed ones, icon, one-at-a-time |
-| Tab bar + panes | `tabs-nested` | basic | which tab is active, pane content |
+| Row of slides + arrows + dots | `slider-nested` (arrows, pagination, autoplay, loop) | built: slides, gap, pagination, arrows from the drawn nodes; autoplay / loop from the Plan | what is a slide, arrows (which Figma nodes), dots, autoplay, loop, slides per view |
+| Title rows with open/closed state (FAQ) | `accordion-nested` | built (2026-10-29): `rules/accordion.mjs` (designer variants State=Collapsed / Expand, or name, or shape = asked) | answers of the closed ones (the Plan asks); icon turn on open = later |
+| Tab bar + panes | `tabs-nested` | built (2026-10-29): `rules/tabs.mjs` (needs a hint: active variant or a tab name) | pane content (the Plan asks); Bricks 1.9.8 opens the first tab (no `openTab`) |
 | Form (inputs, labels, submit) | `form` | basic: first-field look only (gap: per-field size, label spacing, gradient submit, checkbox, select) | field names/types/required, action (email / webhook / save), recipient, messages, consent |
 | Stat numbers ("80,000+") | `counter` | gap | count up or static |
 | Rating stars + score | `text` + `svg` row (no native element) or `testimonials` | gap | static is fine? schema markup? |
