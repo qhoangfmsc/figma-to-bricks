@@ -5,6 +5,6 @@
   "description": "Deterministic Figma -> Bricks pipeline. No dependencies: Node 22 builtins only.",
   "scripts": {
     "run": "node run.mjs",
-    "test": "node --test test/pipeline.test.mjs"
+    "test": "node --test test/pipeline.test.mjs test/template-frames.test.mjs"
   }
 }

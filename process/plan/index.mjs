@@ -12,6 +12,8 @@
 // A blank value is not an error: the safe default stays (link "#", alt "") and the item is listed again in the report.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readSync } from '../bricks/components/accordion.mjs';
+import { parseFigmaUrl } from '../figma/url.mjs';
 
 export const keyOf = (group, node) => `${group}:${node}`;
 export const figmaLink = (fileKey, node) => `https://www.figma.com/design/${fileKey}/x?node-id=${String(node).replaceAll(':', '-')}`;
@@ -21,40 +23,128 @@ const clean = (s) => String(s ?? '').replace(/[`\n\r]+/g, ' ').replace(/\s+/g, '
 export const GROUPS = {
   link: {
     title: (n) => `Link của ${n} nút / mục menu`,
-    summary: 'Figma không có địa chỉ đích của các nút và mục menu này, nên hiện đang đặt `#`. Điền địa chỉ thật (`https://…`, `/duong-dan`, `#neo`, `mailto:…`, `tel:…`) hoặc để trống để giữ `#`.',
-    check: (v) => (/^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(v) ? null : 'địa chỉ phải bắt đầu bằng https://, /, #, mailto: hoặc tel:'),
+    field: 'Link của nút',
+    heading: (name, kind) => (kind === 'Menu' ? `Link của mục menu ${name}` : `Link của nút ${name}`),
+    summary: 'Figma không có địa chỉ đích. Giá trị sẵn là `#` (chưa có đích). Sửa thành `https://…`, `/duong-dan`, `#neo`, `mailto:…` hoặc `tel:…` nếu có.',
+    value: 'chưa có địa chỉ',
+    check: (v) => (/^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(v) || fold(v) === 'chua co dia chi' ? null : 'địa chỉ https://, /, #, mailto:, tel:, hoặc chưa có địa chỉ'),
   },
   answer: {
     title: (n) => `Câu trả lời cho ${n} câu hỏi FAQ`,
-    summary: 'Figma chỉ vẽ câu trả lời của mục đang mở. Các mục còn lại cần nội dung để người dùng bấm vào là xem được. Gõ câu trả lời sau dấu `:` (nhiều dòng thì xuống dòng và thụt vào hai khoảng trắng). Để trống thì mục đó không có nội dung và bấm vào sẽ không mở ra gì.',
+    field: 'Câu trả lời cho câu hỏi FAQ',
+    heading: (name) => `Câu trả lời cho câu hỏi FAQ ${name}`,
+    summary: 'Figma chỉ vẽ câu trả lời của mục đang mở. Ô trống vì chưa có nội dung: gõ câu trả lời thì mục mở ra được, giữ trống thì bấm vào không có gì. Nhiều dòng thì xuống dòng.',
+    value: 'chưa có câu trả lời',
     check: (v) => (v.length <= 4000 ? null : 'dài quá 4000 ký tự'),
   },
   pane: {
     title: (n) => `Nội dung cho ${n} tab chưa được vẽ`,
-    summary: 'Figma chỉ vẽ nội dung của tab đang mở. Gõ nội dung của các tab còn lại (nhiều dòng thì xuống dòng và thụt vào hai khoảng trắng). Để trống thì tab đó rỗng.',
+    field: 'Nội dung cho tab',
+    heading: (name) => `Nội dung cho tab ${name}`,
+    summary: 'Figma chỉ vẽ nội dung của tab đang mở. Ô trống vì tab này chưa có nội dung. Gõ nội dung nếu cần, nhiều dòng thì xuống dòng.',
+    value: 'chưa có nội dung',
     check: (v) => (v.length <= 4000 ? null : 'dài quá 4000 ký tự'),
   },
   autoplay: {
     title: (n) => `Tự chuyển slide của ${n} slider`,
-    summary: 'Figma không cho biết slider có tự chuyển slide không. Điền số giây giữa hai lần chuyển (ví dụ `5`), hoặc để trống nếu chỉ chuyển khi người dùng bấm hoặc vuốt.',
-    check: (v) => (/^\d+(\.\d+)?$/.test(v) && +v > 0 ? null : 'điền số giây, ví dụ 5'),
+    field: 'Tự chuyển slide',
+    heading: (name) => `Tự chuyển slide của ${name}`,
+    summary: 'Figma không cho biết slider có tự chạy không. Giá trị sẵn là `không`: chỉ chuyển khi bấm hoặc vuốt. Đổi thành số giây (ví dụ `5`) nếu muốn tự chuyển.',
+    value: 'không tự chuyển',
+    check: (v) => (/^(không|khong|no|không tự chuyển)$/i.test(v) || fold(v) === 'khong tu chuyen' || (/^\d+(\.\d+)?$/.test(v) && +v > 0) ? null : 'số giây, ví dụ 5, hoặc không tự chuyển'),
   },
   loop: {
     title: (n) => `Lặp vòng của ${n} slider`,
-    summary: 'Hết slide cuối thì quay lại slide đầu hay dừng? Gõ `có` hoặc `không`; để trống thì dừng ở slide cuối.',
-    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) ? null : 'gõ có hoặc không'),
+    field: 'Lặp vòng',
+    heading: (name) => `Lặp vòng của ${name}`,
+    summary: 'Giá trị sẵn là `không`: hết slide cuối thì dừng. Đổi thành `có` nếu quay lại slide đầu.',
+    value: 'dừng ở slide cuối',
+    options: ['dừng ở slide cuối', 'quay lại slide đầu'],
+    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) || /^(dung o slide cuoi|quay lai slide dau)$/.test(fold(v)) ? null : 'dừng ở slide cuối, hoặc quay lại slide đầu'),
   },
   confirm: {
     title: (n) => `Xác nhận ${n} khối mà tool chỉ đoán được là accordion`,
-    summary: 'Các khối này trông giống danh sách câu hỏi mở/đóng nhưng Figma không đánh dấu rõ. Gõ `có` để build thành accordion bấm mở/đóng được; để trống hoặc `không` thì giữ nguyên là block.',
-    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) ? null : 'gõ có hoặc không'),
+    field: 'Xác nhận accordion',
+    heading: (name) => `Xác nhận accordion ${name}`,
+    summary: 'Figma không đánh dấu rõ khối này. Giá trị sẵn là `không`: giữ nguyên block. Đổi thành `có` nếu build thành accordion bấm mở được.',
+    value: 'giữ nguyên khối',
+    options: ['giữ nguyên khối', 'làm accordion'],
+    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) || /^(giu nguyen khoi|lam accordion)$/.test(fold(v)) ? null : 'giữ nguyên khối, hoặc làm accordion'),
+  },
+  sync: {
+    title: (n) => `Đồng bộ ${n} accordion`,
+    field: 'Đồng bộ accordion',
+    heading: (name) => `Đồng bộ accordion ${name}`,
+    summary: 'Các mục không giống nhau (icon, chữ lúc mở, khoảng cách). Giá trị sẵn là làm các mục giống nhau. Đổi thành `không sửa` để giữ đúng Figma, hoặc ghi `chỉ đồng bộ chữ`, `đừng đổi icon`.',
+    value: 'làm các mục giống nhau',
+    check: (v) => { const r = readSync(v); return r.ok ? null : r.why; },
   },
   alt: {
     title: (n) => `Mô tả (alt) của ${n} ảnh nội dung`,
-    summary: 'Ảnh nội dung cần câu mô tả ngắn cho người dùng đọc màn hình và cho SEO; tên layer trong Figma không dùng được. Để trống nếu ảnh chỉ để trang trí.',
+    field: 'Mô tả của ảnh',
+    heading: (name) => `Mô tả của ảnh ${name}`,
+    summary: 'Ô trống: ảnh đang được tính là trang trí. Gõ mô tả ngắn nếu đây là ảnh nội dung (đọc màn hình và SEO).',
+    value: 'ảnh chỉ để trang trí',
     check: (v) => (v.length <= 160 ? null : 'dài quá 160 ký tự, nên viết ngắn hơn'),
   },
+  act: {
+    title: (n) => `Hành động của ${n} nút`,
+    field: 'Hành động của nút',
+    heading: (name) => `Hành động của nút ${name}`,
+    summary: 'Việc xảy ra khi bấm nút. Mặc định hiện hết chữ bị cắt. Có thể đổi thành một địa chỉ trang (không phải link Figma).',
+    value: 'Bấm để hiện hết chữ',
+    options: ['Bấm để hiện hết chữ', 'Bấm để mở một địa chỉ'],
+    linkOption: 'Bấm để mở một địa chỉ',
+    check: (v) => (/figma\.com/i.test(v) ? 'đây là địa chỉ trang, không phải link Figma' : /^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(v) || /^(mo phan chu bi cat|bam de hien het chu)$/.test(fold(v)) ? null : 'Bấm để hiện hết chữ, hoặc một địa chỉ https://'),
+  },
+  expand: {
+    title: (n) => `Nội dung khi mở của ${n} phần`,
+    field: 'Nội dung khi mở',
+    heading: (name) => `Nội dung khi mở ${name}`,
+    summary: 'Để trống: khi mở, hiện nốt chữ đã có trong khung. Gõ phần chữ thêm khi mở, hoặc dán link Figma của bản đầy đủ (chuột phải khung đang mở hết, Copy link to selection).',
+    value: '',
+    check: (v) => readExpand(v).why ?? null,
+  },
+  keep: {
+    title: (n) => `Cách dựng của ${n} khối`,
+    field: 'Cách dựng của khối',
+    heading: (name) => `Cách dựng của khối ${name}`,
+    summary: 'Khối này được dựng y như khung, thành một khối tĩnh.',
+    value: 'Dựng thành một khối tĩnh',
+    options: ['Dựng thành một khối tĩnh'],
+    check: (v) => (/^(giu block|giu nguyen khoi|dung thanh mot khoi tinh)$/.test(fold(v)) ? null : 'Dựng thành một khối tĩnh'),
+  },
 };
+
+const fold = (s) => String(s ?? '').trim().toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ');
+
+// What the "Nội dung khi mở" box means. Empty and the old one-line defaults keep the clipped text.
+// A Figma link is the expanded frame. Anything else is extra copy shown only after the click.
+export function readExpand(v) {
+  const text = String(v ?? '').trim();
+  if (!text) return { kind: 'keep' };
+  const folded = fold(text);
+  if (/^(không|khong|no)$/i.test(text) || folded === 'dung chu dang bi cat' || folded === 'dung chu da co trong khung, khong can link') return { kind: 'keep' };
+  if (/figma\.com/i.test(text)) {
+    const url = text.split(/\s+/)[0];
+    try {
+      const ref = parseFigmaUrl(url);
+      return { kind: 'figma', url, fileKey: ref.fileKey, nodeId: ref.nodeId };
+    } catch {
+      return { kind: 'bad', why: 'link Figma cần có node-id. Chuột phải khung bản đầy đủ, Copy link to selection.' };
+    }
+  }
+  if (text.length > 8000) return { kind: 'bad', why: 'dài quá 8000 ký tự' };
+  return { kind: 'text', text };
+}
+
+export function itemHeading(group, name, kind) {
+  const who = String(name ?? '').replace(/^["«\s]+|["»\s]+$/g, '').trim();
+  const line = GROUPS[group]?.heading;
+  if (line) return line(who, kind).replace(/\s+/g, ' ').trim();
+  const base = String(GROUPS[group]?.title?.(1) || group).replace(/ 1 /, ' ');
+  return who ? `${base} ${who}` : base;
+}
 
 export function groupQuestions(questions) {
   const by = new Map();
@@ -198,24 +288,46 @@ export function applyAnswers(ws, answers) {
     const i = k.indexOf(':'), group = k.slice(0, i), node = k.slice(i + 1);
     let ok = false;
     if (group === 'link') {
-      for (const c of det.components.filter((x) => ['button', 'link'].includes(x.component) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = value; ok = true; }
+      const href = fold(value) === 'chua co dia chi' ? '#' : value;
+      for (const c of det.components.filter((x) => ['button', 'link'].includes(x.component) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = href; ok = true; }
       const menu = !ok && holder('menu', node);
-      if (menu) { deep(menu, ['params', 'links', node], value); ok = true; }
+      if (menu) { deep(menu, ['params', 'links', node], href); ok = true; }
     } else if (group === 'alt') {
-      if (ov.nodes?.[node]) { ov.nodes[node].alt = value; ok = true; } // the entry keeps its autopilot reason: decide() rebuilds it on the next run and this puts the value back
+      if (ov.nodes?.[node]) { if (fold(value) !== 'anh chi de trang tri') ov.nodes[node].alt = value; ok = true; } // the entry keeps its autopilot reason: decide() rebuilds it on the next run and this puts the value back
     } else if (group === 'answer') {
       const c = holder('accordion', node, true);
-      if (c) { deep(c, ['params', 'content', 'answers', node], value); ok = true; }
+      if (c) { if (fold(value) !== 'chua co cau tra loi') deep(c, ['params', 'content', 'answers', node], value); ok = true; }
     } else if (group === 'pane') {
       const c = det.components.find((x) => x.component === 'tabs' && x.status !== 'rejected' && kids(findIn(x.node) ?? {})[0] && kids(kids(findIn(x.node))[0]).some((t) => t.id === node));
-      if (c) { deep(c, ['params', 'content', 'panes', node], value); ok = true; }
+      if (c) { if (fold(value) !== 'chua co noi dung') deep(c, ['params', 'content', 'panes', node], value); ok = true; }
     } else if (group === 'autoplay') {
-      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) { deep(c, ['params', 'settings', 'autoplay'], true); deep(c, ['params', 'settings', 'interval'], Math.round(+value * 1000)); ok = true; }
+      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) {
+        if (!/^(khong|no|khong tu chuyen)$/.test(fold(value))) { deep(c, ['params', 'settings', 'autoplay'], true); deep(c, ['params', 'settings', 'interval'], Math.round(+value * 1000)); }
+        ok = true;
+      }
     } else if (group === 'loop') {
-      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) { if (yes(value)) deep(c, ['params', 'settings', 'type'], 'loop'); ok = true; }
+      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) { if (yes(value) || fold(value) === 'quay lai slide dau') deep(c, ['params', 'settings', 'type'], 'loop'); ok = true; }
+    } else if (group === 'sync') {
+      for (const c of of('accordion', node).filter((x) => x.status !== 'rejected')) { deep(c, ['params', 'sync'], value); ok = true; }
+    } else if (group === 'act') {
+      const mode = /^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(value) ? 'link' : 'toggle';
+      const button = det.components.find((c) => c.component === 'button' && c.node === node && c.status === 'approved');
+      const opener = det.components.find((c) => c.component === 'readmore' && c.status === 'approved' && c.params?.button === node);
+      if (button && mode === 'link') { (button.params ??= {}).link = value; ok = true; }
+      if (opener) { (opener.params ??= {}).buttonMode = mode; ok = true; }
+      else if (button) ok = true;
+    } else if (group === 'expand') {
+      const parsed = readExpand(value);
+      const c = of('readmore', node).find((x) => x.status === 'approved');
+      if (c) {
+        if (parsed.kind === 'text' || parsed.kind === 'figma') (c.params ??= {}).expand = parsed;
+        ok = true;
+      }
+    } else if (group === 'keep') {
+      ok = true;
     } else if (group === 'confirm') {
       for (const c of det.components.filter((x) => x.node === node && x.status === 'proposed')) {
-        if (yes(value)) {
+        if (yes(value) || fold(value) === 'lam accordion') {
           c.status = 'approved'; c.note = `${c.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
           for (const l of det.components.filter((x) => x.component === 'semantic' && x.node === node)) { l.status = 'rejected'; l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)'; } // the accordion is the list
         }

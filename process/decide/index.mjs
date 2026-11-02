@@ -18,7 +18,7 @@
 //   icons (svg)            decorative: aria-hidden
 //   images                 alt "" (decorative) and listed for the designer; eager in the first section, lazy below the fold
 import { readFileSync } from 'node:fs';
-import { closedItems } from '../bricks/components/accordion.mjs';
+import { closedItems, syncNotes } from '../bricks/components/accordion.mjs';
 import { emptyTabs } from '../bricks/components/tabs.mjs';
 import { menuLabels } from '../bricks/components/menu.mjs';
 
@@ -84,6 +84,8 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
       c.note = guess ? 'autopilot: found by its shape only: the Plan asks whether it is an accordion' : 'autopilot: an FAQ / accordion, structure from Figma; the answers of the closed items come from the Plan';
       log('accordion', node, guess ? 'proposed (shape only: asked in the Plan)' : `approved (${kids(node).length} items, ${closed.length} closed)`, c.evidence ?? '', guess ? 'low' : c.confidence ?? 'medium');
       for (const { item, question } of closed) { ask('answer', item.id, `"${question.slice(0, 90)}"`); designer.push(`Answer to the FAQ question "${question.slice(0, 60)}" [${item.id}]`); }
+      const notes = syncNotes(node);
+      if (notes.length) ask('sync', node.id, `"${node.name}": ${notes.join('; ')}`);
       if (guess) ask('confirm', node.id, `"${node.name}" (${kids(node).length} mục)`);
     } else if (c.component === 'tabs') {
       const empty = emptyTabs(node);

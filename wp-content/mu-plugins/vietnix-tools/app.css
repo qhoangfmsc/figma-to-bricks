@@ -1,0 +1,35 @@
+.wrap.vietnix-tools { box-sizing: border-box; }
+.vietnix-tools .vietnix-lead { max-width: 46rem; color: #1d2327; }
+.vietnix-steps { display: flex; gap: 8px; margin: 12px 0 16px; padding: 0; list-style: none; }
+.vietnix-steps li { padding: 6px 12px; border-radius: 999px; background: #f0f0f1; color: #50575e; }
+.vietnix-steps li.is-current { background: #1d2327; color: #fff; }
+.vietnix-steps li.is-done { background: #e7f5e9; color: #146c2e; }
+.vietnix-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.vietnix-card, .vietnix-log { background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 16px; }
+.vietnix-card { box-sizing: border-box; }
+.vietnix-card h2, .vietnix-log h2 { margin: 0 0 8px; font-size: 14px; }
+.vietnix-card label { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; font-weight: 600; }
+.vietnix-req { color: #d63638; font-weight: 700; text-decoration: none; }
+.vietnix-card input, .vietnix-card textarea, .vietnix-card select { font-weight: 400; width: 100%; }
+.vietnix-card textarea { min-height: 72px; }
+.vietnix-note, .vietnix-wait, .vietnix-msg { color: #50575e; }
+.vietnix-time { margin: 8px 0; font-weight: 600; color: #1d2327; }
+.vietnix-error { margin-top: 8px; padding: 8px 10px; background: #fcf0f1; border-left: 4px solid #d63638; color: #1d2327; }
+.vietnix-error p { margin: 0 0 6px; }
+.vietnix-error pre { margin: 0; white-space: pre-wrap; font-size: 12px; }
+.vietnix-msg { min-height: 1.2em; }
+.vietnix-template { margin: 0 0 12px; }
+.vietnix-template span { display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #50575e; }
+.vietnix-template strong { display: block; margin-top: 2px; font-size: 15px; }
+.vietnix-part { margin: 0 0 10px; padding: 10px; border: 1px solid #dcdcde; border-radius: 4px; background: #f6f7f7; }
+.vietnix-part header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.vietnix-part header strong { flex: 1; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.vietnix-part header a { font-size: 12px; font-weight: 400; }
+.vietnix-part label { display: flex; flex-direction: column; gap: 8px; margin: 0 0 8px; }
+.vietnix-part label:last-child { margin-bottom: 0; }
+.vietnix-summary { margin: 0 0 12px; color: #50575e; }
+.vietnix-log { margin-top: 16px; }
+.vietnix-log pre { max-height: 220px; overflow: auto; margin: 0; white-space: pre-wrap; }
+@media (max-width: 1200px) {
+  .vietnix-board { grid-template-columns: 1fr; }
+}

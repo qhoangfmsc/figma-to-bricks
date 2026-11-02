@@ -1,0 +1,20 @@
+---
+description: Hard rules for this repo. Bricks templates come only from the process/ pipeline (Bricks 1.9.8). The reference project is a different Bricks version and is not authority.
+alwaysApply: true
+---
+
+# Authority
+
+Follow root `CLAUDE.md` and `process/README.md`. Bricks on this site is **1.9.8**.
+
+`reference/Brick-Build-Page` is Bricks **2.3.6** (PLAN/DO/DONE, hand-written JSON, `bricks-mcp`, `get_design_context`). Do not use those skills, rules, or scripts for a build, a template, or an edit under `process/` or `wp-content/` in this repo.
+
+A page follows `.claude/commands/generate-page-from-figma.md` and `node process/auto.mjs`. One template follows `.claude/commands/generate-template-from-figma.md` and `node process/template.mjs` (the Vietnix Tools screen uses the same runner). Read the matching command before building.
+
+# Never
+
+- No git writes: commit, add, push, branch, tag, stash, reset, checkout, PR. Read-only git is fine. Say when a change is ready and stop.
+- Do not hand-write or patch `bricks.json`. A wrong look is fixed in `process/bricks/render/`, `process/decide/`, `policy.json`, or `overrides.json`, with a test.
+- Do not invent pixels, URLs, alt text, tooltip copy, or FAQ answers. Report the Figma value and what Bricks does. Do not loosen a check to make it pass.
+- Do not open a browser or GUI on this machine. Verify with Playwright in Docker (`process/shared/qa.mjs`).
+- Do not print `.env`.

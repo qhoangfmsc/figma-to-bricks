@@ -44,6 +44,11 @@ export default {
     if (!node.interactions?.some((i) => i.trigger === 'ON_HOVER')) addHoverFade(s); // owner default; a drawn hover was already handled with the frame's style
     if (det.params?.tag) s.tag = det.params.tag;
     s.link = linkSetting(det.params?.link);
+    // Theme Styles paint `.bricks-button` that has no `bricks-background-*` class. A button Figma drew with no fill must stay clear.
+    if (!(node.fills ?? []).some((f) => f.visible !== false && f.type && f.type !== 'IMAGE')) {
+      s._background = { color: { raw: 'transparent' } };
+      addCustomCss(s, 'background-color: transparent;');
+    }
     const icon = iconOf(node);
     // gap: the Bricks attribute `iconGap` exists only with an icon (control `required: icon`). Without an icon Bricks has no gap control for the button and the theme
     // writes `gap: 10px` on .bricks-button, so the Figma value (e.g. 0) can only be written as css

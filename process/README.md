@@ -52,8 +52,8 @@ Adding or changing a rule (rotation, blur, a new fill type…): read [AI-GUIDE.m
 
 ## Run
 
-In Claude Code, the easy way: `/generate-bricks-from-figma <figma-url> [extra requirements]`
-([.claude/commands/generate-bricks-from-figma.md](../.claude/commands/generate-bricks-from-figma.md)). It runs the steps below, writes
+In Claude Code, a **page** is `/generate-page-from-figma <figma-url> [extra requirements]`
+([.claude/commands/generate-page-from-figma.md](../.claude/commands/generate-page-from-figma.md)). One **template** is `/generate-template-from-figma` or the Vietnix Tools screen (`node process/template.mjs`, no page). The page command runs the steps below, writes
 `overrides.json` for what the rules cannot decide, re-runs, and reports from `summary.md` (step 6: ✅ done, ✗ wrong, ❓ missing,
 ⚠ not supported, ⏭ skipped, ◌ not measured). By hand:
 
@@ -111,7 +111,7 @@ alt left empty and listed for the designer), `figma/discover.mjs` (the same sect
 `autopilot`, build / push / verify. Output per section: `scorecard.md` (frames, look vs Figma, image weight, other browsers, known limits),
 `decisions.md` (every decision taken by a rule, why, confidence), the designer list. `--first-section` makes the section title the page's `h1`.
 To change a decision: edit `detections.json` / `overrides.json` (or `policy.json` for a project-wide default) and re-run `run.mjs ... --from=build`.
-`/generate-bricks-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow.
+`/generate-page-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow. `/generate-template-from-figma` stops at one template.
 The fix loop after a run is part of the workflow: `scripts/triage.mjs <workspace>` (worst picture regions -> Figma nodes -> likely cause), a rule fix with a test,
 then `scripts/regress.mjs <fileKey>` (rebuilds every section and compares with `baseline.json`; `--save` after a good round).
 A rule change in `decide/` or `auto.mjs` only reaches the sections by re-running `auto.mjs` (it regenerates every autopilot detection and override), then `regress.mjs <fileKey> --no-rebuild` compares; `regress.mjs` alone only rebuilds from the saved decisions.

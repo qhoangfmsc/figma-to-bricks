@@ -1,5 +1,6 @@
 # secrets and machine files
 .env
+wp-content/mu-plugins/vietnix-tools/.token
 .DS_Store
 
 # WordPress runtime

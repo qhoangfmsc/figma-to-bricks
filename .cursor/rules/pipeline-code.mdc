@@ -1,0 +1,23 @@
+---
+description: How to change the Figma to Bricks pipeline so a render rule stays exact
+globs: process/**/*.mjs
+alwaysApply: false
+---
+
+# Pipeline code
+
+Read `process/AI-GUIDE.md` before editing these files.
+
+- Fix the module that maps the Figma property. Do not patch generated `bricks.json`.
+- A new or changed rule gets a test in `process/test/` that uses the real Figma number. Then `npm test --prefix process`.
+- A constant comes from `tree.md` or `raw.json`. Put the measurement next to it in a comment. No guessed default.
+- A Figma property that is not in `process/schema/handling.json` is classified there first (`read`, `ignored`, `limit`, or `gap`).
+- After a render or decide change, run `node process/scripts/rebuild-diff.mjs <fileKey>` before any push. A section you did not mean to change means the rule is wrong.
+- Check the other side of a symmetric fix (top/bottom, x/y, desktop/breakpoint) and grep every writer of that setting (`render/`, `responsive/merge.mjs`, verify).
+
+```javascript
+// BAD: edit the generated template
+// bricks.json settings._typography["font-size"] = "16px"
+
+// GOOD: map the Figma font size in process/bricks/render/, test that number, rebuild-diff
+```

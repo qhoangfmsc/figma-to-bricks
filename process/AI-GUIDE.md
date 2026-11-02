@@ -170,7 +170,7 @@ never sign off or approve on your own: the owner says OK in the conversation, yo
 **Revise loop.** After a build the owner's remarks are triaged: Figma lacks the data (ask, store as param) · a detection decision (edit `detections.json`, new
 sign-off for the delta) · a rule bug (fix `bricks/`, add a test) · a semantic choice (`overrides.json`). Each remark is logged with `review.mjs log` (`revisions.md`).
 
-**AI pass** (you, after `detect` ran; details in `.claude/commands/generate-bricks-from-figma.md`):
+**AI pass** (you, after `detect` ran; details in `.claude/commands/generate-page-from-figma.md`):
 1. Read `facts.md`, then fill `sections[]` names + one-line summaries from `tree.md`.
 2. Add candidates the rules cannot see (carousel, form, link…) as `proposed`, `source: ai`, with `evidence` quoted from the tree, an honest `level` / `confidence`, and **`cite`** (mandatory).
 3. Never set `approved`, never invent `params` (tooltip text is usually not in Figma: leave it null and say so).

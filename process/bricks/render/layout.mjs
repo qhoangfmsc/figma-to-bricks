@@ -49,6 +49,24 @@ export function applyLayout({ node, s, css, warn }, kind) {
   }
   // a gradient ring that Figma counts in the layout (INSIDE + "include stroke in layout") pushes the content in by its width, like a border would
   if (node.stroke && isGradientRing(node) && node.stroke.inLayout && node.stroke.align === 'INSIDE') { const w = node.stroke.weight; p = { top: p.top + w, right: p.right + w, bottom: p.bottom + w, left: p.left + w }; }
+  // A centered child larger than the content box is drawn across the padding (an 18×20 plus in a 24px icon frame with 10px
+  // padding sits at x 3, y 2). Writing the padding leaves a 4px content box, and a clip (the builder) shows a dot.
+  // Centering the child in the full frame lands on the same point, so that padding is not an inset.
+  const flowKids = (node.children ?? []).filter((c) => c.visible !== false && c.place !== 'ABSOLUTE');
+  if (flowKids.length === 1 && l.mode !== 'GRID') {
+    p = { ...p };
+    const child = flowKids[0];
+    const horiz = l.mode === 'HORIZONTAL';
+    const drop = (along, align) => {
+      if (align !== 'CENTER') return;
+      const room = along ? node.box.w - p.left - p.right : node.box.h - p.top - p.bottom;
+      const size = along ? child.box.w : child.box.h;
+      if (size <= room + 0.01) return;
+      if (along) { p.left = 0; p.right = 0; } else { p.top = 0; p.bottom = 0; }
+    };
+    drop(horiz, l.primaryAlign);
+    drop(!horiz, l.counterAlign);
+  }
   if (kind === 'section' || p.top || p.right || p.bottom || p.left) {
     s._padding = { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left) };
     Object.assign(css, { 'padding-top': px(p.top), 'padding-right': px(p.right), 'padding-bottom': px(p.bottom), 'padding-left': px(p.left) });

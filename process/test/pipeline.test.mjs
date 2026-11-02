@@ -556,6 +556,19 @@ test('fixed child wider than the parent content box overflows like in Figma (max
   assert.equal(fits.find((e) => e.label === 'fits').settings._widthMax, '100%');
 });
 
+test('a centered glyph larger than the padded content box drops that padding (24px icon, 10px padding, 18px plus stays a plus)', () => {
+  const els = buildMini({ children: [kid('icon', {
+    layoutMode: 'HORIZONTAL', primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER',
+    paddingTop: 10, paddingRight: 10, paddingBottom: 10, paddingLeft: 10,
+    absoluteBoundingBox: { x: 0, y: 0, width: 24, height: 24 },
+    children: [kid('plus', { layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FIXED', absoluteBoundingBox: { x: 3, y: 2, width: 18, height: 20 } })],
+  })] });
+  const frame = els.find((e) => e.label === 'icon');
+  assert.equal(frame.settings._padding, undefined);
+  assert.equal(frame.settings._justifyContent, 'center');
+  assert.equal(els.find((e) => e.label === 'plus').settings._width, '18px');
+});
+
 // ---- usable-output components: semantic tags, icon on button, icon list, breadcrumbs, counter, alt policy, '#' links
 const miniSvg = (nodeRaw, svgs = {}) => normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'VERTICAL', ...nodeRaw } } } }, 'r', { images: {}, svgs: Object.fromEntries(Object.entries(svgs).map(([id, file]) => [id, { file, bytes: 1 }])) });
 const detOf = (...components) => ({ ...emptyDetections(), components: components.map((c, i) => ({ id: `d${i + 1}`, status: 'approved', params: {}, ...c })) });
@@ -1637,6 +1650,7 @@ test('plan: decide records a question for every button, menu label and content i
 
 // ---- usable widgets (2026-10-29): accordion / tabs / menu detection, their content from the Plan, decide's structural approval
 import { detectAccordions } from '../detect/rules/accordion.mjs';
+import { readSync, syncNotes } from '../bricks/components/accordion.mjs';
 import { detectTabs } from '../detect/rules/tabs.mjs';
 import { detectMenus } from '../detect/rules/menu.mjs';
 import { detectCarousels } from '../detect/rules/carousel.mjs';
@@ -1808,6 +1822,84 @@ test('accordion: the root gets its direction and gap as css (no control on this 
   assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open > \.accordion-content-wrapper \{ display: flex; \}/);
   // the theme's own padding of the rows is reset unless Figma has one
   assert.deepEqual(byFigma(b, 'ti1').settings._padding, { top: '0px', right: '0px', bottom: '0px', left: '0px' });
+});
+
+test('accordion: a closed item drops the gap Figma stores while the answer is hidden, and .brx-open uses the drawn open title', () => {
+  const fill = (r, g, b) => [{ type: 'SOLID', color: { r: r / 255, g: g / 255, b: b / 255, a: 1 } }];
+  const style = (size, weight) => ({ fontFamily: 'Inter', fontSize: size, fontWeight: weight, lineHeightPx: 30, textAlignHorizontal: 'LEFT' });
+  const item = (i, open, gap) => kid(`it${i}`, {
+    name: 'Item', layoutMode: 'VERTICAL', itemSpacing: gap, primaryAxisAlignItems: 'CENTER',
+    children: [
+      kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`, { style: style(open ? 20 : 18, open ? 700 : 500), fills: fill(open ? 0 : 66, open ? 124 : 66, open ? 252 : 66) })] }),
+      ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', itemSpacing: 0, paddingTop: 16, children: [txt(`an${i}`, 'Answer')] })] : []),
+    ],
+  });
+  const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 124), item(2, true, 0)] })] });
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it1: 'Trả lời' } } } }] };
+  const b = buildWith(tree, det);
+  const closed = byFigma(b, 'it1');
+  assert.equal(closed.settings._rowGap, '0px'); // the expand gap, on every item: Bricks shows the answer before it adds .brx-open
+  assert.equal(b.mapping.it1.expect.css['row-gap'], '0px');
+  assert.doesNotMatch(closed.settings._cssCustom, /\.brx-open \{ row-gap:/);
+  assert.equal(closed.settings._cssClasses, undefined);
+  assert.match(closed.settings._cssCustom, /#brxe-[a-z0-9]+ \.accordion-title-wrapper :is\(\.brxe-text-basic, \.brxe-heading\) \{[^}]*color: #424242;/);
+  assert.match(closed.settings._cssCustom, /\.brx-open \.accordion-title-wrapper :is\(\.brxe-text-basic, \.brxe-heading\) \{[^}]*color: #007cfc;/);
+  assert.match(closed.settings._cssCustom, /font-size: 20px;/);
+  assert.match(closed.settings._cssCustom, /font-weight: 700;/);
+  const opened = byFigma(b, 'it2');
+  assert.equal(opened.settings._cssClasses, 'brx-open');
+  assert.equal(opened.settings._rowGap, '0px');
+  const content = b.template.content.find((e) => e.parent === closed.id && e.label === 'Content');
+  assert.equal(content.settings._hidden._cssClasses, 'accordion-content-wrapper');
+  assert.equal(content.settings._display, undefined);
+});
+
+test('accordion: an icon a strict majority shares is used on every item, a tie leaves each icon as drawn', () => {
+  const icon = (id, glyph) => txt(id, glyph, {});
+  const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 124, children: [
+    kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
+    ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
+  ] });
+  const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus'), item(4, false, 'plus')] })] });
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
+  walk(tree);
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const file = (id) => byFigma(b, id).settings.file.$asset;
+  assert.equal(file('ic2'), 'svg/plus.svg');
+  assert.equal(file('ic1'), 'svg/plus.svg');
+  const tied = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus')] })] });
+  walk(tied);
+  const b2 = buildWith(tied, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  assert.equal(byFigma(b2, 'ic2').settings.file.$asset, 'svg/minus.svg');
+});
+
+test('accordion sync: a blank answer shares every item, "không sửa" keeps them as drawn, a sentence can turn one part off', () => {
+  assert.equal(readSync('').icon, true);
+  assert.deepEqual([readSync('đồng bộ').icon, readSync('đồng bộ').title, readSync('đồng bộ').gap], [true, true, true]);
+  assert.deepEqual([readSync('làm các mục giống nhau').icon, readSync('làm các mục giống nhau').title, readSync('làm các mục giống nhau').gap], [true, true, true]);
+  assert.equal(readSync('không sửa gì cả').gap, false);
+  assert.equal(readSync('đừng đổi icon').icon, false);
+  assert.equal(readSync('đừng đổi icon').title, true);
+  assert.deepEqual([readSync('chỉ đồng bộ chữ').title, readSync('chỉ đồng bộ chữ').icon, readSync('chỉ đồng bộ chữ').gap], [true, false, false]);
+  assert.equal(validateAnswers({ 'sync:acc': 'làm gì đó lạ' }).length, 1);
+  assert.deepEqual(validateAnswers({ 'sync:acc': 'giữ nguyên' }), []);
+  assert.deepEqual(validateAnswers({ 'sync:acc': 'làm các mục giống nhau', 'autoplay:sl': 'không tự chuyển', 'link:b': 'chưa có địa chỉ', 'loop:sl': 'dừng ở slide cuối', 'confirm:g': 'giữ nguyên khối' }), []);
+  const icon = (id, glyph) => txt(id, glyph, {});
+  const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 124, children: [
+    kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
+    ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
+  ] });
+  const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus')] })] });
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: 17 }; for (const c of n.children ?? []) walk(c); };
+  walk(tree);
+  assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon')));
+  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'không sửa' } }] });
+  assert.equal(byFigma(kept, 'it1').settings._rowGap, '124px');
+  assert.equal(byFigma(kept, 'ic2').settings.file.$asset, 'svg/minus.svg');
+  const files = { 'detections.json': { components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] }, 'overrides.json': { nodes: {} }, 'tree.json': tree };
+  const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
+  applyPlanAnswers(ws, { 'sync:acc': 'đừng đổi icon' });
+  assert.equal(files['detections.json'].components[0].params.sync, 'đừng đổi icon');
 });
 
 test('accordion: a typed answer follows the same rule: the new content block has no display of its own and the item opens it with the drawn block\'s display', () => {

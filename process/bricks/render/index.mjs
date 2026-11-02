@@ -89,7 +89,8 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
   // ---------- recursion ----------
   function mapNode(node, parent, parentBricksId, { isRoot = false, isSlide = false } = {}) {
-    const ov = nodeOv[node.id] ?? {};
+    let ov = nodeOv[node.id] ?? {};
+    if (node.openOnly) ov = { ...ov, verify: false }; // the pasted full frame is hidden while closed, so the collapsed Figma shot must not be scored against it
     if (node.visible === false) { mapping[node.id] = { skipped: 'hidden in Figma' }; return; }
     if (ov.skip) { mapping[node.id] = { skipped: `override: ${ov.reason ?? 'skip'}` }; return; }
     if (mergedInto.has(node.id)) { const d = mergedInto.get(node.id); mapping[node.id] = { skipped: `merged into ${d.component} ${d.id}` }; return; }
@@ -175,9 +176,15 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
     const applied = comp?.apply?.(ctx, det) ?? null;
     if (patch?.settings) Object.assign(s, deepMerge(s, patch.settings));
+    if (patch?.expectCss) Object.assign(css, patch.expectCss); // the value the browser will actually compute, when a component replaces a Figma spacing that never sat between two drawn children
     for (const k of patch?.dropSettings ?? []) delete s[k]; // e.g. `_display` of an accordion content block: the theme's open / closed rule must decide it (see components/accordion.mjs)
     for (const [k, v] of Object.entries(patch?.defaults ?? {})) s[k] ??= v; // an ancestor's component gives defaults that never override what the build wrote
     for (const c of patch?.css ?? []) addCustomCss(s, c.decl, c.suffix ?? ''); // css an ancestor's component writes on this element (e.g. the shared tooltip look on the root)
+    if (node.openRoot) {
+      s._cssClasses = [s._cssClasses, 'read-more-full'].filter(Boolean).join(' ');
+      s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
+      addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
+    }
     emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
