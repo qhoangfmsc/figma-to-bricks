@@ -43,10 +43,6 @@ class Element_WordPress extends Element {
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Icon', 'bricks' ),
 			'type'     => 'icon',
-			'default'  => [
-				'icon'    => 'ion-ios-arrow-forward',
-				'library' => 'ionicons',
-			],
 			'required' => [ 'type', '=', [ 'archives', 'categories', 'pages', 'comments', 'posts', 'taxonomy' ] ],
 		];
 
@@ -257,26 +253,24 @@ class Element_WordPress extends Element {
 
 		$this->controls['titletag'] = [
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Title tag', 'bricks' ),
+			'label'       => esc_html__( 'HTML tag', 'bricks' ),
 			'type'        => 'select',
-			'options'     => [
-				'hero' => esc_html__( 'Hero', 'bricks' ),
-				'lead' => esc_html__( 'Lead', 'bricks' ),
-				'p'    => 'p',
-				'h1'   => 'h1',
-				'h2'   => 'h2',
-				'h3'   => 'h3',
-				'h4'   => 'h4',
-				'h5'   => 'h5',
-				'h6'   => 'h6',
-			],
 			'inline'      => true,
-			'placeholder' => esc_html__( 'Heading 3', 'bricks' ),
+			'options'     => [
+				'p'  => 'p',
+				'h1' => 'h1',
+				'h2' => 'h2',
+				'h3' => 'h3',
+				'h4' => 'h4',
+				'h5' => 'h5',
+				'h6' => 'h6',
+			],
+			'placeholder' => 'h3',
 		];
 
 		$this->controls['titleBorder'] = [
 			'tab'   => 'content',
-			'label' => esc_html__( 'Title border', 'bricks' ),
+			'label' => esc_html__( 'Border', 'bricks' ),
 			'type'  => 'border',
 			'css'   => [
 				[
@@ -288,7 +282,7 @@ class Element_WordPress extends Element {
 
 		$this->controls['titleTypography'] = [
 			'tab'   => 'content',
-			'label' => esc_html__( 'Title typography', 'bricks' ),
+			'label' => esc_html__( 'Typography', 'bricks' ),
 			'type'  => 'typography',
 			'css'   => [
 				[
@@ -299,10 +293,11 @@ class Element_WordPress extends Element {
 		];
 
 		$this->controls['contentTypography'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Content typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'deprecated' => '1.10.2', // Available under Typography
+			'tab'        => 'content',
+			'label'      => esc_html__( 'Content typography', 'bricks' ),
+			'type'       => 'typography',
+			'css'        => [
 				[
 					'property' => 'font',
 					'selector' => 'ul',
@@ -325,7 +320,7 @@ class Element_WordPress extends Element {
 		echo '<div class="bricks-widget-wrapper">';
 
 		if ( ! empty( $settings['title'] ) ) {
-			$title_tag = isset( $settings['titletag'] ) ? $settings['titletag'] : 'h3';
+			$title_tag = ! empty( $settings['titletag'] ) ? Helpers::sanitize_html_tag( $settings['titletag'], 'h3' ) : 'h3';
 
 			$title_classes = [ 'bricks-widget-title' ];
 

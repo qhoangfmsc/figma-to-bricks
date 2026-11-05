@@ -1,11 +1,11 @@
 ---
-description: Hard rules for this repo. Bricks templates come only from the process/ pipeline (Bricks 1.9.8). The reference project is a different Bricks version and is not authority.
+description: Hard rules for this repo. Bricks templates come only from the process/ pipeline (Bricks 1.12.3). The reference project is a different Bricks version and is not authority.
 alwaysApply: true
 ---
 
 # Authority
 
-Follow root `CLAUDE.md` and `process/README.md`. Bricks on this site is **1.9.8**.
+Follow root `CLAUDE.md` and `process/README.md`. Bricks on this site is **1.12.3**.
 
 `reference/Brick-Build-Page` is Bricks **2.3.6** (PLAN/DO/DONE, hand-written JSON, `bricks-mcp`, `get_design_context`). Do not use those skills, rules, or scripts for a build, a template, or an edit under `process/` or `wp-content/` in this repo.
 

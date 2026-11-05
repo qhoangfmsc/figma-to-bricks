@@ -118,11 +118,7 @@ class Woocommerce_Checkout_Order_Review extends Element {
 			'css'         => [
 				[
 					'property' => 'padding',
-					'selector' => '.shop_table thead th',
-				],
-				[
-					'property' => 'padding',
-					'selector' => '.shop_table tbody td',
+					'selector' => '.shop_table thead th, .shop_table tbody td, .shop_table tfoot th, .shop_table tfoot td',
 				],
 			],
 			'placeholder' => [

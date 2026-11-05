@@ -348,8 +348,9 @@ class Converter {
 						],
 					];
 
-					if ( ! empty( $slide['titleTag'] ) ) {
-						$heading_element['settings']['tag'] = $slide['titleTag'];
+					$slide_tag = ! empty( $slide['titleTag'] ) ? Helpers::sanitize_html_tag( $slide['titleTag'], '' ) : '';
+					if ( $slide_tag ) {
+						$heading_element['settings']['tag'] = $slide_tag;
 					}
 
 					$child_element['children'][] = $heading_element['id'];

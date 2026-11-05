@@ -3,7 +3,7 @@ namespace Bricks;
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-class Element_Posts extends Element {
+class Element_Posts extends Custom_Render_Element {
 	public $category     = 'wordpress';
 	public $name         = 'posts';
 	public $icon         = 'ti-layout-media-overlay';
@@ -23,7 +23,6 @@ class Element_Posts extends Element {
 		// Load IsotopeJS
 		if ( isset( $this->settings['filter'] ) || $layout === 'masonry' ) {
 			wp_enqueue_script( 'bricks-isotope' );
-			wp_enqueue_script( 'bricks-imagesloaded' );
 			wp_enqueue_style( 'bricks-isotope' );
 		}
 	}
@@ -80,6 +79,13 @@ class Element_Posts extends Element {
 			'exclude' => [ 'objectType' ],
 		];
 
+		$this->controls['linkPost'] = [
+			'tab'    => 'content',
+			'label'  => esc_html__( 'Link entire post', 'bricks' ),
+			'type'   => 'checkbox',
+			'inline' => true,
+		];
+
 		// LAYOUT
 
 		$this->controls['layout'] = [
@@ -90,14 +96,13 @@ class Element_Posts extends Element {
 			'options'     => [
 				'list'    => esc_html__( 'List', 'bricks' ),
 				'grid'    => esc_html__( 'Grid', 'bricks' ),
-				'masonry' => esc_html__( 'Masonry', 'bricks' ),
-				'metro'   => esc_html__( 'Metro', 'bricks' ),
+				'masonry' => 'Masonry',
+				'metro'   => 'Metro',
 			],
 			'placeholder' => esc_html__( 'Grid', 'bricks' ),
 			'inline'      => true,
 		];
 
-		// @since 1.2.1 (replaces deprecated 'imagePosition' to set alignment for every breakpoint)
 		$this->controls['direction'] = [
 			'tab'      => 'content',
 			'group'    => 'layout',
@@ -105,8 +110,9 @@ class Element_Posts extends Element {
 			'type'     => 'direction',
 			'css'      => [
 				[
-					'property' => 'flex-direction',
-					'selector' => '.bricks-layout-wrapper[data-layout=list] .bricks-layout-inner',
+					'property'  => 'flex-direction',
+					'selector'  => '.bricks-layout-wrapper[data-layout=list] .bricks-layout-inner',
+					'important' => true, // @since 1.11.1: Added back the !important to override the "alternate" option
 				],
 			],
 			'inline'   => true,
@@ -133,7 +139,8 @@ class Element_Posts extends Element {
 		$this->controls['columnsMetro'] = [
 			'tab'         => 'content',
 			'group'       => 'layout',
-			'label'       => esc_html__( 'Columns', 'bricks' ) . ' (' . esc_html__( 'Metro', 'bricks' ) . ')',
+			'label'       => esc_html__( 'Columns', 'bricks' ),
+			'info'        => 'Metro',
 			'type'        => 'number',
 			'min'         => 1,
 			'css'         => [
@@ -216,10 +223,18 @@ class Element_Posts extends Element {
 			'required' => [ 'layout', '=', [ '', 'list', 'grid', 'masonry' ] ],
 		];
 
+		$this->controls['imageLinkAlt'] = [
+			'group'  => 'image',
+			'label'  => esc_html__( 'Image link alt text', 'bricks' ),
+			'type'   => 'text',
+			'inline' => true,
+		];
+
 		$this->controls['alternate'] = [
 			'tab'      => 'content',
 			'group'    => 'image',
 			'label'    => esc_html__( 'Alternate images', 'bricks' ),
+			'info'     => esc_html__( 'Sets direction to row', 'bricks' ),
 			'type'     => 'checkbox',
 			'required' => [ 'layout', '=', 'list' ],
 		];
@@ -235,472 +250,474 @@ class Element_Posts extends Element {
 			],
 			'inline'      => true,
 			'placeholder' => esc_html__( 'Left', 'bricks' ),
-			'required'    => [ 'layout', '=', 'list' ],
-		];
-
-		$this->controls['width'] = [
-			'tab'      => 'content',
-			'group'    => 'image',
-			'label'    => esc_html__( 'Image width', 'bricks' ),
-			'type'     => 'number',
-			'units'    => true,
-			'css'      => [
-				[
-					'property' => 'flex-basis',
-					'selector' => '.bricks-layout-wrapper[data-layout=list] img',
-				],
-				[
-					'property' => 'max-width',
-					'selector' => '.bricks-layout-wrapper[data-layout=grid] img',
-				],
-				[
-					'property' => 'max-width',
-					'selector' => '.bricks-layout-inner > a',
-				],
-				[
-					'property' => 'max-width',
-					'selector' => '.overlay-wrapper',
-				],
-			],
-			'rerender' => true, // NOTE: Undocumented (causes AJAX call, so don't use on control 'slider' etc.)
-			'required' => [ 'layout', '=', [ '', 'list', 'grid' ] ],
-		];
-
-		$this->controls['height'] = [
-			'tab'      => 'content',
-			'group'    => 'image',
-			'label'    => esc_html__( 'Image height', 'bricks' ),
-			'type'     => 'number',
-			'units'    => true,
-			'css'      => [
-				[
-					'property' => 'height',
-					'selector' => '.bricks-layout-wrapper[data-layout=list] img',
-				],
-				[
-					'property' => 'height',
-					'selector' => '.bricks-layout-wrapper[data-layout=grid] img',
-				],
-				[
-					'property' => 'height',
-					'selector' => '.overlay-wrapper',
-				],
-			],
-			'rerender' => true, // NOTE: Undocumented (causes AJAX call, so don't use on control 'slider' etc.)
-			'required' => [ 'layout', '=', [ '', 'list', 'grid' ] ],
-		];
-
-		$this->control_options['imageRatio']['custom'] = esc_html__( 'Custom', 'bricks' );
-
-		$this->controls['imageRatio'] = [
-			'tab'         => 'content',
-			'group'       => 'image',
-			'label'       => esc_html__( 'Image ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
-			'type'        => 'select',
-			'options'     => $this->control_options['imageRatio'],
-			'inline'      => true,
-			'placeholder' => esc_html__( 'None', 'bricks' ),
-			'required'    => [ 'layout', '=', [ '', 'grid' ] ],
-		];
-
-		/**
-		 * Custom aspect ratio (remove control from style tab)
-		 *
-		 * @since 1.9.7
-		 */
-		unset( $this->controls['_aspectRatio'] );
-		$this->controls['_aspectRatio'] = [
-			'tab'      => 'content',
-			'group'    => 'image',
-			'label'    => esc_html__( 'Aspect ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
-			'type'     => 'text',
-			'inline'   => true,
-			'dd'       => false,
-			'css'      => [
-				[
-					'selector' => '[data-layout="grid"] .image',
-					'property' => 'aspect-ratio',
-				],
-			],
-			'required' => [ 'imageRatio', '=', 'custom' ],
-		];
-
-		$this->controls['imageSize'] = [
-			'tab'      => 'content',
-			'group'    => 'image',
-			'label'    => esc_html__( 'Image size', 'bricks' ),
-			'type'     => 'select',
-			'options'  => $this->control_options['imageSizes'],
-			'required' => [ 'imageDisable', '=', '' ],
-		];
-
-		// FIELDS
-
-		$this->controls = array_replace_recursive( $this->controls, $this->get_post_fields() );
-
-		// CONTENT
-
-		$this->controls = array_replace_recursive( $this->controls, $this->get_post_content() );
-
-		// OVERLAY
-
-		$this->controls = array_replace_recursive( $this->controls, $this->get_post_overlay() );
-
-		// FILTER
-
-		$this->controls['filter'] = [
-			'tab'         => 'content',
-			'group'       => 'filter',
-			'type'        => 'select',
-			'label'       => esc_html__( 'Taxonomy', 'bricks' ),
-			'options'     => Setup::$control_options['taxonomies'],
-			'placeholder' => esc_html__( 'None', 'bricks' ),
-		];
-
-		$this->controls['filterTextAlign'] = [
-			'tab'         => 'content',
-			'group'       => 'filter',
-			'type'        => 'text-align',
-			'label'       => esc_html__( 'Text align', 'bricks' ),
-			'css'         => [
-				[
-					'property' => 'text-align',
-					'selector' => '.bricks-isotope-filters',
-				],
-			],
-			'inline'      => true,
-			'placeholder' => esc_html__( 'Center', 'bricks' ),
-			'required'    => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterBackground'] = [
-			'tab'      => 'content',
-			'group'    => 'filter',
-			'type'     => 'color',
-			'label'    => esc_html__( 'Background', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'background-color',
-					'selector' => '.bricks-isotope-filters li',
-				],
-			],
-			'required' => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterBackgroundActive'] = [
-			'tab'      => 'content',
-			'group'    => 'filter',
-			'type'     => 'color',
-			'label'    => esc_html__( 'Background active', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'background',
-					'selector' => '.bricks-isotope-filters .active',
-				],
-			],
-			'required' => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterBorder'] = [
-			'tab'      => 'content',
-			'group'    => 'filter',
-			'type'     => 'border',
-			'label'    => esc_html__( 'Border', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'border',
-					'selector' => '.bricks-isotope-filters li',
-				],
-			],
-			'required' => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterTypography'] = [
-			'tab'      => 'content',
-			'group'    => 'filter',
-			'type'     => 'typography',
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-isotope-filters li',
-				],
-			],
-			'required' => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterTypographyActive'] = [
-			'tab'      => 'content',
-			'group'    => 'filter',
-			'type'     => 'typography',
-			'label'    => esc_html__( 'Typography active', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-isotope-filters .active',
-				],
-			],
-			'required' => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterMargin'] = [
-			'tab'         => 'content',
-			'group'       => 'filter',
-			'type'        => 'spacing',
-			'label'       => esc_html__( 'Margin', 'bricks' ),
-			'css'         => [
-				[
-					'property' => 'margin',
-					'selector' => '.bricks-isotope-filters li',
-				],
-			],
-			'placeholder' => [
-				'top'    => 0,
-				'right'  => 0,
-				'bottom' => 30,
-				'left'   => 0,
-			],
-			'required'    => [ 'filter', '!=', '' ],
-		];
-
-		$this->controls['filterPadding'] = [
-			'tab'         => 'content',
-			'group'       => 'filter',
-			'type'        => 'spacing',
-			'label'       => esc_html__( 'Padding', 'bricks' ),
-			'css'         => [
-				[
-					'property' => 'padding',
-					'selector' => '.bricks-isotope-filters li',
-				],
-			],
-			'placeholder' => [
-				'top'    => 0,
-				'right'  => 20,
-				'bottom' => 0,
-				'left'   => 20,
-			],
-			'required'    => [ 'filter', '!=', '' ],
-		];
-
-		// NAVIGATION
-
-		$this->controls['postsNavigation'] = [
-			'tab'   => 'content',
-			'group' => 'pagination',
-			'type'  => 'checkbox',
-			'label' => esc_html__( 'Show', 'bricks' ),
-		];
-
-		$this->controls['postsNavigationMargin'] = [
-			'deprecated'  => true, // @since 1.5
-			'tab'         => 'content',
-			'group'       => 'pagination',
-			'type'        => 'spacing',
-			'label'       => esc_html__( 'Spacing', 'bricks' ),
-			'css'         => [
-				[
-					'property' => 'margin',
-					'selector' => '.bricks-pagination ul li',
-				],
-			],
-			'placeholder' => [
-				'top'    => 0,
-				'right'  => 10,
-				'bottom' => 0,
-				'left'   => 10,
-			],
-			'required'    => [ 'postsNavigation', '!=', '' ],
-		];
-
-		$this->controls['postsNavigationTextAlign'] = [
-			'deprecated'  => true, // @since 1.5
-			'tab'         => 'content',
-			'group'       => 'pagination',
-			'type'        => 'text-align',
-			'label'       => esc_html__( 'Text align', 'bricks' ),
-			'css'         => [
-				[
-					'property' => 'text-align',
-					'selector' => '.bricks-pagination',
-				],
-				[
-					'property' => 'display',
-					'selector' => '.bricks-pagination',
-					'value'    => 'block',
-				],
-			],
-			'inline'      => true,
-			'placeholder' => esc_html__( 'Center', 'bricks' ),
-			'exclude'     => [
-				'justify',
-			],
-			'required'    => [ 'postsNavigation', '!=', '' ],
-		];
-
-		$this->controls['postsNavigationJustifyContent'] = [
-			'tab'     => 'content',
-			'group'   => 'pagination',
-			'label'   => esc_html__( 'Alignment', 'bricks' ),
-			'type'    => 'justify-content',
-			'exclude' => 'space',
-			'inline'  => true,
-			'css'     => [
-				[
-					'selector' => '.bricks-pagination ul',
-					'property' => 'justify-content',
-				],
+			'required'    => [
+				[ 'layout', '=', 'list' ],
+				[ 'alternate', '=', false ],
 			],
 		];
 
-		$this->controls['postsNavigationHeight'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'number',
-			'units'    => true,
-			'label'    => esc_html__( 'Height', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'height',
-					'selector' => '.bricks-pagination ul .page-numbers',
+			$this->controls['width'] = [
+				'tab'      => 'content',
+				'group'    => 'image',
+				'label'    => esc_html__( 'Image width', 'bricks' ),
+				'type'     => 'number',
+				'units'    => true,
+				'css'      => [
+					[
+						'property' => 'max-width',
+						'selector' => '.bricks-layout-wrapper[data-layout=list] .image-wrapper',
+					],
+					[
+						'property' => 'max-width',
+						'selector' => '.bricks-layout-wrapper[data-layout=grid] .image-wrapper',
+					],
+					[
+						'property' => 'max-width',
+						'selector' => '.bricks-layout-inner > a',
+					],
+					[
+						'property' => 'max-width',
+						'selector' => '.overlay-wrapper',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'rerender' => true, // NOTE: Undocumented (causes AJAX call, so don't use on control 'slider' etc.)
+				'required' => [ 'layout', '=', [ '', 'list', 'grid' ] ],
+			];
 
-		$this->controls['postsNavigationWidth'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'number',
-			'units'    => true,
-			'label'    => esc_html__( 'Width', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'width',
-					'selector' => '.bricks-pagination ul .page-numbers',
+			$this->controls['height'] = [
+				'tab'      => 'content',
+				'group'    => 'image',
+				'label'    => esc_html__( 'Image height', 'bricks' ),
+				'type'     => 'number',
+				'units'    => true,
+				'css'      => [
+					[
+						'property' => 'height',
+						'selector' => '.bricks-layout-wrapper[data-layout=list] img',
+					],
+					[
+						'property' => 'height',
+						'selector' => '.bricks-layout-wrapper[data-layout=grid] img',
+					],
+					[
+						'property' => 'height',
+						'selector' => '.overlay-wrapper',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'rerender' => true, // NOTE: Undocumented (causes AJAX call, so don't use on control 'slider' etc.)
+				'required' => [ 'layout', '=', [ '', 'list', 'grid' ] ],
+			];
 
-		$this->controls['postsNavigationGap'] = [
-			'tab'         => 'content',
-			'group'       => 'pagination',
-			'label'       => esc_html__( 'Spacing', 'bricks' ),
-			'type'        => 'number',
-			'units'       => true,
-			'css'         => [
-				[
-					'selector' => '.bricks-pagination ul',
-					'property' => 'gap',
+			$this->control_options['imageRatio']['custom'] = esc_html__( 'Custom', 'bricks' );
+
+			$this->controls['imageRatio'] = [
+				'tab'         => 'content',
+				'group'       => 'image',
+				'label'       => esc_html__( 'Image ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
+				'type'        => 'select',
+				'options'     => $this->control_options['imageRatio'],
+				'inline'      => true,
+				'placeholder' => esc_html__( 'None', 'bricks' ),
+				'required'    => [ 'layout', '=', [ '', 'grid' ] ],
+			];
+
+			/**
+			 * Custom aspect ratio (remove control from style tab)
+			 *
+			 * @since 1.9.7
+			 */
+			unset( $this->controls['_aspectRatio'] );
+			$this->controls['_aspectRatio'] = [
+				'tab'      => 'content',
+				'group'    => 'image',
+				'label'    => esc_html__( 'Aspect ratio', 'bricks' ) . ' (' . esc_html__( 'Grid', 'bricks' ) . ')',
+				'type'     => 'text',
+				'inline'   => true,
+				'dd'       => false,
+				'css'      => [
+					[
+						'selector' => '[data-layout="grid"] .image',
+						'property' => 'aspect-ratio',
+					],
 				],
-			],
-			'placeholder' => 20,
-			'required'    => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'imageRatio', '=', 'custom' ],
+			];
 
-		$this->controls['postsNavigationBackground'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'color',
-			'label'    => esc_html__( 'Background', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'background',
-					'selector' => '.bricks-pagination ul .page-numbers',
+			$this->controls['imageSize'] = [
+				'tab'      => 'content',
+				'group'    => 'image',
+				'label'    => esc_html__( 'Image size', 'bricks' ),
+				'type'     => 'select',
+				'options'  => $this->control_options['imageSizes'],
+				'required' => [ 'imageDisable', '=', '' ],
+			];
+
+			// FIELDS
+
+			$this->controls = array_replace_recursive( $this->controls, $this->get_post_fields() );
+
+			// CONTENT
+
+			$this->controls = array_replace_recursive( $this->controls, $this->get_post_content() );
+
+			// OVERLAY
+
+			$this->controls = array_replace_recursive( $this->controls, $this->get_post_overlay() );
+
+			// FILTER
+
+			$this->controls['filter'] = [
+				'tab'         => 'content',
+				'group'       => 'filter',
+				'type'        => 'select',
+				'label'       => esc_html__( 'Taxonomy', 'bricks' ),
+				'options'     => Setup::$control_options['taxonomies'],
+				'placeholder' => esc_html__( 'None', 'bricks' ),
+			];
+
+			$this->controls['filterTextAlign'] = [
+				'tab'         => 'content',
+				'group'       => 'filter',
+				'type'        => 'text-align',
+				'label'       => esc_html__( 'Text align', 'bricks' ),
+				'css'         => [
+					[
+						'property' => 'text-align',
+						'selector' => '.bricks-isotope-filters',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'inline'      => true,
+				'placeholder' => esc_html__( 'Center', 'bricks' ),
+				'required'    => [ 'filter', '!=', '' ],
+			];
 
-		$this->controls['postsNavigationBorder'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'border',
-			'label'    => esc_html__( 'Border', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'border',
-					'selector' => '.bricks-pagination ul .page-numbers',
+			$this->controls['filterBackground'] = [
+				'tab'      => 'content',
+				'group'    => 'filter',
+				'type'     => 'color',
+				'label'    => esc_html__( 'Background', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'background-color',
+						'selector' => '.bricks-isotope-filters li',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'filter', '!=', '' ],
+			];
 
-		$this->controls['postsNavigationTypography'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'typography',
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-pagination .page-numbers',
+			$this->controls['filterBackgroundActive'] = [
+				'tab'      => 'content',
+				'group'    => 'filter',
+				'type'     => 'color',
+				'label'    => esc_html__( 'Background active', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'background',
+						'selector' => '.bricks-isotope-filters .active',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'filter', '!=', '' ],
+			];
 
-		// CURRENT PAGE
-
-		$this->controls['postsNavigationActiveSeparator'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'separator',
-			'label'    => esc_html__( 'Current', 'bricks' ),
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
-
-		$this->controls['postsNavigationBackgroundActive'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'color',
-			'label'    => esc_html__( 'Background', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'background',
-					'selector' => '.bricks-pagination ul .page-numbers.current',
+			$this->controls['filterBorder'] = [
+				'tab'      => 'content',
+				'group'    => 'filter',
+				'type'     => 'border',
+				'label'    => esc_html__( 'Border', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'border',
+						'selector' => '.bricks-isotope-filters li',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'filter', '!=', '' ],
+			];
 
-		$this->controls['postsNavigationBorderActive'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'border',
-			'label'    => esc_html__( 'Border', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'border',
-					'selector' => '.bricks-pagination ul .page-numbers.current',
+			$this->controls['filterTypography'] = [
+				'tab'      => 'content',
+				'group'    => 'filter',
+				'type'     => 'typography',
+				'label'    => esc_html__( 'Typography', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'font',
+						'selector' => '.bricks-isotope-filters li',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'filter', '!=', '' ],
+			];
 
-		$this->controls['postsNavigationTypographyActive'] = [
-			'tab'      => 'content',
-			'group'    => 'pagination',
-			'type'     => 'typography',
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-pagination ul .page-numbers.current',
+			$this->controls['filterTypographyActive'] = [
+				'tab'      => 'content',
+				'group'    => 'filter',
+				'type'     => 'typography',
+				'label'    => esc_html__( 'Typography active', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'font',
+						'selector' => '.bricks-isotope-filters .active',
+					],
 				],
-			],
-			'required' => [ 'postsNavigation', '!=', '' ],
-		];
+				'required' => [ 'filter', '!=', '' ],
+			];
+
+			$this->controls['filterMargin'] = [
+				'tab'         => 'content',
+				'group'       => 'filter',
+				'type'        => 'spacing',
+				'label'       => esc_html__( 'Margin', 'bricks' ),
+				'css'         => [
+					[
+						'property' => 'margin',
+						'selector' => '.bricks-isotope-filters li',
+					],
+				],
+				'placeholder' => [
+					'top'    => 0,
+					'right'  => 0,
+					'bottom' => 30,
+					'left'   => 0,
+				],
+				'required'    => [ 'filter', '!=', '' ],
+			];
+
+			$this->controls['filterPadding'] = [
+				'tab'         => 'content',
+				'group'       => 'filter',
+				'type'        => 'spacing',
+				'label'       => esc_html__( 'Padding', 'bricks' ),
+				'css'         => [
+					[
+						'property' => 'padding',
+						'selector' => '.bricks-isotope-filters li',
+					],
+				],
+				'placeholder' => [
+					'top'    => 0,
+					'right'  => 20,
+					'bottom' => 0,
+					'left'   => 20,
+				],
+				'required'    => [ 'filter', '!=', '' ],
+			];
+
+			// NAVIGATION
+
+			$this->controls['postsNavigation'] = [
+				'tab'   => 'content',
+				'group' => 'pagination',
+				'type'  => 'checkbox',
+				'label' => esc_html__( 'Show', 'bricks' ),
+			];
+
+			$this->controls['postsNavigationMargin'] = [
+				'deprecated'  => true, // @since 1.5
+				'tab'         => 'content',
+				'group'       => 'pagination',
+				'type'        => 'spacing',
+				'label'       => esc_html__( 'Spacing', 'bricks' ),
+				'css'         => [
+					[
+						'property' => 'margin',
+						'selector' => '.bricks-pagination ul li',
+					],
+				],
+				'placeholder' => [
+					'top'    => 0,
+					'right'  => 10,
+					'bottom' => 0,
+					'left'   => 10,
+				],
+				'required'    => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationTextAlign'] = [
+				'deprecated'  => true, // @since 1.5
+				'tab'         => 'content',
+				'group'       => 'pagination',
+				'type'        => 'text-align',
+				'label'       => esc_html__( 'Text align', 'bricks' ),
+				'css'         => [
+					[
+						'property' => 'text-align',
+						'selector' => '.bricks-pagination',
+					],
+					[
+						'property' => 'display',
+						'selector' => '.bricks-pagination',
+						'value'    => 'block',
+					],
+				],
+				'inline'      => true,
+				'placeholder' => esc_html__( 'Center', 'bricks' ),
+				'exclude'     => [
+					'justify',
+				],
+				'required'    => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationJustifyContent'] = [
+				'tab'     => 'content',
+				'group'   => 'pagination',
+				'label'   => esc_html__( 'Alignment', 'bricks' ),
+				'type'    => 'justify-content',
+				'exclude' => 'space',
+				'inline'  => true,
+				'css'     => [
+					[
+						'selector' => '.bricks-pagination ul',
+						'property' => 'justify-content',
+					],
+				],
+			];
+
+			$this->controls['postsNavigationHeight'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'number',
+				'units'    => true,
+				'label'    => esc_html__( 'Height', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'height',
+						'selector' => '.bricks-pagination ul .page-numbers',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationWidth'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'number',
+				'units'    => true,
+				'label'    => esc_html__( 'Width', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'width',
+						'selector' => '.bricks-pagination ul .page-numbers',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationGap'] = [
+				'tab'         => 'content',
+				'group'       => 'pagination',
+				'label'       => esc_html__( 'Spacing', 'bricks' ),
+				'type'        => 'number',
+				'units'       => true,
+				'css'         => [
+					[
+						'selector' => '.bricks-pagination ul',
+						'property' => 'gap',
+					],
+				],
+				'placeholder' => 20,
+				'required'    => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationBackground'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'color',
+				'label'    => esc_html__( 'Background', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'background',
+						'selector' => '.bricks-pagination ul .page-numbers',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationBorder'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'border',
+				'label'    => esc_html__( 'Border', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'border',
+						'selector' => '.bricks-pagination ul .page-numbers',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationTypography'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'typography',
+				'label'    => esc_html__( 'Typography', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'font',
+						'selector' => '.bricks-pagination .page-numbers',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			// CURRENT PAGE
+
+			$this->controls['postsNavigationActiveSeparator'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'separator',
+				'label'    => esc_html__( 'Current', 'bricks' ),
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationBackgroundActive'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'color',
+				'label'    => esc_html__( 'Background', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'background',
+						'selector' => '.bricks-pagination ul .page-numbers.current',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationBorderActive'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'border',
+				'label'    => esc_html__( 'Border', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'border',
+						'selector' => '.bricks-pagination ul .page-numbers.current',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
+
+			$this->controls['postsNavigationTypographyActive'] = [
+				'tab'      => 'content',
+				'group'    => 'pagination',
+				'type'     => 'typography',
+				'label'    => esc_html__( 'Typography', 'bricks' ),
+				'css'      => [
+					[
+						'property' => 'font',
+						'selector' => '.bricks-pagination ul .page-numbers.current',
+					],
+				],
+				'required' => [ 'postsNavigation', '!=', '' ],
+			];
 	}
 
 	public function render() {
 		$settings    = $this->settings;
-		$is_frontend = $this->is_frontend;
 		$layout      = ! empty( $settings['layout'] ) ? $settings['layout'] : 'grid';
 		$filter      = ! empty( $settings['filter'] ) ? $settings['filter'] : false;
-		$columns     = ! empty( $settings['columns'] ) ? $settings['columns'] : 2;
 		$use_isotope = $layout === 'masonry' || $filter;
+		$link_post   = $settings['linkPost'] ?? false;
 
 		/**
 		 * Check if current request is a load more/infinite scroll request
@@ -720,6 +737,7 @@ class Element_Posts extends Element {
 			// Load IsotopeJS
 			if ( $use_isotope ) {
 				$wrapper_classes[] = 'isotope';
+				$wrapper_classes[] = 'isotope-before-init'; // Avoid unstyled content visible (@since 1.12)
 			}
 
 			if ( $layout === 'list' ) {
@@ -755,12 +773,21 @@ class Element_Posts extends Element {
 
 		// No results: Empty by default (@since 1.4)
 		if ( ! $posts_query->found_posts ) {
+			// Insert Loop marker for the first loop item (@since 1.12.3)
+			if ( ! $is_load_more_request ) {
+				echo $query->get_loop_marker();
+			}
+
 			echo $query->get_no_results_content();
 
 			return;
 		}
 
 		$post_index = 0;
+
+		// Set $bricks_query (@since 1.10.2)
+		$this->set_bricks_query( $query );
+		$this->start_iteration();
 
 		while ( $posts_query->have_posts() ) {
 			$posts_query->the_post();
@@ -836,12 +863,20 @@ class Element_Posts extends Element {
 			$image_atts['class'] .= ' bricks-lazy-load-isotope';
 		}
 
+		// Insert Loop marker for the first loop item (@since 1.12.3)
+		if ( ! $is_load_more_request ) {
+			echo $query->get_loop_marker();
+		}
+
 		$post_index = 0;
 
 		while ( $posts_query->have_posts() ) {
 			$posts_query->the_post();
 
 			$post = get_post();
+
+			// (@since 1.10.2)
+			$this->set_loop_object( $post );
 
 			// Overlay wrapper
 			$overlay_wrapper_html = '';
@@ -877,7 +912,13 @@ class Element_Posts extends Element {
 
 			echo "<li {$this->render_attributes( "item-$post_index" )}>";
 
+			if ( $link_post ) {
+				echo '<a href="' . get_the_permalink( $post->ID ) . '">';
+			}
+
 			echo "<div {$this->render_attributes( "post-wrapper-$post_index" )}>";
+
+			$item_html = '';
 
 			// Image
 			$disable_image = isset( $settings['imageDisable'] );
@@ -890,34 +931,46 @@ class Element_Posts extends Element {
 
 				$direction = $settings['direction'] ?? 'column';
 
-				// Render .image-wrapper <figure>: Direction is 'row' OR 'column' && post has featured image
-				$render_image_wrapper = $layout !== 'list' || ( $layout === 'list' && ! $disable_image && ( strpos( $direction, 'row' ) !== false || ( $direction === 'column' && $has_image ) ) );
+				/**
+				 * Render .image-wrapper <figure>
+				 * - Direction is 'row'
+				 * - 'column' && post has featured image
+				 * - imagePosition is set (@since 1.10)
+				 * - alternate is set (@since 1.10)
+				 */
+				$render_image_wrapper = $layout !== 'list' || ( $layout === 'list' && ! $disable_image && ( strpos( $direction, 'row' ) !== false || ( $direction === 'column' && $has_image ) || ! empty( $settings['imagePosition'] ) || ! empty( $settings['alternate'] ) ) );
 
 				if ( $render_image_wrapper ) {
-					echo "<figure {$this->render_attributes( "image-wrapper-$post_index" )}>";
+					$item_html .= "<figure {$this->render_attributes( "image-wrapper-$post_index" )}>";
 				}
 
 				// Link image
 				$overlay_has_links = strpos( $overlay_wrapper_html, '<a ' ) !== false;
 
-				if ( isset( $settings['imageLink'] ) && ! $overlay_has_links ) {
-					echo '<a href="' . get_the_permalink( $post->ID ) . '">';
+				if ( ! $link_post && isset( $settings['imageLink'] ) && ! $overlay_has_links ) {
+					$item_html .= '<a href="' . get_the_permalink( $post->ID ) . '">';
 				}
 
 				if ( $has_image ) {
 					$image_size = $settings['imageSize'] ?? BRICKS_DEFAULT_IMAGE_SIZE;
 
-					echo wp_get_attachment_image( get_post_thumbnail_id( $post->ID ), $image_size, false, $image_atts );
+					// Prepare custom alt text (@since 1.11.1)
+					$custom_alt = isset( $settings['imageLinkAlt'] ) ? $this->render_dynamic_data( $settings['imageLinkAlt'] ) : '';
+					if ( $custom_alt ) {
+						$image_atts['alt'] = esc_attr( $custom_alt );
+					}
+
+					$item_html .= wp_get_attachment_image( get_post_thumbnail_id( $post->ID ), $image_size, false, $image_atts );
 				}
 
-				echo $overlay_wrapper_html;
+				$item_html .= $overlay_wrapper_html;
 
-				if ( isset( $settings['imageLink'] ) && ! $overlay_has_links ) {
-					echo '</a>';
+				if ( ! $link_post && isset( $settings['imageLink'] ) && ! $overlay_has_links ) {
+					$item_html .= '</a>';
 				}
 
 				if ( $render_image_wrapper ) {
-					echo '</figure>';
+					$item_html .= '</figure>';
 				}
 			}
 
@@ -941,17 +994,35 @@ class Element_Posts extends Element {
 						]
 					);
 
-					echo "<div {$this->render_attributes( "content-wrapper-$post_index" )}>";
-					echo Frontend::get_content_wrapper( $settings, $content_fields, $post );
-					echo '</div>';
+					$item_html .= "<div {$this->render_attributes( "content-wrapper-$post_index" )}>";
+					$item_html .= Frontend::get_content_wrapper( $settings, $content_fields, $post );
+					$item_html .= '</div>';
 				}
 			}
 
+			// Remove any links from item HTML (@since 1.11)
+			if ( $link_post ) {
+				$item_html = preg_replace( '/<a\b[^>]*>(.*?)<\/a>/i', '$1', $item_html );
+			}
+
+			echo $item_html;
+
 			echo '</div>';
+
+			if ( $link_post ) {
+				echo '</a>';
+			}
+
 			echo '</li>';
 
 			$post_index++;
+
+			// (@since 1.10.2)
+			$this->next_iteration();
 		}
+
+		// (@since 1.10.2)
+		$this->end_iteration();
 
 		wp_reset_postdata();
 

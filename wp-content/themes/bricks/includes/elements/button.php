@@ -26,6 +26,7 @@ class Element_Button extends Element {
 			'type'           => 'text',
 			'hasDynamicData' => false,
 			'inline'         => true,
+			'validate'       => $this->get_in_builder_html_tag_validation_rules(),
 			'placeholder'    => 'span',
 			'required'       => [ 'link', '=', '' ],
 		];
@@ -46,7 +47,7 @@ class Element_Button extends Element {
 			'inline'      => true,
 			'reset'       => true,
 			'default'     => 'primary',
-			'placeholder' => esc_html__( 'None', 'bricks' ),
+			'placeholder' => esc_html__( 'Default', 'bricks' ),
 		];
 
 		$this->controls['circle'] = [
@@ -138,14 +139,18 @@ class Element_Button extends Element {
 			$this->set_attribute( '_root', 'class', $settings['size'] );
 		}
 
+		// Outline
+		if ( isset( $settings['outline'] ) ) {
+			$this->set_attribute( '_root', 'class', 'outline' );
+		}
+
 		if ( ! empty( $settings['style'] ) ) {
-			// Outline
+			// Outline (border)
 			if ( isset( $settings['outline'] ) ) {
-				$this->set_attribute( '_root', 'class', 'outline' );
 				$this->set_attribute( '_root', 'class', "bricks-color-{$settings['style']}" );
 			}
 
-			// Fill (= default)
+			// Background (= default)
 			else {
 				$this->set_attribute( '_root', 'class', "bricks-background-{$settings['style']}" );
 			}
@@ -192,11 +197,13 @@ class Element_Button extends Element {
 	public static function render_builder() { ?>
 		<script type="text/x-template" id="tmpl-bricks-element-button">
 			<component
-				:is="settings.link ? 'a' : settings.tag ? settings.tag : 'span'"
+				:is="tag"
 				:class="[
 					'bricks-button',
 					settings.size ? settings.size : null,
-					settings.style ? settings.outline ? `outline bricks-color-${settings.style}` : `bricks-background-${settings.style}` : null,
+					settings.outline ? 'outline' : null,
+					settings.style && settings.outline ? `bricks-color-${settings.style}` : null,
+					settings.style && !settings.outline ? `bricks-background-${settings.style}` : null,
 					settings.circle ? 'circle' : null,
 					settings.block ? 'block' : null,
 					settings.icon && settings.iconPosition ? `icon-${settings.iconPosition}` : null,

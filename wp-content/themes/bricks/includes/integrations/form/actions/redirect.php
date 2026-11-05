@@ -15,7 +15,7 @@ class Redirect extends Base {
 		$form_settings = $form->get_settings();
 
 		if ( isset( $form_settings['redirect'] ) ) {
-			$redirect_to = $form_settings['redirect'];
+			$redirect_to = $form->render_data( $form_settings['redirect'] );
 		}
 
 		// Redirect to admin area

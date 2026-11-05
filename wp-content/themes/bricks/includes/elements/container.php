@@ -42,24 +42,8 @@ class Element_Container extends Element {
 			'label' => esc_html__( 'Grid item', 'bricks' ),
 		];
 
-		// $this->controls['_gridItemPosition'] = [
-		// 'label'       => esc_html__( 'Grid position', 'bricks' ),
-		// 'type'        => 'select',
-		// 'options'     => [
-		// 'auto'   => esc_html__( 'Auto', 'bricks' ),
-		// 'manual' => esc_html__( 'Manual', 'bricks' ),
-		// 'area'   => esc_html__( 'Area', 'bricks' ),
-		// ],
-		// 'placeholder' => esc_html__( 'Auto', 'bricks' ),
-		// 'inline'      => true,
-		// ];
-
 		$this->controls['_gridItemColumnSpan'] = [
 			'label'          => esc_html__( 'Grid column', 'bricks' ),
-			'tooltip'        => [
-				'content'  => 'grid-column',
-				'position' => 'top-left',
-			],
 			'type'           => 'text',
 			'inline'         => true,
 			'hasDynamicData' => false,
@@ -72,10 +56,6 @@ class Element_Container extends Element {
 
 		$this->controls['_gridItemRowSpan'] = [
 			'label'          => esc_html__( 'Grid row', 'bricks' ),
-			'tooltip'        => [
-				'content'  => 'grid-row',
-				'position' => 'top-left',
-			],
 			'type'           => 'text',
 			'hasDynamicData' => false,
 			'inline'         => true,
@@ -113,7 +93,24 @@ class Element_Container extends Element {
 		$this->controls['linkInfo'] = [
 			'type'     => 'info',
 			'content'  => esc_html__( 'Make sure there are no elements with links inside your linked container (nested links).', 'bricks' ),
-			'required' => [ 'link', '!=', '' ],
+			'required' => [
+				[ 'tag', '=', 'a' ],
+				[ 'link', '!=', '' ],
+			],
+		];
+
+		// Masonry active info (@since 1.11.1)
+		$this->controls['_useMasonryInfo'] = [
+			'type'     => 'info',
+			// translators: %s: Masonry layout is active.
+			'content'  => sprintf(
+				'%s (%s > %s). %s',
+				sprintf( esc_html__( '%s layout is active' ), esc_html__( 'Masonry', 'bricks' ) ),
+				esc_html__( 'Style', 'bricks' ),
+				esc_html__( 'Layout', 'bricks' ),
+				esc_html__( 'Ensure that no conflicting CSS styles are applied to this element and that a width is defined, especially when using a Div element.', 'bricks' )
+			),
+			'required' => [ '_useMasonry', '=', true ],
 		];
 
 		$this->controls['tag'] = [
@@ -141,6 +138,7 @@ class Element_Container extends Element {
 
 		$this->controls['customTag'] = [
 			'label'          => esc_html__( 'Custom tag', 'bricks' ),
+			'info'           => esc_html__( 'Without attributes', 'bricks' ),
 			'type'           => 'text',
 			'inline'         => true,
 			'hasDynamicData' => false,
@@ -203,10 +201,6 @@ class Element_Container extends Element {
 		$this->controls['_gridTemplateColumns'] = [
 			'label'          => esc_html__( 'Grid template columns', 'bricks' ),
 			'type'           => 'text',
-			'tooltip'        => [
-				'content'  => 'grid-template-columns',
-				'position' => 'top-left',
-			],
 			'hasDynamicData' => false,
 			'hasVariables'   => true,
 			'css'            => [
@@ -222,10 +216,6 @@ class Element_Container extends Element {
 		$this->controls['_gridTemplateRows'] = [
 			'label'          => esc_html__( 'Grid template rows', 'bricks' ),
 			'type'           => 'text',
-			'tooltip'        => [
-				'content'  => 'grid-template-rows',
-				'position' => 'top-left',
-			],
 			'hasDynamicData' => false,
 			'hasVariables'   => true,
 			'css'            => [
@@ -241,10 +231,6 @@ class Element_Container extends Element {
 		$this->controls['_gridAutoColumns'] = [
 			'label'          => esc_html__( 'Grid auto columns', 'bricks' ),
 			'type'           => 'text',
-			'tooltip'        => [
-				'content'  => 'grid-auto-columns',
-				'position' => 'top-left',
-			],
 			'hasDynamicData' => false,
 			'hasVariables'   => true,
 			'css'            => [
@@ -259,10 +245,6 @@ class Element_Container extends Element {
 		$this->controls['_gridAutoRows'] = [
 			'label'          => esc_html__( 'Grid auto rows', 'bricks' ),
 			'type'           => 'text',
-			'tooltip'        => [
-				'content'  => 'grid-auto-rows',
-				'position' => 'top-left',
-			],
 			'hasDynamicData' => false,
 			'hasVariables'   => true,
 			'css'            => [
@@ -282,10 +264,6 @@ class Element_Container extends Element {
 				'column' => 'column',
 				'dense'  => 'dense',
 			],
-			'tooltip'  => [
-				'content'  => 'grid-auto-flow',
-				'position' => 'top-left',
-			],
 			'css'      => [
 				[
 					'property' => 'grid-auto-flow',
@@ -297,10 +275,6 @@ class Element_Container extends Element {
 
 		$this->controls['_justifyItemsGrid'] = [
 			'label'     => esc_html__( 'Justify items', 'bricks' ),
-			'tooltip'   => [
-				'content'  => 'justify-items',
-				'position' => 'top-left',
-			],
 			'type'      => 'justify-content',
 			'direction' => 'row',
 			'css'       => [
@@ -313,10 +287,6 @@ class Element_Container extends Element {
 
 		$this->controls['_alignItemsGrid'] = [
 			'label'     => esc_html__( 'Align items', 'bricks' ),
-			'tooltip'   => [
-				'content'  => 'align-items',
-				'position' => 'top-left',
-			],
 			'type'      => 'align-items',
 			'direction' => 'row',
 			'css'       => [
@@ -329,10 +299,6 @@ class Element_Container extends Element {
 
 		$this->controls['_justifyContentGrid'] = [
 			'label'     => esc_html__( 'Justify content', 'bricks' ),
-			'tooltip'   => [
-				'content'  => 'justify-content',
-				'position' => 'top-left',
-			],
 			'type'      => 'justify-content',
 			'direction' => 'row',
 			'css'       => [
@@ -345,10 +311,6 @@ class Element_Container extends Element {
 
 		$this->controls['_alignContentGrid'] = [
 			'label'     => esc_html__( 'Align content', 'bricks' ),
-			'tooltip'   => [
-				'content'  => 'align-content',
-				'position' => 'top-left',
-			],
 			'type'      => 'align-items',
 			'direction' => 'row',
 			'css'       => [
@@ -364,10 +326,6 @@ class Element_Container extends Element {
 		// Flex controls
 		$this->controls['_flexWrap'] = [
 			'label'    => esc_html__( 'Flex wrap', 'bricks' ),
-			'tooltip'  => [
-				'content'  => 'flex-wrap',
-				'position' => 'top-left',
-			],
 			'type'     => 'select',
 			'options'  => [
 				'nowrap'       => esc_html__( 'No wrap', 'bricks' ),
@@ -385,10 +343,6 @@ class Element_Container extends Element {
 
 		$this->controls['_direction'] = [
 			'label'    => esc_html__( 'Direction', 'bricks' ),
-			'tooltip'  => [
-				'content'  => 'flex-direction',
-				'position' => 'top-left',
-			],
 			'type'     => 'direction',
 			'css'      => [
 				[
@@ -402,10 +356,6 @@ class Element_Container extends Element {
 
 		$this->controls['_alignSelf'] = [
 			'label'    => esc_html__( 'Align self', 'bricks' ),
-			'tooltip'  => [
-				'content'  => 'align-self',
-				'position' => 'top-left',
-			],
 			'type'     => 'align-items',
 			'css'      => [
 				[
@@ -424,10 +374,6 @@ class Element_Container extends Element {
 
 		$this->controls['_justifyContent'] = [
 			'label'    => esc_html__( 'Align main axis', 'bricks' ),
-			'tooltip'  => [
-				'content'  => 'justify-content',
-				'position' => 'top-left',
-			],
 			'type'     => 'justify-content',
 			'css'      => [
 				[
@@ -439,10 +385,6 @@ class Element_Container extends Element {
 
 		$this->controls['_alignItems'] = [
 			'label'    => esc_html__( 'Align cross axis', 'bricks' ),
-			'tooltip'  => [
-				'content'  => 'align-items',
-				'position' => 'top-left',
-			],
 			'type'     => 'align-items',
 			'css'      => [
 				[
@@ -480,10 +422,6 @@ class Element_Container extends Element {
 			'label'       => esc_html__( 'Flex grow', 'bricks' ),
 			'type'        => 'number',
 			'min'         => 0,
-			'tooltip'     => [
-				'content'  => 'flex-grow',
-				'position' => 'top-left',
-			],
 			'css'         => [
 				[
 					'property' => 'flex-grow',
@@ -497,10 +435,6 @@ class Element_Container extends Element {
 			'label'       => esc_html__( 'Flex shrink', 'bricks' ),
 			'type'        => 'number',
 			'min'         => 0,
-			'tooltip'     => [
-				'content'  => 'flex-shrink',
-				'position' => 'top-left',
-			],
 			'css'         => [
 				[
 					'property' => 'flex-shrink',
@@ -513,10 +447,6 @@ class Element_Container extends Element {
 		$this->controls['_flexBasis'] = [
 			'label'          => esc_html__( 'Flex basis', 'bricks' ),
 			'type'           => 'text',
-			'tooltip'        => [
-				'content'  => 'flex-basis',
-				'position' => 'top-left',
-			],
 			'css'            => [
 				[
 					'property' => 'flex-basis',
@@ -547,18 +477,20 @@ class Element_Container extends Element {
 
 		// Inner container (direct children)
 		$this->controls['_innerContainerSeparator'] = [
-			'type'  => 'separator',
-			'label' => esc_html__( 'Inner container', 'bricks' ) . ' / div',
-			'tab'   => 'style',
-			'group' => '_layout',
+			'type'       => 'separator',
+			'label'      => esc_html__( 'Inner container', 'bricks' ) . ' / div',
+			'tab'        => 'style',
+			'group'      => '_layout',
+			'deprecated' => true, // @since 1.10
 		];
 
 		$this->controls['_innerContainerMargin'] = [
-			'tab'   => 'style',
-			'group' => '_layout',
-			'label' => esc_html__( 'Margin', 'bricks' ),
-			'type'  => 'spacing',
-			'css'   => [
+			'tab'        => 'style',
+			'group'      => '_layout',
+			'info'       => esc_html__( 'Inner container', 'bricks' ) . ' / div',
+			'label'      => esc_html__( 'Margin', 'bricks' ),
+			'type'       => 'spacing',
+			'css'        => [
 				[
 					'property' => 'margin',
 					'selector' => '> .brxe-container',
@@ -572,14 +504,16 @@ class Element_Container extends Element {
 					'selector' => '> .brxe-div',
 				],
 			],
+			'deprecated' => true, // @since 1.10
 		];
 
 		$this->controls['_innerContainerPadding'] = [
-			'tab'   => 'style',
-			'group' => '_layout',
-			'label' => esc_html__( 'Padding', 'bricks' ),
-			'type'  => 'spacing',
-			'css'   => [
+			'tab'        => 'style',
+			'group'      => '_layout',
+			'info'       => esc_html__( 'Inner container', 'bricks' ) . ' / div',
+			'label'      => esc_html__( 'Padding', 'bricks' ),
+			'type'       => 'spacing',
+			'css'        => [
 				[
 					'property' => 'padding',
 					'selector' => '> .brxe-container',
@@ -593,6 +527,7 @@ class Element_Container extends Element {
 					'selector' => '> .brxe-div',
 				],
 			],
+			'deprecated' => true, // @since 1.10
 		];
 	}
 
@@ -693,6 +628,7 @@ class Element_Container extends Element {
 			$dom = new \DOMDocument();
 			libxml_use_internal_errors( true );
 			$dom->loadXML( $svg );
+			libxml_clear_errors();
 
 			// SVG styles
 			$svg_styles = [];
@@ -721,22 +657,47 @@ class Element_Container extends Element {
 	}
 
 	/**
+	 * Parses video URL or ID
+	 *
+	 * Input: Video ID: Return ID as is
+	 * Input: Video URL: Return escaped URL
+	 *
+	 * @since 1.12.2
+	 */
+	private function parse_video_url_or_id( $input ) {
+		// Remove whitespace
+		$input = trim( $input );
+
+		// Return video URL
+		if ( filter_var( $input, FILTER_VALIDATE_URL ) ) {
+			return esc_url( $input );
+		}
+
+		// Return video ID
+		return esc_attr( $input );
+	}
+
+	/**
 	 * Return background video HTML
 	 */
 	public function get_background_video_html( $settings ) {
 		// Loop over all breakpoints
 		foreach ( Breakpoints::$breakpoints as $breakpoint ) {
-			$setting_key = $breakpoint['key'] === 'desktop' ? '_background' : "_background:{$breakpoint['key']}";
-			$background  = ! empty( $settings[ $setting_key ] ) ? $settings[ $setting_key ] : false;
-			$video_url   = ! empty( $background['videoUrl'] ) ? $background['videoUrl'] : false;
+			$setting_key      = $breakpoint['key'] === 'desktop' ? '_background' : "_background:{$breakpoint['key']}";
+			$background       = ! empty( $settings[ $setting_key ] ) ? $settings[ $setting_key ] : false;
+			$video_url        = ! empty( $background['videoUrl'] ) ? $background['videoUrl'] : false;
+			$video_attributes = [];
 
 			if ( strpos( $video_url, '{' ) !== false ) {
 				$video_url = bricks_render_dynamic_data( $video_url, $this->post_id, 'link' );
 			}
 
 			if ( $video_url ) {
+
+				$video_url = $this->parse_video_url_or_id( $video_url );
+
 				$attributes[] = 'class="bricks-background-video-wrapper bricks-lazy-video"';
-				$attributes[] = 'data-background-video-url="' . esc_url( $video_url ) . '"';
+				$attributes[] = 'data-background-video-url="' . $video_url . '"';
 
 				if ( ! empty( $background['videoScale'] ) ) {
 					$attributes[] = 'data-background-video-scale="' . $background['videoScale'] . '"';
@@ -784,26 +745,46 @@ class Element_Container extends Element {
 					}
 				}
 
-				$attributes = join( ' ', $attributes );
+				// Video poster (@since 1.11)
+				if ( ! empty( $background['videoPoster'] ) ) {
+					$video_attributes[] = 'poster="' . $background['videoPoster']['url'] . '"';
+					$attributes[]       = 'data-background-video-poster="' . $background['videoPoster']['url'] . '"';
+				}
+				// YouTube video poster (@since 1.11)
+				if ( ! empty( $background['videoPosterYouTube'] ) ) {
+					$youtube_poster_size = $background['videoPosterYouTubeSize'] ?? 'maxresdefault';
+					$attributes[]        = 'data-background-video-poster-yt-size="' . $youtube_poster_size . '"';
+				}
+
+				$attributes       = join( ' ', $attributes );
+				$video_attributes = join( ' ', $video_attributes );
 
 				// @since 1.4: Chrome doesn't play the .mp4 background video if the <video> tag is injected programmatically using JavaScript
-				return "<div $attributes><video autoplay loop playsinline muted></video></div>";
+				return "<div $attributes><video autoplay loop playsinline muted $video_attributes></video></div>";
 			}
 		}
 	}
 
 	public function render() {
 		$element  = $this->element;
-		$settings = $element['settings'] ?? [];
+		$settings = $this->settings ?? [];
 		$output   = '';
 
 		// Bricks Query Loop
 		if ( isset( $settings['hasLoop'] ) ) {
-			// Hold the global element settings to add back 'hasLoop' after the query->render (@since 1.8)
+			// Hold the component to first unset 'hasLoop' and then add back 'hasLoop' after the query->render (@since 1.12)
+			$original_component = Helpers::get_component( $element );
+
+			// Hold the global element to first unset 'hasLoop' and then add back 'hasLoop' after the query->render
 			$global_element = Helpers::get_global_element( $element );
 
 			// STEP: Query
 			add_filter( 'bricks/posts/query_vars', [ $this, 'maybe_set_preview_query' ], 10, 3 );
+
+			// Is component: Generate random ID for component instance (@since 1.12)
+			if ( ! empty( $element['instanceId'] ) && ! empty( $element['parentComponent'] ) ) {
+				$element['id'] .= '-' . $element['instanceId']; // Use dash instead of colon (@since 1.12.2)
+			}
 
 			$query = new \Bricks\Query( $element );
 
@@ -812,13 +793,37 @@ class Element_Container extends Element {
 			// Prevent endless loop
 			unset( $element['settings']['hasLoop'] );
 
-			// Prevent endless loop for global element (@since 1.8)
+			// Prevent condition execution when looping (@since 1.12.2)
+			unset( $element['settings']['_conditions'] );
+
+			// Prevent endless loop for component (@since 1.12)
+			if ( $original_component ) {
+				// Find all component element and unset 'hasLoop'
+				Database::$global_data['components'] = array_map(
+					function( $component ) use ( $element ) {
+						if ( ! empty( $element['cid'] ) && $element['cid'] === $component['id'] ) {
+							foreach ( $component['elements'] as $index => $component_element ) {
+								if (
+									isset( $component['elements'][ $index ]['settings']['hasLoop'] ) &&
+									$component['elements'][ $index ]['id'] === $element['cid'] // Only unset 'hasLoop' for current element (component root is query) (@since 1.12.2)
+								) {
+									unset( $component['elements'][ $index ]['settings']['hasLoop'] );
+								}
+							}
+						}
+						return $component;
+					},
+					Database::$global_data['components']
+				);
+			}
+
+			// Prevent endless loop for global element
 			if ( ! empty( $global_element['global'] ) ) {
 				// Find the global element and unset 'hasLoop'
 				Database::$global_data['elements'] = array_map(
 					function( $global_element ) use ( $element ) {
 						if ( ! empty( $element['global'] ) && $element['global'] === $global_element['global'] ) {
-							  unset( $global_element['settings']['hasLoop'] );
+							unset( $global_element['settings']['hasLoop'] );
 						}
 						return $global_element;
 					},
@@ -831,13 +836,27 @@ class Element_Container extends Element {
 
 			echo $output;
 
-			// Prevent endless loop for global element (@since 1.8)
+			// Prevent endless loop for component (@since 1.12)
+			if ( $original_component ) {
+				// Restore orignal component with 'hasLoop' setting after execute render_element
+				Database::$global_data['components'] = array_map(
+					function( $component ) use ( $element, $original_component ) {
+						if ( ! empty( $element['cid'] ) && $element['cid'] === $component['id'] ) {
+							$component = $original_component;
+						}
+						return $component;
+					},
+					Database::$global_data['components']
+				);
+			}
+
+			// Prevent endless loop for global element
 			if ( ! empty( $global_element['global'] ) ) {
 				// Add back global element 'hasLoop' setting after execute render_element
 				Database::$global_data['elements'] = array_map(
 					function( $global_element ) use ( $element ) {
 						if ( ! empty( $element['global'] ) && $element['global'] === $global_element['global'] ) {
-							  $global_element['settings']['hasLoop'] = true;
+							$global_element['settings']['hasLoop'] = true;
 						}
 						return $global_element;
 					},
@@ -856,10 +875,10 @@ class Element_Container extends Element {
 			return;
 		}
 
-		// Render the video wrapper first so we know it before adding the has-bg-video class (@since 1.5.1)
+		// Render the video wrapper first so we know it before adding the has-bg-video class
 		$video_wrapper_html = $this->get_background_video_html( $settings );
 
-		// No background video set on element ID: Loop over element global classes (@since 1.7)
+		// No background video set on element ID: Loop over element global classes
 		if ( ! $video_wrapper_html ) {
 			$elements_class_ids = ! empty( $settings['_cssGlobalClasses'] ) ? $settings['_cssGlobalClasses'] : [];
 
@@ -888,7 +907,7 @@ class Element_Container extends Element {
 			$this->set_attribute( '_root', 'class', 'has-shape' );
 		}
 
-		// Non-megamenu dropdown content: Set tag to 'ul' (@since 1.8)
+		// Non-megamenu dropdown content: Set tag to 'ul'
 		$parent_id      = ! empty( $element['parent'] ) ? $element['parent'] : false;
 		$parent_element = ! empty( Frontend::$elements[ $parent_id ] ) ? Frontend::$elements[ $parent_id ] : false;
 
@@ -925,21 +944,28 @@ class Element_Container extends Element {
 			}
 		}
 
-		// Default: Non Query Loop
+		// Default: Non-query loop
 		$output .= "<{$this->tag} {$this->render_attributes( '_root' )}>";
 
 		$output .= self::get_shape_divider_html( $settings );
 
 		$output .= $video_wrapper_html;
 
+		// Render element children
 		if ( ! empty( $element['children'] ) && is_array( $element['children'] ) ) {
 			foreach ( $element['children'] as $child_id ) {
-				if ( ! array_key_exists( $child_id, Frontend::$elements ) ) {
+				$child_element = Frontend::$elements[ $child_id ] ?? false;
+
+				/**
+				 * Skip element: Component with this 'cid' doesn't exist in database
+				 *
+				 * @since 1.12
+				 */
+				if ( ! empty( $child_element['cid'] ) && ! Helpers::get_component_by_cid( $child_element['cid'] ) ) {
 					continue;
 				}
 
-				$child_element = ! empty( Frontend::$elements[ $child_id ] ) ? Frontend::$elements[ $child_id ] : false;
-				$child_html    = $child_element ? Frontend::render_element( $child_element ) : false; // Recursive
+				$child_html = $child_element ? Frontend::render_element( $child_element ) : false; // Recursive
 
 				if ( $child_element && $child_html ) {
 					// Nav items is parent element: Wrap this nav link in <li> (@since 1.8)
@@ -956,16 +982,25 @@ class Element_Container extends Element {
 						$dropdown_id      = $parent_element['parent'];
 						$dropdown_element = ! empty( Frontend::$elements[ $dropdown_id ] ) ? Frontend::$elements[ $dropdown_id ] : false;
 
-						// Don't wrap dropdown megamenu item in <li>
+						// Megamenu: Don't wrap dropdown item in <li>
 						if ( isset( $dropdown_element['settings']['megaMenu'] ) ) {
 							$output .= $child_html;
 						}
 
-						// Wrap menu item in <li>
+						// Default: Wrap menu item in <li>
 						else {
-							$output .= '<li class="menu-item">';
-							$output .= $child_html;
-							$output .= '</li>';
+							if ( isset( $child_element['settings']['hasLoop'] ) ) {
+								// Get first HTML tag
+								preg_match( '/<([a-zA-Z]+)([^>]*)>/', $child_html, $matches );
+								$html_tag = $matches[1] ?? 'div';
+
+								// Wrap each loop node in <li>
+								$output .= preg_replace( '/(<' . $html_tag . '.*?>.*?<\/' . $html_tag . '>)/', '<li class="menu-item">$1</li>', $child_html );
+							} else {
+								$output .= '<li class="menu-item">';
+								$output .= $child_html;
+								$output .= '</li>';
+							}
 						}
 					}
 
@@ -976,6 +1011,16 @@ class Element_Container extends Element {
 				}
 			}
 		}
+
+		/**
+		 * STEP: Add masonry trail nodes
+		 *
+		 * Suppose add these nodes inside base.php but no perfect hook yet.
+		 * Any custom element has to run this method manually in the render method.
+		 *
+		 * @since 1.11.1
+		 */
+		$output .= $this->maybe_masonry_trail_nodes();
 
 		$output .= "</{$this->tag}>";
 

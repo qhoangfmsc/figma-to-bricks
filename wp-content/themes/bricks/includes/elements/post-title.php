@@ -15,14 +15,12 @@ class Element_Post_Title extends Element {
 
 	public function set_controls() {
 		$this->controls['titleInfo'] = [
-			'tab'      => 'content',
-			'content'  => esc_html__( 'Edit title: Settings > Page Settings > SEO', 'bricks' ),
+			'content'  => '<a href="#">' . esc_html__( 'Edit title: Settings > Page Settings > SEO', 'bricks' ) . '</a>',
 			'type'     => 'info',
 			'required' => [ 'postTitle', '=', '', 'pageSettings' ],
 		];
 
 		$this->controls['tag'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'HTML tag', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
@@ -33,14 +31,12 @@ class Element_Post_Title extends Element {
 				'h5' => 'h5',
 				'h6' => 'h6',
 			],
-			'clearable'   => false,
 			'inline'      => true,
 			'placeholder' => 'h3',
 			'default'     => 'h1',
 		];
 
 		$this->controls['type'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Type', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
@@ -52,7 +48,6 @@ class Element_Post_Title extends Element {
 		];
 
 		$this->controls['style'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Style', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $this->control_options['styles'],
@@ -60,48 +55,120 @@ class Element_Post_Title extends Element {
 			'placeholder' => esc_html__( 'None', 'bricks' ),
 		];
 
-		$this->controls['prefix'] = [
-			'tab'    => 'content',
-			'label'  => esc_html__( 'Prefix', 'bricks' ),
-			'type'   => 'text',
-			'inline' => true,
-		];
-
-		$this->controls['prefixBlock'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Prefix block', 'bricks' ),
-			'type'     => 'checkbox',
-			'required' => [ 'prefix', '!=', '' ],
-		];
-
-		$this->controls['suffix'] = [
-			'tab'    => 'content',
-			'label'  => esc_html__( 'Suffix', 'bricks' ),
-			'type'   => 'text',
-			'inline' => true,
-		];
-
-		$this->controls['suffixBlock'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Suffix block', 'bricks' ),
-			'type'     => 'checkbox',
-			'required' => [ 'suffix', '!=', '' ],
-		];
-
 		$this->controls['linkToPost'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Link to post', 'bricks' ),
 			'type'  => 'checkbox',
 		];
 
 		if ( get_post_type() === BRICKS_DB_TEMPLATE_SLUG ) {
 			$this->controls['context'] = [
-				'tab'         => 'content',
 				'label'       => esc_html__( 'Add context', 'bricks' ),
 				'type'        => 'checkbox',
 				'description' => esc_html__( 'Add context to title on archive/search templates.', 'bricks' ),
 			];
 		}
+
+		// Prefix
+
+		$this->controls['prefixSep'] = [
+			'label' => esc_html__( 'Prefix', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['prefix'] = [
+			'label'  => esc_html__( 'Prefix', 'bricks' ),
+			'type'   => 'text',
+			'inline' => true,
+		];
+
+		$this->controls['prefixSpacing'] = [
+			'label'    => esc_html__( 'Spacing', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
+				[
+					'selector' => '.post-prefix',
+					'property' => 'margin-inline-end',
+				],
+			],
+			'required' => [ 'prefix', '!=', '' ],
+		];
+
+		$this->controls['prefixBlock'] = [
+			'label'    => esc_html__( 'Block', 'bricks' ),
+			'type'     => 'checkbox',
+			'css'      => [
+				[
+					'selector' => '.post-prefix',
+					'property' => 'display',
+					'value'    => 'block',
+				],
+			],
+			'required' => [ 'prefix', '!=', '' ],
+		];
+
+		$this->controls['prefixTypography'] = [
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'selector' => '.post-prefix',
+					'property' => 'font',
+				],
+			],
+			'required' => [ 'prefix', '!=', '' ],
+		];
+
+		// Suffix
+
+		$this->controls['suffixSep'] = [
+			'label' => esc_html__( 'Suffix', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['suffix'] = [
+			'label'  => esc_html__( 'Suffix', 'bricks' ),
+			'type'   => 'text',
+			'inline' => true,
+		];
+
+		$this->controls['suffixSpacing'] = [
+			'label'    => esc_html__( 'Spacing', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
+				[
+					'selector' => '.post-suffix',
+					'property' => 'margin-inline-start',
+				],
+			],
+			'required' => [ 'suffix', '!=', '' ],
+		];
+
+		$this->controls['suffixBlock'] = [
+			'label'    => esc_html__( 'Block', 'bricks' ),
+			'type'     => 'checkbox',
+			'css'      => [
+				[
+					'selector' => '.post-suffix',
+					'property' => 'display',
+					'value'    => 'block',
+				],
+			],
+			'required' => [ 'suffix', '!=', '' ],
+		];
+
+		$this->controls['suffixTypography'] = [
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'selector' => '.post-suffix',
+					'property' => 'font',
+				],
+			],
+			'required' => [ 'suffix', '!=', '' ],
+		];
 	}
 
 	public function render() {
@@ -119,7 +186,7 @@ class Element_Post_Title extends Element {
 		if ( $prefix ) {
 			$this->set_attribute( 'prefix', 'class', [ 'post-prefix' ] );
 
-			$output .= isset( $settings['prefixBlock'] ) ? "<div {$this->render_attributes( 'prefix' )}>{$prefix}</div>" : "<span {$this->render_attributes( 'prefix' )}>{$prefix}</span>";
+			$output .= "<span {$this->render_attributes( 'prefix' )}>{$prefix}</span>";
 		}
 
 		$output .= Helpers::get_the_title( $this->post_id, $context );
@@ -127,7 +194,7 @@ class Element_Post_Title extends Element {
 		if ( $suffix ) {
 			$this->set_attribute( 'suffix', 'class', [ 'post-suffix' ] );
 
-			$output .= isset( $settings['suffixBlock'] ) ? "<div {$this->render_attributes( 'suffix' )}>{$suffix}</div>" : "<span {$this->render_attributes( 'suffix' )}>{$suffix}</span>";
+			$output .= "<span {$this->render_attributes( 'suffix' )}>{$suffix}</span>";
 		}
 
 		if ( $link_to_post ) {

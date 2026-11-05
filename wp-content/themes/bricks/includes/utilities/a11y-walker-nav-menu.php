@@ -148,13 +148,26 @@ class Aria_Walker_Nav_Menu extends Walker_Nav_Menu {
 		$atts           = [];
 		$atts['title']  = ! empty( $item->attr_title ) ? $item->attr_title : '';
 		$atts['target'] = ! empty( $item->target ) ? $item->target : '';
+
 		if ( '_blank' === $item->target && empty( $item->xfn ) ) {
 			$atts['rel'] = 'noopener';
 		} else {
 			$atts['rel'] = $item->xfn;
 		}
-		$atts['href']         = ! empty( $item->url ) ? $item->url : '';
-		$atts['aria-current'] = $item->current ? 'page' : '';
+
+		if ( ! empty( $item->url ) ) {
+			$atts['href'] = $item->url;
+		}
+
+		// Anchor link don't set aria-current (@since 1.11)
+		if ( $item->current && strpos( $item->url, '#' ) === false ) {
+			$atts['aria-current'] = 'page';
+		}
+
+		// Add data-brx-anchor attribute to anchor link for frontend JS (@since 1.11)
+		if ( strpos( $item->url, '#' ) !== false ) {
+			$atts['data-brx-anchor'] = 'true';
+		}
 
 		/**
 		 * Filters the HTML attributes applied to a menu item's anchor element.

@@ -210,7 +210,7 @@ class Woocommerce_Notice extends Element {
 
 			'notice'  => [
 				[
-					'text' => 'This is a notice. <a href="#" class="showcoupon">Click here to enter your code</a>',
+					'text' => 'This is a notice. <a href="#">This is a button</a>',
 					'data' => [],
 				],
 			],

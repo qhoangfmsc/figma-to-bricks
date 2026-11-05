@@ -1,6 +1,8 @@
 <?php
 namespace Bricks\Integrations\Form;
 
+use Bricks\Capabilities;
+
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 // WP_List_Table class not included by default: Load it (@since 1.9.8)
@@ -555,8 +557,12 @@ class Submission_Table extends \WP_List_Table {
 						'form_id'   => esc_html__( 'Form ID', 'bricks' ),
 						'form_name' => esc_html__( 'Form name', 'bricks' ),
 						'entries'   => esc_html__( 'Entries', 'bricks' ),
-						'actions'   => esc_html__( 'Actions', 'bricks' ),
 					];
+
+					// Only show actions (delete) if managed DB access (@since 1.11)
+					if ( $this->submission_db::check_managed_db_access() ) {
+						$headers['actions'] = esc_html__( 'Actions', 'bricks' );
+					}
 
 					break;
 			}
@@ -625,15 +631,15 @@ class Submission_Table extends \WP_List_Table {
 	public static function handle_custom_actions() {
 		$submission_db = Submission_Database::get_instance();
 
-		if ( ! $submission_db::check_managed_db_access() ) {
-			return;
-		}
-
-		// Delete form entries
+		// Delete form entries (required manage_opttion capability)
 		$delete_entries = ! empty( $_POST['action'] ) ? sanitize_text_field( $_POST['action'] ) : false;
 		$selected_items = $_POST['row_id'] ?? [];
 
-		if ( $delete_entries === self::DELETE_FORM_ENTRIES && ! empty( $selected_items ) ) {
+		if (
+			$submission_db::check_managed_db_access() &&
+			$delete_entries === self::DELETE_FORM_ENTRIES
+			&& ! empty( $selected_items )
+		) {
 			// Delete each item
 			$deleted = [];
 			foreach ( $selected_items as $item_id ) {
@@ -655,12 +661,17 @@ class Submission_Table extends \WP_List_Table {
 			);
 		}
 
-		// Export form entries as CSV file
+		// Export form entries as CSV file (required form submission access)
 		$export_entries = ! empty( $_GET['action'] ) ? sanitize_text_field( $_GET['action'] ) : false;
 		$form_id        = isset( $_GET['form_id'] ) ? sanitize_text_field( $_GET['form_id'] ) : '';
 		$nonce          = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( $_GET['_wpnonce'] ) : '';
 
-		if ( $export_entries === self::EXPORT_FORM_ENTRIES && $form_id && wp_verify_nonce( $nonce, self::EXPORT_FORM_ENTRIES ) ) {
+		if (
+			Capabilities::$form_submission_access &&
+			$export_entries === self::EXPORT_FORM_ENTRIES &&
+			$form_id &&
+			wp_verify_nonce( $nonce, self::EXPORT_FORM_ENTRIES )
+		) {
 			$submission_table = new Submission_Table();
 			$submission_table->prepare_items();
 

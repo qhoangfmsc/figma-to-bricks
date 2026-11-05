@@ -4,8 +4,33 @@ namespace Bricks\Integrations\Dynamic_Data\Providers;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Provider_Acf extends Base {
-	public static function load_me() {
+	/**
+	 * This method will be called before the provider is registered
+	 * Not relying on the load_me() method to avoid unnecessary checks.
+	 *
+	 * @since 1.11
+	 */
+	public static function required_hooks() {
+		if ( ! class_exists( 'ACF' ) ) {
+			return;
+		}
+
 		add_action( 'save_post_acf-field-group', [ __CLASS__, 'flush_cache' ] );
+	}
+
+	public static function load_me() {
+		/**
+		 * Return: Don't register this provider on ACF AJAX requests
+		 *
+		 * Otherwise irrelevant language field groups show in WP admin with Polylang Pro active.
+		 *
+		 * @see #86bzctmfr
+		 * @since 1.10
+		 */
+		if ( bricks_is_ajax_call() && isset( $_POST['action'] ) && strpos( $_POST['action'], 'acf/ajax/' ) === 0 ) {
+			return false;
+		}
+
 		return class_exists( 'ACF' );
 	}
 
@@ -409,12 +434,19 @@ class Provider_Acf extends Base {
 						break;
 
 					case 'user':
-						$filters['object_type'] = 'user';
+						if ( empty( $value ) ) {
+							$value = []; // Avoid PHP warning when using wp_list_pluck
+						} else {
+							// Support :value filter to return IDs only
+							if ( ! isset( $filters['value'] ) ) {
+								$filters['object_type'] = 'user';
+							}
 
-						// ACF allows for single or multiple users
-						$value = $field['multiple'] ? $value : [ $value ];
+							// ACF allows for single or multiple users
+							$value = $field['multiple'] ? $value : [ $value ];
 
-						$value = $return_format === 'id' ? $value : wp_list_pluck( $value, 'ID' );
+							$value = $return_format === 'id' ? $value : wp_list_pluck( $value, 'ID' );
+						}
 
 						break;
 
@@ -423,14 +455,17 @@ class Provider_Acf extends Base {
 						break;
 
 					case 'taxonomy':
-						$filters['object_type'] = 'term';
-						$filters['taxonomy']    = $field['taxonomy'];
+						// Support :value filter to return IDs only
+						if ( ! isset( $filters['value'] ) ) {
+							$filters['object_type'] = 'term';
+							$filters['taxonomy']    = $field['taxonomy'];
 
-						// NOTE: Undocumented
-						$show_as_link = apply_filters( 'bricks/acf/taxonomy/show_as_link', true, $value, $field );
+							// NOTE: Undocumented
+							$show_as_link = apply_filters( 'bricks/acf/taxonomy/show_as_link', true, $value, $field );
 
-						if ( $show_as_link ) {
-							$filters['link'] = true;
+							if ( $show_as_link ) {
+								$filters['link'] = true;
+							}
 						}
 
 						$value = is_array( $value ) ? $value : [ $value ];
@@ -440,8 +475,11 @@ class Provider_Acf extends Base {
 
 					case 'image':
 					case 'gallery':
-						$filters['object_type'] = 'media';
-						$filters['separator']   = '';
+						// Support :value filter to return IDs only
+						if ( ! isset( $filters['value'] ) ) {
+							$filters['object_type'] = 'media';
+							$filters['separator']   = '';
+						}
 
 						$value = empty( $value ) ? [] : (array) $value;
 
@@ -490,8 +528,11 @@ class Provider_Acf extends Base {
 					case 'relationship':
 						// Only field is not empty then process
 						if ( ! empty( $value ) && $return_format === 'object' ) {
-							$filters['object_type'] = 'post';
-							$filters['link']        = true;
+							// Support :value filter to return IDs only
+							if ( ! isset( $filters['value'] ) ) {
+								$filters['object_type'] = 'post';
+								$filters['link']        = true;
+							}
 
 							if ( isset( $value->ID ) ) {
 								$value = $value->ID;
@@ -547,8 +588,10 @@ class Provider_Acf extends Base {
 				case 'acf_get_row_layout':
 					$value = '';
 
-					if ( \Bricks\Query::is_looping() ) {
-						$looping_object = \Bricks\Query::get_loop_object();
+					// If any looping (@since 1.10)
+					$any_loop_id = \Bricks\Query::is_any_looping();
+					if ( $any_loop_id ) {
+						$looping_object = \Bricks\Query::get_loop_object( $any_loop_id );
 
 						// Check if current loop object is an ACF flexible content: Must be an array & must have the 'acf_fc_layout' key (@since 1.8)
 						if ( is_array( $looping_object ) && isset( $looping_object['acf_fc_layout'] ) ) {
@@ -590,8 +633,10 @@ class Provider_Acf extends Base {
 		}
 
 		// STEP: Check if in a Relationship, or Repeater loop (could have nested groups inside - @since 1.5.1)
-		if ( \Bricks\Query::is_looping() ) {
-			$query_type = \Bricks\Query::get_query_object_type();
+		// Use is_any_looping, otherwise using dynamic data on Query that's not render yet will be incorrect (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$query_type = \Bricks\Query::get_query_object_type( $any_loop_id );
 
 			// Loop belongs to this provider
 			if ( array_key_exists( $query_type, $this->loop_tags ) ) {
@@ -660,7 +705,7 @@ class Provider_Acf extends Base {
 				}
 
 				// The current loop object (array of values)
-				$narrow_values = \Bricks\Query::get_loop_object();
+				$narrow_values = \Bricks\Query::get_loop_object( $any_loop_id );
 
 				/**
 				 * If the field is a nested group field, the $value_path should use the parent group names
@@ -789,7 +834,7 @@ class Provider_Acf extends Base {
 	 * @param [type] $filters
 	 */
 	public function process_choices_fields( $value, $field, $filters ) {
-		$value = (array) $value;
+		$value = empty( $value ) ? [] : (array) $value; // Avoid PHP error if $value is null
 
 		// If return format is set to "Both (array)" return 'label' by default
 		if ( ! empty( $field['return_format'] ) ) {
@@ -907,14 +952,15 @@ class Provider_Acf extends Base {
 			return 'option';
 		}
 
-		// In a Query Loop
-		if ( \Bricks\Query::is_looping() ) {
-			$object_type = \Bricks\Query::get_loop_object_type();
-			$object_id   = \Bricks\Query::get_loop_object_id();
+		// If any looping (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$object_type = \Bricks\Query::get_loop_object_type( $any_loop_id );
+			$object_id   = \Bricks\Query::get_loop_object_id( $any_loop_id );
 
 			// Terms loop
 			if ( $object_type == 'term' && in_array( $object_type, $locations ) ) {
-				$object = \Bricks\Query::get_loop_object();
+				$object = \Bricks\Query::get_loop_object( $any_loop_id );
 
 				return isset( $object->taxonomy ) ? $object->taxonomy . '_' . $object_id : $post_id;
 			}
@@ -971,7 +1017,8 @@ class Provider_Acf extends Base {
 
 			// Maybe it is a nested loop
 			if ( array_key_exists( $loop_query_object_type, $this->loop_tags ) ) {
-				$loop_object = \Bricks\Query::get_loop_object( $looping_query_id );
+				$loop_object                  = \Bricks\Query::get_loop_object( $looping_query_id );
+				$loop_query_object_field_type = $this->loop_tags[ $loop_query_object_type ]['field']['type'] ?? '';
 
 				// If this is a nested repeater
 				if ( is_array( $loop_object ) && array_key_exists( $field['name'], $loop_object ) ) {
@@ -985,13 +1032,20 @@ class Provider_Acf extends Base {
 					return $nested_loop_object;
 				}
 
-				// Nested repeater inside nested group (@since 1.9.1)
-				if ( isset( $tag_object['nested_group'] ) ) {
+				/**
+				 * Nested repeater inside nested group
+				 *
+				 * Exception: Looping object field type is 'relationship' or 'post_object'. Don't use the nested group logic (@since 1.10)
+				 *
+				 * @since 1.9.1
+				 */
+				if ( isset( $tag_object['nested_group'] ) && ! in_array( $loop_query_object_field_type, [ 'relationship','post_object' ] ) ) {
 					// Parent group name first. Eg: ['general', 'actors']
-					$parent_group_names = isset( $tag_object['parent_group_names'] ) ? $tag_object['parent_group_names'] : [];
+					$parent_group_names = $tag_object['parent_group_names'] ?? [];
 
+					// No parent group names: Return empty array
 					if ( empty( $parent_group_names ) ) {
-						return []; // No parent group names, return empty array
+						return [];
 					}
 
 					// if nested group field is belongs to options page, use get_acf_group_field_value() to get the value (@since 1.9.1.1)
@@ -1005,7 +1059,7 @@ class Provider_Acf extends Base {
 					$parent_group_names[] = $field['name'];
 
 					foreach ( $parent_group_names as $parent_group_name ) {
-						if ( isset( $loop_object[ $parent_group_name ] ) ) {
+						if ( is_array( $loop_object ) && isset( $loop_object[ $parent_group_name ] ) ) {
 							$loop_object = $loop_object[ $parent_group_name ];
 						} else {
 							return []; // Parent group name not found, return empty array
@@ -1015,11 +1069,31 @@ class Provider_Acf extends Base {
 					return $loop_object;
 				}
 
+				/**
+				 * Repeater > Group > Repeater (#86c0nrff0)
+				 *
+				 * @since 1.11.1
+				 */
+				$name_from_dd_tag = str_replace( '{acf_', '', $tag_object['name'] );
+				$name_from_dd_tag = str_replace( '}', '', $name_from_dd_tag );
+
+				if ( $name_from_dd_tag !== $field['name'] ) {
+					// use get_acf_group_field_value() if belongs to options page
+					if ( isset( $tag_object['_bricks_locations'] ) && ! empty( $tag_object['_bricks_locations'] ) && in_array( 'option', $tag_object['_bricks_locations'] ) ) {
+						return $this->get_acf_group_field_value( $tag_object, 0 );
+					}
+
+					$maybe_group_name = str_replace( '_' . $field['name'], '', $name_from_dd_tag );
+
+					if ( isset( $maybe_group_name ) && is_array( $loop_object ) && isset( $loop_object[ $maybe_group_name ] ) && isset( $loop_object[ $maybe_group_name ][ $field['name'] ] ) ) {
+						return $loop_object[ $maybe_group_name ][ $field['name'] ];
+					}
+				}
+
 				// If this is a nested relationship
 				if ( is_object( $loop_object ) && is_a( $loop_object, 'WP_Post' ) ) {
 					$acf_object_id = get_the_ID();
 				}
-
 			}
 
 			/**
@@ -1041,7 +1115,22 @@ class Provider_Acf extends Base {
 
 		// Check if it is a subfield of a group field (Repeater inside of a Group)
 		if ( isset( $tag_object['parent']['type'] ) && $tag_object['parent']['type'] === 'group' ) {
-			$post_id = isset( $loop_query_object_type ) && $loop_query_object_type === 'post' ? get_the_ID() : \Bricks\Database::$page_data['preview_or_post_id'];
+			$post_id = \Bricks\Database::$page_data['preview_or_post_id'];
+
+			/**
+			 * Use get_the_ID()
+			 *
+			 * - If looping object is a post.
+			 * - If looping object field type is 'relationship' or 'post_object'.
+			 *
+			 * @since 1.10
+			 */
+			if (
+				( isset( $loop_query_object_type ) && $loop_query_object_type === 'post' ) ||
+				( isset( $loop_query_object_field_type ) && in_array( $loop_query_object_field_type, [ 'relationship','post_object' ], true ) )
+			) {
+				$post_id = get_the_ID();
+			}
 
 			$results = $this->get_acf_group_field_value( $tag_object, $post_id );
 		} else {
@@ -1098,5 +1187,47 @@ class Provider_Acf extends Base {
 
 	public static function flush_cache( $post_id ) {
 		wp_cache_set( 'last_changed', microtime(), 'bricks_' . get_post_type( $post_id ) );
+	}
+
+	/**
+	 * Retrieve all registered tags which are supported in WP_Query post__in parameter
+	 *
+	 * @since 1.12
+	 */
+	public function get_query_supported_tags() {
+		$field_types = [
+			'relationship',
+			'post_object',
+			'gallery',
+		];
+
+		$supported_tags = [];
+
+		foreach ( $this->tags as $tag ) {
+			if ( ! isset( $tag['field'] ) ) {
+				continue;
+			}
+
+			if ( isset( $tag['deprecated'] ) ) {
+				continue;
+			}
+
+			$field      = $tag['field'] ?? [];
+			$field_type = $field['type'] ?? '';
+
+			if ( in_array( $field_type, $field_types, true ) ) {
+				$supported_tags[] = [
+					'name'     => $tag['name'],
+					'type'     => $field_type,
+					'label'    => $tag['label'],
+					'params'   => [
+						'post__in',
+					],
+					'provider' => $tag['provider'],
+				];
+			}
+		}
+
+		return $supported_tags;
 	}
 }

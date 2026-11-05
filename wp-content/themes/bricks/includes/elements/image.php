@@ -24,6 +24,11 @@ class Element_Image extends Element {
 		if ( isset( $this->settings['link'] ) && $this->settings['link'] === 'lightbox' ) {
 			wp_enqueue_script( 'bricks-photoswipe' );
 			wp_enqueue_style( 'bricks-photoswipe' );
+
+			// Lightbox caption (@since 1.10)
+			if ( isset( $this->settings['lightboxCaption'] ) ) {
+				wp_enqueue_script( 'bricks-photoswipe-caption' );
+			}
 		}
 	}
 
@@ -43,26 +48,12 @@ class Element_Image extends Element {
 		// Underscorce prefix to prevent conflict with user-created custom breakpoint
 		$breakpoint_options['_custom'] = esc_html__( 'Custom', 'bricks' ) . ' (' . esc_html__( 'Media query', 'bricks' ) . ')';
 
-		// Apply '_border' to figure.tag or img (@since 1.9.8)
-		$this->controls['_border']['css'] = [
-			[
-				'property' => 'border',
-				'selector' => '&:not(.tag)',
-			],
-			[
-				'property' => 'border',
-				'selector' => 'img',
-			],
-		];
+		$img_css_selector = '&:not(.tag), img';
 
 		// Apply CSS filters only to img tag
 		$this->controls['_cssFilters']['css'] = [
 			[
-				'selector' => '&:not(.tag)',
-				'property' => 'filter',
-			],
-			[
-				'selector' => 'img',
+				'selector' => $img_css_selector,
 				'property' => 'filter',
 			],
 		];
@@ -79,10 +70,10 @@ class Element_Image extends Element {
 			'label'       => esc_html__( 'HTML tag', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
-				'figure'  => 'figure',
-				'picture' => 'picture',
-				'div'     => 'div',
-				'custom'  => esc_html__( 'Custom', 'bricks' ),
+				'figure' => 'figure',
+				// 'picture' => 'picture', // NOTE: Removed as 'picture' is set when using "Sources" and there's no point to manually set it (@since 1.12)
+				'div'    => 'div',
+				'custom' => esc_html__( 'Custom', 'bricks' ),
 			],
 			'lowercase'   => true,
 			'inline'      => true,
@@ -92,11 +83,15 @@ class Element_Image extends Element {
 
 		$this->controls['customTag'] = [
 			'label'       => esc_html__( 'Custom tag', 'bricks' ),
+			'info'        => esc_html__( 'Without attributes', 'bricks' ),
 			'type'        => 'text',
 			'inline'      => true,
 			'dd'          => false,
 			'placeholder' => 'div',
-			'required'    => [ 'tag', '=', 'custom' ],
+			'required'    => [
+				[ 'tag', '=', 'custom' ],
+				[ 'sources', '=', '' ],
+			]
 		];
 
 		$this->controls['sources'] = [
@@ -144,12 +139,8 @@ class Element_Image extends Element {
 				'placeholder' => '',
 				'css'         => [
 					[
+						$img_css_selector,
 						'property' => 'aspect-ratio',
-						'selector' => '&:not(.tag)',
-					],
-					[
-						'property' => 'aspect-ratio',
-						'selector' => 'img',
 					],
 				],
 			];
@@ -162,12 +153,8 @@ class Element_Image extends Element {
 			'options' => $this->control_options['objectFit'],
 			'css'     => [
 				[
+					'selector' => $img_css_selector,
 					'property' => 'object-fit',
-					'selector' => '&:not(.tag)',
-				],
-				[
-					'property' => 'object-fit',
-					'selector' => 'img',
 				],
 			],
 		];
@@ -179,12 +166,8 @@ class Element_Image extends Element {
 			'dd'     => false,
 			'css'    => [
 				[
+					'selector' => $img_css_selector,
 					'property' => 'object-position',
-					'selector' => '&:not(.tag)',
-				],
-				[
-					'property' => 'object-position',
-					'selector' => 'img',
 				],
 			],
 		];
@@ -210,7 +193,7 @@ class Element_Image extends Element {
 		$show_caption = ! empty( $this->theme_styles['caption'] ) ? $this->theme_styles['caption'] : 'attachment';
 
 		$this->controls['caption'] = [
-			'label'       => esc_html__( 'Caption Type', 'bricks' ),
+			'label'       => esc_html__( 'Caption type', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $caption_options,
 			'inline'      => true,
@@ -284,30 +267,42 @@ class Element_Image extends Element {
 			'placeholder' => esc_html__( 'None', 'bricks' ),
 		];
 
-		// @since 1.8.1
 		$this->controls['lightboxImageSize'] = [
-			'label'       => esc_html__( 'Lightbox image size', 'bricks' ),
+			'label'       => esc_html__( 'Lightbox', 'bricks' ) . ': ' . esc_html__( 'Image size', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $this->control_options['imageSizes'],
 			'placeholder' => esc_html__( 'Full', 'bricks' ),
 			'required'    => [ 'link', '=', 'lightbox' ],
 		];
 
-		// @since 1.8.4
 		$this->controls['lightboxAnimationType'] = [
-			'label'       => esc_html__( 'Lightbox animation type', 'bricks' ),
+			'label'       => esc_html__( 'Lightbox', 'bricks' ) . ': ' . esc_html__( 'Animation', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $this->control_options['lightboxAnimationTypes'],
 			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
 			'required'    => [ 'link', '=', 'lightbox' ],
 		];
 
+		$this->controls['lightboxCaption'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Lightbox', 'bricks' ) . ': ' . esc_html__( 'Caption', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
 		$this->controls['lightboxId'] = [
-			'label'       => esc_html__( 'Lightbox ID', 'bricks' ),
+			'label'       => esc_html__( 'Lightbox', 'bricks' ) . ': ID',
 			'type'        => 'text',
 			'inline'      => true,
 			'required'    => [ 'link', '=', 'lightbox' ],
 			'description' => esc_html__( 'Images of the same lightbox ID are grouped together.', 'bricks' ),
+		];
+
+		$this->controls['lightboxPadding'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Lightbox', 'bricks' ) . ': ' . esc_html__( 'Padding', 'bricks' ) . ' (px)',
+			'type'     => 'dimensions',
+			'required' => [ 'link', '=', 'lightbox' ],
 		];
 
 		$this->controls['newTab'] = [
@@ -346,7 +341,6 @@ class Element_Image extends Element {
 			'rerender' => true,
 		];
 
-		// NOTE: Set popup CSS control outside of control 'link' (CSS is not applied to nested controls)
 		$this->controls['popupIconBackgroundColor'] = [
 			'label'    => esc_html__( 'Icon background color', 'bricks' ),
 			'type'     => 'color',
@@ -510,7 +504,6 @@ class Element_Image extends Element {
 			'label'       => esc_html__( 'Size', 'bricks' ),
 			'type'        => 'select',
 			'inline'      => true,
-			'large'       => true,
 			'options'     => [
 				'auto'    => esc_html__( 'Auto', 'bricks' ),
 				'cover'   => esc_html__( 'Cover', 'bricks' ),
@@ -525,7 +518,6 @@ class Element_Image extends Element {
 			'label'    => esc_html__( 'Custom size', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'required' => [ 'maskSize', '=', 'custom' ],
 		];
 
@@ -663,7 +655,12 @@ class Element_Image extends Element {
 			$image['url'] = ! empty( $image['id'] ) ? wp_get_attachment_image_url( $image['id'], $image['size'] ) : false;
 		} else {
 			// Parse dynamic data in the external URL
-			$image['url'] = $this->render_dynamic_data( $image['url'] );
+			if ( ! empty( $image['external'] ) && strpos( $image['external'], '{' ) !== false && strpos( $image['external'], '}' ) !== false ) {
+				// Use external url if contains a dynamic data tag (@since 1.11.1)
+				$image['url'] = $this->render_dynamic_data( $image['external'] );
+			} else {
+				$image['url'] = $this->render_dynamic_data( $image['url'] );
+			}
 		}
 
 		return $image;
@@ -776,6 +773,7 @@ class Element_Image extends Element {
 		 *
 		 * @since 1.8.5
 		 */
+		$base_src    = null; // Base source image (@since 1.12; needeed for Lightbox)
 		$width_range = Breakpoints::$is_mobile_first ? 'min-width' : 'max-width';
 
 		if ( is_array( $sources ) && count( $sources ) ) {
@@ -814,6 +812,11 @@ class Element_Image extends Element {
 
 					$this->set_attribute( "source_{$index}", 'srcset', esc_attr( $source_image_url ) );
 
+					// Check if image is on Base breakpoint, then get image source data
+					if ( isset( $breakpoint['base'] ) ) {
+						$base_src = wp_get_attachment_image_src( $source_image_id, $source_image_size );
+					}
+
 					// Get MIME type of the image
 					$source_image_mime_type = get_post_mime_type( $source_image_id );
 
@@ -824,6 +827,7 @@ class Element_Image extends Element {
 
 				// External image URL
 				elseif ( ! empty( $source_image['url'] ) ) {
+					$source_image['url'] = str_replace( ' ', '%20', $source_image['url'] ); // URL should not contain space, we replace it with %20 (@since 1.12.3)
 					$this->set_attribute( "source_{$index}", 'srcset', esc_attr( $source_image['url'] ) );
 				}
 
@@ -877,14 +881,24 @@ class Element_Image extends Element {
 			} elseif ( $link === 'lightbox' ) {
 				$this->set_attribute( 'link', 'class', 'bricks-lightbox' );
 
-				// Lightbox image size (@since 1.8.1)
-				$lightbox_image_size = ! empty( $settings['lightboxImageSize'] ) ? $settings['lightboxImageSize'] : 'full';
-				$lightbox_image_src  = $image_id ? wp_get_attachment_image_src( $image_id, $lightbox_image_size ) : [ $image_placeholder_url, 800, 600 ];
+				// Lightbox image size
+				$lightbox_image_size = $settings['lightboxImageSize'] ?? 'full';
 
-				$this->set_attribute( 'link', 'href', $lightbox_image_src[0] );
-				$this->set_attribute( 'link', 'data-pswp-src', $lightbox_image_src[0] );
-				$this->set_attribute( 'link', 'data-pswp-width', $lightbox_image_src[1] );
-				$this->set_attribute( 'link', 'data-pswp-height', $lightbox_image_src[2] );
+				if ( $image_id ) {
+					$lightbox_image_src = wp_get_attachment_image_src( $image_id, $lightbox_image_size );
+				} elseif ( $image_url ) {
+					$lightbox_image_src = [ $image_url, 800, 600 ];
+				} else {
+					$lightbox_image_src = [ $image_placeholder_url, 800, 600 ]; // Placeholder image
+				}
+
+				$lightbox_image = $base_src ?? $lightbox_image_src;
+				if ( $lightbox_image ) {
+					$this->set_attribute( 'link', 'href', $lightbox_image[0] );
+					$this->set_attribute( 'link', 'data-pswp-src', $lightbox_image[0] );
+					$this->set_attribute( 'link', 'data-pswp-width', $lightbox_image[1] );
+					$this->set_attribute( 'link', 'data-pswp-height', $lightbox_image[2] );
+				}
 
 				if ( ! empty( $settings['lightboxId'] ) ) {
 					$this->set_attribute( 'link', 'data-pswp-id', esc_attr( $settings['lightboxId'] ) );
@@ -892,6 +906,20 @@ class Element_Image extends Element {
 
 				if ( ! empty( $settings['lightboxAnimationType'] ) ) {
 					$this->set_attribute( 'link', 'data-animation-type', esc_attr( $settings['lightboxAnimationType'] ) );
+				}
+
+				if ( ! empty( $settings['lightboxPadding'] ) ) {
+					$this->set_attribute( 'link', 'data-lightbox-padding', wp_json_encode( $settings['lightboxPadding'] ) );
+				}
+
+				// Lightbox caption (@since 1.10)
+				if ( isset( $settings['lightboxCaption'] ) ) {
+					$this->set_attribute( 'link', 'class', 'has-lightbox-caption' );
+
+					$lightbox_caption = $image_id ? wp_get_attachment_caption( $image_id ) : false;
+					if ( $lightbox_caption ) {
+						$this->set_attribute( 'link', 'data-lightbox-caption', esc_attr( $lightbox_caption ) );
+					}
 				}
 			}
 
@@ -931,6 +959,9 @@ class Element_Image extends Element {
 		// Lazy load atts set via 'wp_get_attachment_image_attributes' filter
 		if ( $image_id ) {
 			$image_attributes = [];
+
+			// Run the filter to get data-query-loop-index attribute (@since 1.11)
+			$this->attributes = apply_filters( 'bricks/element/render_attributes', $this->attributes, '_root', $this );
 
 			// 'img' is root (no caption, no overlay)
 			if ( ! $has_html_tag && ! $link ) {

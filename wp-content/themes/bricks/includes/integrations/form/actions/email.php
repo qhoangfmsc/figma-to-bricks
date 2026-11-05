@@ -15,13 +15,11 @@ class Email extends Base {
 
 		// Email To
 		if ( isset( $form_settings['emailTo'] ) && $form_settings['emailTo'] === 'custom' && ! empty( $form_settings['emailToCustom'] ) ) {
-			$recipients = $form->render_data( $form_settings['emailToCustom'] );
+			$recipients = $this->parse_emails( $form->render_data( $form_settings['emailToCustom'] ) );
 
 			$recipients = explode( ',', $recipients );
 
 			$recipients = array_map( 'trim', $recipients );
-
-			$recipients = array_filter( $recipients, 'is_email' );
 		}
 
 		if ( empty( $recipients ) ) {
@@ -35,32 +33,35 @@ class Email extends Base {
 		// Email content
 		$line_break     = isset( $form_settings['htmlEmail'] ) ? '<br>' : "\n";
 		$custom_message = ! empty( $form_settings['emailContent'] ) ? $form_settings['emailContent'] : '';
-		$message        = $this->get_all_fields( $form_settings, $form );
+		$message        = wp_kses_post( $this->get_all_fields( $form_settings, $form ) );
 
 		// Custom message
 		if ( $custom_message ) {
 			// Replace {{all_fields}} with all fields content (@since 1.9.2)
-			$message = str_replace( '{{all_fields}}', $message, $custom_message );
+			$processed_message = str_replace( '{{all_fields}}', $message, $custom_message );
 
 			// Render email content (replace {{form_field_id}} with submitted value)
-			$message = $form->render_data( $message );
+			$processed_message = $form->render_data( $processed_message );
 
 			// Add line breaks if user didn't add an HTML template
-			$message = isset( $form_settings['htmlEmail'] ) && strpos( $message, '<html' ) === false ? nl2br( wp_kses_post( $message ) ) : wp_kses_post( $message );
+			if ( isset( $form_settings['htmlEmail'] ) && strpos( $processed_message, '<html' ) === false ) {
+				$processed_message = nl2br( $processed_message );
+			}
 		}
 
 		// Default message
 		else {
+			$processed_message = $message; // Ensure all fields message is still set if no custom message is used
 			// Append referer
 			if ( isset( $_POST['referrer'] ) ) {
-				$message .= "{$line_break}{$line_break}" . esc_html__( 'Message sent from:', 'bricks' ) . ' ' . esc_url( $_POST['referrer'] );
+				$processed_message .= "{$line_break}{$line_break}" . esc_html__( 'Message sent from:', 'bricks' ) . ' ' . esc_url( $_POST['referrer'] );
 			}
 		}
 
 		$email = [
 			'to'      => $recipients,
 			'subject' => $subject,
-			'message' => $message,
+			'message' => $processed_message,
 		];
 
 		// Email headers
@@ -82,23 +83,27 @@ class Email extends Base {
 
 		// Header: 'Bcc'
 		if ( isset( $form_settings['emailBcc'] ) ) {
-			$headers[] = sprintf( 'Bcc: %s', $form->render_data( $form_settings['emailBcc'] ) );
+			$headers[] = sprintf( 'Bcc: %s', $this->parse_emails( $form->render_data( $form_settings['emailBcc'] ) ) );
+		}
+
+		// Get first email address from submitted form data
+		$first_valid_email = false;
+
+		foreach ( $form_fields as $key => $value ) {
+			if ( is_string( $value ) && is_email( $value ) ) {
+				$first_valid_email = $value;
+				break;
+			}
 		}
 
 		// Header: 'Reply-To' email address
-		$reply_to_email_address = ! empty( $form_settings['replyToEmail'] ) ? sanitize_email( $form->render_data( $form_settings['replyToEmail'] ) ) : '';
+		$reply_to_email_address = ! empty( $form_settings['replyToEmail'] ) ? $this->parse_emails( $form->render_data( $form_settings['replyToEmail'] ) ) : '';
 
 		if ( $reply_to_email_address ) {
 			$headers[] = sprintf( 'Reply-To: %s', $reply_to_email_address );
-		} else {
-			// Use first valid email address found in submitted form data as 'Reply-To' email address (use for confirmation email too @since 1.7.2)
-			foreach ( $form_fields as $key => $value ) {
-				if ( is_string( $value ) && is_email( $value ) ) {
-					$headers[]              = sprintf( 'Reply-To: %s', $value );
-					$reply_to_email_address = $value;
-					break;
-				}
-			}
+		} elseif ( $first_valid_email ) {
+			// Use first valid email address found in submitted form data as 'Reply-To' email address
+			$headers[] = sprintf( 'Reply-To: %s', $first_valid_email );
 		}
 
 		// Add attachments if exist
@@ -119,15 +124,22 @@ class Email extends Base {
 		// STEP: Send confirmation email to submitted email address (@since 1.7.2)
 		$confirmation_email_content = $form_settings['confirmationEmailContent'] ?? false;
 		if ( $confirmation_email_content ) {
+			$all_fields_message = wp_kses_post( $this->get_all_fields( $form_settings, $form ) );
+
 			// Replace {{all_fields}} with all fields content.
-			$custom_message = str_replace( '{{all_fields}}', $message, $confirmation_email_content );
+			$confirmation_message = str_replace( '{{all_fields}}', $all_fields_message, $confirmation_email_content );
 
 			// Render email content (replace {{form_field_id}} with submitted value)
-			$confirmation_email_content = $form->render_data( $custom_message );
+			$confirmation_email_content = $form->render_data( $confirmation_message );
+
+			// Add line breaks if HTML email is enabled and no HTML template exists (@since 1.11.1)
+			if ( isset( $form_settings['confirmationEmailHTML'] ) && strpos( $confirmation_email_content, '<html' ) === false ) {
+				$confirmation_email_content = nl2br( $confirmation_email_content );
+			}
 		}
 
-		if ( $confirmation_email_content && $reply_to_email_address ) {
-			$confirmation_email_to      = isset( $form_settings['confirmationEmailTo'] ) ? $form->render_data( $form_settings['confirmationEmailTo'] ) : $reply_to_email_address;
+		if ( $confirmation_email_content ) {
+			$confirmation_email_to      = isset( $form_settings['confirmationEmailTo'] ) ? $this->parse_emails( $form->render_data( $form_settings['confirmationEmailTo'] ) ) : $first_valid_email;
 			$confirmation_email_subject = isset( $form_settings['confirmationEmailSubject'] ) ? $form->render_data( $form_settings['confirmationEmailSubject'] ) : get_bloginfo( 'name' ) . ': ' . esc_html__( 'Thank you for your message', 'bricks' );
 
 			// Header: 'From'
@@ -137,7 +149,7 @@ class Email extends Base {
 			$confirmation_email_headers = [ "From: $confirmation_from_name <$confirmation_from_email>" ];
 
 			// Header: 'Reply-To' email address (@since 1.9.5)
-			$confirmation_email_reply_to_email = ! empty( $form_settings['confirmationReplyToEmail'] ) ? sanitize_email( $form->render_data( $form_settings['confirmationReplyToEmail'] ) ) : '';
+			$confirmation_email_reply_to_email = ! empty( $form_settings['confirmationReplyToEmail'] ) ? $this->parse_emails( $form->render_data( $form_settings['confirmationReplyToEmail'] ) ) : '';
 
 			if ( $confirmation_email_reply_to_email ) {
 				$confirmation_email_headers[] = sprintf( 'Reply-To: %s', $confirmation_email_reply_to_email );
@@ -191,6 +203,11 @@ class Email extends Base {
 				continue;
 			}
 
+			// Skip: Fields that are defined as honeypot (@since 1.12.2)
+			if ( isset( $field['isHoneypot'] ) ) {
+				continue;
+			}
+
 			if ( $field_label ) {
 				$message .= "$field_label: ";
 			}
@@ -202,5 +219,58 @@ class Email extends Base {
 		}
 
 		return $message;
+	}
+
+	/**
+	 * Parse comma-separated emails (name + email address)
+	 *
+	 * Format: "Name <reply@domain.com>, Name2 <reply2@domain.com>"
+	 *
+	 * @since 1.10
+	 */
+	private function parse_emails( $email_string, $as_string = true ) {
+		// Remove any unwanted characters, new lines, tabs, etc.
+		$email_string = trim( $email_string );
+		$email_string = preg_replace( '/\s+/', ' ', $email_string );
+
+		// Split the email string by comma
+		$emails = explode( ',', $email_string );
+
+		$sanitized_emails = [];
+
+		foreach ( $emails as $email ) {
+			$email = trim( $email );
+
+			$name = '';
+			if ( preg_match( '/^(.+?)<(.+?)>$/', $email, $matches ) ) {
+				// Case for: Firstname Lastname <user@email.com> or "My special Name" <user@email.com>
+				$name  = trim( $matches[1] );
+				$email = sanitize_email( trim( $matches[2] ) );
+			} else {
+				// Case for: user@email.com
+				$email = sanitize_email( $email );
+			}
+
+			// Validate email
+			if ( is_email( $email ) ) {
+				$sanitized_emails[] = [
+					'email' => $email,
+					'name'  => $name,
+				];
+			}
+		}
+
+		if ( $as_string ) {
+			$email_strings = array_map(
+				function( $entry ) {
+					return ! empty( $entry['name'] ) ? '"' . $entry['name'] . '" <' . $entry['email'] . '>' : $entry['email'];
+				},
+				$sanitized_emails
+			);
+
+			return implode( ', ', $email_strings );
+		} else {
+			return $sanitized_emails;
+		}
 	}
 }

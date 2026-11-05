@@ -22,33 +22,38 @@ class Element_Map extends Element {
 	public function set_control_groups() {
 		$this->control_groups['addresses'] = [
 			'title'    => esc_html__( 'Addresses', 'bricks' ),
-			'tab'      => 'content',
 			'required' => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 		];
 
 		$this->control_groups['markers'] = [
 			'title'    => esc_html__( 'Markers', 'bricks' ),
-			'tab'      => 'content',
 			'required' => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 		];
 
 		$this->control_groups['settings'] = [
 			'title'    => esc_html__( 'Settings', 'bricks' ),
-			'tab'      => 'content',
 			'required' => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 		];
 	}
 
 	public function set_controls() {
 		$this->controls['infoNoApiKey'] = [
-			'tab'      => 'content',
 			'content'  => sprintf(
 				// translators: %s: Link to settings page
-				esc_html__( 'Google Maps API key required! Add key in dashboard under: %s', 'bricks' ),
+				esc_html__( 'Enter your Google Maps API key under %s to access all options.', 'bricks' ),
 				'<a href="' . Helpers::settings_url( '#tab-api-keys' ) . '" target="_blank">Bricks > ' . esc_html__( 'Settings', 'bricks' ) . ' > API keys</a>'
 			),
 			'type'     => 'info',
 			'required' => [ 'apiKeyGoogleMaps', '=', '', 'globalSettings' ],
+		];
+
+		// No API key: Single address (@since 1.10.2)
+		$this->controls['address'] = [
+			'label'       => esc_html__( 'Address', 'bricks' ),
+			'desc'        => esc_html__( 'To ensure showing a marker please provide the latitude and longitude, separated by comma.', 'bricks' ),
+			'type'        => 'text',
+			'placeholder' => 'Berlin, Germany',
+			'required'    => [ 'apiKeyGoogleMaps', '=', '', 'globalSettings' ],
 		];
 
 		/**
@@ -56,7 +61,6 @@ class Element_Map extends Element {
 		 */
 
 		$this->controls['infoLatLong'] = [
-			'tab'      => 'content',
 			'group'    => 'addresses',
 			'content'  => esc_html__( 'Please enter the latitude/longitude when using multiple markers.', 'bricks' ),
 			'type'     => 'info',
@@ -64,7 +68,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['addresses'] = [
-			'tab'           => 'content',
 			'group'         => 'addresses',
 			'placeholder'   => esc_html__( 'Addresses', 'bricks' ),
 			'type'          => 'repeater',
@@ -144,7 +147,6 @@ class Element_Map extends Element {
 		 */
 
 		$this->controls['marker'] = [
-			'tab'            => 'content',
 			'group'          => 'markers',
 			'type'           => 'image',
 			'hasDynamicData' => false,
@@ -155,7 +157,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['markerHeight'] = [
-			'tab'      => 'content',
 			'group'    => 'markers',
 			'label'    => esc_html__( 'Marker height in px', 'bricks' ),
 			'type'     => 'number',
@@ -163,7 +164,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['markerWidth'] = [
-			'tab'      => 'content',
 			'group'    => 'markers',
 			'label'    => esc_html__( 'Marker width in px', 'bricks' ),
 			'type'     => 'number',
@@ -172,7 +172,6 @@ class Element_Map extends Element {
 
 		// ACTIVE MARKER
 		$this->controls['markerActiveSeparator'] = [
-			'tab'      => 'content',
 			'group'    => 'markers',
 			'label'    => esc_html__( 'Active marker', 'bricks' ),
 			'type'     => 'separator',
@@ -180,7 +179,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['markerActive'] = [
-			'tab'            => 'content',
 			'group'          => 'markers',
 			'type'           => 'image',
 			'hasDynamicData' => false,
@@ -191,7 +189,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['markerActiveHeight'] = [
-			'tab'      => 'content',
 			'group'    => 'markers',
 			'label'    => esc_html__( 'Active marker height in px', 'bricks' ),
 			'type'     => 'number',
@@ -199,7 +196,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['markerActiveWidth'] = [
-			'tab'      => 'content',
 			'group'    => 'markers',
 			'label'    => esc_html__( 'Active marker width in px', 'bricks' ),
 			'type'     => 'number',
@@ -211,7 +207,6 @@ class Element_Map extends Element {
 		 */
 
 		$this->controls['height'] = [
-			'tab'         => 'content',
 			'group'       => 'settings',
 			'label'       => esc_html__( 'Height', 'bricks' ),
 			'type'        => 'number',
@@ -221,12 +216,11 @@ class Element_Map extends Element {
 					'property' => 'height',
 				],
 			],
-			'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
+			// 'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 			'placeholder' => '300px',
 		];
 
 		$this->controls['zoom'] = [
-			'tab'         => 'content',
 			'group'       => 'settings',
 			'label'       => esc_html__( 'Zoom level', 'bricks' ),
 			'type'        => 'number',
@@ -234,14 +228,14 @@ class Element_Map extends Element {
 			'min'         => 0,
 			'max'         => 20,
 			'placeholder' => 12,
-			'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
+			// 'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 		];
 
 		$this->controls['type'] = [
-			'tab'         => 'content',
 			'group'       => 'settings',
 			'label'       => esc_html__( 'Map type', 'bricks' ),
 			'type'        => 'select',
+			'inline'      => true,
 			'options'     => [
 				'roadmap'   => esc_html__( 'Roadmap', 'bricks' ),
 				'satellite' => esc_html__( 'Satellite', 'bricks' ),
@@ -249,8 +243,15 @@ class Element_Map extends Element {
 				'terrain'   => esc_html__( 'Terrain', 'bricks' ),
 			],
 			'placeholder' => esc_html__( 'Roadmap', 'bricks' ),
-			'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
+			// 'required'    => [ 'apiKeyGoogleMaps', '!=', '', 'globalSettings' ],
 		];
+
+		// STEP: No API key controls
+		if ( empty( Database::$global_settings['apiKeyGoogleMaps'] ) ) {
+			unset( $this->controls['height']['group'] );
+			unset( $this->controls['zoom']['group'] );
+			unset( $this->controls['type']['group'] );
+		}
 
 		$map_styles                   = bricks_is_builder() ? Setup::get_map_styles() : [];
 		$map_styles_options['custom'] = esc_html__( 'Custom', 'bricks' );
@@ -261,7 +262,6 @@ class Element_Map extends Element {
 
 		// Requires map type: Roadmap
 		$this->controls['style'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Map style', 'bricks' ),
 			'type'     => 'select',
@@ -270,19 +270,29 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['customStyle'] = [
-			'tab'          => 'content',
 			'group'        => 'settings',
 			'label'        => esc_html__( 'Custom map style', 'bricks' ),
 			'type'         => 'code',
-			'mode'         => 'json',
+			'mode'         => 'json', // 'javascript', // Must be JSON for proper escaping (@since 1.11)
 			'hasVariables' => false,
 			// translators: %s: Link to snazzymaps.com
 			'description'  => sprintf( esc_html__( 'Copy+paste code from one of the maps over at %s', 'bricks' ), '<a target="_blank" href="https://snazzymaps.com/explore">snazzymaps.com/explore</a>' ),
 			'required'     => [ 'style', '=', 'custom' ],
 		];
 
+		// Needed to parse custom map style (@since 1.11)
+		$this->controls['customStyleApply'] = [
+			'group'    => 'settings',
+			'type'     => 'apply',
+			'reload'   => true,
+			'required' => [
+				[ 'style', '=', 'custom' ],
+				[ 'customStyle', '!=', '' ],
+			],
+			'label'    => esc_html__( 'Apply', 'bricks' ) . ': ' . esc_html__( 'Custom map style', 'bricks' ),
+		];
+
 		$this->controls['scrollwheel'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Scroll', 'bricks' ),
 			'type'     => 'checkbox',
@@ -291,7 +301,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['draggable'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Draggable', 'bricks' ),
 			'type'     => 'checkbox',
@@ -300,7 +309,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['fullscreenControl'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Fullscreen Control', 'bricks' ),
 			'type'     => 'checkbox',
@@ -308,7 +316,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['mapTypeControl'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Map Type Control', 'bricks' ),
 			'type'     => 'checkbox',
@@ -316,7 +323,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['streetViewControl'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Street View Control', 'bricks' ),
 			'type'     => 'checkbox',
@@ -325,7 +331,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['disableDefaultUI'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Disable Default UI', 'bricks' ),
 			'type'     => 'checkbox',
@@ -333,7 +338,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['zoomControl'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Zoom Control', 'bricks' ),
 			'type'     => 'checkbox',
@@ -342,7 +346,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['minZoom'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Zoom level', 'bricks' ) . ' (' . esc_html__( 'Min', 'bricks' ) . ')',
 			'type'     => 'number',
@@ -352,7 +355,6 @@ class Element_Map extends Element {
 		];
 
 		$this->controls['maxZoom'] = [
-			'tab'      => 'content',
 			'group'    => 'settings',
 			'label'    => esc_html__( 'Zoom level', 'bricks' ) . ' (' . esc_html__( 'Max', 'bricks' ) . ')',
 			'type'     => 'number',
@@ -364,22 +366,51 @@ class Element_Map extends Element {
 
 	public function render() {
 		$settings = $this->settings;
+		$map_type = $settings['type'] ?? 'roadmap';
 
+		/**
+		 * STEP: Use Google Maps Embed API
+		 *
+		 * No API key required, but limited functionality: Zoom level, map type //, fullscreen control, street view control, map type control, zoom control, disable default UI
+		 *
+		 * @since 1.10.2
+		 */
 		if ( empty( Database::$global_settings['apiKeyGoogleMaps'] ) ) {
-			return $this->render_element_placeholder(
-				[
-					'title' => sprintf(
-						// translators: %s: Link to settings page
-						esc_html__( 'Google Maps API key required! Add key in dashboard under: %s', 'bricks' ),
-						'<a href="' . Helpers::settings_url( '#tab-api-keys' ) . '" target="_blank">Bricks > ' . esc_html__( 'Settings', 'bricks' ) . ' > API keys</a>'
-					)
-				]
-			);
+			$address = isset( $settings['address'] ) ? $this->render_dynamic_data( $settings['address'] ) : 'Berlin, Germany';
+
+			if ( $map_type === 'satellite' ) {
+				$map_type = 'k'; // satellite
+			} elseif ( $map_type === 'hybrid' ) {
+				$map_type = 'h'; // hybrid
+			} elseif ( $map_type === 'terrain' ) {
+				$map_type = 'p'; // terrain
+			} else {
+				$map_type = 'm'; // roadmap
+			}
+
+			$zoom = isset( $settings['zoom'] ) ? intval( $settings['zoom'] ) : 12;
+
+			$this->set_attribute( 'iframe', 'width', '100%' );
+			$this->set_attribute( 'iframe', 'height', '100%' );
+			$this->set_attribute( 'iframe', 'loading', 'lazy' );
+			$this->set_attribute( 'iframe', 'src', 'https://maps.google.com/maps?q=' . urlencode( $address ) . '&t=' . $map_type . '&z=' . $zoom . '&output=embed&iwloc=near' );
+			$this->set_attribute( 'iframe', 'allowfullscreen' );
+			$this->set_attribute( 'iframe', 'title', esc_attr( $address ) ); // @since 1.12 (a11y)
+
+			$this->set_attribute( '_root', 'class', 'no-key' );
+
+			// Div needed in builder for DnD and click to edit
+			echo "<div {$this->render_attributes( '_root' )}>";
+
+			echo "<iframe {$this->render_attributes( 'iframe' )}></iframe>" . PHP_EOL;
+
+			echo '</div>';
+
+			return;
 		}
 
 		// Addresses, filter all the fields to render dynamic data before render
 		$addresses = ! empty( $settings['addresses'] ) ? $settings['addresses'] : [ [ 'address' => 'Berlin, Germany' ] ];
-
 		// InfoImages Gallery may use a custom field (handle it before)
 		$gallery_class_name = isset( Elements::$elements['image-gallery']['class'] ) ? Elements::$elements['image-gallery']['class'] : false;
 
@@ -402,17 +433,20 @@ class Element_Map extends Element {
 				$addresses[ $index ]['infoImages'] = [];
 
 				foreach ( $info_images['items']['images'] as $info_image ) {
-					if ( empty( $info_image['id'] ) ) {
+					$image_id = $info_image['id'] ?? '';
+
+					if ( ! $image_id ) {
 						continue;
 					}
 
-					$image_src = wp_get_attachment_image_src( $info_image['id'], $info_images['items']['size'] );
+					$image_size = $info_images['items']['size'] ?? 'thumbnail';
+					$image_src  = wp_get_attachment_image_src( $image_id, $image_size );
 
 					$addresses[ $index ]['infoImages'][] = [
 						'src'       => $image_src[0],
 						'width'     => $image_src[1],
 						'height'    => $image_src[2],
-						'thumbnail' => wp_get_attachment_image_url( $info_image['id'], 'thumbnail' ),
+						'thumbnail' => wp_get_attachment_image_url( $image_id, $image_size ),
 					];
 				}
 
@@ -439,7 +473,7 @@ class Element_Map extends Element {
 			'streetViewControl' => isset( $settings['streetViewControl'] ),
 			'zoomControl'       => isset( $settings['zoomControl'] ),
 			'disableDefaultUI'  => isset( $settings['disableDefaultUI'] ),
-			'type'              => isset( $settings['type'] ) ? $settings['type'] : 'roadmap',
+			'type'              => $map_type,
 		];
 
 		// Min zoom

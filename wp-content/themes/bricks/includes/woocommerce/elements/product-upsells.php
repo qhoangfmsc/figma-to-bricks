@@ -25,8 +25,9 @@ class Product_Upsells extends Element {
 			'label'       => esc_html__( 'Type', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
-				'upsells'     => esc_html__( 'Up-sells', 'woocommerce' ),
-				'cross_sells' => esc_html__( 'Cross-sells', 'woocommerce' ),
+				'upsells'          => esc_html__( 'Up-sells', 'bricks' ),
+				'cross_sells'      => esc_html__( 'Cross-sells', 'bricks' ),
+				'cart_cross_sells' => esc_html__( 'Cart Cross-sells', 'bricks' ),
 			],
 			'inline'      => true,
 			'placeholder' => esc_html__( 'Upsells', 'woocommerce' )
@@ -61,8 +62,7 @@ class Product_Upsells extends Element {
 			'label'       => esc_html__( 'Max. products', 'bricks' ),
 			'type'        => 'number',
 			'min'         => 1,
-			'max'         => 4,
-			'placeholder' => 4,
+			'placeholder' => -1,
 		];
 
 		$this->controls['columns'] = [
@@ -70,7 +70,6 @@ class Product_Upsells extends Element {
 			'label'       => esc_html__( 'Columns', 'bricks' ),
 			'type'        => 'number',
 			'min'         => 1,
-			'max'         => 4,
 			'css'         => [
 				[
 					'selector'  => '.products',
@@ -174,20 +173,45 @@ class Product_Upsells extends Element {
 
 		$type = ! empty( $settings['type'] ) ? $settings['type'] : 'upsells';
 
-		global $product;
+		$ids = [];
 
-		$product = wc_get_product( $this->post_id );
+		// Retrieve cross-sell or up-sell IDs (@since 1.10)
+		if ( $type === 'upsells' || $type === 'cross_sells' ) {
+			// Needs a global products, usually on a single product page
+			global $product;
 
-		if ( empty( $product ) ) {
-			return $this->render_element_placeholder(
-				[
-					'title'       => esc_html__( 'No product selected', 'bricks' ),
-					'description' => esc_html__( 'Go to: Settings > Template Settings > Populate Content', 'bricks' ),
-				]
-			);
+			$product = wc_get_product( $this->post_id );
+
+			if ( ! is_a( $product, 'WC_Product' ) ) {
+				return $this->render_element_placeholder(
+					[
+						'title'       => esc_html__( 'No product selected', 'bricks' ),
+						'description' => esc_html__( 'Go to: Settings > Template Settings > Populate Content', 'bricks' ),
+					]
+				);
+			}
+
+			$ids = $type === 'cross_sells' ? $product->get_cross_sell_ids() : $product->get_upsell_ids();
 		}
 
-		$ids = $type == 'upsells' ? $product->get_upsell_ids() : $product->get_cross_sell_ids();
+		// New cart cross-sells (@since 1.11.1)
+		else {
+			// Get from cart data, ensure WC() and cart is available, avoid fatal error if placing this element in unexpected places
+			if ( function_exists( 'WC' ) && WC()->cart ) {
+
+				// If nothing in cart, return
+				if ( WC()->cart->is_empty() ) {
+					return $this->render_element_placeholder(
+						[
+							'title'       => esc_html__( 'No products in cart', 'bricks' ),
+							'description' => esc_html__( 'Add products to cart to see cross-sells.', 'bricks' ),
+						]
+					);
+				}
+
+				$ids = WC()->cart->get_cross_sells();
+			}
+		}
 
 		if ( ! $ids ) {
 			return $this->render_element_placeholder(
@@ -202,22 +226,22 @@ class Product_Upsells extends Element {
 		$columns        = isset( $settings['columns'] ) ? $settings['columns'] : 4;
 		$orderby        = isset( $settings['orderby'] ) ? $settings['orderby'] : 'rand';
 		$order          = isset( $settings['order'] ) ? $settings['order'] : 'DESC';
-
+		$hook_type      = $type === 'cart_cross_sells' ? 'cross_sells' : $type;
 		// @hook woocommerce_product_cross_sells_products_heading
 		// @hook woocommerce_product_upsells_products_heading
-		add_filter( "woocommerce_product_{$type}_products_heading", [ $this, 'render_heading' ] );
+		add_filter( "woocommerce_product_{$hook_type}_products_heading", [ $this, 'render_heading' ] );
 
 		echo "<div {$this->render_attributes( '_root' )}>";
 
-		if ( $type == 'cross_sells' ) {
-			$this->woocommerce_cross_sell_display( $product, $posts_per_page, $columns, $orderby, $order );
+		if ( $type == 'cross_sells' || $type == 'cart_cross_sells' ) {
+			$this->woocommerce_cross_sell_display( $ids, $posts_per_page, $columns, $orderby, $order );
 		} else {
 			woocommerce_upsell_display( $posts_per_page, $columns, $orderby, $order );
 		}
 
 		echo '</div>';
 
-		remove_filter( "woocommerce_product_{$type}_products_heading", [ $this, 'render_heading' ] );
+		remove_filter( "woocommerce_product_{$hook_type}_products_heading", [ $this, 'render_heading' ] );
 	}
 
 	public function render_heading( $heading = '' ) {
@@ -231,17 +255,17 @@ class Product_Upsells extends Element {
 	 *
 	 * @see woocommerce/includes/wc-template-functions.php
 	 *
-	 * @param  WP_Product $product (extra parameter).
-	 * @param  int        $limit (default: 2).
-	 * @param  int        $columns (default: 2).
-	 * @param  string     $orderby (default: 'rand').
-	 * @param  string     $order (default: 'desc').
+	 * @param  array  $product_ids Array of product IDs.
+	 * @param  int    $limit (default: 2).
+	 * @param  int    $columns (default: 2).
+	 * @param  string $orderby (default: 'rand').
+	 * @param  string $order (default: 'desc').
 	 *
 	 * @since 1.4
 	 */
-	public function woocommerce_cross_sell_display( $product, $limit = 2, $columns = 2, $orderby = 'rand', $order = 'desc' ) {
+	public function woocommerce_cross_sell_display( $product_ids = [], $limit = 2, $columns = 2, $orderby = 'rand', $order = 'desc' ) {
 		// Get visible cross sells then sort them at random.
-		$cross_sells = array_filter( array_map( 'wc_get_product', $product->get_cross_sell_ids() ), 'wc_products_array_filter_visible' );
+		$cross_sells = array_filter( array_map( 'wc_get_product', $product_ids ), 'wc_products_array_filter_visible' );
 
 		wc_set_loop_prop( 'name', 'cross-sells' );
 		wc_set_loop_prop( 'columns', apply_filters( 'woocommerce_cross_sells_columns', $columns ) );

@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// ONE template. Desktop URL in, a Bricks template out. Tablet and mobile URLs are that frame at the other widths.
-// Widescreen is recorded and not merged. Nothing here assembles a WordPress page (that is process/auto.mjs).
+// ONE template. Desktop URL in, a Bricks template out. The other URLs are that frame at the other widths.
+// A blank slot is skipped. Nothing here assembles a WordPress page (that is process/auto.mjs).
 //
-//   node process/template.mjs read --desktop URL [--tablet URL] [--mobile URL] [--widescreen URL]
+//   node process/template.mjs read --desktop URL [--widescreen URL] [--tablet URL] [--landscape URL] [--mobile URL]
 //   node process/template.mjs build --desktop URL --answers '<json>'
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { resolveWorkspace } from './shared/workspace.mjs';
@@ -14,11 +16,31 @@ import { decide, writeDecisionReport } from './decide/index.mjs';
 import { discoverFormErrors } from './figma/discover.mjs';
 import { signOff } from './review/index.mjs';
 import { figmaGet, enableRunCache, refreshRunCache } from './figma/api.mjs';
-import { groupQuestions, GROUPS, keyOf, validateAnswers, filled, figmaLink, applyAnswers } from './plan/index.mjs';
+import { groupQuestions, GROUPS, keyOf, validateAnswers, filled, figmaLink, applyAnswers, shareAccordionAnswers, hearAnswers } from './plan/index.mjs';
 import { runLines } from './shared/spawn-lines.mjs';
-import { parseFrameInput } from './template/frames.mjs';
+import { parseFrameInput, SLOTS } from './template/frames.mjs';
 import { screenParts } from './template/parts.mjs';
-import { attachExpandFrames } from './template/expand.mjs';
+import { reviewFrame } from './template/review.mjs';
+import { attachFilledFrames } from './template/filled.mjs';
+import { outcomeOf, readyForUser } from './template/outcome.mjs';
+import { applyFeedback, describedParts } from './template/feedback.mjs';
+
+const ROUNDS = 3;
+const runner = join(dirname(new URL(import.meta.url).pathname), 'run.mjs');
+
+function bricksHash(base) {
+  if (!base.has('bricks.json')) return '';
+  return createHash('sha1').update(readFileSync(base.file('bricks.json'))).digest('hex');
+}
+
+function measuredFrames(base, responsive, verified) {
+  const frames = [{ key: 'desktop', verify: verified && base.has('verify.json') ? base.readJson('verify.json') : null }];
+  for (const v of responsive.variants) {
+    const file = `verify.${v.key}.json`;
+    frames.push({ key: v.key, verify: verified && base.has(file) ? base.readJson(file) : null });
+  }
+  return frames;
+}
 
 const flag = (args, name) => {
   const hit = args.find((a) => a.startsWith(`--${name}=`));
@@ -57,12 +79,12 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   }
   const designName = (await figmaGet(`/v1/files/${desktop.fileKey}?depth=1`)).name;
   const prepared = {};
-  for (const id of ['desktop', 'tablet', 'mobile']) {
-    const frame = frames[id];
+  for (const slot of SLOTS) {
+    const frame = frames[slot.id];
     if (!frame) continue;
     log(`Đọc ${frame.label} ${frame.nodeId}`);
-    prepared[id] = await prepareFrame(frame.url, { variant: id !== 'desktop', formErrors: id === 'desktop' ? formErrors : {} });
-    log(`${frame.label}: ${prepared[id].ws.readJson('tree.json').name} ${frameWidth(prepared[id].ws) ?? '?'}px`);
+    prepared[slot.id] = await prepareFrame(frame.url, { variant: slot.id !== 'desktop', formErrors: slot.id === 'desktop' ? formErrors : {} });
+    log(`${frame.label}: ${prepared[slot.id].ws.readJson('tree.json').name} ${frameWidth(prepared[slot.id].ws) ?? '?'}px`);
   }
   const base = prepared.desktop.ws;
   const tree = base.readJson('tree.json');
@@ -70,14 +92,18 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   const ov = base.readJson('overrides.json', {});
   ov.template = { ...(ov.template ?? {}), title, reason: 'naming convention: "<design name> - <section>"' };
   base.writeJson('overrides.json', ov);
-  const variants = ['tablet', 'mobile'].filter((id) => prepared[id]).map((id) => ({
-    key: frames[id].key,
-    maxWidth: frames[id].maxWidth,
-    workspace: prepared[id].ws.dir.split('/').pop(),
-    width: frameWidth(prepared[id].ws),
-  }));
+  const variants = SLOTS.filter((slot) => slot.id !== 'desktop' && prepared[slot.id]).map((slot) => {
+    const width = frameWidth(prepared[slot.id].ws);
+    if (!Number.isFinite(width)) throw new Error(`${slot.label}: không đọc được bề rộng của khung.`);
+    return {
+      key: slot.key,
+      ...(slot.wide ? { minWidth: Math.round(width) } : { maxWidth: slot.maxWidth }),
+      workspace: prepared[slot.id].ws.dir.split('/').pop(),
+      width,
+    };
+  });
   base.writeJson('responsive.json', {
-    note: 'breakpoint frames pasted on Vietnix Tools (process/template.mjs). Widescreen is not a variant.',
+    note: 'breakpoint frames pasted on Vietnix Tools (process/template.mjs). A blank slot is not a variant. Widescreen is min-width from that frame\'s width.',
     variants: variants.map(({ width, ...v }) => v),
   });
   base.writeJson('context.json', { bg: { base: null } });
@@ -91,14 +117,10 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     node: item.node,
     label: item.label,
     key: keyOf(g.group, item.node),
-    value: GROUPS[g.group].value ?? '',
+    value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
     figma: figmaLink(desktop.fileKey, item.node),
   })));
   const parts = screenParts(base.readJson('tree.json'), det.components, questions, desktop.fileKey);
-  const widescreen = frames.widescreen
-    ? { url: frames.widescreen.url, nodeId: frames.widescreen.nodeId, merged: false, reason: 'Bricks 1.9.8 không có breakpoint rộng hơn desktop, nên link này được ghi lại và không gộp vào template.' }
-    : null;
-  if (widescreen) log(`Widescreen ${widescreen.nodeId}: ghi lại, không gộp`);
   return {
     fileKey: desktop.fileKey,
     nodeId: desktop.nodeId,
@@ -112,13 +134,13 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     questions,
     parts,
     variants: variants.map((v) => ({ key: v.key, width: v.width })),
-    widescreen,
     designer: [...new Set(prepared.desktop.result.designer)],
   };
 }
 
-export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}) {
-  const problems = validateAnswers(answers ?? {});
+export async function buildTemplate(desktopUrl, answers, { log = () => {}, feedback = '' } = {}) {
+  const heard = hearAnswers(answers ?? {});
+  const problems = validateAnswers(heard);
   if (problems.length) {
     const err = new Error(problems.join('\n'));
     err.problems = problems;
@@ -126,27 +148,68 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
   }
   const base = resolveWorkspace(desktopUrl);
   if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Bấm Đọc Figma trước.');
-  const applied = applyAnswers(base, filled(answers ?? {}));
-  log(`Đã gắn ${applied.applied.length} giá trị`);
-  await attachExpandFrames(base, { log });
+  const applied = applyAnswers(base, filled(heard));
+  const shared = shareAccordionAnswers(base);
+  log(`Đã gắn ${applied.applied.length} giá trị${shared.copied ? `, chép ${shared.copied} nội dung sang khung khác` : ''}`);
+  await attachFilledFrames(base, { log });
   const note = 'the owner confirmed the values on the Vietnix Tools screen';
-  signOff(base, { by: 'owner (vietnix tools)', note });
   const responsive = base.readJson('responsive.json', { variants: [] });
-  for (const v of responsive.variants) {
-    signOff(resolveWorkspace(join(dirname(base.dir), v.workspace)), { by: 'owner (vietnix tools)', note });
+  const variants = responsive.variants.map((v) => resolveWorkspace(join(dirname(base.dir), v.workspace)));
+  const hint = String(feedback ?? '').trim();
+  if (hint) {
+    const changed = [];
+    let unknown = false;
+    for (const ws of [base, ...variants]) {
+      const out = applyFeedback(ws.readJson('tree.json'), ws.readJson('detections.json', { components: [] }), hint);
+      unknown = unknown || out.unknown;
+      if (!out.applied.length) continue;
+      ws.writeJson('detections.json', out.detections);
+      changed.push(...out.applied);
+      log(`Góp ý: ${out.applied.map((a) => (a.detail ? `${a.name} → ${a.detail}` : `${a.name} → ${a.component}`)).join(', ')}.`);
+    }
+    if (!changed.length) {
+      const err = new Error(unknown ? 'Chưa nhận ra phần nào cần đổi.' : 'Không khớp phần nào trong khung với góp ý này.');
+      err.expose = true;
+      throw err;
+    }
   }
-  log('Đang export, build, đẩy template và verify');
-  const run = await runLines('node', [join(dirname(new URL(import.meta.url).pathname), 'run.mjs'), desktopUrl, '--from=export', '--no-cross'], (line) => {
+  for (const variant of variants) {
+    await attachFilledFrames(variant, { log });
+    signOff(variant, { by: 'owner (vietnix tools)', note });
+  }
+  signOff(base, { by: 'owner (vietnix tools)', note });
+  const pipe = (args) => runLines('node', [runner, desktopUrl, ...args, '--no-cross'], (line) => {
     if (line.trim()) log(line.trim().slice(0, 180));
   });
-  const state = base.readJson('state.json', {});
-  const verify = base.has('verify.json') ? base.readJson('verify.json') : null;
-  if (!state.templateId) throw new Error(`Chưa tạo được template. ${(run.stderr || run.stdout).slice(-400)}`);
-  const frames = [{ key: 'desktop', verify }];
-  for (const v of responsive.variants) {
-    const file = `verify.${v.key}.json`;
-    frames.push({ key: v.key, verify: base.has(file) ? base.readJson(file) : null });
+  // Create, upload, check. A heavy miss rebuilds this template only and checks again.
+  // The same file is not uploaded a second time: another check would see the same result.
+  let frames = [];
+  let seen = '';
+  let verifyStatus = 0;
+  for (let round = 1; round <= ROUNDS; round++) {
+    if (round > 1) {
+      log('Kiểm tra còn lệch. Đang sửa đúng template này rồi kiểm lại.');
+      const built = await pipe(['--only=build']);
+      if (built.status) throw new Error(`${built.stderr}\n${built.stdout}`.trim().slice(-800) || 'Chưa sửa được template.');
+      const next = bricksHash(base);
+      if (next === seen) {
+        log('Template không đổi sau khi sửa. Dừng vòng kiểm tra.');
+        break;
+      }
+    } else {
+      log('Đang tạo template, đẩy lên WordPress và kiểm tra.');
+    }
+    const run = await pipe([round === 1 ? (hint ? '--from=build' : '--from=export') : '--from=push']);
+    verifyStatus = run.status;
+    const stateNow = base.readJson('state.json', {});
+    const outcome = outcomeOf({ status: run.status, stdout: run.stdout, stderr: run.stderr, templateId: stateNow.templateId });
+    if (!outcome.ok) throw outcome.error;
+    seen = bricksHash(base);
+    frames = measuredFrames(base, responsive, outcome.verified);
+    if (readyForUser(frames)) break;
   }
+  if (!readyForUser(frames)) log('Đã kiểm tra và sửa template này. Link là bản vừa kiểm tra.');
+  const state = base.readJson('state.json', {});
   return {
     templateId: state.templateId,
     builderUrl: state.builderUrl,
@@ -155,8 +218,10 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
       key: f.key,
       verdict: f.verify?.verdict ?? null,
       look: f.verify ? Math.round(f.verify.visualMean * 100) / 100 : null,
+      review: reviewFrame(f.verify, f.key),
     })),
-    verifyStatus: run.status,
+    verifyStatus,
+    parts: describedParts(base.readJson('tree.json'), base.readJson('detections.json', { components: [] })),
   };
 }
 
@@ -164,11 +229,11 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 if (isMain) {
   const args = process.argv.slice(2);
   const cmd = args[0];
-  const input = { desktop: flag(args, 'desktop'), tablet: flag(args, 'tablet'), mobile: flag(args, 'mobile'), widescreen: flag(args, 'widescreen') };
+  const input = { desktop: flag(args, 'desktop'), widescreen: flag(args, 'widescreen'), tablet: flag(args, 'tablet'), landscape: flag(args, 'landscape'), mobile: flag(args, 'mobile') };
   const parsed = parseFrameInput(input);
   if (!cmd || !parsed.ok) {
     if (!parsed.ok) for (const e of parsed.errors) console.error(e);
-    console.error('usage: node process/template.mjs read|build --desktop URL [--tablet URL] [--mobile URL] [--widescreen URL] [--answers JSON]');
+    console.error('usage: node process/template.mjs read|build --desktop URL [--widescreen URL] [--tablet URL] [--landscape URL] [--mobile URL] [--answers JSON]');
     process.exit(1);
   }
   const log = (line) => console.log(line);

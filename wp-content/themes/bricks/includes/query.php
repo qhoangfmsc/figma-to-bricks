@@ -7,8 +7,14 @@ class Query {
 	// The query unique ID
 	private $id = '';
 
+	// Component ID (@since 1.12.2)
+	public $component_id = '';
+
 	// Element ID
 	public $element_id = '';
+
+	// Element name to be used in WooCommerce (@since 1.11.1)
+	public $element_name = '';
 
 	// Element settings
 	public $settings = [];
@@ -21,6 +27,9 @@ class Query {
 
 	// Query result (WP_Posts | WP_Term_Query | WP_User_Query | Other)
 	public $query_result;
+
+	// Fake query result (@since 1.12.2)
+	public $fake_result;
 
 	// Query results total
 	public $count = 0;
@@ -46,6 +55,12 @@ class Query {
 	// Store query history (including those destroyed)
 	public static $query_history = [];
 
+	// Store the start position of the query (@since 1.12.2)
+	public $start = 0;
+
+	// Store the end position of the query (@since 1.12.2)
+	public $end = 0;
+
 	/**
 	 * Class constructor
 	 *
@@ -54,9 +69,11 @@ class Query {
 	public function __construct( $element = [] ) {
 		$this->register_query();
 
-		$this->element_id = ! empty( $element['id'] ) ? $element['id'] : '';
+		$this->element_id   = $element['id'] ?? '';
+		$this->element_name = $element['name'] ?? '';
+		$this->component_id = $element['cid'] ?? '';
 
-		// Check for stored query in query history (@since 1.9.1)
+		// Check for stored query in query history
 		$query_instance = self::get_query_by_element_id( $this->element_id );
 
 		if ( $query_instance ) {
@@ -75,11 +92,14 @@ class Query {
 
 			$this->settings = ! empty( $element['settings'] ) ? $element['settings'] : [];
 
-			// STEP: Set the query vars from the element settings (@since 1.8)
-			$this->query_vars = self::prepare_query_vars_from_settings( $this->settings );
+			// STEP: Set the query vars from the element settings
+			$this->query_vars = self::prepare_query_vars_from_settings( $this->settings, $this->element_id, $this->element_name );
 
-			// STEP: Perform the query, set the query result, count and max_num_pages (@since 1.8)
+			// STEP: Perform the query, set the query result, count and max_num_pages
 			$this->run();
+
+			// (@since 1.12.2)
+			$this->handle_no_results();
 
 			/**
 			 * Filter: Force query run (to skip add_to_history() method below)
@@ -266,10 +286,30 @@ class Query {
 	 *
 	 * @since 1.8
 	 */
-	public static function prepare_query_vars_from_settings( $settings = [], $fallback_element_id = '' ) {
+	public static function prepare_query_vars_from_settings( $settings = [], $fallback_element_id = '', $element_name = '' ) {
+		$object_type = self::get_query_object_type();
+		$element_id  = self::get_query_element_id();
+
+		/**
+		 * $object_type and $element_id are empty when this method is called in pre_get_post (main query)
+		 * Reason: We just call prepare_query_vars_from_settings() without initializing the Query class
+		 * Impact: Some query_vars will be missing because not going through the switch statement and Bricks PHP filters not fired
+		 *
+		 * @since 1.9.1
+		 */
+		if ( empty( $object_type ) ) {
+			$object_type = $settings['query']['objectType'] ?? 'post';
+		}
+
+		if ( empty( $element_id ) && ! empty( $fallback_element_id ) ) {
+			$element_id = $fallback_element_id;
+		}
+
+		// For Query filters to amend the setting. Unable to use bricks/element/settings filter before render. Undocumented (@since 1.12.2)
+		$settings   = apply_filters( 'bricks/query/prepare_query_vars_from_settings', $settings, $element_id );
 		$query_vars = $settings['query'] ?? [];
 
-		// Some elements already built the query vars. (carousel, related-posts) (@since 1.9.3)
+		// Some elements already built the query vars. (carousel, related-posts)
 		if ( isset( $query_vars['bricks_skip_query_vars'] ) ) {
 			return $query_vars;
 		}
@@ -279,21 +319,25 @@ class Query {
 			unset( $query_vars['infinite_scroll'] );
 		}
 
-		// Unset isLiveSearch (@since 1.9.6)
+		// Unset isLiveSearch
 		if ( isset( $query_vars['is_live_search'] ) ) {
 			unset( $query_vars['is_live_search'] );
 		}
 
-		// Do not use meta_key if orderby is not set to meta_value or meta_value_num (@since 1.8)
+		// Do not use meta_key if orderby is not set to meta_value or meta_value_num
 		if ( isset( $query_vars['meta_key'] ) ) {
 			$orderby = isset( $query_vars['orderby'] ) ? $query_vars['orderby'] : '';
-			if ( ! in_array( $orderby, [ 'meta_value', 'meta_value_num' ] ) ) {
+
+			// orderby might be an array (@since 1.11.1)
+			$valid_orderby_values = [ 'meta_value', 'meta_value_num' ];
+
+			if (
+				( is_string( $orderby ) && ! in_array( $orderby, $valid_orderby_values ) ) ||
+				( is_array( $orderby ) && ! array_intersect( $orderby, $valid_orderby_values ) )
+			) {
 				unset( $query_vars['meta_key'] );
 			}
 		}
-
-		$object_type = self::get_query_object_type();
-		$element_id  = self::get_query_element_id();
 
 		/**
 		 * Use PHP editor
@@ -380,33 +424,28 @@ class Query {
 					// Handle term pagination (#86bwwav1e)
 					$query_vars = self::get_term_pagination_query_var( $query_vars );
 				}
+
+				if ( $object_type === 'user' ) {
+					$query_vars = self::get_user_pagination_query_var( $query_vars );
+				}
 			}
 
 			/**
-			 * php Editor not triggering query_vars, new query filters unable to merge query_vars (@since 1.9.6)
+			 * php Editor not triggering query_vars, new query filters unable to merge query_vars
+			 *
+			 * @since 1.11.1: Add $element_name parameter to the filter
+			 * @since 1.9.6
 			 */
-			$query_vars = apply_filters( "bricks/{$object_type}s/query_vars", $query_vars, $settings, $element_id );
+			$query_vars = apply_filters( "bricks/{$object_type}s/query_vars", $query_vars, $settings, $element_id, $element_name );
 
 			return $query_vars;
 		}
 
-		/**
-		 * $object_type and $element_id are empty when this method is called in pre_get_post (main query)
-		 * Reason: We just call prepare_query_vars_from_settings() without initializing the Query class
-		 * Impact: Some query_vars will be missing because not going through the switch statement and Bricks PHP filters not fired
-		 *
-		 * @since 1.9.1
-		 */
-		if ( empty( $object_type ) ) {
-			$object_type = isset( $settings['query']['objectType'] ) ? $settings['query']['objectType'] : 'post';
-		}
-
-		if ( empty( $element_id ) && ! empty( $fallback_element_id ) ) {
-			$element_id = $fallback_element_id;
-		}
-
 		// Meta Query vars
 		$query_vars = self::parse_meta_query_vars( $query_vars );
+
+		// Orderby & Order (@since 1.11.1)
+		$query_vars = self::parse_orderby_vars( $query_vars, $object_type );
 
 		// Set different query vars depending on the object type
 		switch ( $object_type ) {
@@ -470,14 +509,12 @@ class Query {
 					unset( $query_vars['exclude_current_post'] );
 				}
 
-				// @since 1.5 - Post parent
 				if ( isset( $query_vars['post_parent'] ) ) {
 					$post_parent = bricks_render_dynamic_data( $query_vars['post_parent'] );
 
 					if ( strpos( $post_parent, ',' ) !== false ) {
 						$post_parent = explode( ',', $post_parent );
 
-						// @since 1.7.1
 						$query_vars['post_parent__in'] = (array) $post_parent;
 
 						unset( $query_vars['post_parent'] );
@@ -485,6 +522,9 @@ class Query {
 						$query_vars['post_parent'] = (int) $post_parent;
 					}
 				}
+
+				// Post__in parse dynamic data (@since 1.12)
+				$query_vars = self::set_post_in_vars( $query_vars );
 
 				// Tax query
 				$query_vars = self::set_tax_query_vars( $query_vars );
@@ -496,30 +536,37 @@ class Query {
 				 * Merge wp_query vars and posts element query vars
 				 *
 				 * @since 1.7: Merge query only if 'disable_query_merge' control is not set!
+				 * @since 1.9.9: Merge query only if 'woo_disable_query_merge' control is not set! (Products element)
 				 */
-				if ( $merge_query && ( is_archive() || is_author() || is_search() || is_home() ) && empty( $query_vars['disable_query_merge'] ) ) {
+				if ( $merge_query &&
+					( is_archive() || is_author() || is_search() || is_home() ) &&
+					empty( $query_vars['disable_query_merge'] ) &&
+					empty( $query_vars['woo_disable_query_merge'] )
+				) {
 					global $wp_query;
 
 					$query_vars = wp_parse_args( $query_vars, $wp_query->query );
 				}
 
+				// @see: https://academy.bricksbuilder.io/article/filter-bricks-posts-query_vars/
+				// @since 1.11.1: Added $element_name
+				$query_vars = apply_filters( 'bricks/posts/query_vars', $query_vars, $settings, $element_id, $element_name );
+
 				/**
-				 * REST API /load_query_page adds "_merge_vars" to the query to make sure the archive context is maintained on infinite scroll
-				 * Not in use (@since 1.9.5)
+				 * Set default post type to 'post' if:
+				 * - post_type is not set
+				 * - brx_is_search is set (Only availabe after bricks/posts/query_vars hook)
+				 * - is_archive_main_query is not set (otherwise, will get unexpected result on search page)
 				 *
-				 * @since 1.5.1
+				 * @since 1.12.2 (#86c0zaxrv)
 				 */
-				if ( ! empty( $query_vars['_merge_vars'] ) ) {
-					$merge_query_vars = $query_vars['_merge_vars'];
+				$is_bricks_search      = isset( $query_vars['brx_is_search'] ) ? true : false;
+				$is_archive_main_query = isset( $query_vars['is_archive_main_query'] ) ? true : false;
 
-					unset( $query_vars['_merge_vars'] );
-
-					$query_vars = wp_parse_args( $query_vars, $merge_query_vars );
+				if ( ! $post_type && $is_bricks_search && ! $is_archive_main_query ) {
+					$query_vars['post_type'] = 'post';
 				}
 
-				// @see: https://academy.bricksbuilder.io/article/filter-bricks-posts-query_vars/
-				// @since 1.3.6 Added $element_id
-				$query_vars = apply_filters( 'bricks/posts/query_vars', $query_vars, $settings, $element_id );
 				break;
 
 			case 'term':
@@ -570,7 +617,7 @@ class Query {
 				}
 
 				// @see: https://academy.bricksbuilder.io/article/filter-bricks-terms-query_vars/
-				$query_vars = apply_filters( 'bricks/terms/query_vars', $query_vars, $settings, $element_id );
+				$query_vars = apply_filters( 'bricks/terms/query_vars', $query_vars, $settings, $element_id, $element_name );
 				break;
 
 			case 'user':
@@ -593,21 +640,11 @@ class Query {
 				// Paged
 				$query_vars['paged'] = self::get_paged_query_var( $query_vars );
 
-				// Pagination (number, offset, paged). Default is "-1" but as a safety procedure we limit the number (0 is not allowed)
-				$query_vars['number'] = ! empty( $query_vars['number'] ) ? $query_vars['number'] : get_option( 'posts_per_page' );
-
-				// Pagination: Fix the offset value (@since 1.5)
-				$offset = ! empty( $query_vars['offset'] ) ? $query_vars['offset'] : 0;
-
-				// Store the original offset value (@since 1.9.1)
-				$query_vars['original_offset'] = $offset;
-
-				if ( ! empty( $offset ) && $query_vars['paged'] !== 1 ) {
-					$query_vars['offset'] = ( $query_vars['paged'] - 1 ) * $query_vars['number'] + $offset;
-				}
+				// Handle user pagination (@since 1.12)
+				$query_vars = self::get_user_pagination_query_var( $query_vars );
 
 				// @see: https://academy.bricksbuilder.io/article/filter-bricks-users-query_vars/
-				$query_vars = apply_filters( 'bricks/users/query_vars', $query_vars, $settings, $element_id );
+				$query_vars = apply_filters( 'bricks/users/query_vars', $query_vars, $settings, $element_id, $element_name );
 				break;
 		}
 
@@ -623,6 +660,8 @@ class Query {
 	 */
 	public function run() {
 		$count         = $this->count;
+		$start         = $this->start;
+		$end           = $this->end;
 		$max_num_pages = $this->max_num_pages;
 		$query_vars    = $this->query_vars;
 
@@ -645,6 +684,31 @@ class Query {
 				$count = empty( $query_vars['no_found_rows'] ) ? $result->found_posts : ( is_array( $result->posts ) ? count( $result->posts ) : 0 );
 
 				$max_num_pages = empty( $query_vars['posts_per_page'] ) ? 1 : ceil( $count / $query_vars['posts_per_page'] );
+
+				// STEP: Calculate the starting and ending position (@since 1.12.2)
+				if ( $count > 0 ) {
+					$page     = (int) ( $query_vars['paged'] ?? 1 );
+					$per_page = (int) ( $query_vars['posts_per_page'] ?? get_option( 'posts_per_page' ) );
+
+					// Maybe user set -1 to posts_per_page
+					if ( $per_page === -1 ) {
+						$start = 1;
+						$end   = $count;
+					} else {
+						// Calculate the starting position
+						if ( $page === 1 ) {
+							// First page starts at 1
+							$start = 1;
+						} else {
+							// For subsequent pages, calculate start relative to paged results
+							$start = ( ( $page - 1 ) * $per_page ) + 1;
+						}
+
+						// Calculate the ending position
+						$end = min( $start + $per_page - 1, $count );
+					}
+				}
+
 				break;
 
 			case 'term':
@@ -663,6 +727,30 @@ class Query {
 
 				// STEP : Populate the max number of pages
 				$max_num_pages = empty( $query_vars['number'] ) || count( $result ) < 1 ? 1 : ceil( $count / $query_vars['number'] );
+
+				// STEP: Calculate the starting and ending position (@since 1.12.2)
+				if ( $count > 0 ) {
+					$page     = (int) ( $query_vars['paged'] ?? 1 );
+					$per_page = (int) ( $query_vars['number'] ?? get_option( 'posts_per_page' ) );
+
+					// Maybe user set 0 to number
+					if ( $per_page === 0 ) {
+						$start = 1;
+						$end   = $count;
+					} else {
+						// Calculate the starting position
+						if ( $page === 1 ) {
+							// First page starts at 1
+							$start = 1;
+						} else {
+							// For subsequent pages, calculate start relative to paged results
+							$start = ( ( $page - 1 ) * $per_page ) + 1;
+						}
+
+						// Calculate the ending position
+						$end = min( $start + $per_page - 1, $count );
+					}
+				}
 				break;
 
 			case 'user':
@@ -682,6 +770,31 @@ class Query {
 
 				// STEP : Populate the max number of pages
 				$max_num_pages = empty( $query_vars['number'] ) || count( $result ) < 1 ? 1 : ceil( $count / $query_vars['number'] );
+
+				// STEP: Calculate the starting and ending position (@since 1.12.2)
+				if ( $count > 0 ) {
+					$page     = (int) ( $query_vars['paged'] ?? 1 );
+					$per_page = (int) ( $query_vars['number'] ?? get_option( 'posts_per_page' ) );
+
+					// Maybe user set 0 to number
+					if ( $per_page === -1 ) {
+						$start = 1;
+						$end   = $count;
+					} else {
+						// Calculate the starting position
+						if ( $page === 1 ) {
+							// First page starts at 1
+							$start = 1;
+						} else {
+							// For subsequent pages, calculate start relative to paged results
+							$start = ( ( $page - 1 ) * $per_page ) + 1;
+						}
+
+						// Calculate the ending position
+						$end = min( $start + $per_page - 1, $count );
+					}
+
+				}
 				break;
 
 			default:
@@ -708,6 +821,135 @@ class Query {
 
 		// Pagination element relies on this value (@since 1.9.1)
 		$this->max_num_pages = apply_filters( 'bricks/query/result_max_num_pages', $max_num_pages, $this );
+
+		// Set the starting and ending position (@since 1.12.2)
+		$this->start = apply_filters( 'bricks/query/result_start', $start, $this );
+		$this->end   = apply_filters( 'bricks/query/result_end', $end, $this );
+	}
+
+	/**
+	 * Handle no results situation for post, user and term queries
+	 * Need to run another query to continue execute the remaining elements inside the query loop.
+	 * - To ensure necessary element's scripts and styles are enqueued on page load
+	 * - To ensure necessary AJAX popups are generated and output on page load
+	 *
+	 * @since 1.12.2
+	 */
+	public function handle_no_results() {
+		// Skip if not an actual page load
+		if (
+			( defined( 'DOING_AJAX' ) && DOING_AJAX ) ||
+			( defined( 'REST_REQUEST' ) && REST_REQUEST )
+		) {
+			return;
+		}
+
+		// Skip if there are results
+		if ( $this->count > 0 ) {
+			return;
+		}
+
+		$handle_children = Helpers::handle_no_results_children_elements();
+		$fake_result     = [];
+
+		switch ( $this->object_type ) {
+			case 'post':
+				if ( $handle_children ) {
+					$original_query_vars_copy = $this->query_vars;
+
+					// Build new query vars
+					$query_vars = Query_Filters::$query_vars_before_merge[ $this->element_id ] ?? $this->query_vars;
+
+					// Ensure 1 row only
+					$query_vars['posts_per_page'] = 1;
+					$query_vars['paged']          = 1;
+					$query_vars['offset']         = 0;
+					$query_vars['brx_fake_query'] = true; // Flag to identify fake query
+
+					// Remove all tax_query and meta_query
+					unset( $query_vars['tax_query'] );
+					unset( $query_vars['meta_query'] );
+
+					// Set the new query vars
+					$this->query_vars = $query_vars;
+
+					// Run the query
+					$fake_result = $this->run_wp_query();
+
+					// Restore the original query vars
+					$this->query_vars = $original_query_vars_copy;
+				}
+
+				break;
+
+			case 'term':
+				if ( $handle_children ) {
+					$original_query_vars_copy = $this->query_vars;
+
+					// Build new query vars
+					$query_vars = Query_Filters::$query_vars_before_merge[ $this->element_id ] ?? $this->query_vars;
+
+					// Ensure 1 row only
+					$query_vars['number']          = 1;
+					$query_vars['offset']          = 0;
+					$query_vars['paged']           = 1;
+					$query_vars['original_offset'] = 0;
+					$query_vars['brx_fake_query']  = true;
+
+					// Remove all tax_query and meta_query
+					unset( $query_vars['tax_query'] );
+					unset( $query_vars['meta_query'] );
+
+					$this->query_vars = $query_vars;
+
+					// Run the query
+					$term_result = $this->run_wp_term_query();
+
+					$fake_result = $term_result['terms'];
+
+					// Restore the original query vars
+					$this->query_vars = $original_query_vars_copy;
+				}
+
+				break;
+			case 'user':
+				// If Query Filters is enabled
+				if ( $handle_children ) {
+					$original_query_vars_copy = $this->query_vars;
+
+					// Build new query vars
+					$query_vars = Query_Filters::$query_vars_before_merge[ $this->element_id ] ?? $this->query_vars;
+
+					// Ensure 1 row only
+					$query_vars['number']          = 1;
+					$query_vars['offset']          = 0;
+					$query_vars['paged']           = 1;
+					$query_vars['original_offset'] = 0;
+					$query_vars['brx_fake_query']  = true; // Flag to identify fake query
+
+					// Remove all tax_query and meta_query
+					unset( $query_vars['tax_query'] );
+					unset( $query_vars['meta_query'] );
+
+					$this->query_vars = $query_vars;
+
+					// Run the query
+					$user_query = $this->run_wp_user_query();
+
+					$fake_result = $user_query->get_results();
+
+					// Restore the original query vars
+					$this->query_vars = $original_query_vars_copy;
+				}
+				break;
+
+			default:
+				// We don't handle this currently has query filters only support post, term and user queries
+				$fake_result = apply_filters( 'bricks/query/run_fake', [], $this );
+				break;
+		}
+
+		$this->fake_result = apply_filters( 'bricks/query/fake_result', $fake_result, $this );
 	}
 
 	/**
@@ -750,7 +992,19 @@ class Query {
 		$users_query = $this->get_query_cache();
 
 		if ( $users_query === false ) {
+			// Check if any meta_query is set (@since 1.12)
+			$meta_query     = $this->query_vars['meta_query'] ?? [];
+			$has_meta_query = ! empty( $meta_query );
+
+			if ( $has_meta_query ) {
+				add_action( 'pre_user_query', [ $this, 'set_distinct_user_query' ] );
+			}
+
 			$users_query = new \WP_User_Query( $this->query_vars );
+
+			if ( $has_meta_query ) {
+				remove_action( 'pre_user_query', [ $this, 'set_distinct_user_query' ] );
+			}
 
 			$this->set_query_cache( $users_query );
 		}
@@ -781,10 +1035,11 @@ class Query {
 			/**
 			 * Set builder preview query_vars as we are not relying on setup_query function in includes/elements/base.php anymore
 			 * Shouldn't merge with preview query_vars if 'disable_query_merge' is set (#86bx7cfxp)
+			 * Shouldn't merge with preview query_vars if 'woo_disable_query_merge' is set for Products element (@since 1.9.9)
 			 *
 			 * @since 1.9.1
 			 */
-			if ( Helpers::is_bricks_preview() && ! isset( $this->query_vars['disable_query_merge'] ) ) {
+			if ( Helpers::is_bricks_preview() && ! isset( $this->query_vars['disable_query_merge'] ) && ! isset( $this->query_vars['woo_disable_query_merge'] ) ) {
 				$post_id                    = Database::$page_data['preview_or_post_id'];
 				$builder_preview_query_vars = Helpers::get_template_preview_query_vars( $post_id );
 
@@ -796,9 +1051,9 @@ class Query {
 			 * Use main query if:
 			 * - User set is_archive_main_query to true
 			 * - Not in builder preview
-			 * - Not in single post / page / attachment (@since 1.9.2)
-			 * - Not infinite scroll or load more request (@since 1.9.2)
-			 * - Not render_query_result request (@since 1.9.3)
+			 * - Not in single post / page / attachment
+			 * - Not infinite scroll or load more request
+			 * - Not render_query_result request
 			 *
 			 * Otherwise, init a new query.
 			 *
@@ -842,9 +1097,11 @@ class Query {
 		 *
 		 * Avoid query_var param merged accidentally if 'disable_query_merge' is true
 		 *
+		 * Return paged 1 if 'woo_disable_query_merge' is true for Product elements (@since 1.9.9)
+		 *
 		 * @since 1.7.1
 		 */
-		if ( isset( $query_vars['disable_query_merge'] ) ) {
+		if ( isset( $query_vars['disable_query_merge'] ) || isset( $query_vars['woo_disable_query_merge'] ) ) {
 			return $paged;
 		}
 
@@ -873,16 +1130,35 @@ class Query {
 			return $query_vars;
 		}
 
+		// Loop through meta_query and rebuild the meta_query vars
 		foreach ( $query_vars['meta_query'] as $key => $query_item ) {
-			if ( isset( $query_vars['meta_query'][ $key ]['id'] ) ) {
-				unset( $query_vars['meta_query'][ $key ]['id'] );
+			// Unset the id key
+			if ( isset( $query_item['id'] ) ) {
+				unset( $query_item['id'] );
 			}
 
-			if ( empty( $query_vars['meta_query'][ $key ]['value'] ) ) {
-				continue;
+			// Render dynamic data
+			if ( isset( $query_item['value'] ) ) {
+				$query_item['value'] = bricks_render_dynamic_data( $query_item['value'] );
 			}
 
-			$query_vars['meta_query'][ $key ]['value'] = bricks_render_dynamic_data( $query_vars['meta_query'][ $key ]['value'] );
+			// Handle 'clause_name' for orderby (@since 1.12)
+			$clause_name = '';
+			if ( isset( $query_item['clause_name'] ) ) {
+				$clause_name = esc_html( $query_item['clause_name'] );
+				unset( $query_item['clause_name'] );
+			}
+
+			// Assign modified query item back to the query vars
+			$query_vars['meta_query'][ $key ] = $query_item;
+
+			// Use clause name as key if set (for orderby) (@since 1.12)
+			if ( $clause_name !== '' ) {
+				// Assign the clause to the new key
+				$query_vars['meta_query'][ $clause_name ] = $query_item;
+				// Unset the original key
+				unset( $query_vars['meta_query'][ $key ] );
+			}
 		}
 
 		if ( ! empty( $query_vars['meta_query_relation'] ) ) {
@@ -890,6 +1166,60 @@ class Query {
 		}
 
 		unset( $query_vars['meta_query_relation'] );
+
+		return $query_vars;
+	}
+
+	/**
+	 * Parse the Orderby vars
+	 *
+	 * @since 1.11.1
+	 */
+	public static function parse_orderby_vars( $query_vars, $object_type ) {
+		if ( ! in_array( $object_type, [ 'post', 'user' ] ) ) {
+			return $query_vars;
+		}
+
+		$orderby        = $query_vars['orderby'] ?? 'date'; // Default orderby = date
+		$order          = $query_vars['order'] ?? 'DESC'; // Default order = DESC
+		$new_orderby    = [];
+		$use_wp_default = false;
+
+		// orderby & order might be multiple values
+		if ( is_array( $orderby ) ) {
+
+			foreach ( $orderby as $index => $option ) {
+				// Custom key to set WP default orderby
+				if ( $option === '_default' ) {
+					$use_wp_default = true;
+					break;
+				}
+
+				// These options wouldn't work with multiple orderby (@since 1.12)
+				if ( in_array( $option, [ 'post__in', 'post_name__in', 'post_parent__in', 'rand', 'relevance' ], true ) ) {
+					// As long as these options found, set orderby as string and break the loop
+					$new_orderby = $option;
+					break;
+				}
+
+				$new_orderby[ $option ] = is_array( $order ) && isset( $order[ $index ] ) ? strtoupper( $order[ $index ] ) : 'DESC';
+			}
+
+			// Always unset order if orderby is an array
+			unset( $query_vars['order'] );
+		} else {
+			$use_wp_default = $new_orderby === '_default';
+			$new_orderby    = $orderby;
+		}
+
+		if ( $use_wp_default ) {
+			// Use WP default, unset orderby key to avoid modifying the query (@since 1.12)
+			unset( $query_vars['orderby'] );
+			$query_vars['brx_default_orderby'] = true; // Set a flag to be used in WooCommerce logic
+		} else {
+			// Set new orderby
+			$query_vars['orderby'] = $new_orderby;
+		}
 
 		return $query_vars;
 	}
@@ -983,18 +1313,18 @@ class Query {
 
 		if ( isset( $query_vars['tax_query_advanced'] ) ) {
 			foreach ( $query_vars['tax_query_advanced'] as $tax_query ) {
-				if ( empty( $tax_query['terms'] ) ) {
-					continue;
-				}
-
-				$tax_query['terms'] = bricks_render_dynamic_data( $tax_query['terms'] );
-
-				if ( strpos( $tax_query['terms'], ',' ) ) {
-					$tax_query['terms'] = explode( ',', $tax_query['terms'] );
-					$tax_query['terms'] = array_map( 'trim', $tax_query['terms'] );
-				}
-
+				// Remove Bricks controls IDs
 				unset( $tax_query['id'] );
+
+				// Sometimes terms might be empty when using EXIST or NOT EXIST compare operator (@since 1.12)
+				if ( isset( $tax_query['terms'] ) ) {
+					$tax_query['terms'] = bricks_render_dynamic_data( $tax_query['terms'] );
+
+					if ( strpos( $tax_query['terms'], ',' ) ) {
+						$tax_query['terms'] = explode( ',', $tax_query['terms'] );
+						$tax_query['terms'] = array_map( 'trim', $tax_query['terms'] );
+					}
+				}
 
 				if ( isset( $tax_query['include_children'] ) ) {
 					$tax_query['include_children'] = filter_var( $tax_query['include_children'], FILTER_VALIDATE_BOOLEAN );
@@ -1010,6 +1340,68 @@ class Query {
 
 		unset( $query_vars['tax_query_relation'] );
 		unset( $query_vars['tax_query_advanced'] );
+
+		return $query_vars;
+	}
+
+	/**
+	 * Set 'post__in' vars
+	 *
+	 * @since 1.12
+	 */
+	public static function set_post_in_vars( $query_vars ) {
+		if ( ! isset( $query_vars['post__in'] ) ) {
+			return $query_vars;
+		}
+
+		// Maybe user place comma separated string via Hooks or query editor
+		$post__in = is_array( $query_vars['post__in'] ) ? $query_vars['post__in'] : explode( ',', $query_vars['post__in'] );
+
+		$new_post_in = [];
+		// Parse dynamic data
+		foreach ( $post__in as $key => $data ) {
+			// Try to parse dynamic data if it's a string and contains {}
+			if ( is_string( $data ) ) {
+
+				$data = trim( $data );
+
+				if ( strpos( $data, '{' ) !== false && strpos( $data, '}' ) !== false ) {
+					// If insert :value to get IDs only
+					if ( strpos( $data, ':value' ) === false ) {
+						$data = str_replace( '}', ':value}', $data );
+					}
+
+					$data = bricks_render_dynamic_data( $data );
+
+					// It should contain comma separated string after parsing dynamic data
+					if ( strpos( $data, ',' ) !== false ) {
+						$data = explode( ',', $data );
+						$data = array_map( 'trim', $data );
+
+						if ( ! empty( $data ) ) {
+							$new_post_in = array_merge( $new_post_in, $data );
+							continue;
+						}
+					}
+
+					// Maybe <br> as separator for certain dynamic data in MetaBox
+					elseif ( strpos( $data, '<br>' ) !== false ) {
+						$data = explode( '<br>', $data );
+						$data = array_map( 'trim', $data );
+
+						if ( ! empty( $data ) ) {
+							$new_post_in = array_merge( $new_post_in, $data );
+							continue;
+						}
+					}
+				}
+			}
+
+			$new_post_in[] = $data;
+		}
+
+		// Update the query vars
+		$query_vars['post__in'] = $new_post_in;
 
 		return $query_vars;
 	}
@@ -1053,6 +1445,28 @@ class Query {
 	}
 
 	/**
+	 * Handle user pagination
+	 *
+	 * @since 1.12
+	 */
+	public static function get_user_pagination_query_var( $query_vars ) {
+		// Pagination (number, offset, paged). Default is "-1" but as a safety procedure we limit the number (0 is not allowed)
+		$query_vars['number'] = ! empty( $query_vars['number'] ) ? $query_vars['number'] : get_option( 'posts_per_page' );
+
+		// Pagination: Fix the offset value (@since 1.5)
+		$offset = ! empty( $query_vars['offset'] ) ? $query_vars['offset'] : 0;
+
+		// Store the original offset value (@since 1.9.1)
+		$query_vars['original_offset'] = $offset;
+
+		if ( ! empty( $offset ) && $query_vars['paged'] !== 1 ) {
+			$query_vars['offset'] = ( $query_vars['paged'] - 1 ) * $query_vars['number'] + $offset;
+		}
+
+		return $query_vars;
+	}
+
+	/**
 	 * By default, WordPress includes offset posts into the final post count.
 	 * This method excludes them.
 	 *
@@ -1078,28 +1492,35 @@ class Query {
 	 * @since 1.5
 	 */
 	public function init_loop_index() {
-		$paged  = isset( $this->query_vars['paged'] ) ? $this->query_vars['paged'] : 1;
-		$offset = isset( $this->query_vars['offset'] ) ? $this->query_vars['offset'] : 0;
+		$paged         = isset( $this->query_vars['paged'] ) ? $this->query_vars['paged'] : 1;
+		$offset        = isset( $this->query_vars['offset'] ) ? $this->query_vars['offset'] : 0;
+		$initial_index = 0;
 
-		// Type: post
-		if ( $this->object_type == 'post' ) {
-			// 'posts_per_page' not set by default when using 'queryEditor' (@since 1.9.1)
-			$posts_per_page = isset( $this->query_vars['posts_per_page'] ) ? intval( $this->query_vars['posts_per_page'] ) : get_option( 'posts_per_page' );
+		switch ( $this->object_type ) {
+			// Post loop
+			case 'post':
+				// 'posts_per_page' not set by default when using 'queryEditor' (@since 1.9.1)
+				$posts_per_page = isset( $this->query_vars['posts_per_page'] ) ? intval( $this->query_vars['posts_per_page'] ) : get_option( 'posts_per_page' );
+				$initial_index  = $offset + ( $posts_per_page > 0 ? ( $paged - 1 ) * $posts_per_page : 0 );
+				break;
 
-			return $offset + ( $posts_per_page > 0 ? ( $paged - 1 ) * $posts_per_page : 0 );
+			// Term loop
+			case 'term':
+				$initial_index = isset( $this->query_vars['offset'] ) ? $this->query_vars['offset'] : 0;
+				break;
+
+			// User loop
+			case 'user':
+				$initial_index = $offset + ( isset( $this->query_vars['number'] ) && $this->query_vars['number'] > 0 ? ( $paged - 1 ) * $this->query_vars['number'] : 0 );
+				break;
 		}
 
-		// Type: term
-		if ( $this->object_type == 'term' ) {
-			return isset( $this->query_vars['offset'] ) ? $this->query_vars['offset'] : 0;
-		}
-
-		// Type: user
-		if ( $this->object_type == 'user' ) {
-			return $offset + ( $this->query_vars['number'] > 0 ? ( $paged - 1 ) * $this->query_vars['number'] : 0 );
-		}
-
-		return 0;
+		/**
+		 * @see https://academy.bricksbuilder.io/article/filter-bricks-query-init_loop_index/
+		 *
+		 * @since 1.11
+		 */
+		return apply_filters( 'bricks/query/init_loop_index', $initial_index, $this->object_type, $this );
 	}
 
 	/**
@@ -1129,10 +1550,95 @@ class Query {
 		if ( empty( $this->count ) ) {
 			$this->is_looping = false;
 			$content[]        = $this->get_no_results_content();
+
+			/**
+			 * Use fake query to continue execute the remaining elements inside the query loop.
+			 *
+			 * This can ensure all necessary element's script and styles enqueued on page load. Also AJAX popups in any nested templates or injected via custom code can be generated and output on page load.
+			 *
+			 * @since 1.12.2
+			 */
+			if (
+				Helpers::handle_no_results_children_elements() &&
+				! ( defined( 'DOING_AJAX' ) && DOING_AJAX ) &&
+				! ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+			) {
+				$this->is_looping = true;
+				$query_result     = $this->fake_result;
+
+				// STEP: Loop posts
+				if ( $this->object_type == 'post' ) {
+					$this->original_post_id = get_the_ID();
+
+					while ( $query_result->have_posts() ) {
+						$query_result->the_post();
+
+						$this->loop_object = get_post();
+
+						$part = call_user_func_array( $callback, $args );
+
+						self::parse_dynamic_data( $part, get_the_ID() );
+
+						$this->loop_index++;
+					}
+				}
+
+				// STEP: Loop terms
+				elseif ( $this->object_type == 'term' ) {
+					foreach ( $query_result as $term_object ) {
+						$this->loop_object = $term_object;
+
+						$part = call_user_func_array( $callback, $args );
+
+						self::parse_dynamic_data( $part, get_the_ID() );
+
+						$this->loop_index++;
+					}
+				}
+
+				// STEP: Loop users
+				elseif ( $this->object_type == 'user' ) {
+					foreach ( $query_result as $user_object ) {
+						$this->loop_object = $user_object;
+
+						$part = call_user_func_array( $callback, $args );
+
+						self::parse_dynamic_data( $part, get_the_ID() );
+
+						$this->loop_index++;
+					}
+				}
+
+				// STEP: Other render providers (wooCart, ACF repeater, Meta Box groups)
+				else {
+					$this->original_post_id = get_the_ID();
+
+					foreach ( $query_result as $loop_key => $loop_object ) {
+						// @see: https://academy.bricksbuilder.io/article/filter-bricks-query-loop_object/
+						$this->loop_object = apply_filters( 'bricks/query/loop_object', $loop_object, $loop_key, $this );
+
+						$part = call_user_func_array( $callback, $args );
+
+						self::parse_dynamic_data( $part, get_the_ID() );
+
+						$this->loop_index++;
+					}
+				}
+			}
 		}
 
 		// Iterate
 		else {
+			if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
+				// Has results - dequeue the "no results" template CSS if it exists (@since 1.12)
+				$no_results_template_id = $this->settings['query']['no_results_template'] ?? false;
+
+				if ( $no_results_template_id ) {
+					// This was optimistically enqueued in Files->scan_for_templates()
+					wp_dequeue_style( "bricks-post-$no_results_template_id" );
+				}
+			}
+
 			// STEP: Loop posts
 			if ( $this->object_type == 'post' ) {
 				$this->original_post_id = get_the_ID();
@@ -1193,10 +1699,23 @@ class Query {
 			}
 
 			// STEP: Remove the HTML content if live_search is enabled as it's not needed on initial page load (@since 1.9.6)
-			$is_live_search = $this->settings['query']['is_live_search'] ?? false;
-			if ( $is_live_search && ! Api::is_current_endpoint( 'query_result' ) && Helpers::enabled_query_filters() ) {
+			$is_live_search         = $this->settings['query']['is_live_search'] ?? false;
+			$supress_render_content = $is_live_search && ! Api::is_current_endpoint( 'query_result' ) && Helpers::enabled_query_filters() && ! bricks_is_builder_call();
+			$supress_render_content = apply_filters( 'bricks/query/supress_render_content', $supress_render_content, $this );
+			if ( $supress_render_content ) {
 				$content = [];
 			}
+		}
+
+		/**
+		 * Custom Marker to avoid HTML comment removal by plugins
+		 * - will be converted to HTML comment in the frontend
+		 *
+		 * @since 1.12.3
+		 */
+		$loop_marker = $this->get_loop_marker();
+		if ( $loop_marker !== '' ) {
+			array_unshift( $content, $loop_marker );
 		}
 
 		// @see https://academy.bricksbuilder.io/article/action-bricks-query-after_loop (@since 1.7.2)
@@ -1365,9 +1884,11 @@ class Query {
 	/**
 	 * Get the current loop iteration index
 	 *
+	 * @since 1.10: Add $query_id to get the loop index of a specific query
+	 *
 	 * @return mixed
 	 */
-	public static function get_loop_index() {
+	public static function get_loop_index( $query_id = '' ) {
 		// For AJAX popup to simulate is_looping if context being set (@since 1.9.4)
 		$force_loop_index = apply_filters( 'bricks/query/force_loop_index', '' );
 
@@ -1375,9 +1896,106 @@ class Query {
 			return $force_loop_index;
 		}
 
-		$query = self::get_query_object();
+		$query = self::get_query_object( $query_id );
 
 		return $query && $query->is_looping ? $query->loop_index : '';
+	}
+
+	/**
+	 * Get a unique identifier for the current looping query
+	 *
+	 * @param string $type 'query', 'interaction', 'popup'
+	 * @return string
+	 * @since 1.10
+	 */
+	public static function get_looping_unique_identifier( $type = 'query' ) {
+		$looping_query_id = self::is_any_looping();
+
+		if ( ! $looping_query_id ) {
+			return '';
+		}
+
+		/**
+		 * Looping dynamic data CSS
+		 *
+		 * Example: background-image, color, etc.
+		 *
+		 * @since 1.10
+		 */
+		if ( $type === 'query' ) {
+			// Top level loop
+			if ( self::get_looping_level() < 1 ) {
+				$component_id = self::get_query_element_component_id( $looping_query_id );
+
+				if ( $component_id ) {
+					// Add query element ID if component ID exists (@since 1.12.2)
+					// Format: query_element_id:loop_index
+					$unique_loop_id = [
+						self::get_query_element_id( $looping_query_id ),
+						self::get_loop_index( $looping_query_id ),
+					];
+				} else {
+					// Format: loop_index
+					$unique_loop_id = [
+						self::get_loop_index( $looping_query_id )
+					];
+				}
+
+			}
+
+			// Nested loop
+			else {
+				// Format: parent_element_id:parent_loop_index:query_element_id:loop_index
+				$parent_loop_id = self::get_parent_loop_id();
+				$unique_loop_id = [
+					self::get_query_element_id( $parent_loop_id ),
+					self::get_loop_index( $parent_loop_id ),
+					self::get_query_element_id( $looping_query_id ),
+					self::get_loop_index( $looping_query_id ),
+				];
+			}
+		}
+
+		/**
+		 * For AJAX popup data attribute: data-popup-loop-id
+		 * For interactions data attribute: data-interaction-loop-id
+		 *
+		 * Avoid incorrect popup trigger in nested loops
+		 *
+		 * @since 1.9.4
+		 */
+		else {
+			// Top level loop
+			if ( self::get_looping_level() < 1 ) {
+				// Format: query_element_id:loop_index:object_type:object_id
+				$unique_loop_id = [
+					self::get_query_element_id( $looping_query_id ),
+					self::get_loop_index( $looping_query_id ),
+					self::get_loop_object_type( $looping_query_id ),
+					self::get_loop_object_id( $looping_query_id ),
+				];
+			}
+
+			// Nested loop
+			else {
+				/**
+				 * Format: parent_element_id:parent_loop_index:query_element_id:loop_index:parent_query_element_id:parent_loop_index
+				 *
+				 * parent_query_element_id:parent_loop_index (@since 1.12)
+				 */
+				$parent_loop_id = self::get_parent_loop_id();
+				$unique_loop_id = [
+					self::get_query_element_id( $looping_query_id ),
+					self::get_loop_index( $looping_query_id ),
+					self::get_loop_object_type( $looping_query_id ),
+					self::get_loop_object_id( $looping_query_id ),
+					self::get_query_element_id( $parent_loop_id ),
+					self::get_loop_index( $parent_loop_id ),
+				];
+			}
+		}
+
+		return implode( ':', $unique_loop_id );
 	}
 
 	/**
@@ -1388,7 +2006,7 @@ class Query {
 	 * @return boolean
 	 */
 	public static function is_looping( $element_id = '', $query_id = '' ) {
-		// For AJAX popup to simulate is_looping if context being set  (@since 1.9.4)
+		// For AJAX popup to simulate is_looping if context being set (@since 1.9.4)
 		$force_is_looping = apply_filters( 'bricks/query/force_is_looping', false, $query_id, $element_id );
 
 		if ( $force_is_looping ) {
@@ -1450,6 +2068,85 @@ class Query {
 		$query = self::get_query_object( $query );
 
 		return ! empty( $query->element_id ) ? $query->element_id : false;
+	}
+
+	/**
+	 * Get component ID of query loop element
+	 *
+	 * @since 1.12.2
+	 */
+	public static function get_query_element_component_id( $query = '' ) {
+		$query = self::get_query_object( $query );
+
+		return ! empty( $query->component_id ) ? $query->component_id : false;
+	}
+
+	/**
+	 * Get the current looping level
+	 *
+	 * @return int
+	 * @since 1.10
+	 */
+	public static function get_looping_level() {
+		global $bricks_loop_query;
+
+		// Avoid array errors
+		if ( empty( $bricks_loop_query ) ) {
+			return 0;
+		}
+
+		$query_ids = array_reverse( array_keys( $bricks_loop_query ) );
+
+		$looping_queries = array_filter(
+			$query_ids,
+			function( $query_id ) use ( $bricks_loop_query ) {
+				return $bricks_loop_query[ $query_id ]->is_looping;
+			}
+		);
+
+		$level = count( $looping_queries ) > 0 ? count( $looping_queries ) - 1 : 0;
+		return $level;
+	}
+
+	/**
+	 * Get the direct parent loop ID
+	 *
+	 * @since 1.10
+	 */
+	public static function get_parent_loop_id() {
+		$current_looping_id = self::is_any_looping();
+
+		if ( ! $current_looping_id ) {
+			return false;
+		}
+
+		global $bricks_loop_query;
+
+		$query_ids = array_reverse( array_keys( $bricks_loop_query ) );
+
+		$looping_queries = array_filter(
+			$query_ids,
+			function( $query_id ) use ( $bricks_loop_query ) {
+				return $bricks_loop_query[ $query_id ]->is_looping;
+			}
+		);
+
+		$looping_queries = array_values( $looping_queries );
+
+		if ( count( $looping_queries ) < 2 ) {
+			return false;
+		}
+
+		$parent_loop_id = false;
+
+		foreach ( $looping_queries as $key => $query_id ) {
+			if ( $query_id == $current_looping_id ) {
+				$parent_loop_id = $looping_queries[ $key + 1 ];
+				break;
+			}
+		}
+
+		return $parent_loop_id;
 	}
 
 	/**
@@ -1518,6 +2215,13 @@ class Query {
 			// Use template if set
 			if ( $template_id ) {
 				$content = do_shortcode( '[bricks_template id="' . $template_id . '"]' );
+				// Generate global classes and insert inline to compatible with third-party plugin, will be removed on next AJAX call together with .bricks-posts-nothing-found (@since 1.12)
+				$global_class_key = 'global_classes_' . $template_id;
+				Assets::generate_global_classes( $global_class_key );
+				$content .= '<style>';
+				$content .= Assets::$inline_css[ "$global_class_key" ];
+				$content .= Assets::$inline_css[ "template_$template_id" ];
+				$content .= '</style>';
 			} else {
 				$content = bricks_render_dynamic_data( $text );
 				$content = do_shortcode( $content );
@@ -1530,38 +2234,48 @@ class Query {
 			 *
 			 * @since 1.9.8
 			 */
-			$tag        = $this->settings['tag'] ?? 'div';
-			$custom_tag = $this->settings['customTag'] ?? '';
-			$final_tag  = $tag === 'custom' && $custom_tag ? esc_html( $custom_tag ) : esc_html( $tag );
-			$wrapper    = "<$final_tag" . ' class="bricks-posts-nothing-found" style="width: inherit; max-width: 100%; grid-column: 1/-1">';
+			$html_tag = Helpers::get_html_tag_from_element_settings( $this->settings, 'div' );
+
+			// Convert <a> to <div> to avoid issues with links within the no results content (@since 1.11)
+			if ( $html_tag === 'a' ) {
+				$html_tag = 'div';
+			}
+
+			$wrapper = "<$html_tag" . ' class="bricks-posts-nothing-found" style="width: inherit; max-width: 100%; grid-column: 1/-1">';
 
 			// Special case for table row
-			if ( $final_tag === 'tr' ) {
+			if ( $html_tag === 'tr' ) {
 				$wrapper .= '<td colspan="100%">';
 			}
 
 			$content = $wrapper . $content;
 
 			// Special case for table row
-			if ( $final_tag === 'tr' ) {
+			if ( $html_tag === 'tr' ) {
 				$content .= '</td>';
 			}
 
-			$content .= "</$final_tag>";
-
-			// Inline styles needed if query result via AJAX is empty and using a template
-			if ( Api::is_current_endpoint( 'query_result' ) && $template_id ) {
-				$content .= '<style>';
-				$content .= Assets::$inline_css['global_classes'];
-				$content .= Assets::$inline_css[ "template_$template_id" ];
-				$content .= '</style>';
-			}
+			$content .= "</$html_tag>";
 		}
 
 		// @see: https://academy.bricksbuilder.io/article/filter-bricks-query_no_results_content/
 		$content = apply_filters( 'bricks/query/no_results_content', $content, $this->settings, $this->element_id );
 
 		return $content;
+	}
+
+	/**
+	 * Only generate the loop marker if this is a whole page load
+	 *
+	 * @since 1.12.3
+	 */
+	public function get_loop_marker() {
+		// Do not generate if AJAX or REST request
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX || defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+			return '';
+		}
+
+		return "<template style='display:none' aria-hidden='true' data-brx-loop-start='$this->element_id'></template>";
 	}
 
 	/**
@@ -1624,6 +2338,25 @@ class Query {
 		}
 
 		return $order_statement;
+	}
+
+	/**
+	 * Add DISTINCT to the query or multiple same users might be returned if the user has multiple same key meta values
+	 * This is a workaround for the issue with the user query and meta query
+	 *
+	 * @see wp-includes/class-wp-user-query.php search has_or_relation()
+	 * @since 1.12
+	 */
+	public function set_distinct_user_query( $user_query ) {
+		if (
+			$user_query->meta_query &&
+			$user_query->meta_query->queries &&
+			! empty( $user_query->meta_query->queries ) &&
+			$user_query->query_fields
+		) {
+			return $user_query->query_fields = 'DISTINCT ' . $user_query->query_fields;
+		}
+		return $user_query;
 	}
 
 	/**
@@ -1719,7 +2452,7 @@ class Query {
 	 * @since 1.8
 	 */
 	public static function archive_query_supported_object_types() {
-		// @since 1.9.1 - Only post query should be supported (WP_Query)
+		// Only post query should be supported (WP_Query)
 		$object_types = [
 			'post',
 			// 'term',
@@ -1735,11 +2468,16 @@ class Query {
 	 *
 	 * wp_parse_args will only set those values that are not already set in the original array.
 	 *
+	 * @param array $original_query_vars
+	 * @param array $merging_query_vars
+	 * @param bool  $meta_query_logic (@since 1.11.1)
+	 * @return array
+	 *
 	 * @see https://developer.wordpress.org/reference/functions/wp_parse_args/
 	 *
 	 * @since 1.9.4
 	 */
-	public static function merge_query_vars( $original_query_vars, $merging_query_vars ) {
+	public static function merge_query_vars( $original_query_vars = [], $merging_query_vars = [], $meta_query_logic = false ) {
 		foreach ( $merging_query_vars as $key => $value ) {
 			// If the key already exists in the $original_query_vars, and the value is an array, merge the two arrays
 			if ( isset( $original_query_vars[ $key ] ) && is_array( $original_query_vars[ $key ] ) && is_array( $value ) ) {
@@ -1757,10 +2495,32 @@ class Query {
 				 * This logic is still needed for 'meta_query' to work correctly.
 				 * Otherwise will merge wrongly into wrong array when performing query filter.
 				 *
+				 * @since 1.11.1: Add $meta_query_logic for URL query filter on page load (not API endpoint), otherwise meta_query cannot merge correctly.
+				 * Review in future see if possible to remove this so all meta_query will run the same logic.
+				 *
 				 * @since 1.9.8
 				 */
-				elseif ( $key === 'meta_query' && Api::is_current_endpoint( 'query_result' ) ) {
+				elseif ( $key === 'meta_query' && ( Api::is_current_endpoint( 'query_result' ) || $meta_query_logic ) ) {
 					$original_query_vars[ $key ] = self::merge_tax_or_meta_query_vars( $original_query_vars[ $key ], $value, 'meta' );
+				}
+
+				/**
+				 * Handle special case for 'orderby' in query filter calls
+				 *
+				 * The sequence of orderby is important, so we need to merge them correctly.
+				 */
+				elseif ( $key === 'orderby' ) {
+					$original_query_vars[ $key ] = self::merge_query_filter_orderby( $original_query_vars[ $key ], $value );
+				}
+
+				elseif ( $key === 'role__in' ) {
+					// Used in WP_User_Query, should use merging query vars
+					$original_query_vars[ $key ] = $value;
+				}
+
+				elseif ( $key === 'posts_per_page' || $key === 'number' ) {
+					// Used in WP_Query, WP_Term_Query & WP_User_Query, should use merging query vars
+					$original_query_vars[ $key ] = $value;
 				}
 
 				else {
@@ -1783,9 +2543,16 @@ class Query {
 	 * @since 1.9.6
 	 */
 	public static function merge_tax_or_meta_query_vars( $original_tax_query, $merging_tax_query, $type = 'tax' ) {
+		// Handle relation
+		$original_relation = $original_tax_query['relation'] ?? false;
+		$merging_relation  = $merging_tax_query['relation'] ?? false;
+
+		// Remove relation from both arrays
+		unset( $original_tax_query['relation'] );
+		unset( $merging_tax_query['relation'] );
+
 		$original_tax_query = array_values( $original_tax_query );
 		$merging_tax_query  = array_values( $merging_tax_query );
-		$target_key         = $type === 'tax' ? 'taxonomy' : 'key';
 
 		// Merge tax_query or meta_query vars
 		foreach ( $merging_tax_query as $merging_tax_query_item ) {
@@ -1793,6 +2560,16 @@ class Query {
 
 			foreach ( $original_tax_query as &$original_tax_query_item ) { // Use reference to modify original array
 				if ( $type === 'meta' ) {
+					$ori_key     = $original_tax_query_item['key'] ?? '';
+					$mer_key     = $merging_tax_query_item['key'] ?? '';
+					$ori_compare = $original_tax_query_item['compare'] ?? '=';
+					$mer_compare = $merging_tax_query_item['compare'] ?? '=';
+
+					// Skip if key is empty, probably both are individual set of meta query, not intended to merge (@since 1.11.1)
+					if ( $ori_key === '' || $mer_key === '' ) {
+						continue;
+					}
+
 					/**
 					 * Meta merge logic
 					 *
@@ -1800,12 +2577,11 @@ class Query {
 					 *
 					 * @since 1.9.8
 					 */
-					if ( isset( $original_tax_query_item[ $target_key ] ) &&
-						isset( $merging_tax_query_item[ $target_key ] ) &&
-						$original_tax_query_item[ $target_key ] === $merging_tax_query_item[ $target_key ] &&
-						isset( $original_tax_query_item['compare'] ) &&
-						isset( $merging_tax_query_item['compare'] ) &&
-						$original_tax_query_item['compare'] === $merging_tax_query_item['compare']
+					if (
+						// Check if key is same
+						( $ori_key === $mer_key ) &&
+						// Check if compare is same
+						( $ori_compare === $mer_compare )
 					) {
 						$found = true;
 
@@ -1815,10 +2591,27 @@ class Query {
 				}
 
 				elseif ( $type === 'tax' ) {
+					$ori_taxonmy  = $original_tax_query_item['taxonomy'] ?? '';
+					$mer_taxonmy  = $merging_tax_query_item['taxonomy'] ?? '';
+					$ori_field    = $original_tax_query_item['field'] ?? 'term_id';
+					$mer_field    = $merging_tax_query_item['field'] ?? 'term_id';
+					$ori_operator = $original_tax_query_item['operator'] ?? 'IN';
+					$mer_operator = $merging_tax_query_item['operator'] ?? 'IN';
+					$no_merge     = isset( $original_tax_query_item['brx_no_merge'] ) && $original_tax_query_item['brx_no_merge'];
+
+					// Skip if taxonomy is empty, not intended to merge (@since 1.11.1.1) OR if no_merge is set (@since 1.12)
+					if ( $ori_taxonmy === '' || $mer_taxonmy === '' || $no_merge ) {
+						continue;
+					}
+
 					// Taxonomy merge logic
-					if ( isset( $original_tax_query_item[ $target_key ] ) &&
-						isset( $merging_tax_query_item[ $target_key ] ) &&
-						$original_tax_query_item[ $target_key ] === $merging_tax_query_item[ $target_key ]
+					if (
+						// Check if taxonomy is same
+						( $ori_taxonmy === $mer_taxonmy ) &&
+						// Check if field is same
+						( $ori_field === $mer_field ) &&
+						// Check if operator is same
+						( $ori_operator === $mer_operator )
 					) {
 						$found = true;
 
@@ -1838,8 +2631,17 @@ class Query {
 							$original_tax_query_item['terms'] = isset( $merging_tax_query_item['terms'] ) ? $merging_tax_query_item['terms'] : $original_tax_query_item['terms'];
 						}
 
+						// Ensure unique & no empty terms
+						$original_tax_query_item['terms'] = array_unique( $original_tax_query_item['terms'] );
+						$original_tax_query_item['terms'] = array_filter( $original_tax_query_item['terms'] );
+
 						// Remove the operator if it's already set in the original item
-						unset( $merging_tax_query_item['operator'] );
+						if ( isset( $merging_tax_query_item['operator'] ) && isset( $original_tax_query_item['operator'] ) ) {
+							unset( $merging_tax_query_item['operator'] );
+						}
+
+						// Remove the terms as we've already merged them
+						unset( $merging_tax_query_item['terms'] );
 
 						// Merge the rest of the properties
 						$original_tax_query_item = self::merge_query_vars( $original_tax_query_item, $merging_tax_query_item );
@@ -1852,6 +2654,91 @@ class Query {
 			}
 		}
 
+		// Restore relation
+		if ( $original_relation ) {
+			$original_tax_query['relation'] = $original_relation;
+		}
+
+		// Set merging_relation as priority
+		if ( $merging_relation ) {
+			$original_tax_query['relation'] = $merging_relation;
+		}
+
 		return $original_tax_query;
+	}
+
+	/**
+	 * Merging filter's orderby vars to the original orderby vars
+	 *
+	 * Filter's orderby vars as priority.
+	 *
+	 * @since 1.11.1
+	 */
+	public static function merge_query_filter_orderby( $original_orderby, $merging_orderby ) {
+		if ( ! is_array( $original_orderby ) ) {
+			$original_orderby = [ $original_orderby ];
+		}
+
+		if ( ! is_array( $merging_orderby ) ) {
+			$merging_orderby = [ $merging_orderby ];
+		}
+
+		// Set merging_orderby as priority
+		$new_orderby = $merging_orderby;
+
+		$merging_orderby_keys = array_keys( $merging_orderby );
+
+		/**
+		 * Merge with original_orderby
+		 * If the original key exists in the merging_orderby, skip it
+		 * Otherwise, add it to the new_orderby array
+		 */
+		foreach ( $original_orderby as $original_key => $original_value ) {
+			if ( ! in_array( $original_key, $merging_orderby_keys ) ) {
+				$new_orderby[ $original_key ] = $original_value;
+			}
+		}
+
+		return $new_orderby;
+	}
+
+	/**
+	 * Restore original query vars from the frontend (dynamic data parsed)
+	 *
+	 * Handle different cases when the original query vars should be restored from the populated query vars
+	 *
+	 * Previously, the logic maintained in api.php
+	 *
+	 * @since 1.12
+	 */
+	public static function restore_original_query_vars_from_frontend( $original_query_vars, $populated_query_vars, $query_object_type ) {
+		// Always unset original query vars offset value (@since 1.12)
+		if ( isset( $original_query_vars['offset'] ) && in_array( $query_object_type, [ 'term', 'user' ], true ) ) {
+			unset( $original_query_vars['offset'] );
+		}
+
+		// STEP: page number should be removed from original query vars because it was set when user lands on /page/n (#86c0vzgr0)
+		if ( isset( $original_query_vars['paged'] ) ) {
+			unset( $original_query_vars['paged'] );
+		}
+
+		// STEP: Original query vars should not merge with filters to remain the 'OR' relation
+		if ( isset( $original_query_vars['meta_query'] ) ) {
+			$original_query_vars['meta_query'] = [ $original_query_vars['meta_query'] ];
+		}
+
+		// Original query vars as priority, check if any key found in the populated query vars but not in the original query vars
+		foreach ( $populated_query_vars as $key => $value ) {
+			// Exclude 'tax_query' and 'meta_query' as they are handled separately
+			if ( in_array( $key, [ 'tax_query', 'meta_query' ] ) ) {
+				continue;
+			}
+
+			if ( ! isset( $original_query_vars[ $key ] ) ) {
+				$original_query_vars[ $key ] = $value;
+			}
+		}
+
+		return $original_query_vars;
 	}
 }

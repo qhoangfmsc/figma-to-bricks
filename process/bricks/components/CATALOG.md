@@ -12,8 +12,8 @@ source wins for each one.
 
 | Source | What it is | What we take | What we never take |
 |---|---|---|---|
-| Bricks 1.9.8 theme (`wp-content/themes/bricks/includes/elements/*.php`, `assets/css/frontend.min.css`, `assets/js/bricks.min.js`) | The only authority for what exists and how it behaves | Element names, control keys, nestable structure (`get_nestable_children()`), default CSS | Anything the docs website says that is not in these files (it describes newer versions) |
-| `reference/Brick-Build-Page` (production project, written for Bricks 2.3.6 / 2.4.2) | 48 pattern JSON files, `snippets/widget-map.md` (Figma signal → widget), `snippets/css-custom.md`, pitfall table of `figma-section-analyze`, `infer_role()` in `scripts/lib/figma_spec.py` | Recognition signals, the structure of each widget, CSS that repairs a known Bricks quirk | Their sample values (colours, sizes, spacing), the G4 "98 % similar" gate, remote Figma asset URLs, any setting that 1.9.8 does not have (list at the end) |
+| Bricks 1.12.3 theme (`wp-content/themes/bricks/includes/elements/*.php`, `assets/css/frontend.min.css`, `assets/js/bricks.min.js`) | The only authority for what exists and how it behaves | Element names, control keys, nestable structure (`get_nestable_children()`), default CSS | Anything the docs website says that is not in these files (it describes newer versions) |
+| `reference/Brick-Build-Page` (production project, written for Bricks 2.3.6 / 2.4.2) | 48 pattern JSON files, `snippets/widget-map.md` (Figma signal → widget), `snippets/css-custom.md`, pitfall table of `figma-section-analyze`, `infer_role()` in `scripts/lib/figma_spec.py` | Recognition signals, the structure of each widget, CSS that repairs a known Bricks quirk | Their sample values (colours, sizes, spacing), the G4 "98 % similar" gate, remote Figma asset URLs, any setting that 1.12.3 does not have (list at the end) |
 | This project (`process/bricks/components/*.mjs`) | 14 registered components, exact values from Figma | Keep when its numbers equal or beat the saved baseline | – |
 
 Values (numbers, colours, texts) always come from Figma or from the owner's answers in the Plan. A pattern from the reference is a
@@ -41,7 +41,7 @@ structure in the tree > layer name > geometry. Every signal must be measurable i
 | Paragraph / label | Text | `text-basic`, `text` for rich text | `text-basic` (div, p, span, figcaption, address, figure), `text` (rich) | yes | Ours | – |
 | Text link | A TEXT used as a link, menu item, breadcrumb | `text-link` in `bem-card-grid`, header, footer | `text-link` (a, span without link, icon, gap) | `link` | Ours | Use as the leaf of `nav-nested` and footer link columns |
 | Button | Frame with one label, fill or stroke, radius | `button` with `style`, `size`, `icon` | `button` (a when linked, span otherwise, `tag` if no link, `size`, `style`, `circle`, `outline`, `icon`, `iconPosition`, `iconGap`). Theme defaults to override: `gap:10px`, `letter-spacing:.5px`, `padding:.5em 1em` | yes (no icon yet) | Ours | Add icon inside the button (`icon`, `iconPosition`, `iconGap`) |
-| Image | Image fill | `image` with `altText`, `loading` | `image` (alt, loading, `sources` for another image per breakpoint, lightbox, `_objectFit`) | yes | Ours | Use `sources` when the tablet / mobile frame uses a different picture |
+| Image | Image fill | `image` with `altText`, `loading` | `image` (alt, loading, `sources` for another image per breakpoint, lightbox, `_objectFit`) | yes | Ours | `responsive/merge.mjs` writes `sources` when a pasted frame uses another file and the same crop. A crop that moves stays that frame's own element |
 | Decorative vector | Pure vector | `svg` | `svg` (file / dynamic / code, width, height, fill, stroke). No `iconSet` source | yes | Ours | – |
 | Icon list | Rows of one icon + one text | `list` (`pricing-table`, `bem-pricing`) | `list` (items with title, icon, separator) | `icon-list` | Ours | – |
 | Icon + title + text | Repeated small blocks | `icon-box` (`contact-section`) | `icon-box` (direction, icon, content). Brings its own CSS (icon 40 px, margin 20 px) | no | Native, only when the Figma matches the layout; otherwise `div` + `icon` + `heading` + `text-basic` (the reference skill itself advises this) | Phase 2 |
@@ -86,7 +86,7 @@ structure in the tree > layer name > geometry. Every signal must be measurable i
 
 | Component | Figma signal | Reference | Bricks 1.9.8 | Ours today | Chosen source | To do |
 |---|---|---|---|---|---|---|
-| Form | At least 2 input-like frames + a submit | `sections/contact-section.json`, `templates/popup-newsletter.json` | `form` (field types email, text, textarea, tel, number, url, checkbox, select, radio, file, datepicker, password, html, hidden; field `width`; actions custom, email, redirect, mailchimp, sendgrid, login, registration, lost-password, reset-password. Not in 1.9.8: `webhook`, `save-submission`, `confirmation-email`, `create-post`) | yes | Ours | Ask action / recipient / success message / required / consent in the Plan |
+| Form | At least 2 input-like frames + a submit | `sections/contact-section.json`, `templates/popup-newsletter.json` | `form` on 1.12.3 (types email, text, textarea, tel, number, url, checkbox, select, radio, file, datepicker, password, rememberme, html, hidden; no `step`; options are a textarea, one line each; actions custom, email, redirect, mailchimp, sendgrid, login, registration, lost-password, reset-password; `save-submission` only while Save form submissions in database is on; `unlock-password-protection` only while password protection is on. Still absent: `webhook`, `confirmation-email`, `create-post`, `update-post`) | yes | Ours | Each field keeps its width and height and its own id. Submit action is Save submission. Form name is the Figma file, the section and the form frame |
 | Search box | Input with a magnifier | `elements/search.json` | `search` | no | Native if drawn | Phase 2 |
 | Alert | Coloured message box | `alert.json` | `alert` | no | `block` unless it has to be dismissible | – |
 
@@ -117,10 +117,10 @@ them; a Figma section only becomes one on the owner's explicit request. Not in 1
 | Row that scrolls sideways on mobile | `overflow-x:auto` row of cards, two blocks shown / hidden by breakpoint | Only if the mobile frame is a plain scroll row; one slider otherwise |
 | `div` has no `display:flex` | They write `display:flex` in `_cssCustom` | Consistent with 1.9.8: `.brxe-div` has no rule, `.brxe-block` has. Whether `render/` already writes `display:flex` for a `div` is **not checked yet**; check before the first build that relies on it |
 
-Compatibility rule (owner, 2026-10-29): the reference runs on a different Bricks version than ours. **Bricks 1.9.8 is the only
+Compatibility rule (owner, 2026-10-29, theme moved to 1.12.3 on 2026-11-04): the reference runs on a different Bricks version than ours. **The installed theme is the only
 reference for what is valid.** Every settings key, element, class name and CSS selector a component emits is checked against the
 installed theme (`includes/elements/*.php`, `assets/css/frontend.min.css`) and a test fails when a component emits a key the theme
-does not have. Anything copied from the reference that fails that check is rewritten for 1.9.8 or dropped, with a line in section 9.
+does not have. Anything copied from the reference that fails that check is rewritten for 1.12.3 or dropped, with a line in section 9.
 | `_alignSelf: stretch` makes Bricks emit `width:100%` | Drop it, set the parent `_alignItems` | Check against our `render/size.mjs` before changing anything |
 | Zero-width SVG line is not painted | Give it `1px` width, `object-fit:fill` | Check against our exact-size rule |
 | Pill label wraps | `white-space:nowrap` | Per node, only on a measured mismatch |
@@ -128,7 +128,9 @@ does not have. Anything copied from the reference that fails that check is rewri
 | Section gradient not compiled | Mirror in `_cssCustom` | Unverified on 1.9.8; our verify step would show it, do not add unless it shows |
 | Inter optical size shifts text width | `font-optical-sizing:none` on the section root | Already handled by the local fonts folder (see the Figma Inter 3.x note); do not add |
 
-## 9. Settings in the reference that do not exist in Bricks 1.9.8
+## 9. Settings in the reference that the installed theme does not have
+
+Rechecked for forms on 1.12.3 (2026-11-04). The other rows below were listed against 1.9.8 and are not a fresh audit. Elements now on disk that this list used to call missing: `rating`, `back-to-top`, `filter-active-filters`, `query-results-summary`. `tabs-nested` now has `openTab` and `openTabOn`. Still no element file for `file`, `map-leaflet`, `map-connector`, `slot`, `toggle-mode`.
 
 Found by comparing every setting of every reference pattern with the controls of the installed element files:
 `accordion-nested.faqSchema`, `icon.isAccordionIcon`, `tabs-nested.openTab` / `openTabOn`, `svg` source `iconSet`,
@@ -136,8 +138,9 @@ Found by comparing every setting of every reference pattern with the controls of
 `iconSize` (top level), `image-gallery.lightboxThumbnails` / `lightboxCaption` / `loadingAttribute`, `video.aspectRatio` /
 `previewImageSize` / `overlayAriaLabel`, `map.renderMode` / `markerCluster` / `syncQuery`, `code.prettify`,
 `nav-menu.ariaLabel`, `post-comments.titleTag`; elements `rating`, `back-to-top`, `toggle-mode`, `file`, `map-leaflet`,
-`map-connector`, `query-results-summary`, `filter-active-filters`, `slot`; form actions `webhook`, `save-submission`,
+`map-connector`, `query-results-summary`, `filter-active-filters`, `slot`; form actions `webhook`,
 `confirmation-email`, `create-post`, `update-post`; container `tag` values header, footer, main.
+`save-submission` is in 1.12.3 (`includes/integrations/form/actions/save-submission.php`) and is listed only while the setting `saveFormSubmissions` is on. `unlock-password-protection` is listed only while `passwordProtectionEnabled` is on.
 (`hasLoop`, `query` and the `filter*` keys also show up in that comparison only because they live in `base.php` / `filter-base.php`.)
 
 ## 10. Phase order proposed from this catalog
@@ -150,10 +153,10 @@ Found by comparing every setting of every reference pattern with the controls of
 
 | Component | Detection | Content from the Plan | Verified by |
 |---|---|---|---|
-| `accordion-nested` (FAQ) | `detect/rules/accordion.mjs`: designer variants State=Collapsed / Expand (E1 high), a name + state (E1 medium), shape only (low: the Plan asks "is this an accordion?"). Scanned 117 saved trees: 5 FAQ found, 0 false positives (the shape-only rule needs equal-width rows: a card is not an accordion) | answers of the closed items | `faq` section: look 6.06 -> 1.98 (desktop), 23.01 -> 2.68 (mobile), mismatches 0 / 73 -> 0; clicked in the Docker browser: items toggle |
-| `tabs-nested` | `detect/rules/tabs.mjs`: horizontal tab bar of >= 2 alike titles above a content frame, only with an active-variant or a tab name | content of the undrawn panes | unit tests; the `_price-table` period switch is the one real candidate in the saved trees |
+| `accordion-nested` (FAQ) | `detect/rules/accordion.mjs`: designer variants State=Collapsed / Expand (E1 high), a name + state (E1 medium), shape only (low: the Plan asks "is this an accordion?"). Scanned 117 saved trees: 5 FAQ found, 0 false positives (the shape-only rule needs equal-width rows: a card is not an accordion) | answers of the closed items, copied onto every breakpoint that has the same item; a breakpoint that already answered keeps its text. Blank stays empty. Icons do not rotate | `faq` section: look 6.06 -> 1.98 (desktop), 23.01 -> 2.68 (mobile), mismatches 0 / 73 -> 0; clicked in the Docker browser: items toggle |
+| `tabs-nested` | `detect/rules/tabs.mjs` when the bar and the panes are the two children; `detect/rules/tab-switch.mjs` reads the buttons first, then the repeated items under them as the one open tab's data | the open tab keeps those items; a tab without them asks for a Figma link, read the same way; two open buttons or two equal item groups are asked; typed text only when nothing is drawn. Below desktop every pane of the same widget stacks the same way (`tabs-chrome.mjs`, `responsive/solo.mjs`) | unit tests |
 | `slider-nested` | `detect/rules/carousel.mjs` (unchanged signals); a row of links that `rules/menu.mjs` claims is no longer a carousel | autoplay (seconds), loop | the carousels approved earlier keep their numbers |
-| `menu` (`nav > ul > li > text-link`) | `detect/rules/menu.mjs`: horizontal row of >= 3 link-like items named like a menu | URL of every item | the three `_sub-menu` sections |
+| `menu` (`nav > ul > li > text-link`) when the items fit; `menu-slider` (`slider-nested`, type slide, drag and arrows, no loop, no autoplay) when they do not | `detect/rules/menu.mjs`: horizontal row of >= 2 link-like items named like a menu | URL of every item | the three `_sub-menu` sections |
 
 Traps this work found in Bricks 1.9.8 (all in `process/AI-GUIDE.md`): `_direction` / `_rowGap` exist only on container-like elements; an id-selector `display` from Figma stops the theme from hiding
-accordion content and tab panes; the theme pads the accordion rows; elements Bricks needs but Figma does not draw must follow their host through the responsive merge.
+accordion content and tab panes (the tabs root therefore owns `#brxe-{id} .tab-pane { display:none }` and `.tab-pane.brx-open { display:flex }`); the theme pads the accordion rows; elements Bricks needs but Figma does not draw must follow their host through the responsive merge. Panes of one `tabs-nested` share one narrow layout.

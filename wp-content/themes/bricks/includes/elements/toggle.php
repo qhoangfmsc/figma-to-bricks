@@ -163,7 +163,7 @@ class Element_Toggle extends Element {
 			'css'      => [
 				[
 					'property' => 'color',
-					'selector' => '.brxa-inner',
+					'selector' => '.brxa-wrap',
 				],
 			],
 		];

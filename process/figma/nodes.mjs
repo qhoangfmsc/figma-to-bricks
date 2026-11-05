@@ -31,10 +31,20 @@ function hasTrueVector(node) {
   return TRUE_VECTOR_TYPES.has(node.type) || (node.children ?? []).some(hasTrueVector);
 }
 
+// A horizontal or vertical row of frames (the logo cards under a tab) stays a layout.
+// Each card is still its own svg. Collapsing the row into one picture drops the cards from the tree.
+export function isLayoutRow(node) {
+  const mode = node?.layoutMode ?? node?.layout?.mode;
+  if (!mode || mode === 'NONE') return false;
+  const cards = (node.children ?? []).filter((c) => isVisible(c) && CONTAINER_TYPES.has(c.type));
+  return cards.length >= 2;
+}
+
 export function isSvgRoot(node) {
   if (!isVisible(node)) return false;
   if (isIconText(node)) return true;
   if (TRUE_VECTOR_TYPES.has(node.type) && node.type !== 'LINE') return true;
+  if (isLayoutRow(node)) return false;
   return CONTAINER_TYPES.has(node.type) && !!node.children?.length && onlyShapes(node) && hasTrueVector(node);
 }
 

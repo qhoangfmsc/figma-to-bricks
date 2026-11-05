@@ -203,10 +203,10 @@ $controls['lightboxSeparator'] = [
 
 $controls['lightboxBackground'] = [
 	'type'    => 'background',
-	'label'   => esc_html__( 'Lightbox background', 'bricks' ),
+	'label'   => esc_html__( 'Background', 'bricks' ),
 	'css'     => [
 		[
-			'property' => 'background-color',
+			'property' => 'background',
 			'selector' => '.pswp .pswp__bg',
 		],
 	],
@@ -215,7 +215,7 @@ $controls['lightboxBackground'] = [
 
 $controls['lightboxCloseColor'] = [
 	'type'  => 'color',
-	'label' => esc_html__( 'Lightbox close color', 'bricks' ),
+	'label' => esc_html__( 'Close color', 'bricks' ),
 	'css'   => [
 		[
 			'property' => 'color',
@@ -227,7 +227,7 @@ $controls['lightboxCloseColor'] = [
 $controls['lightboxCloseSize'] = [
 	'type'  => 'number',
 	'units' => true,
-	'label' => esc_html__( 'Lightbox close size', 'bricks' ),
+	'label' => esc_html__( 'Close size', 'bricks' ),
 	'css'   => [
 		[
 			'property' => 'width',

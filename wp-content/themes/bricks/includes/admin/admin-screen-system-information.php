@@ -107,7 +107,7 @@ $wp_environment['wp_memory_limit'] = [
 		'<span class="%s">%s</span>%s',
 		$memory_limit >= wp_convert_hr_to_bytes( '64M' ) ? 'text-success' : 'text-warning',
 		size_format( $memory_limit ),
-		$memory_limit >= wp_convert_hr_to_bytes( '64M' ) ? '' : ' - ' . esc_html__( 'Recommended wp_memory_limit: 64M (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#wp-memory-limit" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
+		$memory_limit >= wp_convert_hr_to_bytes( '64M' ) ? '' : ' - ' . esc_html__( 'Recommended wp_memory_limit: 64M (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#wp-memory-limit" class="tooltip" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
 	),
 ];
 
@@ -124,6 +124,62 @@ global $wpdb;
 $server_environment['server_mysql_version'] = [
 	'label' => esc_html__( 'MySQL version', 'bricks' ),
 	'data'  => $wpdb->db_version(),
+];
+
+function bricks_check_meta_value_column_type() {
+	global $wpdb;
+	$table  = $wpdb->postmeta;
+	$column = 'meta_value';
+
+	// Use WPDB's built-in method to escape the table name
+	$escaped_table = esc_sql( $table );
+
+	$query = $wpdb->prepare(
+		"SHOW FIELDS FROM `{$escaped_table}` WHERE Field = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$column
+	);
+
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	$result = $wpdb->get_row( $query, ARRAY_A );
+
+	if ( $result ) {
+		return $result['Type'];
+	} else {
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			error_log( 'Failed to retrieve column information.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+		return false;
+	}
+}
+
+/**
+ * Check the type of meta_value column in wp_postmeta table
+ *
+ * If the column type is not LONGTEXT, it will be displayed in red.
+ *
+ * Can cause builder changes to not be saved correctly if data type is only TEXT, which has a max. length of 65,535 characters.
+ *
+ * @since 1.10
+ */
+$meta_value_column_type = bricks_check_meta_value_column_type();
+
+if ( $meta_value_column_type ) {
+	$meta_value_is_longtext  = stripos( $meta_value_column_type, 'longtext' ) !== false;
+	$meta_value_type_display = esc_html( $meta_value_column_type );
+} else {
+	$meta_value_is_longtext  = false;
+	$meta_value_type_display = esc_html__( 'Unknown', 'bricks' );
+}
+
+$meta_value_class          = $meta_value_is_longtext ? 'text-success' : 'text-danger';
+$meta_value_recommendation = $meta_value_is_longtext ? '' : ' - ' . esc_html__( 'Recommended column type', 'bricks' ) . ': LONGTEXT';
+
+$server_environment['meta_value_column_type'] = [
+	'label' => esc_html__( 'Postmeta table meta_value type', 'bricks' ),
+	'data'  => '<span class="' . $meta_value_class . '">'
+		. $meta_value_type_display
+		. '</span>'
+		. $meta_value_recommendation,
 ];
 
 if ( function_exists( 'phpversion' ) ) {
@@ -150,9 +206,9 @@ $server_environment['server_php_time_limit'] = [
 	'label' => esc_html__( 'PHP execution time limit', 'bricks' ),
 	'data'  => sprintf(
 		'<span class="%s">%s</span>%s',
-		$max_execution_time >= 180 ? 'text-success' : 'text-warning',
+		$max_execution_time >= 180 || $max_execution_time == 0 || $max_execution_time == -1 ? 'text-success' : 'text-warning',
 		$max_execution_time,
-		$max_execution_time >= 180 ? '' : ' - ' . esc_html__( 'Recommended max_execution_time: 180 (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#max-execution-time" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
+		$max_execution_time >= 180 || $max_execution_time == 0 || $max_execution_time == -1 ? '' : ' - ' . esc_html__( 'Recommended max_execution_time: 180 (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#max-execution-time" class="tooltip" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
 	),
 ];
 
@@ -179,10 +235,49 @@ $server_environment['server_php_upload_max_filesize'] = [
 		'<span class="%s">%s</span>%s',
 		wp_convert_hr_to_bytes( $upload_max_filesize ) >= wp_convert_hr_to_bytes( '16M' ) ? 'text-success' : 'text-danger',
 		$upload_max_filesize,
-		wp_convert_hr_to_bytes( $upload_max_filesize ) >= wp_convert_hr_to_bytes( '16M' ) ? '' : ' - ' . esc_html__( 'Recommended upload_max_filesize: 16M (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#max-file-upload-size" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
+		wp_convert_hr_to_bytes( $upload_max_filesize ) >= wp_convert_hr_to_bytes( '16M' ) ? '' : ' - ' . esc_html__( 'Recommended upload_max_filesize: 16M (or more)', 'bricks' ) . '<a href="https://academy.bricksbuilder.io/article/requirements/#max-file-upload-size" class="tooltip" target="_blank" rel="noopener"><i class="dashicons dashicons-editor-help"></i></a>'
 	),
 ];
 
+/**
+ * Check if the server supports wp_remote_post
+ *
+ * @since 1.11
+ */
+$wp_remote_post_ok = false;
+$post_response     = \Bricks\Helpers::remote_post(
+	add_query_arg(
+		[
+			'action' => 'bricks_system_info_wp_remote_post_test',
+			'nonce'  => wp_create_nonce( 'bricks-nonce-admin' ),
+		],
+		admin_url( 'admin-ajax.php' )
+	),
+	[
+		'sslverify' => false,
+		'body'      => '',
+		'timeout'   => 3,
+		'cookies'   => $_COOKIE,
+	]
+);
+
+if ( ! is_wp_error( $post_response ) && isset( $post_response['response'] ) ) {
+	$post_body = json_decode( wp_remote_retrieve_body( $post_response ), true );
+
+	// Check if the background trigger was successful
+	$wp_remote_post_ok = isset( $post_body['success'] ) && $post_body['success'] === true && isset( $post_body['data']['message'] ) && $post_body['data']['message'] === 'ok';
+}
+
+$server_environment['server_php_wp_remote_post'] = [
+	'label' => 'PHP wp_remote_post',
+	'data'  => sprintf(
+		'<span class="%s">%s</span>%s %s',
+		$wp_remote_post_ok ? 'text-success' : 'text-danger',
+		$wp_remote_post_ok ? esc_html__( 'Success', 'bricks' ) : esc_html__( 'Error', 'bricks' ),
+		$wp_remote_post_ok ? '' : ' - ' . esc_html__( 'wp_remote_post request failed. Please check your server configuration. Required for query filters.', 'bricks' ),
+		$wp_remote_post_ok ? '' : ' ' . Helpers::article_link( 'known-issues#cloudflare', esc_html__( 'Using Cloudflare Bot Fight Mode? Try disabling it', 'bricks' ) )
+	),
+];
 ?>
 
 <?php

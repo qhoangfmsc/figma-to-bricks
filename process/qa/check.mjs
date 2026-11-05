@@ -138,6 +138,28 @@ const PAGE_MEASURE = ({ rootId, items, props, hit }) => {
   };
 };
 
+// Text that has its own characters. A parent section's innerText would repeat the same line.
+const FIT_MEASURE = () => {
+  const vw = innerWidth;
+  const hidden = (el) => {
+    for (let p = el; p; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return true;
+    }
+    return false;
+  };
+  const outside = [];
+  for (const e of document.querySelectorAll('[id^=brxe-]')) {
+    if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+    if (hidden(e)) continue;
+    const b = e.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    if (b.right > vw + 1 || b.left < -1) outside.push({ id: e.id, x: Math.round(b.left), r: Math.round(b.right), t: e.textContent.trim().slice(0, 40) });
+  }
+  const scrollWidth = document.documentElement.scrollWidth;
+  return { overflow: { scrollWidth, innerWidth: vw, over: scrollWidth > vw }, outside: outside.slice(0, 6), outsideCount: outside.length };
+};
+
 const T0 = Date.now();
 async function renderFrame(browserType, frame, { name }) {
   const t = { start: Date.now() }; // phase timing (ms), written to result.json: where the time of a verify goes
@@ -169,7 +191,14 @@ async function renderFrame(browserType, frame, { name }) {
   if (docH2 !== docH) { docH = docH2; await page.setViewportSize({ width: frame.width, height: docH }); }
   await page.waitForTimeout(300);
   t.sized = Date.now();
-  const measured = await page.evaluate(PAGE_MEASURE, { rootId: job.rootId, items: frame.items, props: frame.props, hit: frame.hit ?? [] });
+  // A responsive width with no Figma frame: only "does it stay inside". No box comparison, no screenshot.
+  if (frame.fitOnly) {
+    const fit = await page.evaluate(FIT_MEASURE);
+    await browser.close();
+    t.end = Date.now();
+    return { timing: { launch: t.launch - t.start, load: t.load - t.launch, settle: t.settled - t.load, resize: t.sized - t.settled, measure: t.end - t.sized, shot_close: 0 }, measured: fit, shot: null, log: { console: log.console.slice(0, 20), failed: log.failed.slice(0, 20) } };
+  }
+  const measured = await page.evaluate(PAGE_MEASURE, { rootId: frame.rootId || job.rootId, items: frame.items, props: frame.props, hit: frame.hit ?? [] });
   if (measured.error) { await browser.close(); return { error: measured.error }; }
   t.measured = Date.now();
   const shot = await page.screenshot({ clip: { x: measured.rootRect.x, y: measured.rootRect.y, width: measured.rootRect.w, height: measured.rootRect.h }, animations: 'disabled' });
@@ -184,6 +213,7 @@ for (const frame of job.frames) {
   const r = await renderFrame(chromium, frame, { name: 'chromium' });
   if (r.timing) result.timing[`${frame.key}.chromium`] = r.timing;
   if (r.error) { result.frames[frame.key] = { error: r.error }; continue; }
+  if (frame.fitOnly) { result.frames[frame.key] = { measured: r.measured, log: r.log }; continue; }
   writeFileSync(`${out}/${frame.key}.png`, r.shot);
   const entry = { measured: r.measured, log: r.log, shot: `${frame.key}.png` };
   // masks: live parts (countdown) are not compared with the static Figma numbers

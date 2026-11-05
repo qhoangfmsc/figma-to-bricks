@@ -578,26 +578,26 @@
   }
  },
  "enums": {
-  "textCase": {
-   "SMALL_CAPS": {
-    "status": "gap",
-    "why": "small capitals for lower-case letters (OpenType smcp): reproducible with font-variant-caps: small-caps, not mapped yet"
-   },
-   "SMALL_CAPS_FORCED": {
-    "status": "gap",
-    "why": "small capitals for every letter: reproducible with font-variant-caps: all-small-caps, not mapped yet"
-   }
-  },
   "textAutoResize": {
    "TRUNCATE": {
     "status": "gap",
     "why": "deprecated Figma value for a text box that truncates with an ellipsis (the same as textTruncation ENDING): not mapped to the line clamp yet"
    }
   },
+  "textCase": {
+   "SMALL_CAPS": {
+    "status": "read",
+    "why": "written as font-variant-caps: small-caps"
+   },
+   "SMALL_CAPS_FORCED": {
+    "status": "read",
+    "why": "written as font-variant-caps: all-small-caps"
+   }
+  },
   "textAlignVertical": {
    "BOTTOM": {
-    "status": "limit",
-    "why": "text pinned to the bottom of a fixed-height box: text.mjs reports it, flex alignment of the text inside its own box is not written"
+    "status": "read",
+    "why": "a fixed-height text box is a column flex and justify-content pins the line to the bottom"
    }
   },
   "maskType": {

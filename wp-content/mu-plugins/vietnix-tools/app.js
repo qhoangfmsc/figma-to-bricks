@@ -1,18 +1,28 @@
 (function () {
   const cfg = window.VIETNIX_TOOLS || {};
   const $ = (id) => document.getElementById(id);
-  const slots = ['desktop', 'tablet', 'mobile'];
-  const placeholders = {
-    link: 'https://…, /duong-dan, #neo, mailto:… hoặc tel:…',
-    alt: 'Mô tả ngắn của ảnh',
-    answer: 'Câu trả lời khi mở mục này',
-    pane: 'Nội dung của tab này',
-    autoplay: 'Số giây, ví dụ 5',
-    sync: 'không sửa, chỉ đồng bộ chữ, đừng đổi icon',
-    expand: 'Gõ phần chữ thêm khi mở, hoặc dán link Figma bản đầy đủ. Để trống thì hiện nốt chữ đã có trong khung.',
+  const slots = ['desktop', 'widescreen', 'tablet', 'landscape', 'mobile'];
+  const frameName = {
+    desktop: 'Máy tính',
+    widescreen: 'Màn hình rộng',
+    tablet_portrait: 'Máy tính bảng',
+    mobile_landscape: 'Điện thoại ngang',
+    mobile_portrait: 'Điện thoại dọc',
   };
-  const defaults = { link: 'chưa có địa chỉ', autoplay: 'không tự chuyển', loop: 'dừng ở slide cuối', confirm: 'giữ nguyên khối', sync: 'làm các mục giống nhau', answer: 'chưa có câu trả lời', pane: 'chưa có nội dung', alt: 'ảnh chỉ để trang trí', act: 'Bấm để hiện hết chữ', expand: '', keep: 'Dựng thành một khối tĩnh' };
+  const placeholders = {
+    link: 'Viết địa chỉ, ví dụ vietnix.vn/bang-gia. Chưa có thì ghi chưa có.',
+    alt: 'Một câu ngắn, ví dụ logo Vietnix. Ảnh trang trí thì để nguyên.',
+    answer: 'Viết câu trả lời khi mở mục này.',
+    pane: 'Đúng rồi thì để nguyên. Muốn đổi thì dán link khung, hoặc viết nội dung.',
+    autoplay: 'Ví dụ 5 giây, hoặc đừng tự chạy.',
+    count: 'Ví dụ 5 cái.',
+    items: 'Để trống là dùng các mục đang có. Hoặc dán link khung chứa đủ mục.',
+    sync: 'Giữ nguyên, chỉ giống phần chữ, hoặc đừng đổi icon.',
+    expand: 'Viết chữ thêm khi mở, hoặc dán link khung đã mở hết. Để trống thì hiện nốt chữ đang có.',
+  };
+  const defaults = { link: 'chưa có địa chỉ', autoplay: 'tự chuyển mỗi 3 giây', loop: 'dừng ở slide cuối', count: '', items: '', confirm: 'giữ nguyên khối', sync: 'làm các mục giống nhau', answer: 'chưa có câu trả lời', pane: 'chưa có nội dung', alt: 'ảnh chỉ để trang trí', act: 'Bấm để hiện hết chữ', expand: '', keep: 'Dựng thành một khối tĩnh' };
   let readFrames = null;
+  let lastAnswers = {};
   let timer = null;
   let clock = null;
   let active = null;
@@ -140,7 +150,7 @@
     if (f.linkOption) {
       const url = document.createElement('input');
       url.dataset.actUrl = f.key;
-      url.placeholder = 'Địa chỉ trang: https://…, /duong-dan hoặc #neo. Không phải link Figma.';
+      url.placeholder = 'Viết địa chỉ trang, ví dụ vietnix.vn/bang-gia.';
       url.hidden = input.value !== f.linkOption;
       input.dataset.actLink = f.linkOption;
       input.addEventListener('change', () => { url.hidden = input.value !== f.linkOption; });
@@ -153,9 +163,18 @@
     const wrap = document.createElement('section');
     wrap.className = 'vietnix-part';
     const head = document.createElement('header');
+    const text = document.createElement('div');
+    text.className = 'vietnix-part-name';
+    if (part.kind) {
+      const kind = document.createElement('span');
+      kind.className = 'vietnix-kind';
+      kind.textContent = part.kind;
+      text.appendChild(kind);
+    }
     const name = document.createElement('strong');
     name.textContent = part.fields.length === 1 ? (part.fields[0].title || part.name) : part.name;
-    head.append(name);
+    text.appendChild(name);
+    head.append(text);
     if (part.figma) {
       const link = document.createElement('a');
       link.href = part.figma;
@@ -165,6 +184,18 @@
       head.appendChild(link);
     }
     wrap.appendChild(head);
+    if (part.detail) {
+      const seen = document.createElement('p');
+      seen.className = 'vietnix-note';
+      seen.textContent = part.detail;
+      wrap.appendChild(seen);
+    }
+    if (part.note) {
+      const note = document.createElement('p');
+      note.className = 'vietnix-note';
+      note.textContent = part.note;
+      wrap.appendChild(note);
+    }
     for (const f of part.fields) wrap.appendChild(control(f, part.fields.length > 1));
     return wrap;
   }
@@ -180,24 +211,55 @@
     title.textContent = `${read.name || read.title} · ${read.width || '?'}px`;
     head.append(kicker, title);
     body.appendChild(head);
-    const merged = (read.variants || []).map((v) => `${v.key} ${v.width || ''}px`).join(', ');
+    const merged = (read.variants || []).map((v) => `${frameName[v.key] || v.key} ${v.width || ''}px`).join(', ');
     if (merged) {
       const line = document.createElement('p');
       line.className = 'vietnix-summary';
       line.textContent = `Gộp ${merged}`;
       body.appendChild(line);
     }
+    const rule = document.createElement('p');
+    rule.className = 'vietnix-summary';
+    rule.textContent = "Hệ thống nhận diện được";
+    body.appendChild(rule);
     const parts = read.parts || [];
     if (!parts.length) {
       const none = document.createElement('p');
-      none.textContent = 'Không có component cần điền.';
+      none.textContent = 'Không nhận ra component nào.';
       body.appendChild(none);
     }
     for (const part of parts) body.appendChild(partBlock(part));
     $('vn-build').disabled = false;
-    $('vn-confirm-msg').textContent = 'Giá trị trong ô là giá trị sẽ dùng. Sửa nếu cần, rồi bấm Tạo template.';
+    $('vn-confirm-msg').textContent = 'Viết bình thường cũng được. Ô nào để sẵn thì cứ giữ, rồi bấm Tạo template.';
     $('vn-plan-time').textContent = '';
     setStep('confirm');
+  }
+
+  function reviewOf(frame) {
+    if (frame.review?.notes) return frame.review;
+    const name = frameName[frame.key] || frame.key;
+    const percent = frame.look == null ? null : Math.round((frame.look / 255) * 1000) / 10;
+    return { name, tone: frame.verdict === 'FAIL' ? 'fail' : frame.verdict ? 'pass' : 'none', percent, notes: frame.verdict ? [] : ['Chưa đo được.'] };
+  }
+
+  function reviewBlock(frame) {
+    const review = reviewOf(frame);
+    const box = document.createElement('section');
+    box.className = `vietnix-review${review.tone === 'fail' ? ' is-fail' : review.tone === 'pass' ? ' is-pass' : ''}`;
+    const title = document.createElement('p');
+    title.className = 'vietnix-review-title';
+    title.textContent = review.percent == null ? review.name : `${review.name}: lệch ${review.percent}%`;
+    box.appendChild(title);
+    if (review.notes?.length) {
+      const list = document.createElement('ul');
+      for (const note of review.notes) {
+        const item = document.createElement('li');
+        item.textContent = note;
+        list.appendChild(item);
+      }
+      box.appendChild(list);
+    }
+    return box;
   }
 
   function renderResult(result) {
@@ -220,32 +282,94 @@
     templates.textContent = 'Danh sách template';
     list.appendChild(templates);
     body.appendChild(list);
-    const scores = document.createElement('p');
-    scores.textContent = (result.frames || []).map((f) => `${f.key}: ${f.verdict || 'chưa đo'}${f.look != null ? ' · look ' + f.look : ''}`).join(' · ');
-    body.appendChild(scores);
+    for (const frame of result.frames || []) body.appendChild(reviewBlock(frame));
     const own = document.createElement('p');
     own.textContent = 'Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.';
     body.appendChild(own);
+    const feedback = document.createElement('label');
+    const caption = document.createElement('span');
+    caption.className = 'vietnix-label';
+    caption.textContent = 'Góp ý';
+    const area = document.createElement('textarea');
+    area.id = 'vn-feedback';
+    area.rows = 3;
+    area.placeholder = 'Viết bình thường. Ví dụ: phần bên trái có họ và tên là một cái form.';
+    feedback.appendChild(caption);
+    feedback.appendChild(area);
+    body.appendChild(feedback);
+    const again = document.createElement('button');
+    again.type = 'button';
+    again.className = 'button button-primary';
+    again.textContent = 'Làm lại theo góp ý';
+    again.addEventListener('click', () => regen(area.value));
+    body.appendChild(again);
     $('vn-build-time').textContent = '';
     setStep('result');
+  }
+
+  function regen(text) {
+    const hint = text.trim();
+    showError('vn-result-error', {});
+    if (!hint) return;
+    if (!readFrames) return;
+    const again = document.querySelector('#vn-result-body button');
+    if (again) again.disabled = true;
+    $('vn-confirm-msg').textContent = 'Đang làm lại theo góp ý.';
+    call('/build', { frames: readFrames, answers: lastAnswers, feedback: hint }).then((started) => {
+      active = { phase: 'building', startedAt: Date.now(), estimate: null };
+      setStep('result');
+      watch(started.id, (job) => {
+        showLog(job.log || []);
+        if (job.phase === 'done' && job.result?.builderUrl) {
+          $('vn-confirm-msg').textContent = 'Đã làm lại.';
+          renderResult(job.result);
+        } else if (job.phase === 'done' || job.phase === 'error') {
+          throwOnScreen('vn-result-error', job.error ? job : { error: 'Làm lại không xong.' });
+        }
+      });
+    }, (e) => {
+      throwOnScreen('vn-result-error', { error: e.message, problems: e.problems, stack: e.stack });
+    });
   }
 
   function throwOnScreen(where, job) {
     const fail = { error: job.error || 'Có lỗi.', problems: job.problems || [], stack: job.stack || '' };
-    showError('vn-result-error', fail);
-    showError(where, fail);
+    showError('vn-link-error', where === 'vn-link-error' ? fail : {});
+    showError('vn-confirm-error', where === 'vn-confirm-error' ? fail : {});
+    showError('vn-result-error', where === 'vn-result-error' ? fail : {});
     $('vn-plan-time').textContent = '';
     $('vn-build-time').textContent = '';
     if (where === 'vn-link-error') $('vn-link-msg').textContent = 'Đọc không xong.';
-    else $('vn-confirm-msg').textContent = 'Tạo không xong.';
-    setStep('result');
+    else if (where === 'vn-confirm-error') $('vn-confirm-msg').textContent = 'Tạo không xong.';
+    setStep(where === 'vn-link-error' ? 'links' : where === 'vn-result-error' ? 'result' : 'confirm');
+  }
+
+  // A new read is a new job. Leaving the previous confirm and result on screen keeps the user on the old step.
+  function resetFollowUp() {
+    const wait = (id, text) => {
+      const body = $(id);
+      body.replaceChildren();
+      const p = document.createElement('p');
+      p.className = 'vietnix-wait';
+      p.textContent = text;
+      body.appendChild(p);
+    };
+    wait('vn-confirm-body', 'Đọc Figma xong, các ô cần điền hiện ở đây.');
+    wait('vn-result-body', 'Link hiện ở đây khi template đã kiểm tra xong.');
+    $('vn-confirm-msg').textContent = '';
+    $('vn-build-time').textContent = '';
+    $('vn-build').disabled = true;
+    showError('vn-confirm-error', {});
+    showError('vn-result-error', {});
+    showLog([]);
+    readFrames = null;
+    setStep('links');
   }
 
   $('vn-read').addEventListener('click', async () => {
+    resetFollowUp();
     $('vn-link-msg').textContent = '';
     showError('vn-link-error', {});
-    showError('vn-result-error', {});
-    $('vn-build').disabled = true;
     if (!cfg.token) {
       throwOnScreen('vn-link-error', { error: 'Chưa có pipeline. Chạy node process/vietnix/server.mjs rồi tải lại trang.' });
       return;
@@ -286,20 +410,22 @@
     });
     showError('vn-confirm-error', {});
     showError('vn-result-error', {});
-    $('vn-confirm-msg').textContent = 'Đang tạo template…';
+    lastAnswers = answers;
+    $('vn-confirm-msg').textContent = 'Đang tạo template, đẩy lên WordPress và kiểm tra.';
     $('vn-build').disabled = true;
     try {
       const started = await call('/build', { frames: readFrames, answers });
       active = { phase: 'building', startedAt: Date.now(), estimate: null };
-      setStep('result');
+      setStep('confirm');
       watch(started.id, (job) => {
         showLog(job.log || []);
-        if (job.phase === 'done') {
-          $('vn-confirm-msg').textContent = 'Đã tạo.';
+        if (job.phase === 'done' && job.result?.builderUrl) {
+          $('vn-confirm-msg').textContent = 'Đã xong.';
+          setStep('result');
           renderResult(job.result);
-        } else {
+        } else if (job.phase === 'done' || job.phase === 'error') {
           $('vn-build').disabled = false;
-          throwOnScreen('vn-confirm-error', job);
+          throwOnScreen('vn-confirm-error', job.error ? job : { error: 'Kiểm tra vẫn còn chỗ lệch nặng. Chưa hiện link vì template chưa xong.' });
         }
       });
     } catch (e) {

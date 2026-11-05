@@ -24,10 +24,17 @@ class Search {
 			return true;
 		}
 
-		// Bricks: Infinite scroll search results
-		if ( bricks_is_rest_call() && isset( $query->query_vars['s'] ) && ! empty( $query->query_vars['s'] ) ) {
+		/**
+		 * @since 1.10: Bricks: Infinite scroll & Query filter search results
+		 * @since 1.11: 'brx_is_search' is set if there is a filter-search query applied (@see QueryFilters->build_search_query_vars())
+		 */
+		$is_bricks_search = Api::is_current_endpoint( 'load_query_page' ) || Api::is_current_endpoint( 'query_result' ) || $query->get( 'brx_is_search' ) === true;
+
+		if ( $is_bricks_search && ! empty( $query->query_vars['s'] ) ) {
 			return true;
 		}
+
+		return false;
 	}
 
 	/**

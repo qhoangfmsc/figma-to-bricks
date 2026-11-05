@@ -14,7 +14,6 @@ class Element_Icon extends Element {
 
 	public function set_controls() {
 		$this->controls['icon'] = [
-			'tab'     => 'content',
 			'label'   => esc_html__( 'Icon', 'bricks' ),
 			'type'    => 'icon',
 			'root'    => true, // To target 'svg' root
@@ -25,7 +24,6 @@ class Element_Icon extends Element {
 		];
 
 		$this->controls['iconColor'] = [
-			'tab'      => 'content',
 			'label'    => esc_html__( 'Color', 'bricks' ),
 			'type'     => 'color',
 			'required' => [ 'icon.icon', '!=', '' ],
@@ -40,7 +38,6 @@ class Element_Icon extends Element {
 		];
 
 		$this->controls['iconSize'] = [
-			'tab'      => 'content',
 			'label'    => esc_html__( 'Size', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
@@ -53,7 +50,6 @@ class Element_Icon extends Element {
 		];
 
 		$this->controls['link'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Link', 'bricks' ),
 			'type'  => 'link',
 		];
@@ -62,7 +58,7 @@ class Element_Icon extends Element {
 	public function render() {
 		$settings = $this->settings;
 		$icon     = $settings['icon'] ?? false;
-		$link     = $settings['link'] ?? false;
+		$link     = ! empty( $settings['link'] ) && bricks_is_frontend() ? $settings['link'] : false; // Front-end only (@since 1.10.2)
 
 		if ( ! $icon ) {
 			return $this->render_element_placeholder(
@@ -72,7 +68,7 @@ class Element_Icon extends Element {
 			);
 		}
 
-		// Linked icon: Remove custom attributes from root to add to the link (@since 1.7)
+		// Linked icon: Remove custom attributes from '_root' to add to the 'link'
 		if ( $link ) {
 			$custom_attributes = $this->get_custom_attributes( $settings );
 
@@ -85,11 +81,16 @@ class Element_Icon extends Element {
 			}
 		}
 
-		// Support dynamic data color in loop (@since 1.8)
+		// Support dynamic data color in loop
 		if ( isset( $settings['iconColor']['raw'] ) && Query::is_looping() ) {
 			if ( strpos( $settings['iconColor']['raw'], '{' ) !== false ) {
 				$this->attributes['_root']['data-query-loop-index'] = Query::get_loop_index();
 			}
+		}
+
+		// Run root attributes through filter (@since 1.10)
+		if ( ! $link ) {
+			$this->attributes = apply_filters( 'bricks/element/render_attributes', $this->attributes, '_root', $this );
 		}
 
 		$icon = self::render_icon( $icon, $this->attributes['_root'] );
@@ -97,7 +98,7 @@ class Element_Icon extends Element {
 		if ( $link ) {
 			$this->set_link_attributes( 'link', $link );
 
-			// ADD custom attributes to the link instead of the icon (@since 1.7)
+			// Add custom attributes to the link instead of the icon
 			echo "<a {$this->render_attributes( 'link', true )}>";
 			echo $icon;
 			echo '</a>';

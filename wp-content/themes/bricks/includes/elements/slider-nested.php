@@ -57,7 +57,7 @@ class Element_Slider_Nested extends Element {
 			'items'         => 'children', // NOTE: Undocumented
 		];
 
-		// OPTIONS
+		// OPTIONS (https://splidejs.com/guides/options/)
 
 		// Use custom 'options' instead of settings below
 		$this->controls['optionsType'] = [
@@ -77,6 +77,7 @@ class Element_Slider_Nested extends Element {
 			'group'        => 'options',
 			'label'        => esc_html__( 'Custom options', 'bricks' ),
 			'type'         => 'code',
+			'mode'         => 'javascript',
 			'hasVariables' => false,
 			'required'     => [ 'optionsType', '=', 'custom' ],
 			'description'  => esc_html__( 'Provide your own options in JSON format', 'bricks' ) . ' (<a href="https://splidejs.com/guides/options" target="_blank" rel="noopener">' . esc_html__( 'learn more', 'bricks' ) . '</a>).',
@@ -228,17 +229,13 @@ class Element_Slider_Nested extends Element {
 		// @since 1.9.2
 		$this->controls['focus'] = [
 			'group'       => 'options',
-			'info'        => esc_html__( 'Number', 'bricks' ),
 			'label'       => esc_html__( 'Focus', 'bricks' ),
 			'type'        => 'number',
 			'breakpoints' => true,
-			'desc'        => sprintf(
-				'<a href="https://splidejs.com/guides/options/#focus" target="_blank">%s</a>',
-				esc_html__( 'Determines which slide should be active if the carousel has multiple slides in a page.', 'bricks' ),
-			),
+			'desc'        => '<a href="https://splidejs.com/guides/options/#focus" target="_blank">' . esc_html__( 'Number', 'bricks' ) . '/"center". ' . esc_html__( 'Determines which slide should be active if the carousel has multiple slides in a page.', 'bricks' ) . '</a>',
+
 			'required'    => [
 				[ 'optionsType', '!=', 'custom' ],
-				[ 'perPage', '>=', 2 ],
 			],
 			'fullAccess'  => true,
 		];
@@ -677,17 +674,18 @@ class Element_Slider_Nested extends Element {
 		];
 
 		$this->controls['prevArrowTop'] = [
-			'group'    => 'arrows',
-			'label'    => esc_html__( 'Top', 'bricks' ),
-			'type'     => 'number',
-			'units'    => true,
-			'css'      => [
+			'group'       => 'arrows',
+			'label'       => esc_html__( 'Top', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'css'         => [
 				[
 					'property' => 'top',
 					'selector' => '.splide__arrow--prev',
 				],
 			],
-			'required' => [ 'arrows', '!=', '' ],
+			'placeholder' => '50%',
+			'required'    => [ 'arrows', '!=', '' ],
 		];
 
 		$this->controls['prevArrowRight'] = [

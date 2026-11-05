@@ -142,14 +142,16 @@ class License {
 
 			$response = Helpers::remote_get( $url );
 
+			// Check for remote error(s)
 			if ( is_wp_error( $response ) ) {
 				$license_status = 'error_remote';
 			}
 
-			$response = json_decode( wp_remote_retrieve_body( $response ), true );
+			// Get status from remote response body
+			$response_body = json_decode( wp_remote_retrieve_body( $response ), true );
 
-			if ( isset( $response['status'] ) ) {
-				$license_status = $response['status'];
+			if ( isset( $response_body['status'] ) ) {
+				$license_status = $response_body['status'];
 			}
 
 			// Save license status in transient (expires after 168 hours)
@@ -276,10 +278,27 @@ class License {
 			$license_status = $response['status'];
 		}
 
+		/**
+		 * Response was successful, but response is empty
+		 *
+		 * To accommodate possible hosting firewalls (WAF), etc. that might block the response.
+		 *
+		 * @since 1.11
+		 */
+		if ( ! $license_status && $response_code == 200 && $response == null ) {
+			$license_status = 'error_remote';
+		}
+
 		// Return remote error
-		if ( $response['type'] === 'error' && isset( $response['message'] ) ) {
+		if ( isset( $response['type'] ) && $response['type'] === 'error' && isset( $response['message'] ) ) {
 			if ( $is_ajax ) {
-				wp_send_json_error( [ 'message' => $response['message'] ] );
+				wp_send_json_error(
+					[
+						'message'  => $response['message'],
+						'response' => $response,
+						'code'     => $response_code,
+					]
+				);
 			} else {
 				return;
 			}
@@ -288,7 +307,13 @@ class License {
 		// Return if no license status was sent back
 		if ( ! $license_status ) {
 			if ( $is_ajax ) {
-				wp_send_json_error( [ 'message' => esc_html__( 'No license for provided license key found.', 'bricks' ) ] );
+				wp_send_json_error(
+					[
+						'message'  => esc_html__( 'No license for provided license key found.', 'bricks' ),
+						'response' => $response,
+						'code'     => $response_code,
+					]
+				);
 			} else {
 				return;
 			}

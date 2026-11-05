@@ -86,6 +86,26 @@ class Element_Tabs extends Element {
 			'placeholder' => esc_html__( 'Horizontal', 'bricks' ),
 		];
 
+		$this->controls['openTabOn'] = [
+			'label'       => esc_html__( 'Open tab on', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'click'      => esc_html__( 'Click', 'bricks' ),
+				'mouseenter' => esc_html__( 'Hover', 'bricks' ),
+			],
+			'inline'      => true,
+			'placeholder' => 'Click',
+		];
+
+		// Expand item on page load (@since 1.12)
+		$this->controls['openTab'] = [
+			'label'       => esc_html__( 'Open tab index', 'bricks' ),
+			'type'        => 'text',
+			'description' => esc_html__( 'Index of the item to expand on page load, start at 0.', 'bricks' ),
+			'inline'      => true,
+			'placeholder' => '0',
+		];
+
 		// TITLE
 
 		$this->controls['titleGrow'] = [
@@ -324,11 +344,22 @@ class Element_Tabs extends Element {
 			);
 		}
 
-		$this->set_attribute( '_root', 'class', ! empty( $settings['layout'] ) ? $settings['layout'] : 'horizontal' );
+		$layout = $settings['layout'] ?? 'horizontal';
+
+		$this->set_attribute( '_root', 'class', $layout );
+		$this->set_attribute( '_root', 'aria-orientation', $layout );
+
+		// Open tab on hover (@since 1.10.2)
+		if ( ! empty( $settings['openTabOn'] ) ) {
+			$this->set_attribute( '_root', 'data-open-on', $settings['openTabOn'] );
+		}
+
+		// Expand item on page load (@since 1.12)
+		$this->set_attribute( '_root', 'data-open-tab', ! isset( $settings['openTab'] ) ? 0 : $settings['openTab'] );
 
 		// Render
 		$output  = "<div {$this->render_attributes( '_root' )}>";
-		$output .= '<ul class="tab-menu">';
+		$output .= '<ul class="tab-menu" role="tablist">';
 
 		foreach ( $settings['tabs'] as $index => $tab ) {
 			$tab_title_classes = [ 'tab-title', 'repeater-item' ];
@@ -342,7 +373,17 @@ class Element_Tabs extends Element {
 				$this->set_attribute( "tab-title-$index", 'id', $tab['anchorId'] );
 			}
 
+			$selected = $index === 0 ? 'true' : 'false';
+			$tabindex = $index === 0 ? '0' : '-1';
+
 			$this->set_attribute( "tab-title-$index", 'class', $tab_title_classes );
+
+			$this->set_attribute( "tab-title-$index", 'class', $tab_title_classes );
+			$this->set_attribute( "tab-title-$index", 'role', 'tab' );
+			$this->set_attribute( "tab-title-$index", 'aria-selected', $selected );
+			$this->set_attribute( "tab-title-$index", 'aria-controls', "panel-$this->id-$index" );
+			$this->set_attribute( "tab-title-$index", 'id', "brx-tab-{$this->id}-$index" );
+			$this->set_attribute( "tab-title-$index", 'tabindex', $tabindex );
 
 			$output .= "<li {$this->render_attributes( "tab-title-$index" )}>";
 
@@ -362,15 +403,18 @@ class Element_Tabs extends Element {
 
 		$output .= '</ul>';
 
-		$output .= '<ul class="tab-content">';
+		$output .= '<ul class="tab-content" role="presentation">';
 
 		foreach ( $settings['tabs'] as $index => $tab ) {
 			$tab_pane_classes = [ 'tab-pane' ];
 
 			$this->set_attribute( "tab-pane-$index", 'class', $tab_pane_classes );
+			$this->set_attribute( "tab-pane-$index", 'role', 'tabpanel' );
+			$this->set_attribute( "tab-pane-$index", 'aria-labelledby', "brx-tab-$this->id-$index" );
+			$this->set_attribute( "tab-pane-$index", 'id', "panel-$this->id-$index" );
+			$this->set_attribute( "tab-pane-$index", 'tabindex', '0' );
 
 			$content = ! empty( $tab['content'] ) ? $tab['content'] : false;
-
 			$content = $this->render_dynamic_data( $content );
 
 			$output .= "<li {$this->render_attributes( "tab-pane-$index" )}>" . Helpers::parse_editor_content( $content ) . '</li>';

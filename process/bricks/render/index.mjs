@@ -1,14 +1,16 @@
 // tree.json -> Bricks elements.  DETERMINISTIC: same tree + same overrides = same output, no AI.
 //
-// The Bricks tree mirrors the Figma tree 1:1 (every visible node becomes exactly one element, except
-// image-crop nodes which need a wrapper). Every value comes from the tree; nothing is inferred from pixels.
+// The Bricks tree mirrors the Figma tree 1:1 (every visible node becomes exactly one element). An image
+// sits in a div: the div sets the width and height, and the image is always 100% by 100%. `.brxe-block`
+// is flex column and width 100%, which fights that box, so the wrapper is a div.
+// Every value comes from the tree; nothing is inferred from pixels.
 //
 // This file is only the orchestrator (walk the tree, pick the element, assign ids, build mapping.json).
 // The actual Figma -> Bricks rules live in the neighbouring modules, one concern each:
 //   size.mjs · layout.mjs · text.mjs · style.mjs · ../components/ (approved detections: tooltip, button…) (calls utils/*: fill, gradient, stroke, radius, effects, blur, rotation, appearance)
 //
 // RULES (the whole contract, keep in sync with ../../README.md):
-//  element   root FRAME -> section · TEXT -> heading if text style is "H<n>/..." else text-basic · leaf with IMAGE fill -> image
+//  element   root FRAME -> section · TEXT -> heading if text style is "H<n>/..." else text-basic · leaf with IMAGE fill -> div (width and height) > image (always 100% × 100%)
 //            vector-only subtree or icon-font text -> svg (uploaded file) · everything else -> block · overrides.nodes[id].element wins
 //  size      FIXED -> px · HUG -> auto (+ no shrink) · FILL -> flex:1 1 <figma px> on the parent's main axis, align-self:stretch on the cross axis
 //  layout    auto layout -> flex (direction, gap, justify/align, padding, wrap), always written explicitly so theme defaults never leak
@@ -44,7 +46,13 @@ export function overflowsSideways(frame) {
 export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '' } = {}) {
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
-  const approved = new Map((detections?.components ?? []).filter((c) => c.status === 'approved').map((c) => [c.node, c]));
+  // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
+  const approved = new Map();
+  for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved')) {
+    const prev = approved.get(c.node);
+    if (prev && c.component === 'semantic') continue;
+    approved.set(c.node, c);
+  }
   const elements = [];
   const mapping = {};
   const warnings = [];
@@ -110,20 +118,34 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
     const s = {}; // Bricks settings
     const css = {}; // css the verify step expects to measure in the browser
-    const ctx = { node, parent, s, css, warn, kind, root, flats, inner: comp?.wrap ? {} : undefined }; // inner: settings of the element a wrapping component puts inside the block
+    const ctx = { node, parent, s, css, warn, kind, root, flats, readAsset, designTitle: overrides.template?.title, inner: comp?.wrap ? {} : undefined, skipStroke: patch?.skipStroke }; // inner: settings of the element a wrapping component puts inside the block. skipStroke: the active menu item's line is the class, not this element's own stroke. designTitle is "<Figma file> - <section>" when the template run wrote it. readAsset lets a component read the svg it was exported as.
     applySize(ctx, { isRoot, isSlide });
     // a page frame that does not clip, with a layer sticking out of its left / right edge: Figma's picture stops at the frame edge, a page would scroll sideways
     if (isRoot && !node.clip && overflowsSideways(node)) s._overflow = 'hidden'; // the Bricks attribute (Style > Layout > Overflow)
     const isSlider = kind === 'slider-nested';
-    const ownLayout = node.type !== 'TEXT' && !imageLeaf && !node.svg && !comp?.skipsStyle;
+    const ownLayout = node.type !== 'TEXT' && !imageLeaf && kind !== 'svg' && !comp?.skipsStyle;
     if (ownLayout) {
       if (isSlider) {
         if (node.sizing.v !== 'FIXED') s.autoHeight = true; // Bricks default is 50vh; Figma height here is hug-content
         if (node.layout) {
           const p = node.layout.padding;
           if (p.top || p.right || p.bottom || p.left) s._padding = { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left) };
+          // slider-nested has no justify / align controls. Splide lays the slides out in `.splide__list`.
+          if (node.layout.mode !== 'GRID') {
+            const justify = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' }[node.layout.primaryAlign] ?? 'flex-start';
+            const align = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' }[node.layout.counterAlign] ?? 'flex-start';
+            addCustomCss(s, `justify-content: ${justify}; align-items: ${align};`, ' .splide__list');
+          }
         }
       } else applyLayout(ctx, kind);
+    }
+    // The theme centers every slide (`.brxe-slider-nested .splide__slide`). The slide's own align has the same
+    // specificity, so the id selector writes the Figma alignment again and wins.
+    if (isSlide && s._display === 'flex') {
+      const bits = ['display: flex', `flex-direction: ${s._direction || 'row'}`, `justify-content: ${s._justifyContent || 'flex-start'}`, `align-items: ${s._alignItems || 'flex-start'}`];
+      if (s._columnGap) bits.push(`column-gap: ${s._columnGap}`);
+      if (s._rowGap) bits.push(`row-gap: ${s._rowGap}`);
+      addCustomCss(s, `${bits.join('; ')};`);
     }
 
     // Layer order. Figma stacks children in layer order; CSS paints a positioned element (the absolute glow / background siblings) ABOVE every
@@ -137,7 +159,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (ov.tag && kind !== 'heading') s.tag = ov.tag;
 
     // svg as an uploaded file: Bricks "code" SVGs need a signature and render a placeholder without it
-    if (node.svg) s.file = { $asset: node.svg.file, size: 'full' };
+    if (kind === 'svg' && node.svg) s.file = { $asset: node.svg.file, size: 'full' };
 
     let wrapperSettings = null;
     if (imageLeaf) {
@@ -149,14 +171,20 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
         const T = fill.imageTransform;
         if (!T || T[0][1] || T[1][0]) { warn(node, 'CROP with rotation/skew is not supported'); }
         const [[sx, , tx], [, sy, ty]] = T ?? [[1, 0, 0], [0, 1, 0]];
-        wrapperSettings = s; // the wrapper takes the node's own placement + style
+        wrapperSettings = s; // the wrapper takes the node's own placement + style: this div sets the width and height
         Object.assign(wrapperSettings, { _position: wrapperSettings._position ?? 'relative', _overflow: 'hidden' });
-        const inner = {
-          image, altText: altFor(node, ov, patch), loading: 'eager',
-          _position: 'absolute', _width: pct(100 / sx), _height: pct(100 / sy), _left: pct((-tx / sx) * 100), _top: pct((-ty / sy) * 100),
-          _widthMax: 'none', _objectFit: 'fill',
+        // The crop is a div. The image inside it is always 100% × 100%, so the file's own pixel size never becomes the layout.
+        const frame = {
+          _position: 'absolute', _width: pct(100 / sx), _height: pct(100 / sy), _left: pct((-tx / sx) * 100), _top: pct((-ty / sy) * 100), _widthMax: 'none',
         };
-        return emit(node, 'block', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => emitRaw(`${node.id}#crop`, 'image', inner, id, node.name + ' (crop)') });
+        const picture = {
+          image, altText: altFor(node, ov, patch), loading: 'eager',
+          _position: 'absolute', _top: '0px', _left: '0px', _width: '100%', _height: '100%', _widthMax: 'none', _objectFit: 'fill',
+        };
+        return emit(node, 'div', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => {
+          const frameId = emitRaw(`${node.id}#crop`, 'div', frame, id, node.name + ' (crop)');
+          emitRaw(`${node.id}#image`, 'image', picture, frameId, node.name);
+        } });
       }
       // An image that FILLs the height of a row that hugs its content (Feature: a 1:1 photo beside a 524px list): as an <img> it would drive the row to its own
       // aspect-ratio height (558px), Figma's row is as tall as the other column and the picture fills it. Wrapper takes the placement, the picture covers it.
@@ -164,7 +192,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
         wrapperSettings = s;
         Object.assign(wrapperSettings, { _position: wrapperSettings._position ?? 'relative', _overflow: 'hidden' });
         const inner = { image, altText: altFor(node, ov, patch), loading: 'lazy', _position: 'absolute', _top: '0px', _left: '0px', _width: '100%', _height: '100%', _widthMax: 'none', _objectFit: 'cover' };
-        return emit(node, 'block', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => emitRaw(`${node.id}#fill`, 'image', inner, id, node.name + ' (fill)') });
+        return emit(node, 'div', wrapperSettings, css, parentBricksId, ov, { isSlide, after: (id) => emitRaw(`${node.id}#fill`, 'image', inner, id, node.name + ' (fill)') });
       }
       s.image = image;
       s.altText = altFor(node, ov, patch);
@@ -188,23 +216,39 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
+  function bindSelectors(settings, id, name) {
+    if (typeof settings._cssCustom !== 'string') return;
+    settings._cssCustom = settings._cssCustom.replaceAll('%root%', `#brxe-${id}`).replaceAll('%class%', `.brxe-${id}.brxe-${name}`);
+  }
+
   function emitRaw(key, name, settings, parent, label) {
     const id = brickId(key);
-    if (typeof settings._cssCustom === 'string') settings._cssCustom = settings._cssCustom.replaceAll('%root%', `#brxe-${id}`);
+    bindSelectors(settings, id, name);
     elements.push({ id, name, parent, label, settings });
     mapping[key] = { bricksId: id, element: name, verify: false };
     return id;
   }
 
+  const IMAGE_CHILD_KEYS = ['image', 'altText', 'loading', '_objectFit', '_objectPosition', 'link', 'url', 'newTab', 'caption', 'captionCustom', 'showTitle'];
   function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, after, component, extra, inner, keep = new Set() } = {}) {
     let settings = s;
     for (const k of ov.dropSettings ?? []) delete settings[k];
     if (ov.settings) settings = deepMerge(settings, ov.settings);
     if (ov.cssClasses) settings._cssClasses = ov.cssClasses;
+    // The div sets the width and height. The image is always 100% × 100% of that div.
+    if (kind === 'image') {
+      const child = { _position: 'absolute', _top: '0px', _left: '0px', _width: '100%', _height: '100%', _widthMax: 'none' };
+      for (const k of IMAGE_CHILD_KEYS) if (settings[k] !== undefined) { child[k] = settings[k]; delete settings[k]; }
+      if (!settings._position) settings._position = 'relative';
+      if (!settings._overflow) settings._overflow = 'hidden';
+      const rest = after;
+      after = (id) => { emitRaw(`${node.id}#image`, 'image', child, id, node.name); rest?.(id); };
+      kind = 'div';
+    }
 
     const id = brickId(node.id);
     // %root% is only resolved inside the builder; the frontend needs the real selector
-    if (typeof settings._cssCustom === 'string') settings._cssCustom = settings._cssCustom.replaceAll('%root%', `#brxe-${id}`);
+    bindSelectors(settings, id, kind);
     elements.push({ id, name: kind, parent: parentBricksId, label: ov.label ?? node.name, settings });
     mapping[node.id] = {
       bricksId: id, element: kind, verify: ov.verify !== false,
@@ -244,7 +288,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       const copy = structuredClone(src.settings);
       for (const k of [...FIXED_HEIGHT, ...(drop ?? [])]) delete copy[k]; // the new content is longer or shorter than the drawn one: its height follows the text
       if (copy._typography?.['white-space']) copy._typography = Object.fromEntries(Object.entries(copy._typography).filter(([k]) => k !== 'white-space')); // a one-line drawn text must not make a longer one overflow
-      if (typeof copy._cssCustom === 'string') copy._cssCustom = copy._cssCustom.replaceAll(`#brxe-${src.id}`, `#brxe-${el.id}`); // the copied rules named the source element
+      if (typeof copy._cssCustom === 'string') copy._cssCustom = copy._cssCustom.replaceAll(`#brxe-${src.id}`, `#brxe-${el.id}`).replaceAll(`.brxe-${src.id}`, `.brxe-${el.id}`); // the copied rules named the source element
       el.settings = { ...copy, ...el.settings };
       if (text !== undefined) el.settings.text = esc(text);
     }

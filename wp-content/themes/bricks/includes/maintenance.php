@@ -19,6 +19,9 @@ class Maintenance {
 
 			// Run on priority 9 (before Database::set_active_templates is called)
 			add_action( 'wp', [ $this, 'apply_maintenance_mode' ], 9 );
+
+			// Remove canonical tag when maintenance mode is enabled (@since 1.10)
+			remove_action( 'wp_head', 'rel_canonical' );
 		}
 	}
 
@@ -76,6 +79,11 @@ class Maintenance {
 			exit;
 		}
 
+		// WPML: Get the translated template ID if WPML is active (@since 1.10.2)
+		if ( \Bricks\Integrations\Wpml\Wpml::$is_active ) {
+			$maintenance_template_id = apply_filters( 'wpml_object_id', $maintenance_template_id, BRICKS_DB_TEMPLATE_SLUG, true );
+		}
+
 		// Ensure the maintenance template is published and has Bricks data
 		$maintenance_template = Helpers::get_all_bricks_post_ids(
 			[
@@ -95,17 +103,8 @@ class Maintenance {
 		// Use maintenance template. Set the template ID
 		self::$template_id = $maintenance_template_id;
 
-		// Reset the active templates
-		Database::$active_templates = [
-			'header'  => 0,
-			'footer'  => 0,
-			'content' => 0,
-			'section' => 0,
-			'archive' => 0,
-			'error'   => 0,
-			'search'  => 0,
-			'popup'   => [],
-		];
+		// Re-init the active templates
+		Database::init_active_templates();
 
 		// NOTE: Set the active templates
 		add_filter( 'bricks/active_templates', [ $this, 'set_user_maintenance_template' ], 9999, 3 );
@@ -127,9 +126,15 @@ class Maintenance {
 			return $active_templates;
 		}
 
-		// Disable the header, footer
-		$active_templates['header']  = 0;
-		$active_templates['footer']  = 0;
+		// Disable header (= default)
+		if ( ! Database::get_setting( 'maintenanceRenderHeader' ) ) {
+			$active_templates['header'] = 0;
+		}
+
+		// Disable footer (= default)
+		if ( ! Database::get_setting( 'maintenanceRenderFooter' ) ) {
+			$active_templates['footer'] = 0;
+		}
 		$active_templates['search']  = 0;
 		$active_templates['archive'] = 0;
 		$active_templates['error']   = 0;

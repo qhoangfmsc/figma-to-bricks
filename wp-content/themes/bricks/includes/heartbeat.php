@@ -40,7 +40,7 @@ class Heartbeat {
 			]
 		);
 
-		wp_enqueue_style( 'wp_auth_check', '/wp-includes/css/wp-auth-check.css', [ 'dashicons' ], null, 'all' ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
+		wp_enqueue_style( 'wp_auth_check', '/wp-includes/css/wp-auth-check.css', [], null, 'all' ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
 	}
 
 	/**

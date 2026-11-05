@@ -1,7 +1,7 @@
-// Candidate flat images: a container made mostly of artwork (images / vectors / shapes) laid out by hand (no auto layout),
-// e.g. a promo banner with rotated blurred images, vectors and stylized text. A front-end dev would ship it as ONE picture.
-// Conservative on purpose: >= 5 art layers, art is at least half of the leaves, and the container has no auto layout
-// (a logo grid / icon row is auto layout and must stay real elements). The innermost matching container is proposed.
+// Candidate flat images. A front-end dev ships a pile of pictures as ONE picture, and does not rebuild it with CSS.
+//   * a container with any image and no text (a background of a photo plus gradients): one Figma render
+//   * a hand-placed banner: >= 5 art layers, art at least half of the leaves
+// Auto layout stays real elements (a logo grid, an icon row). The innermost matching container is proposed.
 const SHAPES = new Set(['VECTOR', 'BOOLEAN_OPERATION', 'STAR', 'POLYGON', 'REGULAR_POLYGON', 'LINE', 'ELLIPSE', 'RECTANGLE']);
 const CONTAINERS = new Set(['FRAME', 'GROUP', 'INSTANCE', 'COMPONENT']);
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
@@ -28,7 +28,9 @@ export function detectFlatImages(tree) {
     for (const c of visibleKids(n)) walk(c, false);
     if (found.length > before || isRoot || !CONTAINERS.has(n.type) || n.layout) return; // a deeper match wins
     const s = stats(n);
-    if (s.art >= 5 && s.art / (s.art + s.text) >= 0.5) {
+    const pictures = s.images >= 1 && s.text === 0;
+    const banner = s.art >= 5 && s.art / (s.art + s.text) >= 0.5;
+    if (pictures || banner) {
       found.push({
         component: 'flat-image', node: n.id, level: 'E2', cite: [{ node: n.id, field: 'type', equals: n.type }], confidence: s.rotated || s.blurred ? 'high' : 'medium',
         evidence: `${n.type} "${n.name}" ${Math.round(n.box.w)}×${Math.round(n.box.h)} hand-placed (no auto layout): ${s.art} art layers (${s.images} images, ${s.vectors} vectors/shapes; ${s.rotated} rotated, ${s.blurred} blurred) vs ${s.text} texts: looks like one banner picture`,

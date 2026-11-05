@@ -91,6 +91,16 @@ class Settings_Page extends Settings_Base {
 			foreach ( $general_controls as $control_key => $control ) {
 				$this->controls[ $control_key ] = $control;
 
+				// Page layout
+				if ( $control_key === 'siteLayout' ) {
+					$this->controls['siteLayout']['label'] = esc_html__( 'Page layout', 'bricks' );
+				}
+
+				// Page background
+				if ( $control_key === 'siteBackground' ) {
+					$this->controls['siteBackground']['label'] = esc_html__( 'Page background', 'bricks' );
+				}
+
 				// Content margin
 				if ( $control_key === 'siteBackground' && isset( $style_controls['content']['contentMargin'] ) ) {
 					$this->controls['contentMargin']          = $style_controls['content']['contentMargin'];
@@ -147,7 +157,7 @@ class Settings_Page extends Settings_Base {
 
 		$this->controls['scrollSnapSelector'] = [
 			'group'       => 'scroll-snap',
-			'label'       => esc_html__( 'Selector', 'bricks' ),
+			'label'       => esc_html__( 'Snapping elements selector', 'bricks' ),
 			'type'        => 'text',
 			'inline'      => true,
 			'dd'          => false,
@@ -180,7 +190,6 @@ class Settings_Page extends Settings_Base {
 			'tooltip' => 'scroll-snap-margin',
 			'type'    => 'number',
 			'units'   => true,
-			'large'   => true,
 			'css'     => [
 				[
 					'selector' => '.brxe-section',
@@ -195,7 +204,6 @@ class Settings_Page extends Settings_Base {
 			'tooltip' => 'scroll-snap-padding',
 			'type'    => 'number',
 			'units'   => true,
-			'large'   => true,
 			'css'     => [
 				[
 					'selector' => 'html',
@@ -341,7 +349,7 @@ class Settings_Page extends Settings_Base {
 			'css'         => [
 				[
 					'property' => 'gap',
-					'selector' => '#bricks-one-page-navigation li',
+					'selector' => '#bricks-one-page-navigation',
 				],
 			],
 			'placeholder' => 20,
@@ -382,7 +390,7 @@ class Settings_Page extends Settings_Base {
 			'css'   => [
 				[
 					'property' => 'color',
-					'selector' => '#bricks-one-page-navigation',
+					'selector' => '#bricks-one-page-navigation a',
 				],
 			],
 		];
@@ -504,35 +512,45 @@ class Settings_Page extends Settings_Base {
 			'type'        => 'code',
 			'mode'        => 'css',
 			'label'       => esc_html__( 'Custom CSS', 'bricks' ),
+			'breakpoints' => true,
 			// translators: %s: <head>
 			'description' => sprintf( esc_html__( 'Adds inline CSS to %s tag.', 'bricks' ), htmlspecialchars( '<head>' ) ),
 		];
 
-		$this->controls['customScriptsHeader'] = [
-			'group'       => 'custom-code',
-			'type'        => 'code',
-			'mode'        => 'php',
-			'label'       => esc_html__( 'Header scripts', 'bricks' ),
-			// translators: %s: </head>
-			'description' => sprintf( esc_html__( 'Adds scripts right before closing %s tag.', 'bricks' ), htmlspecialchars( '</head>' ) ),
-		];
+		// User has 'unfiltered_html' cap: Show script settings (@since 1.9.9)
+		if ( current_user_can( 'unfiltered_html' ) ) {
+			$this->controls['customScriptsHeader'] = [
+				'group'       => 'custom-code',
+				'type'        => 'code',
+				'mode'        => 'htmlmixed', // Needed for correct parsing of <script> tags (@since 1.10)
+				'label'       => esc_html__( 'Header scripts', 'bricks' ),
+				// translators: %s: </head>
+				'description' => sprintf( esc_html__( 'Adds scripts right before closing %s tag.', 'bricks' ), htmlspecialchars( '</head>' ) ),
+			];
 
-		$this->controls['customScriptsBodyHeader'] = [
-			'group'       => 'custom-code',
-			'type'        => 'code',
-			'mode'        => 'php',
-			'label'       => esc_html__( 'Body (header) scripts', 'bricks' ),
-			// translators: %s: <body>
-			'description' => sprintf( esc_html__( 'Adds scripts right after opening %s tag.', 'bricks' ), htmlspecialchars( '<body>' ) ),
-		];
+			$this->controls['customScriptsBodyHeader'] = [
+				'group'       => 'custom-code',
+				'type'        => 'code',
+				'mode'        => 'htmlmixed', // Needed for correct parsing of <script> tags (@since 1.10)
+				'label'       => esc_html__( 'Body (header) scripts', 'bricks' ),
+				// translators: %s: <body>
+				'description' => sprintf( esc_html__( 'Adds scripts right after opening %s tag.', 'bricks' ), htmlspecialchars( '<body>' ) ),
+			];
 
-		$this->controls['customScriptsBodyFooter'] = [
-			'group'       => 'custom-code',
-			'type'        => 'code',
-			'mode'        => 'php',
-			'label'       => esc_html__( 'Body (footer) scripts', 'bricks' ),
-			// translators: %s: </body>
-			'description' => sprintf( esc_html__( 'Adds scripts right before closing %s tag.', 'bricks' ), htmlspecialchars( '</body>' ) ),
-		];
+			$this->controls['customScriptsBodyFooter'] = [
+				'group'       => 'custom-code',
+				'type'        => 'code',
+				'mode'        => 'htmlmixed', // Needed for correct parsing of <script> tags (@since 1.10)
+				'label'       => esc_html__( 'Body (footer) scripts', 'bricks' ),
+				// translators: %s: </body>
+				'description' => sprintf( esc_html__( 'Adds scripts right before closing %s tag.', 'bricks' ), htmlspecialchars( '</body>' ) ),
+			];
+		} else {
+			$this->controls['customScriptsNotAllowedInfo'] = [
+				'group'   => 'custom-code',
+				'type'    => 'info',
+				'content' => sprintf( esc_html__( 'You are not allowed to add scripts.', 'bricks' ) ),
+			];
+		}
 	}
 }

@@ -3,7 +3,7 @@ namespace Bricks;
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-class Woocommerce_Checkout_Thankyou extends Element {
+class Woocommerce_Checkout_Thankyou extends Woo_Element {
 	public $category        = 'woocommerce';
 	public $name            = 'woocommerce-checkout-thankyou';
 	public $icon            = 'ti-check-box';
@@ -36,6 +36,14 @@ class Woocommerce_Checkout_Thankyou extends Element {
 	}
 
 	public function set_controls() {
+		// Preview order ID (@since 1.10)
+		$this->controls['previewOrderId'] = [
+			'type'     => 'number',
+			'label'    => esc_html__( 'Preview order ID', 'bricks' ),
+			'info'     => esc_html__( 'Fallback', 'bricks' ) . ': ' . esc_html__( 'Last order', 'bricks' ),
+			'rerender' => true,
+		];
+
 		// MESSAGE
 
 		$this->controls['hideMessage'] = [
@@ -341,34 +349,16 @@ class Woocommerce_Checkout_Thankyou extends Element {
 
 	public function render() {
 		$settings = $this->settings;
+		$order    = $this->get_order( 'thank-you' );
 
-		// Populate the template with the last order
-		if ( bricks_is_builder() || bricks_is_builder_call() ) {
-			$orders = wc_get_orders(
+		// Check if the order exists
+		if ( ! is_a( $order, 'WC_Order' ) ) {
+			// Maybe no order exists
+			return $this->render_element_placeholder(
 				[
-					'limit' => 1,
+					'title' => esc_html__( 'No order found or the order is not suitable for this element.', 'bricks' ),
 				]
 			);
-
-			$order = $orders ? $orders[0] : false;
-		}
-
-		// Logic from WC_Shortcode_Checkout::order_received()
-		else {
-			$order_id = get_query_var( 'order-received', false );
-
-			$order = false;
-
-			// Get the order.
-			$order_id  = apply_filters( 'woocommerce_thankyou_order_id', absint( $order_id ) );
-			$order_key = apply_filters( 'woocommerce_thankyou_order_key', empty( $_GET['key'] ) ? '' : wc_clean( wp_unslash( $_GET['key'] ) ) );
-
-			if ( $order_id > 0 && ! bricks_is_builder() ) {
-				$order = wc_get_order( $order_id );
-				if ( ! $order || ! hash_equals( $order->get_order_key(), $order_key ) ) {
-					$order = false;
-				}
-			}
 		}
 
 		$thankyou_message = ! empty( $settings['message'] ) ? $settings['message'] : __( 'Thank you. Your order has been received.', 'woocommerce' );

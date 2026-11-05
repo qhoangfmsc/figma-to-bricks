@@ -104,7 +104,7 @@ class Product_Tabs extends Element {
 			'type'  => 'typography',
 			'css'   => [
 				[
-					'selector' => '.wc-tabs',
+					'selector' => '.wc-tabs a',
 					'property' => 'font',
 				],
 			],
@@ -145,7 +145,7 @@ class Product_Tabs extends Element {
 			'type'  => 'typography',
 			'css'   => [
 				[
-					'selector' => '.wc-tabs .active',
+					'selector' => '.wc-tabs .active a',
 					'property' => 'font',
 				],
 			],

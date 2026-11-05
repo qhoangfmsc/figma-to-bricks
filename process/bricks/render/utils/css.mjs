@@ -18,9 +18,19 @@ export const cssColor = (c) => (c.alpha >= 1 ? c.hex : `rgba(${hex2rgb(c.hex).jo
 // Several rules can target the same element: they are kept in one %root% block per selector suffix ('' or ':hover' …).
 // %root% is replaced by the real `#brxe-<id>` selector when the element is emitted (index.mjs).
 const blocks = new WeakMap(); // settings object -> Map(suffix -> [declarations]); never serialized
+const CLASS_RULE = '\0class'; // same specificity as a Bricks control (`.brxe-id.brxe-name`), so a later breakpoint rule can still win
 export function addCustomCss(s, decl, suffix = '') {
   const m = blocks.get(s) ?? blocks.set(s, new Map()).get(s);
   if (!m.has(suffix)) m.set(suffix, []);
   m.get(suffix).push(decl);
-  s._cssCustom = [...m].map(([suf, list]) => `%root%${suf} { ${list.join(' ')} }`).join(' ');
+  s._cssCustom = [...m].map(([suf, list]) => {
+    const body = list.join(' ');
+    if (suf === CLASS_RULE) return `%class% { ${body} }`;
+    return `%root%${suf} { ${body} }`;
+  }).join(' ');
+}
+// A control on this element (`.brxe-id.brxe-name`) is beaten by a later rule of the same selector.
+// `#brxe-id` would also beat the breakpoint widths, so a width lock must not use it.
+export function addClassCss(s, decl) {
+  addCustomCss(s, decl, CLASS_RULE);
 }

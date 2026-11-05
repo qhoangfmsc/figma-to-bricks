@@ -14,7 +14,9 @@ class Setup {
 	 * https://www.advancedcustomfields.com/blog/google-maps-api-settings/
 	 */
 	public function acf_set_google_maps_api_key( $api ) {
-		$api['key'] = Database::$global_settings['apiKeyGoogleMaps'];
+		if ( is_array( $api ) ) {
+			$api['key'] = Database::$global_settings['apiKeyGoogleMaps'];
+		}
 
 		return $api;
 	}
@@ -23,7 +25,7 @@ class Setup {
 		add_action( 'bricks_body', [ $this, 'body_tag' ], 1 );
 		add_filter( 'body_class', [ $this, 'body_class' ] );
 
-		// Save Google Maps API key stored in Bricks as ACF setting ()
+		// Save Google Maps API key stored in Bricks as ACF setting
 		if ( class_exists( 'ACF' ) && isset( Database::$global_settings['apiKeyGoogleMaps'] ) ) {
 			add_filter( 'acf/fields/google_map/api', [ $this, 'acf_set_google_maps_api_key' ] );
 		}
@@ -39,6 +41,7 @@ class Setup {
 		add_filter( 'shortcode_atts_gallery', [ $this, 'shortcode_atts_gallery' ], 10, 3 );
 
 		add_action( 'admin_bar_menu', [ $this, 'admin_bar_menu' ], 99 );
+		add_action( 'edit_form_top', [ $this, 'edit_form_top' ] );
 
 		add_filter( 'nav_menu_css_class', [ $this, 'nav_menu_css_class' ], 10, 4 );
 		add_filter( 'script_loader_tag', [ $this, 'custom_script_attributes' ], 10, 3 );
@@ -53,6 +56,11 @@ class Setup {
 		 * @see #3p0u7xb
 		 */
 		add_action( 'init', [ $this, 'init_control_options' ], 99 );
+
+		// Tweak the query results in the builder (@since 1.11)
+		if ( Builder::get_query_max_results() ) {
+			add_filter( 'bricks/query/result', [ $this, 'builder_query_max_results' ], 10, 2 );
+		}
 	}
 
 	/**
@@ -109,6 +117,8 @@ class Setup {
 
 		if ( bricks_is_builder() ) {
 			$body_attributes['data-builder-mode'] = Database::get_setting( 'builderMode', 'dark' );
+
+			$body_attributes['data-builder-window'] = bricks_is_builder_main() ? 'main' : 'iframe';
 		}
 
 		// NOTE: Undocumented
@@ -143,7 +153,8 @@ class Setup {
 		}
 
 		if ( bricks_is_builder() ) {
-			return get_the_title() . ' (' . esc_html__( 'Builder', 'bricks' ) . ')';
+			$title  = is_home() ? get_the_title( get_option( 'page_for_posts' ) ) : get_the_title();
+			$title .= ' (' . esc_html__( 'Builder', 'bricks' ) . ')';
 		}
 
 		return $title;
@@ -248,8 +259,32 @@ class Setup {
 	 * @since 1.0
 	 */
 	public function after_setup_theme() {
-		// Make theme available for translation
-		load_theme_textdomain( 'bricks', get_template_directory() . '/languages' );
+		/**
+		 * Make theme available for translation
+		 *
+		 * @since 1.11.1.1: Temporary fix for WP 6.7 translation loading issue
+		 * @see https://core.trac.wordpress.org/ticket/62337
+		 */
+		if ( version_compare( get_bloginfo( 'version' ), '6.7', '==' ) ) {
+			add_action(
+				'init',
+				function() {
+					global $l10n, $wp_textdomain_registry;
+					$domain = 'bricks';
+					$locale = get_locale();
+					$wp_textdomain_registry->set( $domain, $locale, get_template_directory() . '/languages' );
+					if ( isset( $l10n[ $domain ] ) ) {
+						unset( $l10n[ $domain ] );
+					}
+					load_theme_textdomain( $domain, get_template_directory() . '/languages' );
+				}
+			);
+		}
+
+		// Normal translation loading for all other versions
+		else {
+			load_theme_textdomain( 'bricks', get_template_directory() . '/languages' );
+		}
 
 		// Add RSS feed links to <head> for posts and comments
 		add_theme_support( 'automatic-feed-links' );
@@ -269,6 +304,10 @@ class Setup {
 
 		// Enable support for post thumbnails and declare custom sizes
 		add_theme_support( 'post-thumbnails' );
+
+		// Enable opt-in Block Editor (Gutenberg) settings (@since 1.12.2)
+		add_theme_support( 'custom-spacing' );
+		add_theme_support( 'border' );
 
 		// Enable custom page excerpt
 		add_post_type_support( 'page', 'excerpt' );
@@ -326,9 +365,17 @@ class Setup {
 
 		// Load frontend CSS files OR inline styles (default: inline style)
 		if ( Database::get_setting( 'cssLoading' ) !== 'file' || bricks_is_builder() ) {
-			wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend.min.css' ) );
+			if ( Database::get_setting( 'bricksCascadeLayer' ) ) { // @since 1.12
+				wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend-layer.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend-layer.min.css' ) );
+			} else {
+				wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend.min.css' ) );
+			}
 		} else {
-			wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend-light.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend-light.min.css' ) );
+			if ( Database::get_setting( 'bricksCascadeLayer' ) ) { // @since 1.12
+				wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend-light-layer.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend-light-layer.min.css' ) );
+			} else {
+				wp_enqueue_style( 'bricks-frontend', BRICKS_URL_ASSETS . 'css/frontend-light.min.css', [], filemtime( BRICKS_PATH_ASSETS . 'css/frontend-light.min.css' ) );
+			}
 		}
 
 		if ( is_rtl() ) {
@@ -342,9 +389,9 @@ class Setup {
 		// Contains common JS libraries & Bricks-specific frontend.js init scripts
 		wp_enqueue_script( 'bricks-scripts', BRICKS_URL_ASSETS . 'js/bricks.min.js', [], filemtime( BRICKS_PATH_ASSETS . 'js/bricks.min.js' ), true );
 
-		// Enqueue query filters JS (@since 1.9.6)
+		// Register Query Filters JS file, but only enqueue when needed (@since 1.12)
 		if ( Helpers::enabled_query_filters() ) {
-			wp_enqueue_script( 'bricks-filters', BRICKS_URL_ASSETS . 'js/filters.min.js', [ 'bricks-scripts' ], filemtime( BRICKS_PATH_ASSETS . 'js/filters.min.js' ), true );
+			wp_register_script( 'bricks-filters', BRICKS_URL_ASSETS . 'js/filters.min.js', [ 'bricks-scripts' ], filemtime( BRICKS_PATH_ASSETS . 'js/filters.min.js' ), true );
 		}
 
 		// Element Form (setting: enableRecaptcha)
@@ -384,11 +431,11 @@ class Setup {
 		// STEP: Register scripts
 		wp_register_script( 'bricks-flatpickr', BRICKS_URL_ASSETS . 'js/libs/flatpickr.min.js', [ 'bricks-scripts' ], '4.5.2', true );
 		wp_register_script( 'bricks-isotope', BRICKS_URL_ASSETS . 'js/libs/isotope.min.js', [ 'bricks-scripts' ], '3.0.4', true );
-		wp_register_script( 'bricks-imagesloaded', BRICKS_URL_ASSETS . 'js/libs/imagesloaded.min.js', [ 'bricks-isotope' ], '5.0.0', true );
 
 		// Append '-brx' version suffix to avoid caching issues after renaming 'PhotoSwipe' JS class to 'PhotoSwipe5'
 		wp_register_script( 'bricks-photoswipe', BRICKS_URL_ASSETS . 'js/libs/photoswipe.umd.min.js', [ 'bricks-scripts' ], '5.3.7-brx', true );
 		wp_register_script( 'bricks-photoswipe-lightbox', BRICKS_URL_ASSETS . 'js/libs/photoswipe-lightbox.umd.min.js', [ 'bricks-scripts' ], '5.3.7', true );
+		wp_register_script( 'bricks-photoswipe-caption', BRICKS_URL_ASSETS . 'js/libs/photoswipe-caption.umd.min.js', [ 'bricks-scripts' ], '1.2.7', true );
 
 		wp_register_script( 'bricks-piechart', BRICKS_URL_ASSETS . 'js/libs/easypiechart.min.js', [ 'bricks-scripts' ], '2.1.7', true );
 		wp_register_script( 'bricks-prettify', BRICKS_URL_ASSETS . 'js/libs/prettify.min.js', [ 'bricks-scripts' ], false, true );
@@ -404,15 +451,26 @@ class Setup {
 		wp_register_style( 'bricks-photoswipe', BRICKS_URL_ASSETS . 'css/libs/photoswipe.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/photoswipe.min.css' ) );
 		wp_register_style( 'bricks-prettify', BRICKS_URL_ASSETS . 'css/libs/prettify.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/prettify.min.css' ) );
 		wp_register_style( 'bricks-swiper', BRICKS_URL_ASSETS . 'css/libs/swiper.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/swiper.min.css' ) );
-		wp_register_style( 'bricks-splide', BRICKS_URL_ASSETS . 'css/libs/splide.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/splide.min.css' ) );
+		if ( Database::get_setting( 'bricksCascadeLayer' ) ) { // @since 1.12
+			wp_register_style( 'bricks-splide', BRICKS_URL_ASSETS . 'css/libs/splide-layer.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/splide-layer.min.css' ) );
+		} else {
+			wp_register_style( 'bricks-splide', BRICKS_URL_ASSETS . 'css/libs/splide.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/splide.min.css' ) );
+		}
 		wp_register_style( 'bricks-tooltips', BRICKS_URL_ASSETS . 'css/libs/tooltips.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/tooltips.min.css' ) );
 		wp_register_style( 'bricks-ajax-loader', BRICKS_URL_ASSETS . 'css/libs/loading-animation.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/loading-animation.min.css' ) );
 
 		// Icon fonts
-		wp_register_style( 'bricks-font-awesome-6', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6.min.css' ) );
-		wp_register_style( 'bricks-font-awesome-6-brands', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6-brands.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6-brands.min.css' ) );
-		wp_register_style( 'bricks-ionicons', BRICKS_URL_ASSETS . 'css/libs/ionicons.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/ionicons.min.css' ) );
-		wp_register_style( 'bricks-themify-icons', BRICKS_URL_ASSETS . 'css/libs/themify-icons.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/themify-icons.min.css' ) );
+		if ( Database::get_setting( 'bricksCascadeLayer' ) ) { // @since 1.12
+			wp_register_style( 'bricks-font-awesome-6', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6-layer.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6-layer.min.css' ) );
+			wp_register_style( 'bricks-font-awesome-6-brands', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6-brands-layer.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6-brands-layer.min.css' ) );
+			wp_register_style( 'bricks-ionicons', BRICKS_URL_ASSETS . 'css/libs/ionicons-layer.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/ionicons-layer.min.css' ) );
+			wp_register_style( 'bricks-themify-icons', BRICKS_URL_ASSETS . 'css/libs/themify-icons-layer.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/themify-icons-layer.min.css' ) );
+		} else {
+			wp_register_style( 'bricks-font-awesome-6', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6.min.css' ) );
+			wp_register_style( 'bricks-font-awesome-6-brands', BRICKS_URL_ASSETS . 'css/libs/font-awesome-6-brands.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/font-awesome-6-brands.min.css' ) );
+			wp_register_style( 'bricks-ionicons', BRICKS_URL_ASSETS . 'css/libs/ionicons.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/ionicons.min.css' ) );
+			wp_register_style( 'bricks-themify-icons', BRICKS_URL_ASSETS . 'css/libs/themify-icons.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/libs/themify-icons.min.css' ) );
+		}
 
 		if ( is_404() ) {
 			wp_enqueue_style( 'bricks-404', BRICKS_URL_ASSETS . 'css/frontend/404.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/frontend/404.min.css' ) );
@@ -420,8 +478,13 @@ class Setup {
 
 		wp_register_style( 'bricks-one-page-navigation', BRICKS_URL_ASSETS . 'css/frontend/one-page-navigation.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/frontend/one-page-navigation.min.css' ) );
 
-		if ( bricks_is_builder() || isset( Database::$page_settings['onePageNavigation'] ) ) {
+		if ( bricks_is_builder_iframe() || isset( Database::$page_settings['onePageNavigation'] ) ) {
 			wp_enqueue_style( 'bricks-one-page-navigation' );
+		}
+
+		if ( bricks_is_builder_main() ) {
+			// Stylelint bundle (@since 1.10)
+			wp_enqueue_script( 'stylelint', BRICKS_URL_ASSETS . 'js/libs/stylelint-bundle.min.js', [ 'bricks-scripts' ], filemtime( BRICKS_PATH_ASSETS . 'js/libs/stylelint-bundle.min.js' ), true );
 		}
 	}
 
@@ -485,16 +548,16 @@ class Setup {
 			return;
 		}
 
-		if ( ! Capabilities::current_user_can_use_builder() ) {
-			return;
-		}
-
 		// Show "Edit with Bricks" in admin area only on post/page edit screen
 		if ( is_admin() && get_current_screen()->base !== 'post' ) {
 			return;
 		}
 
 		$post_id = get_the_ID();
+
+		if ( ! Capabilities::current_user_can_use_builder( $post_id ) ) {
+			return;
+		}
 
 		if ( is_home() ) {
 			$post_id = get_option( 'page_for_posts' );
@@ -541,6 +604,33 @@ class Setup {
 			);
 		}
 
+		// WooCommerce (@since 1.11.1)
+		if ( WooCommerce::is_woocommerce_active() ) {
+			$woo_templates    = WooCommerce::get_woo_templates();
+			$active_templates = WooCommerce::get_active_templates_for_current_page(); // @since 1.12
+
+			// Add WooCommerce templates to admin bar
+			foreach ( $active_templates as $template => $template_id ) {
+				if ( ! $template_id ) {
+					continue;
+				}
+
+				$menu_title = $woo_templates[ $template ] ?? 'Unknown';
+
+				$wp_admin_bar->add_menu(
+					[
+						'parent' => 'edit_with_bricks',
+						'id'     => 'edit_with_bricks_' . $template,
+						'title'  => esc_html__( 'Edit', 'bricks' ) . ": $menu_title (WooCommerce)",
+						'href'   => Helpers::get_builder_edit_link( $template_id ),
+						'meta'   => [
+							'class' => 'brx-woocommerce',
+						],
+					]
+				);
+			}
+		}
+
 		$wp_admin_bar->add_menu(
 			[
 				'parent' => 'edit_with_bricks',
@@ -564,7 +654,7 @@ class Setup {
 				[
 					'id'    => 'delete_bricks_data',
 					'title' => esc_html__( 'Delete Bricks data', 'bricks' ),
-					'href'  => Helpers::delete_bricks_data_by_post_id( get_the_ID() ),
+					'href'  => Helpers::delete_bricks_data_by_post_id( $post_id ),
 					'meta'  => [
 						// translators: %s: Post type name
 						'onclick' => 'return confirm("' . ( sprintf( esc_html__( 'Are you sure you want to delete the Bricks-generated data for this %s?', 'bricks' ), get_post_type() ) ) . '")',
@@ -576,32 +666,45 @@ class Setup {
 		// STEP: Editor mode
 
 		// Return: Editing Bricks template
-		if ( get_post_type( get_the_ID() ) === BRICKS_DB_TEMPLATE_SLUG ) {
+		if ( get_post_type( $post_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
 			return;
 		}
 
-		$edit_post_link = get_edit_post_link( get_the_ID() );
+		$edit_post_link = get_edit_post_link( $post_id );
 
-		// Return: Not an editable post (@since 1.9)
+		// Return: Not an editable post
 		if ( ! $edit_post_link ) {
 			return;
 		}
 
-		$editor_mode = Helpers::get_editor_mode( get_the_ID() );
+		$editor_mode = Helpers::get_editor_mode( $post_id );
 
 		if ( ! empty( $_GET['editor_mode'] ) ) {
 			$editor_mode = sanitize_text_field( $_GET['editor_mode'] );
 		}
 
-		$render_with_bricks    = esc_html__( 'Render with Bricks', 'bricks' );
-		$render_with_wordpress = esc_html__( 'Render with WordPress', 'bricks' );
+		// Bricks mode selected, but no Bricks data exists: Show "Render with (@since 1.12)
+		Database::set_active_templates();
+		if (
+			$editor_mode === 'bricks' &&
+			! Helpers::get_bricks_data( $post_id, 'content' )
+			&& ( Database::$active_templates['content'] == 0 || Database::$active_templates['content'] == $post_id )
+		) {
+			$editor_mode = 'wordpress';
+		}
+
+		$rendered_with_bricks    = esc_html__( 'Rendered with Bricks', 'bricks' );
+		$rendered_with_wordpress = esc_html__( 'Rendered with WordPress', 'bricks' );
 
 		$wp_admin_bar->add_menu(
 			[
 				'id'    => 'editor_mode',
-				'title' => $editor_mode === 'wordpress' ? $render_with_wordpress : $render_with_bricks,
+				'title' => $editor_mode === 'wordpress' ? $rendered_with_wordpress : $rendered_with_bricks,
 			]
 		);
+
+		$render_with_bricks    = esc_html__( 'Render with Bricks', 'bricks' );
+		$render_with_wordpress = esc_html__( 'Render with WordPress', 'bricks' );
 
 		if ( $editor_mode === 'wordpress' ) {
 			$wp_admin_bar->add_menu(
@@ -622,6 +725,50 @@ class Setup {
 				]
 			);
 		}
+	}
+
+	/**
+	 * Post type display: Add "Edit with Bricks" link for post type without "editor" support
+	 *
+	 * @since 1.10.2
+	 */
+	public function edit_form_top() {
+		$post_id = get_the_ID();
+
+		// Show "Edit with Bricks" in admin area only on post/page edit screen
+		if ( is_admin() && get_current_screen()->base !== 'post' ) {
+			return;
+		}
+
+		if ( ! Capabilities::current_user_can_use_builder( $post_id ) ) {
+			return;
+		}
+
+		if ( ! Helpers::is_post_type_supported( $post_id ) ) {
+			return;
+		}
+
+		// Return: Editing Bricks template
+		if ( get_post_type( $post_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
+			return;
+		}
+
+		$edit_post_link = get_edit_post_link( $post_id );
+
+		// Return: Not an editable post
+		if ( ! $edit_post_link ) {
+			return;
+		}
+
+		$edit_post_link = wp_nonce_url( $edit_post_link, '_bricks_editor_mode_nonce', '_bricksmode' );
+
+		$edit_with_bricks = sprintf(
+			'<a href="%s" class="button button-primary">%s</a>',
+			$post_id ? Helpers::get_builder_edit_link( $post_id ) : '#',
+			esc_html__( 'Edit with Bricks', 'bricks' ),
+		);
+
+		echo '<div class="bricks-classic-editor-wrapper">' . $edit_with_bricks . '</div>';
 	}
 
 	/**
@@ -647,12 +794,12 @@ class Setup {
 		// NOTE: Don't load Google Maps JS async when loading 'bricks-google-maps-infobox'
 
 		if ( $handle === 'bricks-google-recaptcha' ) {
-			$tag = str_replace( 'src', 'async="async" defer="defer" src', $tag );
+			$tag = str_replace( 'src=', 'async="async" defer="defer" src=', $tag );
 		}
 
-		// Defer loading of PhotoSwipe (@since 1.3.4)
+		// Defer loading of PhotoSwipe
 		elseif ( $handle === 'bricks-photoswipe' ) {
-			$tag = str_replace( 'src', 'defer="defer" src', $tag );
+			$tag = str_replace( 'src=', 'defer="defer" src=', $tag );
 		}
 
 		return $tag;
@@ -788,6 +935,14 @@ class Setup {
 				'fixed'  => esc_html__( 'Fixed', 'bricks' ),
 			];
 
+			// Video poster YouTube size options (@since 1.11)
+			$control_options['backgroundVideoPosterYouTubeSize'] = [
+				'hqdefault'     => esc_html__( 'High', 'bricks' ),
+				'mqdefault'     => esc_html__( 'Medium', 'bricks' ),
+				'sddefault'     => esc_html__( 'Standard', 'bricks' ),
+				'maxresdefault' => esc_html__( 'Max resolution', 'bricks' ),
+			];
+
 			// Used for mix-blend-mode & background-blend-mode (@since 1.9)
 			$control_options['blendMode'] = [
 				'normal'      => 'normal',
@@ -902,6 +1057,8 @@ class Setup {
 				'ID'             => esc_html( 'ID', 'bricks' ),
 				'author'         => esc_html( 'Author', 'bricks' ),
 				'title'          => esc_html( 'Title', 'bricks' ),
+				'name'           => esc_html( 'Slug', 'bricks' ), // Post name (@since 1.11.1)
+				'type'           => esc_html( 'Post type', 'bricks' ), // (@since 1.11.1)
 				'date'           => esc_html( 'Published date', 'bricks' ),
 				'modified'       => esc_html( 'Modified date', 'bricks' ),
 				'rand'           => esc_html( 'Random', 'bricks' ),
@@ -912,16 +1069,20 @@ class Setup {
 				'meta_value'     => esc_html( 'Meta value', 'bricks' ),
 				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ),
 				'post__in'       => esc_html( 'Post include order', 'bricks' ),
+				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
 			];
 
 			$control_options['termsOrderBy'] = [
-				'none'    => esc_html( 'None', 'bricks' ),
-				'term_id' => esc_html( 'ID', 'bricks' ),
-				'name'    => esc_html( 'Name', 'bricks' ),
+				'none'           => esc_html( 'None', 'bricks' ),
+				'term_id'        => esc_html( 'ID', 'bricks' ),
+				'name'           => esc_html( 'Name', 'bricks' ),
 				// 'term_order'         => esc_html( 'Term order', 'bricks' ),
-				'parent'  => esc_html( 'Parent', 'bricks' ),
-				'count'   => esc_html( 'Count', 'bricks' ),
-				'include' => esc_html( 'Include list', 'bricks' )
+				'parent'         => esc_html( 'Parent', 'bricks' ),
+				'meta_value'     => esc_html( 'Meta value', 'bricks' ), // (@since 1.11.1)
+				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ), // (@since 1.11.1)
+				'count'          => esc_html( 'Count', 'bricks' ),
+				'include'        => esc_html( 'Include list', 'bricks' ),
+				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
 			];
 
 			$control_options['usersOrderBy'] = [
@@ -939,6 +1100,7 @@ class Setup {
 				'meta_value'     => esc_html( 'Meta value', 'bricks' ),
 				'meta_value_num' => esc_html( 'Meta numeric value', 'bricks' ),
 				// 'post__in' => esc_html( 'Post include order', 'bricks' ),
+				'_default'       => esc_html( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
 			];
 
 			$control_options['queryCompare'] = [
@@ -988,20 +1150,23 @@ class Setup {
 			$control_options['templateTypes'] = [
 				'header'  => esc_html__( 'Header', 'bricks' ),
 				'footer'  => esc_html__( 'Footer', 'bricks' ),
-				'content' => esc_html__( 'Single', 'bricks' ), // Renamed 'content' into 'single' in 1.1.2
+				'content' => esc_html__( 'Single', 'bricks' ),
 				'section' => esc_html__( 'Section', 'bricks' ),
-				'popup'   => esc_html__( 'Popup', 'bricks' ), // @since 1.6
+				'popup'   => esc_html__( 'Popup', 'bricks' ),
 				'archive' => esc_html__( 'Archive', 'bricks' ),
 				'search'  => esc_html__( 'Search results', 'bricks' ),
 				'error'   => esc_html__( 'Error page', 'bricks' ),
 			];
+
+			if ( Database::get_setting( 'passwordProtectionEnabled', false ) ) {
+				$control_options['templateTypes']['password_protection'] = esc_html__( 'Password protection', 'bricks' );
+			}
 
 			$control_options['animationTypes'] = [
 				'bounce'             => 'bounce',
 				'flash'              => 'flash',
 				'pulse'              => 'pulse',
 				'rubberBand'         => 'rubberBand',
-				// 'shake'              => 'shake', // deprecated on Bricks 1.5
 				'shakeX'             => 'shakeX',
 				'shakeY'             => 'shakeY',
 				'headShake'          => 'headShake',
@@ -1132,6 +1297,25 @@ class Setup {
 				'spinner'   => esc_html__( 'Spinner', 'bricks' ),
 			];
 
+			// text-wrap control options (@since 1.11.1)
+			$control_options['textWrap'] = [
+				'wrap'    => 'wrap',
+				'nowrap'  => 'nowrap',
+				'balance' => 'balance',
+				'pretty'  => 'pretty',
+				'stable'  => 'stable',
+			];
+
+			// white-space control options (@since 1.11.1)
+			$control_options['whiteSpace'] = [
+				'normal'       => 'normal',
+				'nowrap'       => 'nowrap',
+				'pre'          => 'pre',
+				'pre-wrap'     => 'pre-wrap',
+				'pre-line'     => 'pre-line',
+				'break-spaces' => 'break-spaces',
+			];
+
 			// PERFORMANCE: Run WP query to populate control options only in builder
 			$control_options['imageSizes'] = bricks_is_builder() ? self::get_image_sizes_options() : [];
 
@@ -1166,8 +1350,8 @@ class Setup {
 				$taxonomy === 'link_category' ||
 				$taxonomy === 'post_format' ||
 				$taxonomy === 'wp_theme' ||
-				$taxonomy === BRICKS_DB_TEMPLATE_TAX_TAG ||
-				$taxonomy === BRICKS_DB_TEMPLATE_TAX_BUNDLE ||
+				// $taxonomy === BRICKS_DB_TEMPLATE_TAX_TAG || // Don't exclude, might be needed in query filters (@since 1.12)
+				// $taxonomy === BRICKS_DB_TEMPLATE_TAX_BUNDLE || // Don't exclude, might be needed in query filters (@since 1.12)
 				empty( $tax->label ) // Some taxonomies have no label (e.g. Polylang internal taxonomies)
 				) {
 				continue;
@@ -1246,6 +1430,106 @@ class Setup {
 			$image_options[ $image_size ] = $image_size_label;
 		}
 
+		/**
+		 * Support WP core hook to set custom image size label
+		 *
+		 * https://developer.wordpress.org/reference/hooks/image_size_names_choose/
+		 *
+		 * @since 1.9.9
+		 */
+		$image_options = apply_filters( 'image_size_names_choose', $image_options );
+
 		return $image_options;
+	}
+
+	/**
+	 * Limit the max. number of query loop results (builder-only)
+	 *
+	 * @since 1.11
+	 */
+	public function builder_query_max_results( $result, $query_instance ) {
+		// Return: Not in the builder
+		// NOTE: add && ! isset( $_GET['bricks_preview'] ) if want to apply to template preview too
+		if (
+			! bricks_is_builder_main() &&
+			! bricks_is_builder_iframe() &&
+			! bricks_is_builder_call()
+		) {
+			return $result;
+		}
+
+		$builder_query_max_results = Builder::get_query_max_results();
+
+		// Return: builderQueryMaxResults
+		if ( ! $builder_query_max_results ) {
+			return $result;
+		}
+
+		$object_type = $query_instance->object_type;
+
+		switch ( $object_type ) {
+			case 'post':
+				// Remove from posts property
+				if ( $result->have_posts() ) {
+					$posts_array = $result->posts;
+
+					if ( is_array( $posts_array ) ) {
+						// Only keep the maximum number of items specified
+						$result->posts = array_slice( $posts_array, 0, $builder_query_max_results );
+
+						// Optionally, reset the post data after slicing
+						$result->post_count = count( $result->posts );
+
+						// To avoid get_posts() which will retrieve all posts again
+						if ( isset( $result->query_vars['posts_per_page'] ) ) {
+							$result->query_vars['posts_per_page'] = $builder_query_max_results;
+						}
+					}
+				}
+
+				break;
+			case 'term':
+				// Remove from terms result
+				if ( is_array( $result ) ) {
+					$terms_array = $result;
+					// Only keep the maximum number of items specified
+					$result = array_slice( $terms_array, 0, $builder_query_max_results );
+				}
+				break;
+			case 'user':
+				// Remove from users results
+				if ( is_array( $result ) ) {
+					$users_array = $result;
+					// Only keep the maximum number of items specified
+					$result = array_slice( $users_array, 0, $builder_query_max_results );
+				}
+				break;
+
+			default:
+				// Maybe is Bricks providers loop
+				if (
+					strpos( $object_type, 'acf_' ) === 0 ||
+					strpos( $object_type, 'mb_' ) === 0 ||
+					strpos( $object_type, 'je_' ) === 0 ||
+					strpos( $object_type, 'cmb2_' ) === 0 ||
+					strpos( $object_type, 'pods_' ) === 0 ||
+					strpos( $object_type, 'ts_' ) === 0 ||
+					$object_type === 'wooCart'
+				) {
+					// Remove from results array
+					if ( is_array( $result ) ) {
+						$acf_array = $result;
+						// Only keep the maximum number of items specified
+						$result = array_slice( $acf_array, 0, $builder_query_max_results );
+					}
+				} else {
+					// Undocumented
+					$result = apply_filters( 'bricks_query_max_items_in_builder', $result, $query_instance, $builder_query_max_results );
+				}
+
+				break;
+		}
+
+		return $result;
 	}
 }

@@ -105,21 +105,23 @@ class Element_Post_Taxonomy extends Element {
 		global $post;
 
 		$post     = get_post( $this->post_id );
-		$taxonomy = isset( $settings['taxonomy'] ) ? $settings['taxonomy'] : 'post_tag';
+		$taxonomy = $settings['taxonomy'] ?? 'post_tag';
 		$args     = [
 			'fields'  => 'all',
-			'orderby' => ! empty( $settings['orderby'] ) ? $settings['orderby'] : 'name',
-			'order'   => ! empty( $settings['order'] ) ? $settings['order'] : 'ASC',
+			'orderby' => $settings['orderby'] ?? 'name',
+			'order'   => $settings['order'] ?? 'ASC',
 		];
 
 		$terms = wp_get_post_terms( get_the_ID(), $taxonomy, $args );
 		$terms = wp_list_filter( $terms, [ 'slug' => 'uncategorized' ], 'NOT' );
 
 		if ( ! count( $terms ) ) {
+			$taxonomy_obj = get_taxonomy( $taxonomy );
+
 			return $this->render_element_placeholder(
 				[
 					// translators: %s is the taxonomy name
-					'title' => sprintf( esc_html__( 'This post has no %s terms.', 'bricks' ), ucfirst( get_taxonomy( $taxonomy )->name ) ),
+					'title' => sprintf( esc_html__( 'This post has no %s terms.', 'bricks' ), ucfirst( $taxonomy_obj ? $taxonomy_obj->name : $taxonomy ) ),
 				]
 			);
 		}

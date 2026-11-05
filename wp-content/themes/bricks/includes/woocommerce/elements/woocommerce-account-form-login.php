@@ -55,15 +55,16 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 		];
 
 		$this->controls['rememberMeTypography'] = [
-			'group' => 'rememberMe',
-			'label' => esc_html__( 'Typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'group'    => 'rememberMe',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
 				[
 					'property' => 'font',
 					'selector' => '.woocommerce-form-login__rememberme',
 				]
 			],
+			'required' => [ 'rememberMeDisable', '=', false ],
 		];
 
 		// LOST PASSWORD
@@ -74,15 +75,16 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 		];
 
 		$this->controls['lostPasswordTypography'] = [
-			'group' => 'lostPassword',
-			'label' => esc_html__( 'Typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'group'    => 'lostPassword',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
 				[
 					'property' => 'font',
 					'selector' => '.woocommerce-LostPassword a',
 				]
 			],
+			'required' => [ 'lostPasswordDisable', '=', false ],
 		];
 	}
 
@@ -126,7 +128,7 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 			$username_label = esc_html__( 'Username or email address', 'woocommerce' );
 
 			echo '<label for="username">' . $username_label . ' <span class="required">*</span></label>';
-			echo '<input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="username" id="username" autocomplete="username" spellcheck="false" value="' . $username . '" />';
+			echo '<input type="text" class="woocommerce-Input woocommerce-Input--text input-text" name="username" id="username" autocomplete="username" spellcheck="false" value="' . $username . '" required aria-required="true" />';
 			?>
 		</div>
 
@@ -135,13 +137,13 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 			echo '<label for="password">' . esc_html__( 'Password', 'woocommerce' ) . ' <span class="required">*</span></label>';
 
 			// Builder: Add span to wrap password input manually (no JS enqueued) to show password toggle icon
-			if ( bricks_is_builder() || bricks_is_builder_call() ) {
+			if ( bricks_is_builder() || bricks_is_builder_call() || isset( $_GET['bricks_preview'] ) ) {
 				echo '<span class="password-input">';
 			}
 
-			echo '<input class="woocommerce-Input woocommerce-Input--text input-text" type="password" name="password" id="password" autocomplete="current-password"" />';
+			echo '<input class="woocommerce-Input woocommerce-Input--text input-text" type="password" name="password" id="password" autocomplete="current-password" required aria-required="true" />';
 
-			if ( bricks_is_builder() || bricks_is_builder_call() ) {
+			if ( bricks_is_builder() || bricks_is_builder_call() || isset( $_GET['bricks_preview'] ) ) {
 				echo '<span class="show-password-input"></span>';
 				echo '</span>';
 			}
@@ -150,7 +152,7 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 
 		<?php do_action( 'woocommerce_login_form' ); ?>
 
-		<?php if ( ! isset( $settings['hideRememberMe'] ) ) { ?>
+		<?php if ( ! isset( $settings['rememberMeDisable'] ) ) { ?>
 		<div class="form-group remember">
 			<label class="woocommerce-form__label woocommerce-form__label-for-checkbox woocommerce-form-login__rememberme">
 				<input class="woocommerce-form__input woocommerce-form__input-checkbox" name="rememberme" type="checkbox" id="rememberme" value="forever" /> <span><?php esc_html_e( 'Remember me', 'woocommerce' ); ?></span>
@@ -166,7 +168,7 @@ class Woocommerce_Account_Form_Login extends Woo_Element {
 			</button>
 		</div>
 
-		<?php if ( ! isset( $settings['hideLostPassword'] ) ) { ?>
+		<?php if ( ! isset( $settings['lostPasswordDisable'] ) ) { ?>
 		<div class="woocommerce-LostPassword lost_password">
 			<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>"><?php esc_html_e( 'Lost your password?', 'woocommerce' ); ?></a>
 		</div>

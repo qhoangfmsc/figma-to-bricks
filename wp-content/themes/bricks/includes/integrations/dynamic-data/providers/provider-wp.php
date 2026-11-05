@@ -55,6 +55,12 @@ class Provider_Wp extends Base {
 				'group' => 'post'
 			],
 
+			// @since 1.12
+			'post_type'                  => [
+				'label' => esc_html__( 'Post type', 'bricks' ),
+				'group' => 'post'
+			],
+
 			'post_date'                  => [
 				'label' => esc_html__( 'Post date', 'bricks' ),
 				'group' => 'post',
@@ -108,6 +114,11 @@ class Provider_Wp extends Base {
 			],
 
 			// Author
+			'author_id'                  => [
+				'label' => esc_html__( 'Author ID', 'bricks' ),
+				'group' => 'author',
+			],
+
 			'author_name'                => [
 				'label' => esc_html__( 'Author name', 'bricks' ),
 				'group' => 'author',
@@ -198,6 +209,12 @@ class Provider_Wp extends Base {
 				'render' => 'terms',
 			],
 
+			'term_taxonomy_slug'         => [
+				'label'  => esc_html__( 'Term taxonomy slug', 'bricks' ),
+				'group'  => 'terms',
+				'render' => 'terms',
+			],
+
 			'term_slug'                  => [
 				'label'  => esc_html__( 'Term slug', 'bricks' ),
 				'group'  => 'terms',
@@ -270,19 +287,21 @@ class Provider_Wp extends Base {
 
 		// User Profile fields
 		$user_fields = [
-			'id'           => esc_html__( 'User ID', 'bricks' ),
-			'login'        => esc_html__( 'Username', 'bricks' ),
-			'email'        => esc_html__( 'Email', 'bricks' ),
-			'url'          => esc_html__( 'Website', 'bricks' ),
-			'author_url'   => esc_html__( 'User author URL', 'bricks' ),
-			'nicename'     => esc_html__( 'Nicename', 'bricks' ),
-			'nickname'     => esc_html__( 'Nickname', 'bricks' ),
-			'description'  => esc_html__( 'Bio', 'bricks' ),
-			'first_name'   => esc_html__( 'First name', 'bricks' ),
-			'last_name'    => esc_html__( 'Last name', 'bricks' ),
-			'display_name' => esc_html__( 'Display name', 'bricks' ),
-			'picture'      => esc_html__( 'Profile picture', 'bricks' ),
-			'meta'         => esc_html__( 'User meta - add key after :', 'bricks' ),
+			'id'              => esc_html__( 'User ID', 'bricks' ),
+			'login'           => esc_html__( 'Username', 'bricks' ),
+			'email'           => esc_html__( 'Email', 'bricks' ),
+			'url'             => esc_html__( 'Website', 'bricks' ),
+			'role'            => esc_html__( 'Role', 'bricks' ),
+			'registered_date' => esc_html__( 'User registered date', 'bricks' ),
+			'author_url'      => esc_html__( 'User author URL', 'bricks' ),
+			'nicename'        => esc_html__( 'Nicename', 'bricks' ),
+			'nickname'        => esc_html__( 'Nickname', 'bricks' ),
+			'description'     => esc_html__( 'Bio', 'bricks' ),
+			'first_name'      => esc_html__( 'First name', 'bricks' ),
+			'last_name'       => esc_html__( 'Last name', 'bricks' ),
+			'display_name'    => esc_html__( 'Display name', 'bricks' ),
+			'picture'         => esc_html__( 'Profile picture', 'bricks' ),
+			'meta'            => esc_html__( 'User meta - add key after :', 'bricks' ),
 		];
 
 		foreach ( $user_fields as $key => $label ) {
@@ -314,7 +333,7 @@ class Provider_Wp extends Base {
 		}
 
 		// Echo
-		if ( Helpers::code_execution_enabled() && ( ! bricks_is_builder() || ( bricks_is_builder() && \Bricks\Capabilities::current_user_can_execute_code() ) ) ) {
+		if ( Helpers::code_execution_enabled() ) {
 			$tags['echo'] = [
 				'label' => esc_html__( 'Output PHP function', 'bricks' ),
 				'group' => 'advanced',
@@ -528,7 +547,18 @@ class Provider_Wp extends Base {
 				break;
 
 			case 'post_title':
-				$value = get_the_title( $post_id );
+				/**
+				 * Use Bricks helper function to get the post title instead of using get_the_title()
+				 *
+				 * Same as for the Post title element.
+				 *
+				 * @since 1.10.2
+				 */
+				$value = Helpers::get_the_title( $post_id );
+				break;
+
+			case 'post_type':
+				$value = $post->post_type ?? get_post_type( $post_id );
 				break;
 
 			case 'read_more':
@@ -641,12 +671,14 @@ class Provider_Wp extends Base {
 						 *
 						 * @since 1.8.6
 						 */
-						if ( $product->get_image_id() ) {
-							$value = $product->get_image_id();
-						} elseif ( $product->get_parent_id() ) {
-							$parent_product = wc_get_product( $product->get_parent_id() );
-							if ( $parent_product ) {
+						if ( $product ) {
+							if ( $product->get_image_id() ) {
 								$value = $product->get_image_id();
+							} elseif ( $product->get_parent_id() ) {
+								$parent_product = wc_get_product( $product->get_parent_id() );
+								if ( $parent_product ) {
+									$value = $product->get_image_id();
+								}
 							}
 						}
 					}
@@ -743,6 +775,8 @@ class Provider_Wp extends Base {
 			case 'wp_user_login':
 			case 'wp_user_email':
 			case 'wp_user_url':
+			case 'wp_user_role':
+			case 'wp_user_registered_date':
 			case 'wp_user_nicename':
 			case 'wp_user_nickname':
 			case 'wp_user_description':
@@ -752,7 +786,8 @@ class Provider_Wp extends Base {
 			case 'wp_user_picture':
 			case 'wp_user_meta':
 			case 'wp_user_author_url':
-				$user = Query::get_loop_object_type() == 'user' ? Query::get_loop_object() : wp_get_current_user();
+				$is_any_looping = Query::is_any_looping(); // Fix incorrect user context in nested loops (@since 1.12)
+				$user           = Query::get_loop_object_type( $is_any_looping ) == 'user' ? Query::get_loop_object( $is_any_looping ) : wp_get_current_user();
 
 				/**
 				 * AJAX popup user context when using the user dynamic data,
@@ -760,8 +795,13 @@ class Provider_Wp extends Base {
 				 *
 				 * @since 1.9.4
 				 */
-				if ( is_author() && ! Query::is_any_looping() && Api::is_current_endpoint( 'load_popup_content' ) ) {
+				if ( is_author() && ! $is_any_looping && Api::is_current_endpoint( 'load_popup_content' ) ) {
 					$user = get_user_by( 'id', get_queried_object_id() );
+				}
+
+				// Set object type to date if render is wp_user_registered_date (@since 1.12)
+				if ( $render === 'wp_user_registered_date' ) {
+					$filters['object_type'] = 'date';
 				}
 
 				$value = $this->get_user_tag_value( $tag, $user, $filters, $context );
@@ -816,6 +856,11 @@ class Provider_Wp extends Base {
 				if ( ! $value && ! empty( $url_components['query'] ) ) {
 					parse_str( $url_components['query'], $parameters );
 					$value = isset( $parameters[ $parameter ] ) ? $parameters[ $parameter ] : '';
+				}
+
+				// Form submission: Support DD tag 'url_parameter' (@since 1.11)
+				if ( ! $value && \Bricks\Ajax::is_current_endpoint( 'form_submit' ) ) {
+					$value = \Bricks\Integrations\Form\Init::get_submission_url_param( $parameter );
 				}
 
 				// Support array value (@since 1.9.2)
@@ -915,64 +960,12 @@ class Provider_Wp extends Base {
 			case 'query_results_count_filter':
 				// Get the results count from query_history, not supporting nested queries (@since 1.9.1)
 				$query_object = false;
-				$element_id   = ! empty( $filters['meta_key'] ) ? $filters['meta_key'] : false;
-				// Element ID provided: Get query object from query history
-				if ( $element_id ) {
-					if ( bricks_is_builder() ) {
-						// $value = '[' . esc_html__( 'View on frontend', 'bricks' ) . ']';
-						break;
-					} else {
-						$query_object = Query::get_query_by_element_id( $element_id, true );
-					}
-				} else {
-					// No element ID provided, get the current query object
-					$query_object = Query::get_query_object( Query::is_any_looping() );
-				}
 
-				// No query object found. Init query (@since 1.9.1.1)
-				if ( ! $query_object ) {
-					$element_data = Helpers::get_element_data( $post_id, $element_id );
-					$element_name = $element_data['element']['name'] ?? '';
+				// is_numeric element ID might be treated as num_words, check get_filters_from_args() (@since 1.10)
+				$element_id = $filters['meta_key'] ?? $filters['num_words'] ?? false;
 
-					if ( ! empty( $element_name ) && isset( $element_data['element']['settings'] ) ) {
-						// Populate query settings for elements that is not using standard query controls (@since 1.9.3)
-						if ( in_array( $element_name, [ 'carousel', 'related-posts' ] ) ) {
-							$query_settings = Helpers::populate_query_vars_for_element( $element_data['element'], $post_id );
-
-							/**
-							 * Override query settings.
-							 * Carousel 'posts' type should returning empty from this function as it is using standard query controls
-							 */
-							if ( ! empty( $query_settings ) ) {
-								$element_data['element']['settings']['query'] = $query_settings;
-							}
-
-							/**
-							 * If this is a carousel 'posts' type, $query_settings should be empty as the query_settings is populated from standard query controls
-							 * However, if the standard query controls is empty (user use default posts query), then we need to set 'query' key so or we are not able to init query in next step
-							 */
-							elseif ( $element_name === 'carousel' && empty( $query_settings ) ) {
-								$carousel_type = $element_data['element']['settings']['type'] ?? 'posts';
-								if ( $carousel_type === 'posts' && empty( $element_data['element']['settings']['query'] ) ) {
-									$element_data['element']['settings']['query'] = [];
-								}
-							}
-						}
-
-						// Add query setting key for Posts element when default (no settings), otherwise count always zero (@since 1.9.8)
-						if ( $element_name === 'posts' && empty( $element_data['element']['settings']['query'] ) ) {
-							$element_data['element']['settings']['query'] = [];
-						}
-
-						// Only init query if query settings is available
-						if ( isset( $element_data['element']['settings']['query'] ) ) {
-							$query_object = new Query( $element_data['element'] );
-							if ( $query_object ) {
-								$query_object->destroy();
-							}
-						}
-					}
-				}
+				// Get the query object from history or init, move logic to helper function (@since 1.12.2)
+				$query_object = Helpers::get_query_object_from_history_or_init( $element_id, $post_id );
 
 				if ( is_a( $query_object, 'Bricks\Query' ) ) {
 					$value = $query_object->count;
@@ -1078,21 +1071,30 @@ class Provider_Wp extends Base {
 
 		// STEP: There are arguments to be parsed
 		if ( strpos( $callback, '(' ) !== false ) {
-			$parts = explode( '(', $callback );
+			// Pattern: matches1 captures the function name, matches2 captures everything inside the parentheses (@since 1.12)
+			$pattern = '/^([a-zA-Z0-9_]+)\((.*)\)$/';
+
+			// Trim the callback to allow dynamic tags with space like {echo: my_function} (@since 1.12.2)
+			$callback = trim( $callback );
+
+			// Retrieve the callback and arguments
+			preg_match( $pattern, $callback, $matches );
 
 			// STEP: Callback
-			$callback = trim( $parts[0] );
+			$callback = $matches[1] ?? '';
+
+			if ( empty( $callback ) ) {
+				return '';
+			}
 
 			// STEP: Arguments
+			$args_string = $matches[2] ?? '';
 
-			// Remove spaces and bracket leftover
-			$parts[1] = rtrim( trim( $parts[1] ), ')' );
-
-			// Parse arguments, e.g.: 'arg1,still arg1', 'arg2', arg3 (@since 1.5.3)
-			if ( ! empty( $parts[1] ) ) {
+			// Parse arguments, e.g.: 'arg1,still arg1', 'arg2', arg3
+			if ( $args_string !== '' ) {
 				$in_quote = false;
 
-				foreach ( str_split( $parts[1] ) as $char ) {
+				foreach ( str_split( $args_string ) as $char ) {
 					// Skip spaces outside of a single quote (@since 1.9.1)
 					if ( ! $in_quote && $char == ' ' ) {
 						continue;
@@ -1184,6 +1186,15 @@ class Provider_Wp extends Base {
 
 		// Return: Not allowed to call this function name
 		if ( ! $is_function_allowed ) {
+			return '';
+		}
+
+		/**
+		 * Return: Don't run echo tags from unauthorized users in the builder preview to prevent them from adding new echo function calls (even if they are whitelisted)
+		 *
+		 * @since 1.12.2
+		 */
+		if ( bricks_is_builder_call() && ! \Bricks\Capabilities::current_user_can_execute_code() ) {
 			return '';
 		}
 
@@ -1296,6 +1307,27 @@ class Provider_Wp extends Base {
 			case 'author_url':
 				$value = get_author_posts_url( $user->ID );
 				break;
+
+			// @since 1.12
+			case 'role':
+				// Always use the primary role
+				$value = $user->roles[0] ?? '';
+
+				if ( ! isset( $filters['value'] ) && $value !== '' ) {
+					// Get the role name
+					global $wp_roles;
+
+					$value = $wp_roles->roles[ $value ]['name'] ?? '';
+				}
+				break;
+
+			case 'registered_date':
+				$registered = $user->user_registered;
+				// Create a DateTime object from the user_registered date
+				$registered_date = new \DateTime( $registered );
+
+				$value = $registered_date->format( 'U' );
+				break;
 		}
 
 		// NOTE: Undocumented
@@ -1325,6 +1357,10 @@ class Provider_Wp extends Base {
 		$field_type = str_replace( [ 'author_' ], '', $tag );
 
 		switch ( $field_type ) {
+			case 'id':
+				$value = $user->ID;
+				break;
+
 			// {author_name} remains same logic for backward compatibility
 			case 'name':
 				if ( ! empty( $user->first_name ) && ! empty( $user->last_name ) ) {
@@ -1356,6 +1392,11 @@ class Provider_Wp extends Base {
 			case 'meta':
 			case 'website':
 				$key = $field_type;
+
+				if ( $key === 'user_pass' ) {
+					$value = '';
+					break;
+				}
 
 				// {author_bio} set key to description
 				if ( $field_type === 'bio' ) {
@@ -1447,9 +1488,9 @@ class Provider_Wp extends Base {
 		 * TODO NOTE: No longer in use (@since 1.9.6). As it causes builder query issue (#86bx6wxxm)
 		 * Should be tackled together with (#86bw6re4w)
 		 */
-		// if ( Helpers::is_bricks_preview() && ! Query::is_looping() ) {
-		// $object = Helpers::get_queried_object( $post_id );
-		// }
+		if ( Helpers::is_bricks_preview() && ! Query::is_looping() ) {
+			$object = Helpers::get_queried_object( $post_id );
+		}
 
 		// Not a WP_Term, leave
 		if ( ! $object || ! is_a( $object, 'WP_Term' ) ) {
@@ -1463,6 +1504,10 @@ class Provider_Wp extends Base {
 
 			case 'term_name':
 				$value = $object->name;
+				break;
+
+			case 'term_taxonomy_slug':
+				$value = $object->taxonomy;
 				break;
 
 			case 'term_slug':

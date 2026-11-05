@@ -17,8 +17,8 @@ class Element_Video extends Element {
 
 	public function enqueue_scripts() {
 		if ( isset( $this->theme_styles['customPlayer'] ) ) {
-			wp_enqueue_style( 'video-plyr', BRICKS_URL_ASSETS . 'css/libs/plyr.min.css', [], '3.6.3' );
-			wp_enqueue_script( 'video-plyr', BRICKS_URL_ASSETS . 'js/libs/plyr.min.js', [ 'bricks-scripts' ], '3.6.3', true );
+			wp_enqueue_style( 'video-plyr', BRICKS_URL_ASSETS . 'css/libs/plyr.min.css', [], '3.7.8' );
+			wp_enqueue_script( 'video-plyr', BRICKS_URL_ASSETS . 'js/libs/plyr.min.js', [ 'bricks-scripts' ], '3.7.8', true );
 		}
 	}
 
@@ -61,9 +61,9 @@ class Element_Video extends Element {
 
 		$this->controls['youTubeId'] = [
 			'tab'      => 'content',
-			'label'    => esc_html__( 'YouTube video ID', 'bricks' ),
+			'label'    => esc_html__( 'YouTube video ID/URL', 'bricks' ),
 			'type'     => 'text',
-			'inline'   => true,
+			'inline'   => false,
 			'required' => [ 'videoType', '=', 'youtube' ],
 			'default'  => '5DGo0AYOJ7s',
 		];
@@ -102,14 +102,6 @@ class Element_Video extends Element {
 			'required' => [ 'videoType', '=', 'youtube' ],
 		];
 
-		$this->controls['youtubeShowinfo'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Show info', 'bricks' ),
-			'type'     => 'checkbox',
-			'default'  => true,
-			'required' => [ 'videoType', '=', 'youtube' ],
-		];
-
 		$this->controls['youtubeRel'] = [
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Related videos from other channels', 'bricks' ),
@@ -130,9 +122,9 @@ class Element_Video extends Element {
 
 		$this->controls['vimeoId'] = [
 			'tab'      => 'content',
-			'label'    => esc_html__( 'Vimeo video ID', 'bricks' ),
+			'label'    => esc_html__( 'Vimeo video ID/URL', 'bricks' ),
 			'type'     => 'text',
-			'inline'   => true,
+			'inline'   => false,
 			'required' => [ 'videoType', '=', 'vimeo' ],
 		];
 
@@ -331,10 +323,11 @@ class Element_Video extends Element {
 			'label'       => esc_html__( 'Preload', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
-				'metadata' => esc_html__( 'Metadata', 'bricks' ),
-				'auto'     => esc_html__( 'Auto', 'bricks' ),
+				'metadata' => 'metadata',
+				'auto'     => 'auto',
+				'none'     => 'none',
 			],
-			'placeholder' => esc_html__( 'None', 'bricks' ),
+			'placeholder' => esc_html__( 'Default', 'bricks' ),
 			'inline'      => true,
 			'required'    => [ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
 		];
@@ -375,6 +368,39 @@ class Element_Video extends Element {
 			'required' => [ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
 		];
 
+		$this->controls['fileControlNoDownload'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Download', 'bricks' ),
+			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'type'     => 'checkbox',
+			'required' => [
+				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
+				[ 'fileControls', '=', true ],
+			],
+		];
+
+		$this->controls['fileControlNoFullscreen'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Fullscreen', 'bricks' ),
+			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'type'     => 'checkbox',
+			'required' => [
+				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
+				[ 'fileControls', '=', true ],
+			],
+		];
+
+		$this->controls['fileControlNoRemotePlayback'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Disable', 'bricks' ) . ': ' . esc_html__( 'Remote playback', 'bricks' ),
+			'info'     => 'Firefox: ' . esc_html__( 'No supported', 'bricks' ) . ' (controlslist)',
+			'type'     => 'checkbox',
+			'required' => [
+				[ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
+				[ 'fileControls', '=', true ],
+			],
+		];
+
 		$this->controls['infoControls'] = [
 			'tab'      => 'content',
 			'content'  => esc_html__( 'Set individual video player controls under: Settings > Theme Styles > Element - Video', 'bricks' ),
@@ -386,7 +412,7 @@ class Element_Video extends Element {
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Poster', 'bricks' ),
 			'type'        => 'image',
-			'description' => esc_html__( 'Set for video SEO best practices.', 'bricks' ),
+			'description' => esc_html__( 'Set for video SEO best practices via poster attribute on the video tag. If the source is Youtube or Vimeo, it will be used as preview image.', 'bricks' ),
 			'required'    => [ 'videoType', '=', [ 'media', 'file', 'meta' ] ],
 		];
 
@@ -413,6 +439,17 @@ class Element_Video extends Element {
 			'label'    => esc_html__( 'Icon', 'bricks' ),
 			'type'     => 'icon',
 			'rerender' => true,
+		];
+
+		// aria-label for icon/overlay (@since 1.11)
+		$this->controls['overlayAriaLabel'] = [
+			'tab'            => 'content',
+			'group'          => 'icon',
+			'label'          => 'aria-label',
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => true,
+			'description'    => esc_html__( 'Added to icon. If there is no icon, it will be added to the overlay.', 'bricks' ),
 		];
 
 		$this->controls['overlayIconTypography'] = [
@@ -596,10 +633,6 @@ class Element_Video extends Element {
 					$video_parameters[] = 'mute=1';
 				}
 
-				if ( ! isset( $settings['youtubeShowinfo'] ) ) {
-					$video_parameters[] = 'showinfo=0';
-				}
-
 				if ( ! isset( $settings['youtubeRel'] ) ) {
 					$video_parameters[] = 'rel=0';
 				}
@@ -692,6 +725,21 @@ class Element_Video extends Element {
 
 				if ( isset( $settings['fileControls'] ) ) {
 					$this->set_attribute( 'video', 'controls' );
+
+					// No download
+					if ( isset( $settings['fileControlNoDownload'] ) ) {
+						$this->set_attribute( 'video', 'controlslist', 'nodownload' );
+					}
+
+					// No fullscreen
+					if ( isset( $settings['fileControlNoFullscreen'] ) ) {
+						$this->set_attribute( 'video', 'controlslist', 'nofullscreen' );
+					}
+
+					// No remote playback
+					if ( isset( $settings['fileControlNoRemotePlayback'] ) ) {
+						$this->set_attribute( 'video', 'controlslist', 'noremoteplayback' );
+					}
 				} elseif ( ! $use_custom_player ) {
 					$this->set_attribute( 'video', 'onclick', 'this.paused ? this.play() : this.pause()' );
 				}
@@ -734,7 +782,24 @@ class Element_Video extends Element {
 			$overlay_icon = $this->theme_styles['overlayIcon'];
 		}
 
-		$icon = $overlay_icon ? self::render_icon( $overlay_icon, [ 'bricks-video-overlay-icon' ] ) : false;
+		// Icon attributes
+		$icon_attributes = [
+			'class'    => [ 'bricks-video-overlay-icon' ],
+			'tabindex' => '0', // Make icon focusable for keyboard navigation (@since 1.11)
+		];
+
+		if ( ! empty( $settings['overlayAriaLabel'] ) ) {
+			$icon_attributes['aria-label'] = wp_strip_all_tags( $this->render_dynamic_data( $settings['overlayAriaLabel'] ) );
+		}
+
+		$icon = $overlay_icon ? self::render_icon( $overlay_icon, $icon_attributes ) : false;
+
+		/**
+		 * Check: Element & theme style for 'overlay' setting @since 1.7
+		 * Use new helper function to check for 'overlay' setting from different breakpoints (@since 1.8)
+		 * Moved this check here, since we use $has_overlay in multiple places (@since 1.11)
+		 */
+		$has_overlay = Helpers::element_setting_has_value( 'overlay', $settings ) || Helpers::element_setting_has_value( 'overlay', $this->theme_styles );
 
 		if ( $use_custom_player ) {
 			$video_config_plyr = [];
@@ -774,7 +839,9 @@ class Element_Video extends Element {
 					$video_config_plyr['controls'][] = 'pip';
 				}
 
-				$video_config_plyr['controls'][] = 'fullscreen';
+				if ( ! isset( $settings['fileControlNoFullscreen'] ) ) {
+					$video_config_plyr['controls'][] = 'fullscreen';
+				}
 			}
 
 			if ( isset( $settings['fileMute'] ) ) {
@@ -788,6 +855,13 @@ class Element_Video extends Element {
 		}
 
 		if ( $source === 'media' || $source === 'file' || $source === 'meta' ) {
+
+			// If there is an overlay, add tabindex="-1" to video element  (@since 1.11)
+			// to prevent tabbing to it, when overlay is enabled
+			if ( $has_overlay ) {
+				$this->set_attribute( 'video', 'tabindex', '-1' );
+			}
+
 			$output .= '<video ' . $this->render_attributes( 'video' ) . '>';
 			$output .= '<p>' . esc_html__( 'Your browser does not support the video tag.', 'bricks' ) . '</p>';
 			$output .= '</video>';
@@ -797,16 +871,39 @@ class Element_Video extends Element {
 			$this->set_attribute( 'iframe', 'allowfullscreen' );
 			$this->set_attribute( 'iframe', 'allow', 'autoplay' );
 
+			// If there is an overlay, add tabindex="-1" to iframe element  (@since 1.11)
+			// to prevent tabbing to it, when overlay is enabled
+			if ( $has_overlay ) {
+				$this->set_attribute( 'iframe', 'tabindex', '-1' );
+			}
+
 			if ( ! empty( $settings['iframeTitle'] ) ) {
 				$this->set_attribute( 'iframe', 'title', wp_strip_all_tags( $this->render_dynamic_data( $settings['iframeTitle'] ) ) );
 			}
 
 			// STEP: Render YouTube/Vimeo iframe or div with background image
 			$preview_image_url = $this->get_preview_image_url( $settings );
+
+			// STEP: Maybe user use Dynamic Data + Video Poster field for YouTube/Vimeo (@since 1.12.2)
+			if ( empty( $preview_image_url ) && isset( $settings['videoPoster'] ) ) {
+				// Try to get video poster image
+				$video_poster_image = $this->get_video_image_by_key( 'videoPoster' );
+
+				// If there is a video poster image, use it as preview image
+				if ( ! empty( $video_poster_image['url'] ) ) {
+					$preview_image_url = $video_poster_image['url'];
+				}
+			}
+
 			if ( $preview_image_url ) {
 				// STEP: Render div with background image when video lazy load is enabled and autoplay is disabled
 				$this->set_attribute( 'iframe', 'data-iframe-src', $video_url );
 				$this->set_attribute( 'iframe', 'class', 'bricks-video-preview-image' );
+
+				// If there is no overlay and no icon, set tabindex to 0, so that it can be focused (@since 1.11)
+				if ( ! $has_overlay && ! $icon ) {
+					$this->set_attribute( 'iframe', 'tabindex', '0' );
+				}
 
 				$background_style = "background-image: url($preview_image_url);";
 
@@ -841,10 +938,6 @@ class Element_Video extends Element {
 			}
 		}
 
-		// Check: Element & theme style for 'overlay' setting (@since 1.7)
-		// Use new helper function to check for 'overlay' setting from different breakpoints (@since 1.8)
-		$has_overlay = Helpers::element_setting_has_value( 'overlay', $settings ) || Helpers::element_setting_has_value( 'overlay', $this->theme_styles );
-
 		// Check: Element classes for 'overlay' setting (@since 1.7.1)
 		$element_class_has_overlay = $this->element_classes_have( 'overlay' );
 
@@ -853,7 +946,21 @@ class Element_Video extends Element {
 		}
 
 		if ( $has_overlay ) {
-			$output .= $this->lazy_load() ? '<div class="bricks-lazy-hidden bricks-video-overlay"></div>' : '<div class="bricks-video-overlay"></div>';
+			if ( empty( $icon ) ) {
+				// If no icon is set, set tabindex to 0, to overlay element, so that it can be focused (@since 1.11)
+				$this->set_attribute( 'video-overlay', 'tabindex', '0' );
+
+				// @since 1.11: Add aria-label to overlay, if there is no icon, but there is overlay
+				if ( ! empty( $settings['overlayAriaLabel'] ) ) {
+					$this->set_attribute( 'video-overlay', 'aria-label', wp_strip_all_tags( $this->render_dynamic_data( $settings['overlayAriaLabel'] ) ) );
+				}
+			}
+
+			if ( $this->lazy_load() ) {
+				$output .= '<div class="bricks-lazy-hidden bricks-video-overlay" ' . $this->render_attributes( 'video-overlay' ) . '></div>';
+			} else {
+				$output .= '<div class="bricks-video-overlay" ' . $this->render_attributes( 'video-overlay' ) . '></div>';
+			}
 		}
 
 		if ( $icon ) {
@@ -1053,6 +1160,9 @@ class Element_Video extends Element {
 
 			if ( ! empty( $settings['youTubeId'] ) ) {
 				$settings['youTubeId'] = $this->render_dynamic_data( $settings['youTubeId'] );
+
+				// Get YouTube video ID, if it's a full URL (@since 1.12.2)
+				$settings['youTubeId'] = $this->get_youtube_id_from_url( $settings['youTubeId'] );
 			}
 
 			if ( ! empty( $settings['iframeTitle'] ) ) {
@@ -1066,6 +1176,10 @@ class Element_Video extends Element {
 
 			if ( ! empty( $settings['vimeoId'] ) ) {
 				$settings['vimeoId'] = $this->render_dynamic_data( $settings['vimeoId'] );
+
+				// Get Vimeo ID, if it's a full URL (@since 1.12.2)
+				$settings['vimeoId'] = $this->get_vimeo_id_from_url( $settings['vimeoId'] );
+
 			}
 
 			if ( ! empty( $settings['iframeTitle'] ) ) {
@@ -1278,8 +1392,52 @@ class Element_Video extends Element {
 		// Set image URL
 		if ( ! isset( $image['url'] ) ) {
 			$image['url'] = ! empty( $image['id'] ) ? wp_get_attachment_image_url( $image['id'], $image['size'] ) : false;
+		} else {
+			// Parse dynamic data in the external URL
+			if ( ! empty( $image['external'] ) && strpos( $image['external'], '{' ) !== false && strpos( $image['external'], '}' ) !== false ) {
+				// Use external url if contains a dynamic data tag (@since 1.11.1)
+				$image['url'] = $this->render_dynamic_data( $image['external'] );
+			} else {
+				$image['url'] = $this->render_dynamic_data( $image['url'] );
+			}
 		}
 
 		return $image;
+	}
+
+	/**
+	 * Get the YouTube video ID from a URL
+	 *
+	 * @param string $url
+	 * @return string $video_id
+	 *
+	 * @since 1.12.2
+	 */
+	public function get_youtube_id_from_url( $url = '' ) {
+		// If it's valid URL, extract the video ID
+		if ( filter_var( $url, FILTER_VALIDATE_URL ) && preg_match( '%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\.be/)([^"&?/ ]{11})%i', $url, $matches ) ) {
+			// Regex from @see: https://gist.github.com/ghalusa/6c7f3a00fd2383e5ef33
+			return $matches[1];
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Get the Vimeo video ID from a URL
+	 *
+	 * @param string $url
+	 * @return string $video_id
+	 *
+	 * @since 1.12.2
+	 */
+	public function get_vimeo_id_from_url( $url = '' ) {
+		// If it's valid URL, extract the video ID
+		if ( filter_var( $url, FILTER_VALIDATE_URL ) && preg_match( '%^https?:\/\/(?:www\.|player\.)?vimeo.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)(?:[?]?.*)$%im', $url, $matches ) ) {
+			// Regex from @see: https://gist.github.com/anjan011/1fcecdc236594e6d700f
+			return $matches[3];
+		}
+
+		return $url;
 	}
 }

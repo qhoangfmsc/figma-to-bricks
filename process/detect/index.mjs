@@ -14,6 +14,7 @@ import { detectCarousels } from './rules/carousel.mjs';
 import { detectForms } from './rules/form.mjs';
 import { detectAccordions } from './rules/accordion.mjs';
 import { detectTabs } from './rules/tabs.mjs';
+import { detectTabSwitches } from './rules/tab-switch.mjs';
 import { detectMenus } from './rules/menu.mjs';
 import { detectReadMore } from './rules/readmore.mjs';
 import { COMPONENTS } from '../bricks/components/index.mjs';
@@ -35,7 +36,7 @@ export function nodePath(tree, id, trail = []) {
 export function runRules(tree) {
   return {
     sections: detectSections(tree),
-    components: [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectMenus(tree), ...detectReadMore(tree)].map((c) => ({ status: 'proposed', source: 'rule', ...c })),
+    components: [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree)].map((c) => ({ status: 'proposed', source: 'rule', ...c })),
   };
 }
 

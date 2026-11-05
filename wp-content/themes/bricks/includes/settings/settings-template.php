@@ -23,19 +23,19 @@ class Settings_Template extends Settings_Base {
 			'title' => esc_html__( 'Conditions', 'bricks' ),
 		];
 
-		// Skip 'Populate content' for 'popup' as popup data uses 'content' area already
-		if ( Templates::get_template_type() !== 'popup' ) {
-			$this->control_groups['template-preview'] = [
-				'title' => esc_html__( 'Populate Content', 'bricks' ),
+		// Add password protection group for password protected templates (@since 1.11.1)
+		if ( in_array( Templates::get_template_type(), [ 'password_protection' ], true ) ) {
+			$this->control_groups['password-protected'] = [
+				'title' => esc_html__( 'Password protection', 'bricks' ),
 			];
 		}
+
+		$this->control_groups['template-preview'] = [
+			'title' => esc_html__( 'Populate Content', 'bricks' ),
+		];
 	}
 
 	public function set_controls() {
-		// PERFORMANCE: Run query to populate control options in builder only
-		$all_terms = bricks_is_builder() ? Helpers::get_terms_options( null, null, true ) : [];
-		$terms     = bricks_is_builder() ? Helpers::get_terms_options() : [];
-
 		$registered_post_types = Helpers::get_registered_post_types();
 
 		if ( Templates::get_template_type() === 'header' || Templates::get_template_type() === 'footer' ) {
@@ -344,8 +344,9 @@ class Settings_Template extends Settings_Base {
 		$this->controls['template_interactions']['group'] = 'popup';
 
 		// Add special popup triggers
-		$this->controls['template_interactions']['fields']['trigger']['options']['showPopup'] = esc_html__( 'Show popup', 'bricks' );
-		$this->controls['template_interactions']['fields']['trigger']['options']['hidePopup'] = esc_html__( 'Hide popup', 'bricks' );
+		$this->controls['template_interactions']['fields']['trigger']['options']['popupGroupTitle'] = esc_html__( 'Popup', 'bricks' );
+		$this->controls['template_interactions']['fields']['trigger']['options']['showPopup']       = esc_html__( 'Show popup', 'bricks' );
+		$this->controls['template_interactions']['fields']['trigger']['options']['hidePopup']       = esc_html__( 'Hide popup', 'bricks' );
 
 		// Show info about "Hide popup" trigger
 		$this->controls['template_interactions']['fields'] = [
@@ -417,9 +418,14 @@ class Settings_Template extends Settings_Base {
 				'archiveTerms'                => [
 					'type'        => 'select',
 					'label'       => esc_html__( 'Archive terms', 'bricks' ),
-					'options'     => $all_terms,
 					'multiple'    => true,
 					'searchable'  => true,
+					'optionsAjax' => [
+						'action'                => 'bricks_get_terms_options',
+						'postTypes'             => [ 'any' ],
+						'addLanguageToTermName' => true,
+						'includeAll'            => true,
+					], // (@since 1.12)
 					'placeholder' => esc_html__( 'Select archive term', 'bricks' ),
 					'description' => esc_html__( 'Leave empty to apply template to all archive terms.', 'bricks' ),
 					'required'    => [ 'archiveType', '=', 'term' ],
@@ -443,9 +449,13 @@ class Settings_Template extends Settings_Base {
 				'terms'                       => [
 					'type'        => 'select',
 					'label'       => esc_html__( 'Terms', 'bricks' ),
-					'options'     => $terms,
 					'multiple'    => true,
 					'searchable'  => true,
+					'optionsAjax' => [
+						'action'                => 'bricks_get_terms_options',
+						'postTypes'             => [ 'any' ],
+						'addLanguageToTermName' => true,
+					], // (@since 1.12)
 					'placeholder' => esc_html__( 'Select terms', 'bricks' ),
 					'required'    => [ 'main', '=', 'terms' ],
 				],
@@ -523,6 +533,116 @@ class Settings_Template extends Settings_Base {
 		}
 
 		/**
+		 * Password protected
+		 *
+		 * @since 1.11.1
+		 */
+		$this->controls['passwordProtectionSource'] = [
+			'group'       => 'password-protected',
+			'type'        => 'select',
+			'options'     => [
+				'both'      => esc_html__( 'Template & post password', 'bricks' ),
+				'bricks'    => esc_html__( 'Template password', 'bricks' ),
+				'wordpress' => esc_html__( 'Post password', 'bricks' ),
+			],
+			'label'       => esc_html__( 'Password source', 'bricks' ),
+			'desc'        => sprintf(
+				// Translators: %s = Article link
+				'%s %s',
+				esc_html__( 'Choose how passwords are managed. "Template password" uses this template\'s password to protect content according to template conditions. "Post password" protects content that has an individual post password set. "Template & post password" uses the template password, but individual post passwords will be used instead if set.', 'bricks' ),
+				Helpers::article_link( 'password-protection/#password-source-options', esc_html__( 'Learn more', 'bricks' ) )
+			),
+			'placeholder' => esc_html__( 'Template & post password', 'bricks' ),
+		];
+
+		$this->controls['passwordProtectionError'] = [
+			'group'    => 'password-protected',
+			'type'     => 'info',
+			'error'    => true,
+			'content'  => esc_html__( 'This template is currently not rendered on pages that meet the template conditions as no password has been set.', 'bricks' ),
+			'required' => [
+				[ 'passwordProtectionSource', '!=', 'wordpress' ],
+				[ 'passwordProtectionPassword', '=', '' ],
+			],
+		];
+
+		$this->controls['passwordProtectionPassword'] = [
+			'group'    => 'password-protected',
+			'type'     => 'text',
+			'inline'   => true,
+			'dd'       => false, // Don't allow to set password via dynamic data
+			'label'    => esc_html__( 'Password', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionExcludeHeader'] = [
+			'group'    => 'password-protected',
+			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Disable header', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionExcludeFooter'] = [
+			'group'    => 'password-protected',
+			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Disable footer', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionExcludePopups'] = [
+			'group'    => 'password-protected',
+			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Disable popups', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionBypassLoggedIn'] = [
+			'group'    => 'password-protected',
+			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Disable for logged-in users', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionSchedule'] = [
+			'group'    => 'password-protected',
+			'type'     => 'checkbox',
+			'label'    => esc_html__( 'Schedule', 'bricks' ),
+			'required' => [ 'passwordProtectionSource', '!=', 'wordpress' ],
+		];
+
+		$this->controls['passwordProtectionStartDate'] = [
+			'group'       => 'password-protected',
+			'type'        => 'datepicker',
+			'label'       => esc_html__( 'Start date', 'bricks' ),
+			'info'        => esc_html__( 'Timezone', 'bricks' ) . ': UTC+0',
+			'placeholder' => esc_html__( 'Select start date', 'bricks' ),
+			'options'     => [
+				'enableTime' => true,
+				'altInput'   => true,
+			],
+			'required'    => [
+				[ 'passwordProtectionSchedule', '=', true ],
+				[ 'passwordProtectionSource', '!=', 'wordpress' ],
+			],
+		];
+
+		$this->controls['passwordProtectionEndDate'] = [
+			'group'       => 'password-protected',
+			'type'        => 'datepicker',
+			'label'       => esc_html__( 'End date', 'bricks' ),
+			'info'        => esc_html__( 'Timezone', 'bricks' ) . ': UTC+0',
+			'placeholder' => esc_html__( 'Select end date', 'bricks' ),
+			'options'     => [
+				'enableTime' => true,
+				'altInput'   => true,
+			],
+			'required'    => [
+				[ 'passwordProtectionSchedule', '=', true ],
+				[ 'passwordProtectionSource', '!=', 'wordpress' ],
+			],
+		];
+
+		/**
 		 * Template Preview Content (Only visible when editing header or footer templates)
 		 */
 
@@ -567,8 +687,12 @@ class Settings_Template extends Settings_Base {
 			'group'       => 'template-preview',
 			'type'        => 'select',
 			'label'       => esc_html__( 'Term', 'bricks' ),
-			'options'     => $terms,
 			'searchable'  => true,
+			'optionsAjax' => [
+				'action'                => 'bricks_get_terms_options',
+				'postTypes'             => [ 'any' ],
+				'addLanguageToTermName' => true,
+			], // (@since 1.12)
 			'placeholder' => esc_html__( 'Select term', 'bricks' ),
 			'required'    => [ 'templatePreviewType', '=', 'archive-term' ],
 		];

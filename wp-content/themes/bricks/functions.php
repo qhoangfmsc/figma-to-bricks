@@ -6,9 +6,10 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
  *
  * @since 1.0
  */
-define( 'BRICKS_VERSION', '1.9.8' );
+define( 'BRICKS_VERSION', '1.12.3' );
 define( 'BRICKS_NAME', 'Bricks' );
 define( 'BRICKS_TEMP_DIR', 'bricks-temp' ); // Template import/export (JSON & ZIP)
+define( 'BRICKS_TEMPLATE_SCREENSHOTS_DIR', 'bricks/template-screenshots' ); // Template screenshots (@since 1.10)
 define( 'BRICKS_PATH', trailingslashit( get_template_directory() ) );    // require_once files
 define( 'BRICKS_PATH_ASSETS', trailingslashit( BRICKS_PATH . 'assets' ) );
 define( 'BRICKS_URL', trailingslashit( get_template_directory_uri() ) ); // WP enqueue files
@@ -21,9 +22,11 @@ define( 'BRICKS_BUILDER_IFRAME_PARAM', 'brickspreview' );
 define( 'BRICKS_DEFAULT_IMAGE_SIZE', 'large' );
 
 define( 'BRICKS_DB_PANEL_WIDTH', 'bricks_panel_width' );
+define( 'BRICKS_DB_STRUCTURE_WIDTH', 'bricks_structure_width' ); // @since 1.10.2
 define( 'BRICKS_DB_BUILDER_SCALE_OFF', 'bricks_builder_scale_off' );
 define( 'BRICKS_DB_BUILDER_WIDTH_LOCKED', 'bricks_builder_width_locked' );
 
+define( 'BRICKS_DB_COMPONENTS', 'bricks_components' );
 define( 'BRICKS_DB_COLOR_PALETTE', 'bricks_color_palette' );
 define( 'BRICKS_DB_BREAKPOINTS', 'bricks_breakpoints' );
 define( 'BRICKS_DB_GLOBAL_SETTINGS', 'bricks_global_settings' );
@@ -32,6 +35,8 @@ define( 'BRICKS_DB_GLOBAL_CLASSES', 'bricks_global_classes' );
 define( 'BRICKS_DB_GLOBAL_CLASSES_CATEGORIES', 'bricks_global_classes_categories' );
 define( 'BRICKS_DB_GLOBAL_CLASSES_LOCKED', 'bricks_global_classes_locked' );
 define( 'BRICKS_DB_GLOBAL_CLASSES_TIMESTAMP', 'bricks_global_classes_timestamp' );
+define( 'BRICKS_GLOBAL_CLASSES_DEFAULT_TRASH_RETENTION_DAYS', 30 );
+define( 'BRICKS_DB_GLOBAL_CLASSES_TRASH', 'bricks_global_classes_trash' );
 define( 'BRICKS_DB_GLOBAL_CLASSES_USER', 'bricks_global_classes_user' );
 define( 'BRICKS_DB_PSEUDO_CLASSES', 'bricks_global_pseudo_classes' );
 define( 'BRICKS_DB_GLOBAL_VARIABLES', 'bricks_global_variables' );
@@ -51,6 +56,15 @@ define( 'BRICKS_CSS_FILES_ADMIN_NOTICE', 'bricks_css_files_admin_notice' );
 define( 'BRICKS_CODE_SIGNATURES_LAST_GENERATED', 'bricks_code_signatures_last_generated' );
 define( 'BRICKS_CODE_SIGNATURES_LAST_GENERATED_TIMESTAMP', 'bricks_code_signatures_last_generated_timestamp' );
 define( 'BRICKS_CODE_SIGNATURES_ADMIN_NOTICE', 'bricks_code_signatures_admin_notice' );
+
+/**
+ * Lock code signatures (default: false)
+ *
+ * @since 1.11.1
+ */
+if ( ! defined( 'BRICKS_LOCK_CODE_SIGNATURES' ) ) {
+	define( 'BRICKS_LOCK_CODE_SIGNATURES', false );
+}
 
 /**
  * Syntax since 1.2 (container element)
@@ -92,6 +106,11 @@ if ( ! defined( 'BRICKS_MAX_REVISIONS_TO_KEEP' ) ) {
  *
  * @since 1.0
  */
+
+// Global data: Components (@since 1.12)
+if ( ! defined( 'BRICKS_MULTISITE_USE_MAIN_SITE_COMPONENTS' ) ) {
+	define( 'BRICKS_MULTISITE_USE_MAIN_SITE_COMPONENTS', false );
+}
 
 // Global data: Color palette
 if ( ! defined( 'BRICKS_MULTISITE_USE_MAIN_SITE_COLOR_PALETTE' ) ) {

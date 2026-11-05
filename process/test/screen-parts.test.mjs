@@ -23,13 +23,14 @@ const components = [
 
 test('step 2 lists one block per component, with the field that block needs', () => {
   const parts = screenParts(tree, components, [], 'FILEKEY');
-  assert.deepEqual(parts.map((p) => [p.fields[0].title, p.fields[0].value]), [
-    ['Nội dung khi mở Xem thêm', ''],
-    ['Hành động của nút Xem thêm', 'Bấm để hiện hết chữ'],
-    ['Cách dựng của khối Mục lặp', 'Dựng thành một khối tĩnh'],
+  assert.deepEqual(parts.filter((p) => p.fields.length).map((p) => [p.fields[0].title, p.fields[0].value]), [
+    ['Bấm Xem thêm thì hiện thêm chữ gì?', ''],
+    ['Bấm Xem thêm thì chuyện gì xảy ra?', 'Bấm để hiện hết chữ'],
+    ['Khối Mục lặp giữ nguyên như bản vẽ', 'Dựng thành một khối tĩnh'],
   ]);
+  assert.deepEqual(parts.filter((p) => !p.fields.length).map((p) => p.kind), ['Ảnh']);
   assert.equal(parts[0].fields[0].control, 'textarea');
-  assert.match(parts[0].fields[0].placeholder, /link Figma bản đầy đủ/);
+  assert.match(parts[0].fields[0].placeholder, /link khung đã mở hết/);
   assert.equal(parts[1].fields[0].control, 'select');
   assert.deepEqual(parts[1].fields[0].options, ['Bấm để hiện hết chữ', 'Bấm để mở một địa chỉ']);
   assert.equal(validateAnswers(Object.fromEntries(parts.flatMap((p) => p.fields.map((f) => [f.key, f.value])))).length, 0);
@@ -40,6 +41,25 @@ test('step 2 lists one block per component, with the field that block needs', ()
   assert.equal(validateAnswers({ 'expand:full': 'Đoạn chữ thêm khi mở.' }).length, 0);
   assert.equal(validateAnswers({ 'expand:full': 'https://www.figma.com/design/FILE/x?node-id=9-9' }).length, 0);
   assert.equal(readExpand('https://www.figma.com/design/FILE/x').kind, 'bad');
+});
+
+test('a form with nothing to type is still listed, with the fields and the submit it recognized', () => {
+  const formTree = {
+    id: 'root', name: 'f-w', children: [
+      { id: 'left', name: '1', children: [{ id: 'go', name: 'Button', children: [{ id: 'gt', type: 'TEXT', text: { characters: 'Gửi thông tin' } }] }] },
+    ],
+  };
+  const parts = screenParts(formTree, [{
+    component: 'form', node: 'left', status: 'approved',
+    params: { fields: [{ label: 'Họ tên của bạn' }, { placeholder: 'Email' }], submit: 'go' },
+  }], [], 'FILE');
+  assert.equal(parts.length, 1);
+  assert.equal(parts[0].kind, 'Form');
+  assert.equal(parts[0].name, '1');
+  assert.equal(parts[0].fields.length, 0);
+  assert.match(parts[0].detail, /Họ tên của bạn/);
+  assert.match(parts[0].detail, /Email/);
+  assert.match(parts[0].detail, /nút Gửi thông tin/);
 });
 
 test('typed expand copy is hidden until open; a full frame is grafted under the clipped frame', () => {

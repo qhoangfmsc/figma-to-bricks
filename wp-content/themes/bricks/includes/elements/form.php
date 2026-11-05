@@ -27,14 +27,12 @@ class Element_Form extends Element {
 			wp_enqueue_script( 'bricks-turnstile' );
 		}
 
-		$fields = ! empty( $this->settings['fields'] ) ? $this->settings['fields'] : false;
-
 		/**
 		 * Load Flatpickr library (form field type 'date' found)
 		 *
 		 * @since 1.8.6 - Load localization file if set (default: English)
 		 */
-		if ( is_array( $fields ) ) {
+		if ( ! empty( $this->settings['fields'] ) && is_array( $this->settings['fields'] ) ) {
 			foreach ( $this->settings['fields'] as $field ) {
 				if ( $field['type'] === 'datepicker' ) {
 					if ( ! bricks_is_builder() ) {
@@ -45,7 +43,14 @@ class Element_Form extends Element {
 					// Load datepicker localisation
 					$l10n = $field['l10n'] ?? '';
 					if ( $l10n ) {
-						wp_enqueue_script( 'bricks-flatpickr-l10n', "https://npmcdn.com/flatpickr@4.6.13/dist/l10n/$l10n.js", [ 'bricks-flatpickr' ], '4.6.13' );
+						/**
+						 * Set "version" (4.6.13) to null
+						 *
+						 * If version is present, we get a 302 redirect
+						 *
+						 * @since 1.12
+						 */
+						wp_enqueue_script( 'bricks-flatpickr-l10n', "https://npmcdn.com/flatpickr@4.6.13/dist/l10n/$l10n.js", [ 'bricks-flatpickr' ], null );
 					}
 				}
 			}
@@ -63,6 +68,10 @@ class Element_Form extends Element {
 
 		$this->control_groups['actions'] = [
 			'title' => esc_html__( 'Actions', 'bricks' ),
+		];
+
+		$this->control_groups['notices'] = [
+			'title' => esc_html__( 'Notices', 'bricks' ),
 		];
 
 		$this->control_groups['email'] = [
@@ -118,6 +127,12 @@ class Element_Form extends Element {
 			];
 		}
 
+		// @since 1.11.1
+		$this->control_groups['unlock-password-protection'] = [
+			'title'    => esc_html__( 'Unlock password protection', 'bricks' ),
+			'required' => [ 'actions', '=', 'unlock-password-protection' ],
+		];
+
 		$this->control_groups['spam'] = [
 			'title' => esc_html__( 'Spam protection', 'bricks' ),
 		];
@@ -159,6 +174,91 @@ class Element_Form extends Element {
 					'clearable' => false,
 				],
 
+				// Password protection info
+				'passwordProtectionInfo'     => [
+					'content'  => sprintf(
+						// Translators: %s = Article link
+						'%s %s',
+						esc_html__( 'Set the required password under Settings > Template settings > Password protection for template-wide protection, or set an individual password directly for each post/page.', 'bricks' ),
+						Helpers::article_link( 'password-protection/#password-source-options', esc_html__( 'Learn more', 'bricks' ) )
+					),
+					'type'     => 'info',
+					'required' => [ 'type', '=', 'password' ],
+				],
+
+				// Password toggle (@since 1.12)
+				'passwordToggle'             => [
+					'label'    => esc_html__( 'Password toggle', 'bricks' ),
+					'type'     => 'checkbox',
+					'required' => [ 'type', '=', 'password' ],
+				],
+
+				'passwordShowIcon'           => [
+					'label'    => esc_html__( 'Show password', 'bricks' ) . ': ' . esc_html__( 'Icon', 'bricks' ),
+					'type'     => 'icon',
+					'required' => [
+						[ 'type', '=', 'password' ],
+						[ 'passwordToggle', '=', true ],
+					],
+				],
+
+				'passwordHideIcon'           => [
+					'label'    => esc_html__( 'Hide password', 'bricks' ) . ': ' . esc_html__( 'Icon', 'bricks' ),
+					'type'     => 'icon',
+					'required' => [
+						[ 'type', '=', 'password' ],
+						[ 'passwordToggle', '=', true ],
+					],
+				],
+
+				'passwordShowIconTypography' => [
+					'label'    => esc_html__( 'Show password', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
+					'type'     => 'typography',
+					'css'      => [
+						[
+							'property' => 'font',
+							'selector' => '.password-toggle .show-password i',
+						],
+					],
+					'required' => [
+						[ 'type', '=', 'password' ],
+						[ 'passwordToggle', '=', true ],
+					],
+				],
+
+				'passwordHideIconTypography' => [
+					'label'    => esc_html__( 'Hide password', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
+					'type'     => 'typography',
+					'css'      => [
+						[
+							'property' => 'font',
+							'selector' => '.password-toggle .hide-password i',
+						],
+					],
+					'required' => [
+						[ 'type', '=', 'password' ],
+						[ 'passwordToggle', '=', true ],
+					],
+				],
+
+				'passwordIconPosition'       => [
+					'label'       => esc_html__( 'Icon position', 'bricks' ),
+					'type'        => 'dimensions',
+					'css'         => [
+						[
+							'selector' => '.password-toggle',
+						],
+					],
+					'placeholder' => [
+						'top'   => '50%',
+						'right' => '12px',
+					],
+					'required'    => [
+						[ 'type', '=', 'password' ],
+						[ 'passwordToggle', '=', true ],
+					],
+				],
+
 				'min'                        => [
 					'label'    => esc_html__( 'Min', 'bricks' ),
 					'type'     => 'number',
@@ -190,32 +290,68 @@ class Element_Form extends Element {
 					'label'    => esc_html__( 'Value', 'bricks' ),
 					'type'     => 'text',
 					'info'     => esc_html__( 'Set the default field value/content.', 'bricks' ),
-					'required' => [ 'type', '!=', [ 'file', 'html' ] ],
+					'required' => [
+						[ 'type', '!=', [ 'file', 'html' ] ],
+						[ 'isHoneypot', '!=', true ], // Honeypot fields value should be empty by default (@since 1.12.2)
+					],
+				],
+
+				'maxLength'                  => [
+					'label'    => esc_html__( 'Max. length', 'bricks' ),
+					'type'     => 'number',
+					'min'      => 0,
+					'info'     => esc_html__( 'Maximum characters allowed.', 'bricks' ),
+					'required' => [ 'type', '=', [ 'email', 'number', 'text', 'tel', 'url', 'password', 'textarea' ] ],
 				],
 
 				'checkboxInfo'               => [
 					'content'  => esc_html__( 'Separate values by comma.', 'bricks' ),
 					'type'     => 'info',
-					'required' => [ 'type', '=', 'checkbox' ],
+					'required' => [
+						[ 'type', '=', 'checkbox' ],
+						[ 'value', '!=', '' ],
+					],
 				],
 
 				'datepickerInfo'             => [
 					'content'  => esc_html__( 'Use the date format as set under Settings > General > Date format', 'bricks' ) . " ($date_format)",
 					'type'     => 'info',
-					'required' => [ 'type', '=', 'datepicker' ],
+					'required' => [
+						[ 'type', '=', 'datepicker' ],
+						[ 'isHoneypot', '!=', true ], // For Honeypot we don't show value, so we also don't show the alert message (@since 1.12.2)
+					]
 				],
 
 				'name'                       => [
-					'label'    => esc_html__( 'Name', 'bricks' ) . ' (' . esc_html__( 'Attribute', 'bricks' ) . ')',
+					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Name', 'bricks' ),
 					'type'     => 'text',
 					'info'     => esc_html__( 'Use valid HTML syntax. No spaces.', 'bricks' ),
 					'required' => [ 'type', '!=', [ 'html' ] ],
 				],
 
+				// @since 1.9.9
+				'autocomplete'               => [
+					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Autocomplete', 'bricks' ),
+					'type'     => 'text',
+					'info'     => 'on/off',
+					'required' => [
+						[ 'type', '=', [ 'text', 'textarea', 'email', 'number', 'password', 'tel', 'url' ] ],
+						[ 'isHoneypot', '!=', true ] // Honeypot fields will have autocomplete set to "nope" (@since 1.12.2)
+					],
+				],
+
+				// @since 1.9.9
+				'spellcheck'                 => [
+					'label'    => esc_html__( 'Attribute', 'bricks' ) . ': ' . esc_html__( 'Spellcheck', 'bricks' ),
+					'type'     => 'text',
+					'info'     => 'off, etc.',
+					'required' => [ 'type', '=', [ 'text', 'textarea', 'email', 'url' ] ],
+				],
+
 				'errorMessage'               => [
 					'label'    => esc_html__( 'Error message', 'bricks' ),
 					'type'     => 'text',
-					'info'     => esc_html__( 'On input and blur', 'bricks' ),
+					'info'     => esc_html__( 'On input, blur and submit', 'bricks' ),
 					'required' => [ 'type', '!=', [ 'hidden', 'radio', 'checkbox', 'select', 'file', 'datepicker' ] ],
 				],
 
@@ -264,11 +400,7 @@ class Element_Form extends Element {
 					'label'       => esc_html__( 'Directory name', 'bricks' ),
 					'type'        => 'text',
 					'placeholder' => 'form-files',
-					'desc'        => sprintf(
-						'%s %s',
-						esc_html__( 'Directory is created in your "uploads" directory if it doesn\'t exist.', 'bricks' ),
-						Helpers::article_link( 'filter-bricks-form-file_directory', esc_html__( 'Learn how to set a custom upload directory programmatically.', 'bricks' ) )
-					),
+					'desc'        => esc_html__( 'Directory is created in your "uploads" directory if it doesn\'t exist.', 'bricks' ),
 					'required'    => [
 						[ 'type', '=', 'file' ],
 						[ 'fileUploadStorage', '=', 'directory' ],
@@ -330,22 +462,6 @@ class Element_Form extends Element {
 					'required' => [ 'type', '=', 'file' ],
 				],
 
-				// 'span'                       => [
-				// 'label'       => esc_html__( 'Span .. columns', 'bricks' ),
-				// 'type'        => 'number',
-				// 'placeholder' => 1,
-				// 'css'         => [
-				// [
-				// 'property' => 'grid-column',
-				// 'value'    => 'span %s',
-				// ],
-				// ],
-				// 'required'    => [
-				// [ 'type', '!=', 'hidden' ],
-				// [ 'columns', '!=', '' ],
-				// ],
-				// ],
-
 				'width'                      => [
 					'label'       => esc_html__( 'Width', 'bricks' ) . ' (%)',
 					'type'        => 'number',
@@ -376,6 +492,27 @@ class Element_Form extends Element {
 					'required' => [ 'type', '=', [ 'textarea' ] ],
 				],
 
+				// Added 'resize' option to textarea (@since 1.11)
+				'resize'                     => [
+					'label'       => esc_html__( 'Resize', 'bricks' ),
+					'type'        => 'select',
+					'options'     => [
+						'none'       => esc_html__( 'None', 'bricks' ),
+						'vertical'   => esc_html__( 'Vertical', 'bricks' ),
+						'horizontal' => esc_html__( 'Horizontal', 'bricks' ),
+						'both'       => esc_html__( 'Both', 'bricks' ),
+					],
+					'css'         => [
+						[
+							'property' => 'resize',
+							'selector' => 'textarea',
+						],
+					],
+					'inline'      => true,
+					'placeholder' => esc_html__( 'Vertical', 'bricks' ),
+					'required'    => [ 'type', '=', [ 'textarea' ] ],
+				],
+
 				'time'                       => [
 					'label'    => esc_html__( 'Enable time', 'bricks' ),
 					'type'     => 'checkbox',
@@ -404,23 +541,55 @@ class Element_Form extends Element {
 					'required'    => [ 'time', '!=', '' ],
 				],
 
+				// Honeypot (@since 1.12.2)
+				'isHoneypot'                 => [
+					'label'       => esc_html__( 'Honeypot', 'bricks' ),
+					'type'        => 'checkbox',
+					'required'    => [
+						'type',
+						'=',
+						[ 'email', 'text', 'textarea', 'tel', 'number', 'url', 'checkbox',  'select', 'radio', 'datepicker', 'password' ]
+					],
+					'description' => esc_html__( 'When enabled, this field acts as a spam trap. It will not be visible to users, but will capture any bots that fill it out.', 'bricks' ),
+				],
+
 				'required'                   => [
 					'label'    => esc_html__( 'Required', 'bricks' ),
 					'type'     => 'checkbox',
 					'inline'   => true,
-					'required' => [ 'type', '!=', [ 'hidden', 'html' ] ],
+					'required' => [
+						[ 'type', '!=', [ 'hidden', 'html' ] ],
+						[ 'isHoneypot', '!=', true ], // Honeypot fields can not be required (@since 1.12.2)
+					],
 				],
 
 				'options'                    => [
 					'label'    => esc_html__( 'Options (one per line)', 'bricks' ),
 					'type'     => 'textarea',
-					'required' => [ 'type', '=', [ 'checkbox', 'select', 'radio' ] ],
+					'required' => [ 'type', '=', [ 'checkbox', 'select', 'radio', ] ],
+				],
+
+				'valueLabelOptions'          => [
+					// translators: %s: key:value
+					'label'    => sprintf( esc_html__( 'Set options as %s', 'bricks' ), 'value:label' ),
+					'type'     => 'checkbox',
+					'inline'   => true,
+					'required' => [ 'type', '=', [ 'checkbox', 'select', 'radio', ] ],
+				],
+
+				'valueLabelInfo'             => [
+					'content'  => esc_html__( 'Separate value & label by ":".', 'bricks' ) . ' ' . esc_html__( 'Example', 'bricks' ) . '<strong>: DE:Germany</strong>',
+					'type'     => 'info',
+					'required' => [
+						[ 'type', '=', [ 'checkbox', 'select', 'radio', ] ],
+						[ 'valueLabelOptions', '=', true ],
+					],
 				],
 
 				'html'                       => [
 					'label'        => 'HTML',
 					'type'         => 'code',
-					'mode'         => 'xml',
+					'mode'         => 'text/html',
 					'hasVariables' => false,
 					'description'  => sprintf(
 						esc_html__( 'To add decorative text, but not user input. Runs through %s.', 'bricks' ),
@@ -453,6 +622,11 @@ class Element_Form extends Element {
 				],
 			],
 		];
+
+		// Remove 'passwordProtectionInfo' control if current template type is not 'password_protection' (@since 1.11.1)
+		if ( Templates::get_template_type( get_the_ID() ) !== 'password_protection' ) {
+			unset( $this->controls['fields']['fields']['passwordProtectionInfo'] );
+		}
 
 		$this->controls['requiredAsterisk'] = [
 			'tab'   => 'content',
@@ -503,12 +677,25 @@ class Element_Form extends Element {
 			],
 		];
 
+		// Disable form validation on input or blur (@since 1.12)
+		$this->controls['disableFormValidationOn'] = [
+			'tab'         => 'content',
+			'group'       => 'fields',
+			'label'       => esc_html__( 'Disable form validation', 'bricks' ),
+			'placeholder' => esc_html__( 'Select', 'bricks' ),
+			'type'        => 'select',
+			'multiple'    => true,
+			'options'     => [
+				'input' => esc_html__( 'On input', 'bricks' ),
+				'blur'  => esc_html__( 'On blur', 'bricks' ),
+			],
+			'description' => esc_html__( 'By default, form fields are validated on input, blur and submit.', 'bricks' ),
+		];
+
 		/**
 		 * Grid columns
 		 *
-		 * NOTE: Not yet in use.
-		 *
-		 * @since 1.x
+		 * NOTE: Not yet in use
 		 */
 		// $this->controls['columns'] = [
 		// 'tab'         => 'content',
@@ -588,7 +775,7 @@ class Element_Form extends Element {
 				// Use padding (as margin results in line-breaks)
 				[
 					'property' => 'padding',
-					'selector' => '.form-group:not(:last-child)',
+					'selector' => '.form-group:not(:last-child):not(.captcha)',
 				],
 			],
 		];
@@ -870,6 +1057,23 @@ class Element_Form extends Element {
 			'default' => esc_html__( 'Message successfully sent. We will get back to you as soon as possible.', 'bricks' ),
 		];
 
+		// Group Notices (@since 1.11.1)
+
+		$this->controls['noticeCloseAfter'] = [
+			'tab'   => 'content',
+			'group' => 'notices',
+			'label' => esc_html__( 'Close after', 'bricks' ) . ' (ms)',
+			'type'  => 'number',
+			'min'   => 1,
+		];
+
+		$this->controls['noticeCloseButton'] = [
+			'tab'   => 'content',
+			'group' => 'notices',
+			'label' => esc_html__( 'Close button', 'bricks' ),
+			'type'  => 'checkbox',
+		];
+
 		// Group: Email
 
 		$this->controls['emailInfo'] = [
@@ -938,7 +1142,8 @@ class Element_Form extends Element {
 			'group'       => 'email',
 			'label'       => esc_html__( 'Reply to email address', 'bricks' ),
 			'type'        => 'text',
-			'description' => esc_html__( 'Default: Email submitted via form.', 'bricks' ),
+			'placeholder' => 'Name <reply@domain.com>',
+			'description' => esc_html__( 'Comma-separated list of name and email address or email addresses only.' ) . ' ' . esc_html__( 'Default', 'bricks' ) . ': ' . esc_html__( 'Email address in submitted form', 'bricks' ),
 		];
 
 		$this->controls['emailContent'] = [
@@ -1015,7 +1220,8 @@ class Element_Form extends Element {
 			'group'       => 'confirmation',
 			'label'       => esc_html__( 'Reply to email address', 'bricks' ),
 			'type'        => 'text',
-			'description' => esc_html__( 'Default', 'bricks' ) . ': ' . esc_html__( 'From email address', 'bricks' )
+			'placeholder' => 'Name <reply@domain.com>',
+			'description' => esc_html__( 'Comma-separated list of name and email address or email addresses only.' ) . ' ' . esc_html__( 'Default', 'bricks' ) . ': ' . esc_html__( 'From email address', 'bricks' ),
 		];
 
 		$this->controls['confirmationEmailContent'] = [
@@ -1105,7 +1311,6 @@ class Element_Form extends Element {
 			'placeholder' => esc_html__( 'Select', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $mailchimp_list_options,
-			'required'    => [ 'actions', '=', 'mailchimp' ],
 			'required'    => [ 'apiKeyMailchimp', '!=', '', 'globalSettings' ],
 		];
 
@@ -1117,7 +1322,10 @@ class Element_Form extends Element {
 			'type'        => 'select',
 			'options'     => [], // Populate in builder via 'mailchimpList' (PanelControl.vue)
 			'multiple'    => true,
-			'required'    => [ 'apiKeyMailchimp', '!=', '', 'globalSettings' ],
+			'required'    => [
+				[ 'apiKeyMailchimp', '!=', '', 'globalSettings' ],
+				[ 'mailchimpList', '!=', '' ],
+			],
 		];
 
 		$this->controls['mailchimpEmail'] = [
@@ -1351,12 +1559,48 @@ class Element_Form extends Element {
 			'map_fields'  => true,
 		];
 
+		// @since 1.10.2
+		$role_names = wp_roles()->get_names();
+
+		// Remove 'Administrator' & 'Super Admin' roles
+		if ( isset( $role_names['administrator'] ) ) {
+			unset( $role_names['administrator'] );
+		}
+
+		if ( isset( $role_names['super_admin'] ) ) {
+			unset( $role_names['super_admin'] );
+		}
+
+		$default_user_role = get_option( 'default_role' );
+
+		$this->controls['registrationRole'] = [
+			'tab'         => 'content',
+			'group'       => 'registration',
+			'label'       => esc_html__( 'Role', 'bricks' ),
+			'desc'        => esc_html__( 'Administrator role is not allowed as a security precaution.', 'bricks' ),
+			'type'        => 'select',
+			'options'     => $role_names,
+			'placeholder' => $role_names[ $default_user_role ] ?? '',
+		];
+
 		$this->controls['registrationAutoLogin'] = [
 			'tab'         => 'content',
 			'group'       => 'registration',
 			'label'       => esc_html__( 'Auto log in user', 'bricks' ),
 			'type'        => 'checkbox',
 			'description' => esc_html__( 'Log in user after successful registration. Tip: Set action "Redirect" to redirect user to the account/admin area.', 'bricks' ),
+		];
+
+		// Send WordPress notification (@since 1.12.2)
+		$this->controls['registrationWPNotification'] = [
+			'tab'         => 'content',
+			'group'       => 'registration',
+			'label'       => esc_html__( 'Send WordPress notification', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => sprintf(
+				esc_html__( 'Trigger "register_new_user" action to send WordPress notification. %s', 'bricks' ),
+				Helpers::article_link( 'form-element/#login-registration', esc_html__( 'Learn more', 'bricks' ) )
+			),
 		];
 
 		// Group: Lost password
@@ -1509,6 +1753,13 @@ class Element_Form extends Element {
 			'required'    => [ 'enableHCaptcha', '=', 'visible' ],
 		];
 
+		$this->controls['honeypotInfo'] = [
+			'tab'     => 'content',
+			'group'   => 'spam',
+			'content' => esc_html__( 'Honeypot: Create form field(s) and enable the "Honeypot" checkbox. Those honeypot fields aren\'t visible to users, but add an extra layer of protection against spam submissions.', 'bricks' ),
+			'type'    => 'info',
+		];
+
 		// Upload Button (remove "Text" control group)
 		$this->controls['uploadButtonTypography'] = [
 			'tab'        => 'content',
@@ -1634,12 +1885,31 @@ class Element_Form extends Element {
 				'placeholder' => esc_html__( 'Duplicate entries not allowed.', 'bricks' ),
 			];
 		}
+
+		// Password protection (@since 1.11.1)
+		$this->controls['passwordProtectionPassword'] = [
+			'tab'         => 'content',
+			'group'       => 'unlock-password-protection',
+			'label'       => esc_html__( 'Field', 'bricks' ) . ': ' . esc_html__( 'Password', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [], // Auto-populate with form fields
+			'map_fields'  => true, // NOTE: Undocumented
+			'description' => esc_html__( 'If no form field is selected, the first password field in the form is used.', 'bricks' ),
+		];
+
+		$this->controls['passwordProtectionErrorMessage'] = [
+			'tab'   => 'content',
+			'group' => 'unlock-password-protection',
+			'label' => esc_html__( 'Error message', 'bricks' ),
+			'type'  => 'text',
+		];
 	}
 
 	public function render() {
 		$settings = $this->settings;
+		$fields   = $settings['fields'] ?? [];
 
-		if ( empty( $settings['fields'] ) ) {
+		if ( empty( $fields ) ) {
 			return $this->render_element_placeholder(
 				[
 					'title' => esc_html__( 'No form field added.', 'bricks' ),
@@ -1662,8 +1932,35 @@ class Element_Form extends Element {
 
 		$this->set_attribute( '_root', 'method', 'post' );
 
+		// Add notice data (@since 1.11.1)
+		$notice_data = [];
+
+		if ( isset( $settings['noticeCloseAfter'] ) ) {
+			$notice_data['closeAfter'] = $settings['noticeCloseAfter'] ?? 3000;
+		}
+
+		if ( isset( $settings['noticeCloseButton'] ) ) {
+			$notice_data['closeButton'] = $settings['noticeCloseButton'];
+		}
+
+		// Only add notice data if any notice settings are set
+		if ( ! empty( $notice_data ) ) {
+			$this->set_attribute( '_root', 'data-notice', wp_json_encode( $notice_data ) );
+		}
+
+		// @since 1.12: Add form error message trigger, if set (as JSON)
+		if ( isset( $settings['disableFormValidationOn'] ) ) {
+			$this->set_attribute( '_root', 'data-validation-disabled-on', wp_json_encode( $settings['disableFormValidationOn'] ) );
+		}
+
 		// Use form element ID to get element settings in form submit logic
 		$this->set_attribute( '_root', 'data-element-id', $this->id );
+
+		// Form inside loop: Store the loop object ID, so we can use it in the form submit logic (@since 1.11)
+		$loop_id = Query::get_loop_object_id();
+		if ( $loop_id ) {
+			$this->set_attribute( '_root', 'data-loop-object-id', $loop_id );
+		}
 
 		// Use form global element ID to store as form_id (@since 1.9.2)
 		$global_element_id = Helpers::get_global_element( $this->element, 'global' );
@@ -1673,19 +1970,90 @@ class Element_Form extends Element {
 
 		$this->set_attribute( 'enctype', 'method', 'multipart/form-data' );
 
+		// Check if this form is for password protection
+		$is_password_protection_form = false;
+
+		if ( isset( $settings['actions'] ) && in_array( 'unlock-password-protection', $settings['actions'], true ) ) {
+			$password_protection_template_id = \Bricks\Database::$active_templates['password_protection'] ?? 0;
+
+			if ( isset( $password_protection_template_id ) ) {
+				$is_password_protection_form = Password_Protection::verify_form_in_template( $this->id, $password_protection_template_id );
+			}
+
+			// Check if this post is password protected by WordPress
+			if ( post_password_required() ) {
+				$this->set_attribute( '_root', 'action', wp_login_url() . '?action=postpass' );
+
+				// Change password field name to what WP expects
+				foreach ( $fields as &$field ) {
+					if ( $field['type'] === 'password' ) {
+						$field['name'] = 'post_password';
+						break;
+					}
+				}
+			}
+
+		}
+
+		// If this is the password protection form, add the hidden input
+		if ( $is_password_protection_form ) {
+			$this->set_attribute( 'password_protection_template_id', 'type', 'hidden' );
+			$this->set_attribute( 'password_protection_template_id', 'name', 'brx_pp_temp_id' );
+			$this->set_attribute( 'password_protection_template_id', 'value', $password_protection_template_id );
+		}
+
 		// Append suffix for unique label HTML attributes inside a loop (@since 1.8)
 		$field_suffix = Query::is_any_looping() ? '-' . Query::is_any_looping() . '-' . Query::get_loop_index() : '';
 
-		foreach ( $settings['fields'] as $index => $field ) {
+		// Generate unique ID for each field (@since 1.12.2)
+		// We need to generate them before main loop below, so we can use it for Honeypot style generation
+		$fields = array_map(
+			function( $field ) use ( $field_suffix ) {
+				$field['unique_id'] = Helpers::generate_random_id( false ) . $field_suffix;
+				return $field;
+			},
+			$fields
+		);
+
+		// Output inline honeypot styles above the form (@since 1.12.2)
+		$honeypot_css = $this->generate_honeypot_field_styles( $fields );
+		if ( ! empty( $honeypot_css ) ) {
+			echo '<style>' . $honeypot_css . '</style>';
+		}
+
+		foreach ( $fields as $index => $field ) {
 			// Field ID generated when rendering form repeater in builder panel
 			$field_id = isset( $field['id'] ) ? $field['id'] : '';
 
 			// Get a unique field ID to avoid conflicts when the form is inside a query loop or it was duplicated
-			$input_unique_id = Helpers::generate_random_id( false ) . $field_suffix;
+			// Generating outside this loop (@since 1.12.2)
+			$input_unique_id = $field['unique_id'];
 
 			// Field wrapper
 			if ( $field['type'] !== 'hidden' ) {
 				$this->set_attribute( "field-wrapper-$index", 'class', [ 'form-group', $field['type'] === 'file' ? 'file' : '' ] );
+			}
+
+			// Honeypot field: Set attributes (@since 1.12.2)
+			if ( isset( $field['isHoneypot'] ) ) {
+
+				// Set autocomplete attribute to "nope" ("off" may not work in some browsers)
+				$field['autocomplete'] = 'nope';
+
+				// If the field is "select", we need to add "autocomplete" attribute even here
+				if ( $field['type'] === 'select' ) {
+					$this->set_attribute( "field-$index", 'autocomplete', $field['autocomplete'] );
+				}
+
+				// Set value to empty
+				$field['value'] = '';
+
+				// Remove "required" attribute
+				unset( $field['required'] );
+
+				// Set "tabindex" to -1 to prevent focus
+				$this->set_attribute( "field-$index", 'tabindex', '-1' );
+
 			}
 
 			// Field label
@@ -1748,7 +2116,7 @@ class Element_Form extends Element {
 					'enableTime' => isset( $field['time'] ),
 					'minTime'    => isset( $field['minTime'] ) ? $field['minTime'] : '',
 					'maxTime'    => isset( $field['maxTime'] ) ? $field['maxTime'] : '',
-					'altInput'   => true,
+					'altInput'   => false, // Set to false to avoid unnecessary hidden input field (@since 1.10.2)
 					'altFormat'  => $date_format,
 					'dateFormat' => $date_format,
 					'time_24hr'  => $time_24h,
@@ -1799,11 +2167,35 @@ class Element_Form extends Element {
 				$this->set_attribute( "field-$index", 'aria-label', $field['label'] );
 			}
 
+			// Text default (@since 1.9.9)
+			if ( $field['type'] === 'text' && ! isset( $field['spellcheck'] ) ) {
+				$this->set_attribute( "field-$index", 'spellcheck', 'false' );
+			}
+
+			// Textarea default (@since 1.9.9)
+			if ( $field['type'] === 'textarea' ) {
+				if ( ! empty( $field['autocomplete'] ) ) {
+					$this->set_attribute( "field-$index", 'autocomplete', esc_attr( $field['autocomplete'] ) );
+				}
+
+				$this->set_attribute( "field-$index", 'spellcheck', ! empty( $field['spellcheck'] ) ? esc_attr( $field['spellcheck'] ) : 'false' );
+			}
+
 			// Input types type & value
 			if ( in_array( $field['type'], $input_types ) ) {
 				$field_type = $field['type'] == 'datepicker' ? 'text' : $field['type'];
 
 				$this->set_attribute( "field-$index", 'type', $field_type );
+
+				// Attribute: autocomplete (@since 1.9.9)
+				if ( ! empty( $field['autocomplete'] ) ) {
+					$this->set_attribute( "field-$index", 'autocomplete', esc_attr( $field['autocomplete'] ) );
+				}
+
+				// Attribute: spellcheck (@since 1.9.9)
+				if ( ! empty( $field['spellcheck'] ) ) {
+					$this->set_attribute( "field-$index", 'spellcheck', esc_attr( $field['spellcheck'] ) );
+				}
 
 				/**
 				 * Set 'value' attribute (if field type is not file)
@@ -1838,15 +2230,30 @@ class Element_Form extends Element {
 				}
 			}
 
-			// Turn off spell check for input and textarea
-			if ( $field['type'] === 'text' || $field['type'] === 'textarea' ) {
-				$this->set_attribute( "field-$index", 'spellcheck', 'false' );
+			// Max. length support (same as placeholder, without datepicker)
+			$max_length_support = array_diff( $placeholder_support, [ 'datepicker' ] );
+
+			if ( in_array( $field['type'], $max_length_support ) ) {
+				$max_length = $field['maxLength'] ?? false;
+
+				// Ensure max_length is an positive integer
+				if ( ! is_numeric( $max_length ) || $max_length < 0 ) {
+					$max_length = false;
+				}
+
+				// Email: Limit to 320 characters by default (RCF 3696 - https://datatracker.ietf.org/doc/html/rfc3696.html)
+				if ( $max_length === false && $field['type'] === 'email' ) {
+					$max_length = 320;
+				}
+
+				if ( $max_length !== false ) {
+					$this->set_attribute( "field-$index", 'maxlength', $max_length );
+				}
 			}
 
 			if ( isset( $field['required'] ) ) {
 				$this->set_attribute( "field-$index", 'required' );
 			}
-
 		}
 
 		// Submit button
@@ -1880,33 +2287,31 @@ class Element_Form extends Element {
 		?>
 		<form <?php echo $this->render_attributes( '_root' ); ?>>
 			<?php
-			// STEP: Check if this is a reset password form & add hidden fields from URL query
-			if ( isset( $settings['resetPasswordNew'], $settings['actions'] ) &&
-				is_array( $settings['actions'] ) &&
-				in_array( 'reset-password', $settings['actions'] )
-			) {
-				?>
-				<input type="hidden" name="form-field-key" value="<?php echo esc_attr( $_GET['key'] ?? '' ); ?>">
-				<input type="hidden" name="form-field-login" value="<?php echo esc_attr( $_GET['login'] ?? '' ); ?>">
-				<?php
+
+			// If this is the password protection form, render the hidden input
+			if ( $is_password_protection_form ) {
+					echo '<input ' . $this->render_attributes( 'password_protection_template_id' ) . '>';
 			}
 
-			// STEP: Check if 'redirect_to' is present in the URL and add it as a hidden field (@since 1.9.4)
-			if ( isset( $_GET['redirect_to'] ) ) {
-				$redirect_to = esc_url_raw( $_GET['redirect_to'] );
-
-				// Add hidden field for 'redirect_to'
-				echo '<input type="hidden" name="form-field-redirect_to" value="' . esc_attr( $redirect_to ) . '">';
-			}
-
-			foreach ( $settings['fields'] as $index => $field ) {
+			foreach ( $fields as $index => $field ) {
 				$field_value = isset( $field['value'] ) ? $this->render_dynamic_data( $field['value'] ) : ''; // @since 1.9.3
+
+				// Using field's unique_id (@since 1.12.2)
+				$checkbox_radio_unique_id = $field['unique_id'];
 
 				// Set the role and aria-labelledby attributes for the options wrapper (@since 1.9.6)
 				$this->set_attribute( "field-wrapper-$index", 'role', $field['type'] === 'radio' ? 'radiogroup' : 'group' );
 
-				// Group label ID for aria-labelledby (@since 1.9.6)
-				$this->set_attribute( "field-wrapper-$index", 'aria-labelledby', "label-{$field['id']}" );
+				/**
+				 * Group label ID for aria-labelledby
+				 *
+				 * @since 1.9.6
+				 * @since 1.9.9: Only needed for checkbox and radio as the label is a <div> element.
+				 * @since 1.12: Changed label to unique ID
+				 */
+				if ( ( $field['type'] === 'checkbox' || $field['type'] === 'radio' ) && ! empty( $field['label'] ) ) {
+					$this->set_attribute( "field-wrapper-$index", 'aria-labelledby', "label-{$checkbox_radio_unique_id}" );
+				}
 				?>
 
 				<div <?php echo $this->render_attributes( "field-wrapper-$index" ); ?>>
@@ -1917,8 +2322,9 @@ class Element_Form extends Element {
 				}
 
 				// Group label for checkbox or radio input using a <div> instead of <label> (@since 1.9.6)
-				elseif ( ! empty( $field['label'] ) && in_array( $field['type'], [ 'checkbox', 'radio' ] ) ) {
-					echo "<div class=\"label\" id=\"label-{$field['id']}\">{$field['label']}</div>";
+				elseif ( isset( $settings['showLabels'] ) && ! empty( $field['label'] ) && in_array( $field['type'], [ 'checkbox', 'radio' ] ) ) {
+					// Changed label to unique ID so it's unique if we duplicate the form (@since 1.12)
+					echo "<div class=\"label\" id=\"label-{$checkbox_radio_unique_id}\">{$field['label']}</div>";
 				}
 
 				/**
@@ -1944,12 +2350,37 @@ class Element_Form extends Element {
 					}
 				}
 
-				if ( in_array( $field['type'], $input_types ) ) {
+				if ( in_array( $field['type'], $input_types, true ) ) {
+					if ( ! empty( $field['passwordToggle'] ) ) { // @since 1.12
+						echo '<div class="password-input-wrapper">';
+					}
+
 					echo '<input ' . $this->render_attributes( "field-$index" ) . '>';
+
+					// Add password toggle button if enabled and this is a password field (@since 1.12)
+					if ( $field['type'] === 'password' && ! empty( $field['passwordToggle'] ) ) {
+						echo '<button type="button" class="password-toggle" aria-label="' . esc_attr__( 'Show password', 'bricks' ) . '">';
+
+						if ( ! empty( $field['passwordShowIcon'] ) ) {
+							echo '<span class="show-password">';
+							echo self::render_icon( $field['passwordShowIcon'] );
+							echo '</span>';
+						}
+
+						if ( ! empty( $field['passwordHideIcon'] ) ) {
+							echo '<span class="hide-password hide">';
+							echo self::render_icon( $field['passwordHideIcon'] );
+							echo '</span>';
+						}
+
+						echo '</button>';
+						echo '</div>'; // Close password-input-wrapper
+					}
 				}
 
 				if ( $field['type'] == 'file' ) {
-					$label = $field['fileUploadButtonText'] ?? esc_html__( 'Choose files', 'bricks' );
+					$label     = $field['fileUploadButtonText'] ?? esc_html__( 'Choose files', 'bricks' );
+					$close_svg = Helpers::file_get_contents( BRICKS_PATH_ASSETS . 'svg/frontend/close.svg' );
 
 					$this->set_attribute( "file-preview-$index", 'class', 'file-result' );
 					$this->set_attribute( "file-preview-$index", 'data-error-limit', esc_html__( 'File %s not accepted. File limit exceeded.', 'bricks' ) ); // phpcs:ignore WordPress.WP.I18n.MissingTranslatorsComment
@@ -1960,6 +2391,7 @@ class Element_Form extends Element {
 				<div <?php echo $this->render_attributes( "file-preview-$index" ); ?>>
 					<span class="text"></span>
 					<button type="button" class="bricks-button remove"><?php esc_html_e( 'Remove', 'bricks' ); ?></button>
+					<?php echo $close_svg; ?>
 				</div>
 
 				<label <?php echo $this->render_attributes( "label-$index" ); ?>><?php echo $label; ?></label>
@@ -1985,8 +2417,20 @@ class Element_Form extends Element {
 						echo '<option value="" class="placeholder">' . $select_placeholder . '</option>';
 					}
 					?>
-					<?php foreach ( $select_options as $select_option ) { ?>
-					<option value="<?php echo esc_attr( strip_tags( $select_option ) ); ?>" <?php selected( $field_value ?? '', $select_option ); ?>><?php echo strip_tags( $select_option ); ?></option>
+					<?php
+					foreach ( $select_options as $select_option ) {
+						$field_key   = trim( $select_option );
+						$field_label = trim( $select_option );
+
+						if ( isset( $field['valueLabelOptions'] ) ) {
+							$parts = $this->split_text( $select_option );
+
+							$field_key   = $parts['key'];
+							$field_label = $parts['value'];
+						}
+						?>
+
+					<option value="<?php echo esc_attr( strip_tags( $field_key ) ); ?>" <?php selected( $field_value ?? '', $field_key ); ?>><?php echo strip_tags( $field_label ); ?></option>
 					<?php } ?>
 				</select>
 				<?php } ?>
@@ -1997,30 +2441,89 @@ class Element_Form extends Element {
 					?>
 				<ul class="options-wrapper" <?php echo $this->render_attributes( "options-wrapper-$index" ); ?>>
 					<?php $options = Helpers::parse_textarea_options( $field['options'] ); ?>
-					<?php foreach ( $options as $key => $value ) { ?>
+					<?php
+					foreach ( $options as $key => $value ) {
+						$field_key   = trim( $value );
+						$field_label = trim( $value );
+
+						if ( isset( $field['valueLabelOptions'] ) ) {
+							$parts = $this->split_text( $value );
+
+							$field_key   = $parts['key'];
+							$field_label = $parts['value'];
+						}
+
+						// Get field name
+						$field_name = "form-field-{$field['id']}";
+
+						// Use custom field name
+						if ( isset( $field['name'] ) ) {
+							$field_name = $field['name'];
+						}
+
+						// Append [] to the field name to make it an array
+						// Even if it's a single value like a radio button (for backwards compatibility)
+						$field_name .= '[]';
+						?>
 					<li>
 						<input
 							type="<?php echo esc_attr( $field['type'] ); ?>"
-							id="<?php echo esc_attr( "form-field-{$field['id']}" ) . '-' . $key . $field_suffix; ?>"
-							name="<?php echo esc_attr( "form-field-{$field['id']}" ); ?>[]"
+							id="<?php echo esc_attr( "form-field-{$checkbox_radio_unique_id}" ) . '-' . $key . $field_suffix; ?>"
+							name="<?php echo $field_name; ?>"
 							<?php
 							if ( isset( $field['required'] ) ) {
-								echo esc_attr( 'required' ); }
-							if ( $field['type'] === 'checkbox' && is_array( $checked_values ) && in_array( $value, $checked_values, true ) ) {
-								echo 'checked';
+								echo esc_attr( 'required ' );
 							}
-							if ( $field['type'] === 'radio' && $value === $field_value ) {
-								echo 'checked';
+
+							// Is "Honeypot" field: Add "tabindex" to -1 to prevent focus (@since 1.12.2)
+							if ( isset( $field['isHoneypot'] ) ) {
+								echo 'tabindex="-1"';
+							}
+
+							if ( $field['type'] === 'checkbox' && is_array( $checked_values ) && in_array( $field_key, $checked_values, true ) ) {
+								echo esc_attr( 'checked' );
+							}
+
+							if ( $field['type'] === 'radio' && $field_key === $field_value ) {
+								echo esc_attr( 'checked' );
 							}
 							?>
-							value="<?php echo esc_attr( strip_tags( $value ) ); ?>">
-							<label for="<?php echo esc_attr( "form-field-{$field['id']}" ) . '-' . $key . $field_suffix; ?>"><?php echo $value; ?></label>
+							value="<?php echo esc_attr( strip_tags( $field_key ) ); ?>">
+							<label for="<?php echo esc_attr( "form-field-{$checkbox_radio_unique_id}" ) . '-' . $key . $field_suffix; ?>"><?php echo $field_label; ?></label>
 					</li>
 					<?php } ?>
 				</ul>
 				<?php } ?>
 			</div>
 				<?php
+			}
+
+			/**
+			 * STEP: Check if this is a reset password form & add hidden fields from URL query
+			 *
+			 * @since 1.10.2: Render hidden fields last to prevent nth-child CSS issues
+			 */
+			if ( isset( $settings['resetPasswordNew'], $settings['actions'] ) &&
+				is_array( $settings['actions'] ) &&
+				in_array( 'reset-password', $settings['actions'] )
+			) {
+				?>
+				<input type="hidden" name="form-field-key" value="<?php echo esc_attr( $_GET['key'] ?? '' ); ?>">
+				<input type="hidden" name="form-field-login" value="<?php echo esc_attr( $_GET['login'] ?? '' ); ?>">
+				<?php
+			}
+
+			/**
+			 * STEP: Check if 'redirect_to' is present in the URL and add it as a hidden field
+			 *
+			 * @since 1.9.4
+			 * @since 1.11: Make sure there's a login action in the form settings
+			 */
+			if ( isset( $settings['actions'] ) && is_array( $settings['actions'] ) && in_array( 'login', $settings['actions'] ) && isset( $_GET['redirect_to'] ) ) {
+				$redirect_to = esc_url_raw( $_GET['redirect_to'] );
+
+				// Add hidden field for 'redirect_to'
+				echo '<input type="hidden" name="form-field-redirect_to" value="' . esc_attr( $redirect_to ) . '">';
 			}
 
 			// Submit button icon
@@ -2068,6 +2571,34 @@ class Element_Form extends Element {
 			</div>
 		</form>
 		<?php
+	}
+
+	/**
+	 * Split a text into key-value pairs
+	 *
+	 * This function takes a text and splits it into key-value pairs using the colon (:) as the delimiter.
+	 * If the text contains a colon, it will split the text into two parts: the key and the value.
+	 * If the text does not contain a colon, it will use the entire text as both the key and the value.
+	 *
+	 * @param string $text The text to split.
+	 * @return array An array containing the key-value pairs.
+	 *
+	 * @since 1.10.2
+	 */
+	public function split_text( $text ) {
+		$parts = explode( ':', $text, 2 );
+
+		if ( count( $parts ) === 2 ) {
+			return [
+				'key'   => trim( ! empty( $parts[0] ) ? $parts[0] : $parts[1] ),
+				'value' => trim( ! empty( $parts[1] ) ? $parts[1] : $parts[0] ),
+			];
+		}
+
+		return [
+			'key'   => trim( $text ),
+			'value' => trim( $text ),
+		];
 	}
 
 	/**
@@ -2176,5 +2707,72 @@ class Element_Form extends Element {
 		$this->set_attribute( 'turnstile', 'data-sitekey', Database::$global_settings['apiKeyTurnstile'] );
 
 		return "<div {$this->render_attributes( 'turnstile' )}></div>";
+	}
+
+	/**
+	 * Generate CSS styles for honeypot fields
+	 *
+	 * @param array $fields The form fields
+	 *
+	 * @since 1.12.2
+	 */
+	public function generate_honeypot_field_styles( $fields ) {
+		$honeypot_selectors = [];
+		$css                = '';
+
+		foreach ( $fields as $index => $field ) {
+			// Target only honeypot fields
+			if ( ! isset( $field['isHoneypot'] ) ) {
+				continue;
+			}
+
+			// If type is "select", we need to target the select element
+			if ( $field['type'] === 'select' ) {
+				$honeypot_selectors[] = "select#form-field-{$field['unique_id']}";
+			}
+
+			// If type is "textarea", we need to target the textarea element
+			elseif ( $field['type'] === 'textarea' ) {
+				$honeypot_selectors[] = "textarea#form-field-{$field['unique_id']}";
+			}
+
+			// If type is "checkbox" or "radio" we need to check if ID *starts* with the unique ID
+			elseif ( $field['type'] === 'checkbox' || $field['type'] === 'radio' ) {
+				$honeypot_selectors[] = "input[id^='form-field-{$field['unique_id']}']";
+			}
+
+			// Default: Target input fields
+			else {
+				$honeypot_selectors[] = "input#form-field-{$field['unique_id']}";
+			}
+		}
+
+		// If we have honeypot fields, generate CSS
+		if ( ! empty( $honeypot_selectors ) ) {
+			$css = 'div.form-group:has(' . implode( ',', $honeypot_selectors ) . ')';
+
+			// Set defined CSS rules
+			$css_properties = [
+				'opacity'  => '0 !important',
+				'position' => 'absolute !important',
+				'top'      => '-9999px !important',
+				'left'     => '-9999px !important',
+				'height'   => '0 !important',
+				'width'    => '0 !important',
+				'z-index'  => '-1 !important',
+				'padding'  => '0 !important',
+			];
+
+			$css .= '{' . implode(
+				';',
+				array_map(
+					fn( $key, $value) => "$key: $value",
+					array_keys( $css_properties ),
+					$css_properties
+				)
+			) . '}';
+		}
+
+		return $css;
 	}
 }

@@ -169,7 +169,6 @@ class Element_Text_Link extends Element {
 			'label'    => esc_html__( 'Gap', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'required' => [ 'icon', '!=', '' ],
 			'css'      => [
 				[

@@ -13,14 +13,24 @@ class Element_Post_Sharing extends Element {
 		return esc_html__( 'Social Sharing', 'bricks' );
 	}
 
-	public function enqueue_scripts() {
+	/**
+	 * No longer needed as we use "title" attribute instead of tooltips
+	 * which can overflow the viewport on RTL, etc.
+	 *
+	 * @since 1.12
+	 */
+	// public function enqueue_scripts() {
 		// balloon.css tooltip library
-		wp_enqueue_style( 'bricks-tooltips' );
-	}
+		// wp_enqueue_style( 'bricks-tooltips' );
+	// }
 
 	public function set_controls() {
+		// Overwrite base.php root selector for all height controls
+		$this->controls['_width']['css'][0]['selector']    = $this->css_selector;
+		$this->controls['_widthMin']['css'][0]['selector'] = $this->css_selector;
+		$this->controls['_widthMax']['css'][0]['selector'] = $this->css_selector;
+
 		$this->controls['_margin']['css'][0]['selector'] = 'li';
-		$this->controls['_width']['css'][0]['selector']  = 'a';
 
 		$this->controls['items'] = [
 			'tab'           => 'content',
@@ -41,6 +51,7 @@ class Element_Post_Sharing extends Element {
 						'pinterest' => 'Pinterest',
 						'telegram'  => 'Telegram',
 						'vkontakte' => 'VKontakte',
+						'bluesky'   => 'Bluesky',
 						'email'     => esc_html__( 'Email', 'bricks' ),
 					],
 				],
@@ -86,6 +97,7 @@ class Element_Post_Sharing extends Element {
 				[ 'service' => 'pinterest' ],
 				[ 'service' => 'telegram' ],
 				[ 'service' => 'vkontakte' ],
+				[ 'service' => 'bluesky' ],
 				[ 'service' => 'email' ],
 			],
 		];
@@ -175,7 +187,8 @@ class Element_Post_Sharing extends Element {
 
 		echo "<ul {$this->render_attributes( '_root' )}>";
 
-		$items_count = count( $items );
+		// No longer needed (@since 1.12)
+		// $items_count = count( $items );
 
 		foreach ( $items as $index => $item ) {
 			$service    = ! empty( $item['service'] ) ? $item['service'] : false;
@@ -276,6 +289,18 @@ class Element_Post_Sharing extends Element {
 					];
 					break;
 
+				case 'bluesky':
+					$aria_label = 'Bluesky';
+
+					$data = [
+						'url'     => "https://bsky.app/intent/compose?text={$title}%20{$url}",
+						// translators: %s: Service name
+						'tooltip' => sprintf( esc_html__( 'Share on %s', 'bricks' ), $aria_label ),
+						'class'   => 'bluesky',
+						'icon'    => $icon ? $icon : Helpers::file_get_contents( BRICKS_PATH_ASSETS . 'svg/frontend/bluesky.svg' ),
+					];
+					break;
+
 				case 'email':
 					$aria_label = esc_html__( 'Email', 'bricks' );
 
@@ -289,10 +314,12 @@ class Element_Post_Sharing extends Element {
 			}
 
 			if ( $data ) {
-				// Tooltip position to avoid overflow (@since 1.9.8)
-				$tooltip_pos = $index < $items_count / 2 ? 'top-left' : 'top-right';
+				// No longer needed with the use of the 'title' attribute (@since 1.12)
+				// Tooltip position to avoid overflow
+				// $tooltip_pos = $index < $items_count / 2 ? 'top-left' : 'top-right';
 
-				echo "<li data-balloon=\"{$data['tooltip']}\" data-balloon-pos=\"$tooltip_pos\">";
+				// Set 'title' attribute instead of 'data-balloon' tooltip (@since 1.12)
+				echo "<li title=\"{$data['tooltip']}\" >";
 
 				$this->set_attribute( "link-{$index}", 'class', $data['class'] );
 				$this->set_attribute( "link-{$index}", 'href', $data['url'] );

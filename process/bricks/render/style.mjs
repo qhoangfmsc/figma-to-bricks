@@ -22,7 +22,8 @@ export function applyStyle(ctx, { skipFill = false } = {}) {
   applyFill(ctx, { skipFill });
   const border = {}; // stroke and radius both write the Bricks `_border` object
   const line = applyLine(ctx); // a LINE draws its stroke itself (zero thickness box), no border / rotation
-  if (!line) applyStroke(ctx, border);
+  // A component can own the stroke itself (the menu Active underline is a class, so it can move on click).
+  if (!line && !ctx.skipStroke) applyStroke(ctx, border);
   applyRadius(ctx, border);
   if (Object.keys(border).length) ctx.s._border = border;
   applyEffects(ctx);

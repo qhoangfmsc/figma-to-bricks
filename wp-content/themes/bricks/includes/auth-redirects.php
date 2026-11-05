@@ -17,6 +17,8 @@ class Auth_Redirects {
 	public function __construct() {
 		add_action( 'wp_loaded', [ $this, 'handle_auth_redirects' ] );
 		add_action( 'wp_login', [ $this, 'clear_bypass_auth_cookie' ] );
+		add_filter( 'retrieve_password_message', [ $this, 'modify_reset_password_email' ], 10, 4 );
+		add_filter( 'logout_redirect', [ $this, 'handle_logout_redirect' ], 10, 3 ); // @since 1.12.2
 	}
 
 	/**
@@ -25,6 +27,11 @@ class Auth_Redirects {
 	 * Depending on the current URL and the action parameter, decides which page to redirect to.
 	 */
 	public function handle_auth_redirects() {
+		// Is a WooCommerce auth page: Let WooCommerce handle its own auth pages (@since 1.11)
+		if ( $this->is_woocommerce_auth_page() ) {
+			return;
+		}
+
 		/**
 		 * STEP: Set the bypass cookie (expires in 5 minutes)
 		 *
@@ -59,6 +66,31 @@ class Auth_Redirects {
 		$wp_registration_url_path  = wp_parse_url( wp_registration_url(), PHP_URL_PATH );
 		$wp_lost_password_url_path = wp_parse_url( wp_lostpassword_url(), PHP_URL_PATH );
 
+		// Get the home path
+		$home_path = wp_parse_url( home_url(), PHP_URL_PATH );
+
+		// Fallback to '/' if home path is empty to prevent preg_quote error (e.g. URL ends with port number)
+		if ( ! $home_path ) {
+			$home_path = '/';
+		}
+
+		// Remove home path from request URI
+		$current_url_path = preg_replace( '/^' . preg_quote( $home_path, '/' ) . '/', '', $request_uri );
+
+		// Remove query string if present
+		$current_url_path = strtok( $current_url_path, '?' );
+
+		// Normalize paths by trimming trailing slashes (@since 1.12.2)
+		$current_url_path          = rtrim( $current_url_path, '/' );
+		$wp_login_url_path         = rtrim( $wp_login_url_path, '/' );
+		$wp_registration_url_path  = rtrim( $wp_registration_url_path, '/' );
+		$wp_lost_password_url_path = rtrim( $wp_lost_password_url_path, '/' );
+
+		// Also remove home path from WordPress URLs
+		$wp_login_url_path         = preg_replace( '/^' . preg_quote( $home_path, '/' ) . '/', '', $wp_login_url_path );
+		$wp_registration_url_path  = preg_replace( '/^' . preg_quote( $home_path, '/' ) . '/', '', $wp_registration_url_path );
+		$wp_lost_password_url_path = preg_replace( '/^' . preg_quote( $home_path, '/' ) . '/', '', $wp_lost_password_url_path );
+
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : null;
 
 		// STEP: Filter to allow custom logic for redirects
@@ -69,25 +101,161 @@ class Auth_Redirects {
 			exit;
 		}
 
-		if ( $current_url_path === $wp_login_url_path ) { // Login page & actions
+		// STEP: Check WordPress authentication URL (@since 1.11)
+		$wp_auth_url_behavior = Database::get_setting( 'wp_auth_url_behavior', 'default' );
+
+		// Login page & actions
+		if ( strpos( $current_url_path, $wp_login_url_path ) === 0 ) {
 			switch ( $action ) {
 				case null:
-					$this->redirect_to_custom_login_page();
+				case 'login':
+					$this->handle_login_redirect( $wp_auth_url_behavior );
 					break;
+
 				case 'lostpassword':
-					$this->redirect_to_custom_lost_password_page();
+					$this->handle_lost_password_redirect( $wp_auth_url_behavior );
 					break;
+
 				case 'register':
-					$this->redirect_to_custom_registration_page();
+					$this->handle_registration_redirect( $wp_auth_url_behavior );
 					break;
+
 				case 'rp': // Reset password
-					$this->redirect_to_custom_reset_password_page();
+					$this->handle_reset_password_redirect( $wp_auth_url_behavior );
+					break;
+
+				case 'logout':
+					$this->handle_logout_behavior( $wp_auth_url_behavior );
+					break;
+
+				default:
+					// Handle unrecognized actions (@since 1.12)
+					$this->handle_custom_behavior( $wp_auth_url_behavior );
 					break;
 			}
-		} elseif ( $current_url_path === $wp_registration_url_path ) { // Registration page fallback
+		}
+
+		// Registration page fallback
+		elseif ( $current_url_path === $wp_registration_url_path ) {
+			$this->handle_registration_redirect( $wp_auth_url_behavior );
+		}
+
+		// Lost password page fallback
+		elseif ( $current_url_path === $wp_lost_password_url_path ) {
+			$this->handle_lost_password_redirect( $wp_auth_url_behavior );
+		}
+	}
+
+	/**
+	 * Handle custom behavior for WordPress auth URLs.
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $behavior The selected behavior: 404/home/custom.
+	 */
+	private function handle_custom_behavior( $behavior ) {
+		switch ( $behavior ) {
+			case '404':
+				global $wp_query;
+				$wp_query->set_404();
+				\Bricks\Database::set_active_templates();
+				status_header( 404 );
+				get_template_part( 404 );
+				exit;
+			case 'home':
+				wp_safe_redirect( home_url() );
+				exit;
+			case 'custom':
+				$redirect_page_id = Database::get_setting( 'wp_auth_url_redirect_page' );
+				if ( $redirect_page_id && $this->is_custom_page_valid( $redirect_page_id ) ) {
+					wp_safe_redirect( get_permalink( $redirect_page_id ) );
+					exit;
+				}
+				// Fallback to home if no valid page is set
+				wp_safe_redirect( home_url() );
+				exit;
+		}
+	}
+
+	/**
+	 * Handle logout specific behavior
+	 *
+	 * @since 1.12.2
+	 *
+	 * @param string $behavior The selected behavior: 404/home/custom.
+	 */
+	private function handle_logout_behavior( $behavior ) {
+		// Let WordPress handle the actual logout process (otherwise the user might not be logged out due to wp_auth_url_redirect_page)
+		// Our logout_redirect filter will handle the redirect for logged-in users
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		// For non-logged-in users, follow the custom behavior
+		$this->handle_custom_behavior( $behavior );
+	}
+
+	/**
+	 * Handle login page redirect
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $behavior The selected behavior.
+	 */
+	private function handle_login_redirect( $behavior ) {
+		$custom_login_page = Database::get_setting( 'login_page' );
+		if ( $custom_login_page && $behavior !== 'default' ) {
+			$this->handle_custom_behavior( $behavior );
+		} else {
+			$this->redirect_to_custom_login_page();
+		}
+	}
+
+	/**
+	 * Handle registration page redirect
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $behavior The selected behavior.
+	 */
+	private function handle_registration_redirect( $behavior ) {
+		$custom_registration_page = Database::get_setting( 'registration_page' );
+		if ( $custom_registration_page && $behavior !== 'default' ) {
+			$this->handle_custom_behavior( $behavior );
+		} else {
 			$this->redirect_to_custom_registration_page();
-		} elseif ( $current_url_path === $wp_lost_password_url_path ) { // Lost password page fallback
+		}
+	}
+
+	/**
+	 * Handle lost password page redirect
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $behavior The selected behavior.
+	 */
+	private function handle_lost_password_redirect( $behavior ) {
+		$custom_lost_password_page = Database::get_setting( 'lost_password_page' );
+		if ( $custom_lost_password_page && $behavior !== 'default' ) {
+			$this->handle_custom_behavior( $behavior );
+		} else {
 			$this->redirect_to_custom_lost_password_page();
+		}
+	}
+
+	/**
+	 * Handle reset password page redirect
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $behavior The selected behavior.
+	 */
+	private function handle_reset_password_redirect( $behavior ) {
+		$custom_reset_password_page = Database::get_setting( 'reset_password_page' );
+		if ( $custom_reset_password_page && $behavior !== 'default' ) {
+			$this->handle_custom_behavior( $behavior );
+		} else {
+			$this->redirect_to_custom_reset_password_page();
 		}
 	}
 
@@ -174,15 +342,14 @@ class Auth_Redirects {
 
 			// Preserve query parameters
 			if ( ! empty( $_SERVER['QUERY_STRING'] ) ) {
-				$custom_url = add_query_arg( $_GET, $custom_url );
-
 				$parameters = $_GET;
 				if ( is_array( $parameters ) ) {
+					// Sanitize all parameters
 					foreach ( $parameters as $key => $value ) {
-						$parameters[ $key ] = Helpers::sanitize_value( $value );
+						$sanitized_value = Helpers::sanitize_value( $value );
+						// Encode the value to ensure it's URL-safe (@since 1.12.3)
+						$custom_url = add_query_arg( $key, rawurlencode( $sanitized_value ), $custom_url );
 					}
-
-					$custom_url = add_query_arg( $key, $value, $custom_url );
 				}
 			}
 
@@ -202,5 +369,91 @@ class Auth_Redirects {
 	 */
 	private function is_custom_page_valid( $page_id ) {
 		return $page_id && get_post_status( $page_id ) === 'publish';
+	}
+
+	/**
+	 * Modifies the password reset email to use the custom reset password page URL.
+	 *
+	 * This modification only occurs if:
+	 * 1. A custom reset password page is set
+	 * 2. The WordPress auth URL behavior is not set to default
+	 *
+	 * @since 1.11
+	 *
+	 * @param string $message    The current email message.
+	 * @param string $key        The password reset key.
+	 * @param string $user_login The username for the user.
+	 * @param object $user_data  WP_User object.
+	 *
+	 * @return string The modified email message.
+	 */
+	public function modify_reset_password_email( $message, $key, $user_login, $user_data ) {
+		$custom_reset_page_id = Database::get_setting( 'reset_password_page' );
+
+		if ( $custom_reset_page_id &&
+			$this->is_custom_page_valid( $custom_reset_page_id ) ) {
+			// Replace the network URL with the current site URL in the message (@since 1.12.2)
+			$network_url      = network_site_url( 'wp-login.php' );
+			$custom_reset_url = get_permalink( $custom_reset_page_id );
+
+			// Replace the login URL while preserving query parameters
+			$message = str_replace( $network_url, $custom_reset_url, $message );
+		}
+
+		return $message;
+	}
+
+	/**
+	 * Check if the current page is a WooCommerce auth page
+	 *
+	 * @since 1.11
+	 * @return bool
+	 */
+	private function is_woocommerce_auth_page() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return false;
+		}
+
+		$current_url = esc_url_raw( $_SERVER['REQUEST_URI'] ?? '' );
+
+		// Check for WooCommerce-specific endpoints in the URL
+		$woo_endpoints = [
+			wc_get_endpoint_url( 'lost-password', '', wc_get_page_permalink( 'myaccount' ) ),
+			add_query_arg( [ 'show-reset-form' => 'true' ], wc_get_endpoint_url( 'lost-password', '', wc_get_page_permalink( 'myaccount' ) ) ),
+			wc_get_endpoint_url( 'customer-logout', '', wc_get_page_permalink( 'myaccount' ) ),
+		];
+
+		foreach ( $woo_endpoints as $endpoint ) {
+			$endpoint_path = wp_parse_url( $endpoint, PHP_URL_PATH );
+			if ( $endpoint_path && strpos( $current_url, $endpoint_path ) === 0 ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Handle redirect after successful logout
+	 *
+	 * @since 1.12.2
+	 *
+	 * @param string           $redirect_to           The redirect destination URL.
+	 * @param string           $requested_redirect_to The requested redirect destination URL.
+	 * @param WP_User|WP_Error $user                  The logged out user.
+	 * @return string
+	 */
+	public function handle_logout_redirect( $redirect_to, $requested_redirect_to, $user ) {
+		// Check if WordPress is trying to redirect to the login page
+		$wp_login_url = wp_login_url();
+		if ( strpos( $redirect_to, $wp_login_url ) === 0 ) {
+			// If we have a custom login page, use that instead (to get around wp_auth_url_behavior)
+			$custom_login_page = Database::get_setting( 'login_page' );
+			if ( $custom_login_page && $this->is_custom_page_valid( $custom_login_page ) ) {
+				return get_permalink( $custom_login_page ) . '?logged_out=true';
+			}
+		}
+
+		return $redirect_to;
 	}
 }

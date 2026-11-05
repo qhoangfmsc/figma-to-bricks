@@ -14,24 +14,20 @@ class Element_Social_Icons extends Element {
 	}
 
 	public function set_controls() {
+		// Overwrite base.php root selector for all height controls
 		$this->controls['_width']['css'][0]['selector']    = $this->css_selector;
 		$this->controls['_widthMin']['css'][0]['selector'] = $this->css_selector;
 		$this->controls['_widthMax']['css'][0]['selector'] = $this->css_selector;
 
-		$this->controls['_height']['css'][0]['selector']    = $this->css_selector;
-		$this->controls['_heightMin']['css'][0]['selector'] = $this->css_selector;
-		$this->controls['_heightMax']['css'][0]['selector'] = $this->css_selector;
-
-		$this->controls['_padding']['css'][0]['selector'] = $this->css_selector;
-
 		$this->controls['_margin']['css'][0]['selector']        = 'li';
+		$this->controls['_background']['css'][0]['selector']    = 'li';
 		$this->controls['_border']['css'][0]['selector']        = 'li';
 		$this->controls['_boxShadow']['css'][0]['selector']     = 'li';
+		$this->controls['_gradient']['css'][0]['selector']      = 'li';
 		$this->controls['_cssTransition']['css'][0]['selector'] = 'li';
 		$this->controls['_transform']['css'][0]['selector']     = 'li';
 
 		$this->controls['icons'] = [
-			'tab'           => 'content',
 			'type'          => 'repeater',
 			'label'         => esc_html__( 'Icons', 'bricks' ),
 			'placeholder'   => esc_html__( 'Icon', 'bricks' ),
@@ -47,10 +43,63 @@ class Element_Social_Icons extends Element {
 					],
 				],
 
+				'iconColor'  => [
+					'type'     => 'color',
+					'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Color', 'bricks' ),
+					'css'      => [
+						[
+							'property' => 'color',
+							'selector' => '.icon',
+						],
+					],
+					'required' => [ 'icon.icon', '!=', '' ],
+				],
+
+				'iconSize'   => [
+					'type'     => 'number',
+					'units'    => true,
+					'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Size', 'bricks' ),
+					'css'      => [
+						[
+							'property' => 'font-size',
+							'selector' => '.icon',
+						],
+					],
+					'required' => [ 'icon.icon', '!=', '' ],
+				],
+
 				'label'      => [
 					'type'   => 'text',
 					'label'  => esc_html__( 'Label', 'bricks' ),
 					'inline' => true,
+				],
+
+				'labelSize'  => [
+					'type'     => 'number',
+					'units'    => true,
+					'label'    => esc_html__( 'Label', 'bricks' ) . ': ' . esc_html__( 'Size', 'bricks' ),
+					'css'      => [
+						[
+							'property' => 'font-size',
+							'selector' => 'span',
+						],
+					],
+					'required' => [ 'icon.icon', '!=', '' ],
+				],
+
+				'color'      => [
+					'type'  => 'color',
+					'label' => esc_html__( 'Color', 'bricks' ),
+					'css'   => [
+						[
+							'selector' => '&.has-link a',
+							'property' => 'color',
+						],
+						[
+							'selector' => '&.no-link',
+							'property' => 'color',
+						],
+					],
 				],
 
 				'background' => [
@@ -59,16 +108,6 @@ class Element_Social_Icons extends Element {
 					'css'   => [
 						[
 							'property' => 'background-color',
-						],
-					],
-				],
-
-				'color'      => [
-					'type'  => 'color',
-					'label' => esc_html__( 'Color', 'bricks' ),
-					'css'   => [
-						[
-							'property' => 'color',
 						],
 					],
 				],
@@ -114,16 +153,48 @@ class Element_Social_Icons extends Element {
 			],
 		];
 
+		$this->controls['iconColor'] = [
+			'type'     => 'color',
+			'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Color', 'bricks' ),
+			'css'      => [
+				[
+					'property' => 'color',
+					'selector' => '.icon',
+				],
+			],
+			'required' => [ 'icons', '!=', '' ],
+		];
+
+		$this->controls['iconSize'] = [
+			'type'     => 'number',
+			'units'    => true,
+			'label'    => esc_html__( 'Icon', 'bricks' ) . ': ' . esc_html__( 'Size', 'bricks' ),
+			'css'      => [
+				[
+					'property' => 'font-size',
+					'selector' => '.icon',
+				],
+				[
+					'property' => 'height',
+					'selector' => 'svg',
+				],
+				[
+					'property' => 'width',
+					'selector' => 'svg',
+					'value'    => 'auto',
+				],
+			],
+			'required' => [ 'icons', '!=', '' ],
+		];
+
 		// Alignment
 
 		$this->controls['alignmentSeparator'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Alignment', 'bricks' ),
 			'type'  => 'separator',
 		];
 
 		$this->controls['direction'] = [
-			'tab'    => 'content',
 			'label'  => esc_html__( 'Direction', 'bricks' ),
 			'title'  => 'flex-direction',
 			'type'   => 'direction',
@@ -137,7 +208,6 @@ class Element_Social_Icons extends Element {
 		];
 
 		$this->controls['alignIcons'] = [
-			'tab'     => 'content',
 			'label'   => esc_html__( 'Align items', 'bricks' ),
 			'type'    => 'align-items',
 			'exclude' => 'stretch',
@@ -150,7 +220,6 @@ class Element_Social_Icons extends Element {
 		];
 
 		$this->controls['justifyIcons'] = [
-			'tab'     => 'content',
 			'label'   => esc_html__( 'Justify content', 'bricks' ),
 			'type'    => 'justify-content',
 			'exclude' => 'space',
@@ -163,7 +232,6 @@ class Element_Social_Icons extends Element {
 		];
 
 		$this->controls['gap'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Spacing', 'bricks' ) . ' (' . esc_html__( 'Items', 'bricks' ) . ')',
 			'type'        => 'number',
 			'units'       => true,
@@ -177,7 +245,6 @@ class Element_Social_Icons extends Element {
 		];
 
 		$this->controls['gapItem'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Spacing', 'bricks' ) . ' (' . esc_html__( 'Item', 'bricks' ) . ')',
 			'type'        => 'number',
 			'units'       => true,
@@ -205,8 +272,6 @@ class Element_Social_Icons extends Element {
 				'hex' => '#ffffff',
 			],
 		];
-
-		$this->controls['_typography']['css'][0]['selector'] = '';
 	}
 
 	public function render() {
@@ -220,9 +285,9 @@ class Element_Social_Icons extends Element {
 		$output = "<ul {$this->render_attributes( '_root' )}>";
 
 		foreach ( $icons as $index => $icon ) {
-			$icon_html  = ! empty( $icon['icon'] ) ? self::render_icon( $icon['icon'] ) : false;
+			$icon_html  = ! empty( $icon['icon'] ) ? self::render_icon( $icon['icon'], [ 'icon' ] ) : false;
 			$icon_link  = ! empty( $icon['link'] ) ? $icon['link'] : false;
-			$icon_label = ! empty( $icon['label'] ) ? $this->render_dynamic_data( $icon['label'] ) : false;
+			$icon_label = isset( $icon['label'] ) ? $this->render_dynamic_data( $icon['label'] ) : false;
 
 			$this->set_attribute( "li-{$index}", 'class', 'repeater-item' );
 			$this->set_attribute( "li-{$index}", 'class', $icon_link ? 'has-link' : 'no-link' );
@@ -239,7 +304,7 @@ class Element_Social_Icons extends Element {
 				$output .= $icon_html;
 			}
 
-			if ( ! empty( $icon_label ) ) {
+			if ( $icon_label !== false ) {
 				$output .= "<span>{$icon_label}</span>";
 			}
 

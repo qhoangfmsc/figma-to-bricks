@@ -48,7 +48,7 @@ export default {
     const f = flats[node.id];
     s.image = { $asset: f.file, size: 'full' };
     s.altText = det.params?.alt ?? defaultAlt(node);
-    s._objectFit = 'fill';
+    s._objectFit = 'fill'; // the div is the box; the picture fills it. No crop, no custom CSS: Figma already drew the stack.
     if (det.params?.link) { Object.assign(s, { link: 'url', url: { type: 'external', url: det.params.link } }); addHoverFade(s); }
   },
 };

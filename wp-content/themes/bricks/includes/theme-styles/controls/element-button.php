@@ -5,7 +5,7 @@ $controls = [];
 
 $controls['defaultSeparator'] = [
 	'type'  => 'separator',
-	'label' => esc_html__( 'Style - Default', 'bricks' ),
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Default', 'bricks' ),
 ];
 
 $controls['typography'] = [
@@ -25,7 +25,7 @@ $controls['background'] = [
 	'css'   => [
 		[
 			'property' => 'background-color',
-			'selector' => '.bricks-button:not([class*="bricks-background-"]):not([class*="bricks-color-"])',
+			'selector' => '.bricks-button:not([class*="bricks-background-"]):not([class*="bricks-color-"]):not(.outline)',
 		],
 	],
 ];
@@ -53,22 +53,68 @@ $controls['boxShadow'] = [
 ];
 
 $controls['transition'] = [
-	'label'       => esc_html__( 'Transition', 'bricks' ),
-	'css'         => [
+	'label'          => esc_html__( 'Transition', 'bricks' ),
+	'css'            => [
 		[
 			'property' => 'transition',
 			'selector' => '.bricks-button',
 		],
 	],
-	'type'        => 'text',
-	'description' => sprintf( '<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank">%s</a>', esc_html__( 'Learn more about CSS transitions', 'bricks' ) ),
+	'hasDynamicData' => false,
+	'hasVariables'   => true,
+	'type'           => 'text',
+	'description'    => sprintf( '<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank">%s</a>', esc_html__( 'Learn more about CSS transitions', 'bricks' ) ),
+];
+
+$controls['outlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => '.bricks-button.outline',
+		],
+	],
+];
+
+$controls['outlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => '.bricks-button.outline',
+		],
+	],
+];
+
+$controls['outlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => '.bricks-button.outline',
+		],
+	],
+];
+
+$controls['outlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => '.bricks-button.outline',
+		],
+	],
 ];
 
 // Primary
 
 $controls['primarySeparator'] = [
 	'type'  => 'separator',
-	'label' => esc_html__( 'Style - Primary', 'bricks' ),
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Primary', 'bricks' ),
 ];
 
 $controls['primaryTypography'] = [
@@ -115,11 +161,57 @@ $controls['primaryBoxShadow'] = [
 	],
 ];
 
+// Outline
+
+$controls['primaryOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="primary"].outline',
+		],
+	],
+];
+
+$controls['primaryOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="primary"].outline',
+		],
+	],
+];
+
+$controls['primaryOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="primary"].outline',
+		],
+	],
+];
+
+$controls['primaryOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="primary"].outline',
+		],
+	],
+];
+
 // Secondary
 
 $controls['secondarySeparator'] = [
 	'type'  => 'separator',
-	'label' => esc_html__( 'Style - Secondary', 'bricks' ),
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Secondary', 'bricks' ),
 ];
 
 $controls['secondaryTypography'] = [
@@ -166,11 +258,57 @@ $controls['secondaryBoxShadow'] = [
 	],
 ];
 
+// Outline
+
+$controls['secondaryOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="secondary"].outline',
+		],
+	],
+];
+
+$controls['secondaryOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="secondary"].outline',
+		],
+	],
+];
+
+$controls['secondaryOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="secondary"].outline',
+		],
+	],
+];
+
+$controls['secondaryOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="secondary"].outline',
+		],
+	],
+];
+
 // Light
 
 $controls['lightSeparator'] = [
 	'type'  => 'separator',
-	'label' => esc_html__( 'Style - Light', 'bricks' ),
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Light', 'bricks' ),
 ];
 
 $controls['lightTypography'] = [
@@ -179,7 +317,7 @@ $controls['lightTypography'] = [
 	'css'   => [
 		[
 			'property' => 'font',
-			'selector' => ':root .bricks-button[class*="light"]',
+			'selector' => ':root .bricks-button[class*="light"]:not(.bricks-lightbox)',
 		],
 	],
 ];
@@ -201,7 +339,7 @@ $controls['lightBorder'] = [
 	'css'   => [
 		[
 			'property' => 'border',
-			'selector' => ':root .bricks-button[class*="light"]',
+			'selector' => ':root .bricks-button[class*="light"]:not(.bricks-lightbox)',
 		],
 	],
 ];
@@ -212,7 +350,53 @@ $controls['lightBoxShadow'] = [
 	'css'   => [
 		[
 			'property' => 'box-shadow',
-			'selector' => ':root .bricks-button[class*="light"]',
+			'selector' => ':root .bricks-button[class*="light"]:not(.bricks-lightbox)',
+		],
+	],
+];
+
+// Outline
+
+$controls['lightOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="light"].outline',
+		],
+	],
+];
+
+$controls['lightOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="light"].outline',
+		],
+	],
+];
+
+$controls['lightOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="light"].outline',
+		],
+	],
+];
+
+$controls['lightOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="light"].outline',
 		],
 	],
 ];
@@ -221,7 +405,7 @@ $controls['lightBoxShadow'] = [
 
 $controls['darkSeparator'] = [
 	'type'  => 'separator',
-	'label' => esc_html__( 'Style - Dark', 'bricks' ),
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Dark', 'bricks' ),
 ];
 
 $controls['darkTypography'] = [
@@ -264,6 +448,537 @@ $controls['darkBoxShadow'] = [
 		[
 			'property' => 'box-shadow',
 			'selector' => ':root .bricks-button[class*="dark"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['darkOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="dark"].outline',
+		],
+	],
+];
+
+$controls['darkOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="dark"].outline',
+		],
+	],
+];
+
+$controls['darkOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="dark"].outline',
+		],
+	],
+];
+
+$controls['darkOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="dark"].outline',
+		],
+	],
+];
+
+// Muted
+
+$controls['mutedSeparator'] = [
+	'type'  => 'separator',
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Muted', 'bricks' ),
+];
+
+$controls['mutedTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="muted"]',
+		],
+	],
+];
+
+$controls['mutedBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Background color', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="muted"]:not(.outline)',
+		],
+	],
+];
+
+$controls['mutedBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="muted"]',
+		],
+	],
+];
+
+$controls['mutedBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="muted"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['mutedOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="muted"].outline',
+		],
+	],
+];
+
+$controls['mutedOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="muted"].outline',
+		],
+	],
+];
+
+$controls['mutedOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="muted"].outline',
+		],
+	],
+];
+
+$controls['mutedOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="muted"].outline',
+		],
+	],
+];
+
+// Info
+
+$controls['infoSeparator'] = [
+	'type'  => 'separator',
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Info', 'bricks' ),
+];
+
+$controls['infoTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="info"]',
+		],
+	],
+];
+
+$controls['infoBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Background color', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="info"]:not(.outline)',
+		],
+	],
+];
+
+$controls['infoBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="info"]',
+		],
+	],
+];
+
+$controls['infoBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="info"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['infoOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="info"].outline',
+		],
+	],
+];
+
+$controls['infoOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="info"].outline',
+		],
+	],
+];
+
+$controls['infoOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="info"].outline',
+		],
+	],
+];
+
+$controls['infoOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="info"].outline',
+		],
+	],
+];
+
+// Success
+
+$controls['successSeparator'] = [
+	'type'  => 'separator',
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Success', 'bricks' ),
+];
+
+$controls['successTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="success"]',
+		],
+	],
+];
+
+$controls['successBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Background color', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="success"]:not(.outline)',
+		],
+	],
+];
+
+$controls['successBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="success"]',
+		],
+	],
+];
+
+$controls['successBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="success"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['successOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="success"].outline',
+		],
+	],
+];
+
+$controls['successOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="success"].outline',
+		],
+	],
+];
+
+$controls['successOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="success"].outline',
+		],
+	],
+];
+
+$controls['successOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="success"].outline',
+		],
+	],
+];
+
+// Warning
+
+$controls['warningSeparator'] = [
+	'type'  => 'separator',
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Warning', 'bricks' ),
+];
+
+$controls['warningTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="warning"]',
+		],
+	],
+];
+
+$controls['warningBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Background color', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="warning"]:not(.outline)',
+		],
+	],
+];
+
+$controls['warningBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="warning"]',
+		],
+	],
+];
+
+$controls['warningBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="warning"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['warningOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="warning"].outline',
+		],
+	],
+];
+
+$controls['warningOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="warning"].outline',
+		],
+	],
+];
+
+$controls['warningOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="warning"].outline',
+		],
+	],
+];
+
+$controls['warningOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="warning"].outline',
+		],
+	],
+];
+
+// Danger
+
+$controls['dangerSeparator'] = [
+	'type'  => 'separator',
+	'label' => esc_html__( 'Style', 'bricks' ) . ' - ' . esc_html__( 'Danger', 'bricks' ),
+];
+
+$controls['dangerTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="danger"]',
+		],
+	],
+];
+
+$controls['dangerBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Background color', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="danger"]:not(.outline)',
+		],
+	],
+];
+
+$controls['dangerBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="danger"]',
+		],
+	],
+];
+
+$controls['dangerBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="danger"]',
+		],
+	],
+];
+
+// Outline
+
+$controls['dangerOutlineBackground'] = [
+	'type'  => 'color',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Background', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'background-color',
+			'selector' => ':root .bricks-button[class*="danger"].outline',
+		],
+	],
+];
+
+$controls['dangerOutlineBorder'] = [
+	'type'  => 'border',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Border', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => ':root .bricks-button[class*="danger"].outline',
+		],
+	],
+];
+
+$controls['dangerOutlineBoxShadow'] = [
+	'type'  => 'box-shadow',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Box shadow', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'box-shadow',
+			'selector' => ':root .bricks-button[class*="danger"].outline',
+		],
+	],
+];
+
+$controls['dangerOutlineTypography'] = [
+	'type'  => 'typography',
+	'label' => esc_html__( 'Outline', 'bricks' ) . ' - ' . esc_html__( 'Typography', 'bricks' ),
+	'css'   => [
+		[
+			'property' => 'font',
+			'selector' => ':root .bricks-button[class*="danger"].outline',
 		],
 	],
 ];

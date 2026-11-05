@@ -304,7 +304,7 @@ class Woo_Element extends Element {
 	 *
 	 * @return WC_Order|false
 	 */
-	protected function get_order() {
+	protected function get_order( $template = 'view-order' ) {
 		if ( bricks_is_builder() || bricks_is_builder_call() || Helpers::is_bricks_template( get_the_ID() ) ) {
 			$settings = $this->settings;
 			$order    = false;
@@ -327,9 +327,44 @@ class Woo_Element extends Element {
 			}
 
 		} else {
-			global $wp;
-			$order_id = ( isset( $wp->query_vars['view-order'] ) ? absint( $wp->query_vars['view-order'] ) : 0 );
-			$order    = wc_get_order( $order_id );
+			switch ( $template ) {
+				case 'view-order':
+					global $wp;
+					$order_id = isset( $wp->query_vars['view-order'] ) ? absint( $wp->query_vars['view-order'] ) : 0;
+					$order    = wc_get_order( $order_id );
+					break;
+
+				case 'thank-you':
+					$order_id = get_query_var( 'order-received', false );
+
+					// Get the order
+					$order_id  = apply_filters( 'woocommerce_thankyou_order_id', absint( $order_id ) );
+					$order_key = apply_filters( 'woocommerce_thankyou_order_key', empty( $_GET['key'] ) ? '' : wc_clean( wp_unslash( $_GET['key'] ) ) );
+
+					if ( $order_id > 0 ) {
+						$order = wc_get_order( $order_id );
+						if ( ! $order || ! hash_equals( $order->get_order_key(), $order_key ) ) {
+							$order = false;
+						}
+					}
+					break;
+
+				case 'form-pay':
+					$order_id  = get_query_var( 'order-pay', false );
+					$order_key = isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
+
+					if ( $order_id > 0 ) {
+						$order = wc_get_order( $order_id );
+						if ( ! $order || ! hash_equals( $order->get_order_key(), $order_key ) ) {
+							$order = false;
+						}
+					}
+					break;
+
+				default:
+					$order = false;
+					break;
+			}
 		}
 
 		return $order;

@@ -79,7 +79,12 @@ class Element_Post_Navigation extends Element {
 			'label'       => esc_html__( 'Excluded terms', 'bricks' ),
 			'type'        => 'select',
 			'multiple'    => true,
-			'options'     => bricks_is_builder() ? Helpers::get_terms_options() : [],
+			'searchable'  => true,
+			'optionsAjax' => [
+				'action'                => 'bricks_get_terms_options',
+				'postTypes'             => [ 'any' ],
+				'addLanguageToTermName' => true,
+			],
 			'placeholder' => esc_html__( 'None', 'bricks' ),
 		];
 
@@ -283,8 +288,8 @@ class Element_Post_Navigation extends Element {
 		global $post;
 
 		$post          = get_post( $post_id );
-		$title_tag     = isset( $settings['titleTag'] ) ? $settings['titleTag'] : 'h5';
-		$image_size    = isset( $settings['imageSize'] ) ? $settings['imageSize'] : 'thumbnail';
+		$image_size    = $settings['imageSize'] ?? 'thumbnail';
+		$title_tag     = ! empty( $settings['titleTag'] ) ? Helpers::sanitize_html_tag( $settings['titleTag'], 'h5' ) : 'h5';
 		$image_classes = [ 'image', 'css-filter' ];
 
 		// Query terms

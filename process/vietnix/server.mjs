@@ -45,7 +45,7 @@ function jobView(job) {
 
 function fail(job, e) {
   job.error = e?.message || String(e);
-  job.stack = String(e?.stack || '').split('\n').slice(0, 12).join('\n');
+  job.stack = e?.expose ? '' : String(e?.stack || '').split('\n').slice(0, 12).join('\n');
   job.problems = e?.problems ?? [];
   job.phase = 'error';
   job.endedAt = Date.now();
@@ -118,6 +118,7 @@ const server = createServer(async (req, res) => {
         problems: [],
         frames: parsed.frames,
         answers: body.answers ?? {},
+        feedback: String(body.feedback ?? ''),
         startedAt: Date.now(),
         endedAt: null,
         estimate: describeTiming(body.frames ?? body),
@@ -132,7 +133,7 @@ const server = createServer(async (req, res) => {
           finish();
         }, (e) => { fail(job, e); finish(); });
       } else {
-        buildTemplate(parsed.frames.desktop.url, job.answers, { log: (line) => push(job, line) }).then((result) => {
+        buildTemplate(parsed.frames.desktop.url, job.answers, { log: (line) => push(job, line), feedback: job.feedback }).then((result) => {
           job.result = result;
           job.phase = 'done';
           finish();

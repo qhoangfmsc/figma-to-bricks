@@ -282,16 +282,23 @@ $controls['typographyLead'] = [
 
 $controls['focusOutline'] = [
 	'label'          => esc_html__( 'Focus outline', 'bricks' ),
+	'info'           => ':focus-visible',
 	'type'           => 'text',
 	'css'            => [
 		[
 			'property' => 'outline',
-			'selector' => 'body.bricks-is-frontend :focus',
+			'selector' => 'body.bricks-is-frontend :focus-visible',
+		],
+		// Apply :focus to devices that don't support :focus-visible (@since 1.10)
+		[
+			'property' => 'outline',
+			'selector' => '@supports not selector(:focus-visible) { body.bricks-is-frontend :focus',
+			'value'    => '%s; }',
 		],
 	],
-	'placeholder'    => 'thin dotted currentColor',
 	'inline'         => true,
 	'hasDynamicData' => false,
+	'placeholder'    => 'auto',
 ];
 
 // BLOCKQUOTE

@@ -8,8 +8,9 @@ use Bricks\Helpers;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Wpml {
-	public static $is_active = false;
-	public $wpml_identifier  = 'Bricks';
+	public $wpml_identifier                        = 'Bricks';
+	public static $is_active                       = false;
+	private static $is_processing_wpml_translation = false; // @since 1.11
 
 	public function __construct() {
 		self::$is_active = self::is_wpml_active();
@@ -25,9 +26,28 @@ class Wpml {
 			add_filter( 'bricks/database/bricks_get_all_templates_by_type_args', [ $this, 'wpml_get_posts_args' ] );
 		}
 
+		// @since 1.7.1 - Prefix cache key with get_locale() to ensure correct templates are loaded for different languages (@see #862jdhqgr)
+		add_filter( 'bricks/database/get_all_templates_cache_key', [ $this, 'get_all_templates_cache_key' ] );
+
 		add_filter( 'wpml_page_builder_support_required', [ $this, 'wpml_page_builder_support_required' ], 10, 1 );
 		add_action( 'wpml_page_builder_register_strings', [ $this, 'wpml_page_builder_register_strings' ], 10, 2 );
-		add_action( 'wpml_page_builder_string_translated', [ $this, 'wpml_page_builder_string_translated' ], 10, 5 );
+		add_action( 'wpml_pro_translation_completed', [ $this, 'handle_translation_completed_no_strings' ], 10, 3 );
+
+		/**
+		 * Using a closure to ensure this function is only triggered from the 'wpml_page_builder_string_translated' hook
+		 *
+		 * Necessary because the function sets $is_processing_wpml_translation to true, which should only happen in the context of WPML string translation.
+		 *
+		 * @since 1.11
+		 */
+		add_action(
+			'wpml_page_builder_string_translated',
+			function( $package_kind, $translated_post_id, $original_post, $string_translations, $lang ) {
+				$this->wpml_page_builder_string_translated( $package_kind, $translated_post_id, $original_post, $string_translations, $lang );
+			},
+			10,
+			5
+		);
 
 		// Addressing all page builder "Corner cases"
 		// https://git.onthegosystems.com/glue-plugins/wpml/wpml-page-builders/-/wikis/Integrating-a-page-builder-with-WPML#corner-cases
@@ -41,6 +61,139 @@ class Wpml {
 		add_filter( 'wp_get_attachment_image_src', [ $this, 'translate_attachment_image_src' ], 10, 3 );
 
 		add_filter( 'bricks/builder/post_title', [ $this, 'add_langugage_to_post_title' ], 10, 2 );
+
+		// Add language parameter to query args (@since 1.9.9)
+		add_filter( 'bricks/posts/query_vars', [ $this, 'add_language_query_var' ], 100, 3 );
+
+		// Add language code to populate correct export template link (@since 1.10)
+		add_filter( 'bricks/export_template_args', [ $this, 'add_export_template_arg' ], 10, 2 );
+
+		// Filter builder edit link (@since 1.10)
+		add_filter( 'bricks/get_builder_edit_link', [ $this, 'filter_builder_edit_link' ], 10, 2 );
+
+		// Apply filter to each term name (@since 1.11)
+		add_filter( 'bricks/builder/term_name', [ $this, 'add_language_to_term_name' ], 10, 3 );
+
+		// Reassign filter element IDs for translated posts (fix DB AJAX) (@since 1.12.2)
+		add_filter( 'bricks/fix_filter_element_db', [ $this, 'fix_filter_element_db' ], 10, 3 );
+
+		// Add language code to filter element data (@since 1.12.2)
+		add_filter( 'bricks/query_filters/element_data', [ $this, 'set_filter_element_language' ], 10, 3 );
+
+		// Switch language for Bricks job execution (@since 1.12.2)
+		add_action( 'bricks_execute_filter_index_job', [ $this, 'bricks_execute_filter_index_job' ], 10 );
+
+		// Enable WPML hooks in Bricks frontend endpoints (@since 1.12.2)
+		add_action( 'bricks/render_query_result/start', [ $this, 'wpml_get_term_adjust_id' ] );
+		add_action( 'bricks/render_query_page/start', [ $this, 'wpml_get_term_adjust_id' ] );
+	}
+
+	/**
+	 * Handle WPML translation completion ONLY when there are no strings to translate
+	 * This is a fallback for when wpml_page_builder_register_strings is not triggered
+	 *
+	 * @param int    $new_post_id     ID of the translated post.
+	 * @param array  $fields          Translated fields.
+	 * @param string $original_post   Original post data.
+	 *
+	 * @since 1.12
+	 */
+	public function handle_translation_completed_no_strings( $new_post_id, $fields, $original_post ) {
+		// Skip if 'wpml_page_builder_string_translated' already handled duplication
+		if ( did_action( 'wpml_page_builder_string_translated' ) ) {
+			return;
+		}
+
+		$original_post_id = $original_post->original_doc_id ?? false;
+
+		if ( ! $original_post_id ) {
+			return;
+		}
+
+		// Skip if not processing a Bricks post
+		if ( ! $this->wpml_pb_is_page_builder_page( false, get_post( $original_post_id ) ) ) {
+			return;
+		}
+
+		// Meta keys to copy from original post to translation
+		$meta_keys = [
+			BRICKS_DB_PAGE_CONTENT,
+			BRICKS_DB_PAGE_HEADER,
+			BRICKS_DB_PAGE_FOOTER,
+			BRICKS_DB_TEMPLATE_TYPE,
+			BRICKS_DB_TEMPLATE_SETTINGS,
+			BRICKS_DB_PAGE_SETTINGS,
+		];
+
+		// Copy each meta key using WPML's helper function
+		foreach ( $meta_keys as $meta_key ) {
+			$meta_value = get_post_meta( $original_post_id, $meta_key, true );
+			if ( $meta_value ) {
+				if ( in_array( $meta_key, [ BRICKS_DB_PAGE_CONTENT, BRICKS_DB_PAGE_HEADER, BRICKS_DB_PAGE_FOOTER ], true ) ) {
+					$filter_elements = \Bricks\Query_Filters::filter_controls_elements();
+
+					// Ensure each Filter element Bricks ID is unique
+					$meta_value = \Bricks\Helpers::generate_new_element_ids( $meta_value, $filter_elements );
+				}
+				update_post_meta( $new_post_id, $meta_key, $meta_value );
+			}
+		}
+
+		// Clear unique inline CSS if using file-based CSS loading
+		if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
+			\Bricks\Assets::$unique_inline_css = [];
+		}
+	}
+
+	/**
+	 * Check if WPML is currently processing a translation.
+	 *
+	 * @return bool True if WPML is processing a translation, false otherwise.
+	 * @since 1.11
+	 */
+	public static function is_processing_wpml_translation() {
+		return self::$is_processing_wpml_translation;
+	}
+
+	/**
+	 * Reset the WPML translation processing flag.
+	 *
+	 * This method should be called after the translation process is complete and the flag is no longer needed.
+	 *
+	 * @since 1.11
+	 */
+	public static function end_processing_wpml_translation() {
+		self::$is_processing_wpml_translation = false;
+	}
+
+	/**
+	 * Add language query var
+	 *
+	 * @see https://wpml.org/documentation/support/debugging-theme-compatibility/#issue-custom-non-standard-wordpress-ajax-requests-always-return-the-default-language-content
+	 * @since 1.9.9
+	 */
+	public function add_language_query_var( $query_vars, $settings, $element_id ) {
+		if ( ! empty( Database::$page_data['language'] ) ) {
+			$current_lang = sanitize_key( Database::$page_data['language'] );
+			do_action( 'wpml_switch_language', $current_lang );
+		}
+
+		return $query_vars;
+	}
+
+	/**
+	 * Add language code to export template args
+	 *
+	 * @since 1.10
+	 */
+	public function add_export_template_arg( $args, $post_id ) {
+		$post_language = self::get_post_language_code( $post_id );
+
+		if ( ! empty( $post_language ) ) {
+			$args['lang'] = $post_language;
+		}
+
+		return $args;
 	}
 
 	/**
@@ -150,9 +303,53 @@ class Wpml {
 			return;
 		}
 
-		// Loop over all elements and register their text values
-		foreach ( $bricks_elements as $element ) {
+		/**
+		 * Start the string package registration
+		 * NOTE: Wrapping string registration with 'wpml_start_string_package_registration' and
+		 * 'wpml_delete_unused_package_strings' actions ensures WPML can track and clean up unused strings when content is updated.
+		 * See: https://wpml.org/documentation/support/string-package-translation/#updating-strings-and-removing-unused-ones
+		 *
+		 * @since 1.11
+		 */
+		do_action( 'wpml_start_string_package_registration', $package_data );
+
+		// Build the elements tree
+		$elements_tree = \Bricks\Helpers::build_elements_tree( $bricks_elements );
+
+		// Traverse the tree and process each element
+		$this->traverse_elements_tree( $elements_tree, $post );
+
+		// End the string package registration and remove unused strings (@since 1.11)
+		do_action( 'wpml_delete_unused_package_strings', $package_data );
+	}
+
+	/**
+	 * Traverse the tree and process each element in a depth-first manner.
+	 *
+	 * @param array             $elements
+	 * @param \WP_Post|stdClass $post
+	 *
+	 * @since 1.10.2
+	 */
+	private function traverse_elements_tree( $elements, $post ) {
+		if ( ! is_array( $elements ) ) {
+			\Bricks\Helpers::maybe_log( 'Bricks: Invalid elements provided to traverse_elements_tree' );
+			return;
+		}
+
+		foreach ( $elements as $element ) {
+			if ( ! isset( $element['id'] ) ) {
+				\Bricks\Helpers::maybe_log( 'Bricks: Invalid element encountered during traversal: missing ID' );
+				continue;
+			}
+
+			// Process the current element
 			$this->process_element( $element, $post );
+
+			// Recursively process children
+			if ( ! empty( $element['children'] ) && is_array( $element['children'] ) ) {
+				$this->traverse_elements_tree( $element['children'], $post );
+			}
 		}
 	}
 
@@ -234,6 +431,7 @@ class Wpml {
 						}
 
 						$string_id = "{$element['id']}_{$key}_{$repeater_index}_{$repeater_key}";
+
 						$this->register_wpml_string( $string_value, $string_id, $element_label, $post );
 					}
 				}
@@ -287,11 +485,21 @@ class Wpml {
 	 *
 	 * @since 1.8 NOTE: This is a modified version of the original function
 	 */
-	public function wpml_page_builder_string_translated( $package_kind, $translated_post_id, $original_post, $string_translations, $lang ) {
+	private function wpml_page_builder_string_translated( $package_kind, $translated_post_id, $original_post, $string_translations, $lang ) {
 		// Return: Package is not for 'Bricks'
 		if ( $package_kind !== $this->wpml_identifier ) {
 			return;
 		}
+
+		/**
+		 * Indicate that the current request is processing a WPML translation
+		 * This flag is necessary because WPML's REST API does not provide user context,
+		 * which causes issues with our capability checks when updating Bricks postmeta.
+		 * Setting this flag to `true` allows us to bypass those checks safely within this request.
+		 *
+		 * @since 1.11
+		 */
+		self::$is_processing_wpml_translation = true;
 
 		$original_post_id = $original_post->ID;
 
@@ -393,6 +601,27 @@ class Wpml {
 					}
 				}
 
+				// STEP: Translate popup template IDs in element interactions (@since 1.11)
+				if ( isset( $element['settings']['_interactions'] ) && is_array( $element['settings']['_interactions'] ) ) {
+					foreach ( $element['settings']['_interactions'] as $interaction_index => $interaction ) {
+						if (
+							isset( $interaction['action'] ) &&
+							isset( $interaction['target'] ) &&
+							isset( $interaction['templateId'] ) &&
+							$interaction['action'] === 'show' &&
+							$interaction['target'] === 'popup' &&
+							is_numeric( $interaction['templateId'] )
+						) {
+							$original_popup_id   = intval( $interaction['templateId'] );
+							$translated_popup_id = apply_filters( 'wpml_object_id', $original_popup_id, BRICKS_DB_TEMPLATE_SLUG, true, $lang );
+
+							if ( $translated_popup_id ) {
+								$bricks_elements[ $index ]['settings']['_interactions'][ $interaction_index ]['templateId'] = $translated_popup_id;
+							}
+						}
+					}
+				}
+
 				// STEP: Replace the text of the element with the translated text
 				if ( $element['id'] === $element_id && isset( $translation[ $lang ]['value'] ) ) {
 					$bricks_elements[ $index ]['settings'][ $setting_key ] = $translation[ $lang ]['value'];
@@ -402,6 +631,20 @@ class Wpml {
 
 		// Save the original post data which now contains the translations
 		$meta_key = Database::get_bricks_data_key( $area );
+
+		if ( in_array( $meta_key, [ BRICKS_DB_PAGE_CONTENT, BRICKS_DB_PAGE_HEADER, BRICKS_DB_PAGE_FOOTER ], true ) ) {
+			/**
+			 * To avoid all IDs regenerate for every translation sync (especially query ids), only regenerate the IDs of the filter elements to solve index issues.
+			 * This is not same as Polylang
+			 * Not recommended as not unique element IDs might issue might happen (#862je0kmd)
+			 *
+			 * @since 1.12.2
+			 */
+			$filter_elements = \Bricks\Query_Filters::filter_controls_elements();
+
+			// Ensure each Filter element Bricks ID is unique (@since 1.12.2)
+			$bricks_elements = Helpers::generate_new_element_ids( $bricks_elements, $filter_elements );
+		}
 
 		update_post_meta( $translated_post_id, $meta_key, $bricks_elements );
 
@@ -521,8 +764,8 @@ class Wpml {
 		\Bricks\Ajax::verify_nonce( 'bricks-nonce-builder' );
 
 		if ( isset( $_GET['addLanguageToPostTitle'] ) ) {
-			$language_info = apply_filters( 'wpml_post_language_details', null, $page_id );
-			$language_code = ! empty( $language_info['language_code'] ) ? strtoupper( $language_info['language_code'] ) : '';
+			$language_code = self::get_post_language_code( $page_id );
+			$language_code = ! empty( $language_code ) ? strtoupper( $language_code ) : '';
 
 			if ( $language_code ) {
 				return "[$language_code] $title";
@@ -531,5 +774,227 @@ class Wpml {
 
 		// Return the original title if conditions are not met
 		return $title;
+	}
+
+	/**
+	 * Add language code to term name
+	 *
+	 * @param string $name    The original name of the term.
+	 * @param int    $term_id The ID of the term.
+	 * @param string $taxonomy The taxonomy of the term.
+	 * @return string The modified name with the language suffix.
+	 *
+	 * @since 1.11
+	 */
+	public function add_language_to_term_name( $name, $term_id, $taxonomy ) {
+		\Bricks\Ajax::verify_nonce( 'bricks-nonce-builder' );
+
+		if ( ! isset( $_GET['addLanguageToTermName'] ) || ! filter_var( $_GET['addLanguageToTermName'], FILTER_VALIDATE_BOOLEAN ) ) {
+			return $name;
+		}
+
+		$term_id = absint( $term_id );
+
+		if ( $term_id === 0 || ! term_exists( $term_id, $taxonomy ) ) {
+			return $name;
+		}
+
+		if ( ! function_exists( 'apply_filters' ) || ! has_filter( 'wpml_element_language_details' ) ) {
+			return $name;
+		}
+
+		$language_details = apply_filters(
+			'wpml_element_language_details',
+			null,
+			[
+				'element_id'   => $term_id,
+				'element_type' => $taxonomy,
+			]
+		);
+
+		if ( ! is_object( $language_details ) || ! isset( $language_details->language_code ) ) {
+			return $name;
+		}
+
+		$language_code = strtoupper( sanitize_key( $language_details->language_code ) );
+
+		if ( ! empty( $language_code ) ) {
+			return '[' . $language_code . '] ' . $name;
+		}
+
+		return $name;
+	}
+
+	/**
+	 * Get the language code of a post
+	 *
+	 * @since 1.10
+	 */
+	public static function get_post_language_code( $post_id ) {
+		$language_info = apply_filters( 'wpml_post_language_details', null, $post_id );
+
+		return ! empty( $language_info['language_code'] ) ? $language_info['language_code'] : '';
+	}
+
+	/**
+	 * Get the current language code in WPML
+	 *
+	 * @return string|null The current language code or null if not set.
+	 *
+	 * @since 1.9.9
+	 */
+	public static function get_current_language() {
+		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
+			return \ICL_LANGUAGE_CODE; // phpcs:ignore
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get the URL format for WPML
+	 *
+	 * @since 1.9.9
+	 */
+	public static function get_url_format() {
+		global $sitepress;
+
+		if ( ! $sitepress || ! method_exists( $sitepress, 'get_setting' ) ) {
+			return null;
+		}
+
+		return $sitepress->get_setting( 'language_negotiation_type' );
+	}
+
+	/**
+	 * Filter the builder edit link to include the language code
+	 *
+	 * @param string $url The original builder edit URL.
+	 * @param int    $post_id The post ID.
+	 * @return string The filtered URL.
+	 *
+	 * @since 1.10
+	 */
+	public function filter_builder_edit_link( $url, $post_id ) {
+		if ( empty( $url ) || empty( $post_id ) || ! is_numeric( $post_id ) ) {
+			return $url;
+		}
+
+		if ( ! get_post( $post_id ) ) {
+			return $url;
+		}
+
+		$post_language_details = apply_filters( 'wpml_post_language_details', null, $post_id );
+
+		// Verify we got a valid array/object response and it has the required language_code
+		if ( ! empty( $post_language_details ) &&
+			is_array( $post_language_details ) &&
+			isset( $post_language_details['language_code'] ) &&
+			! empty( $post_language_details['language_code'] )
+		) {
+
+			// Sanitize the language code
+			$lang_code = sanitize_key( $post_language_details['language_code'] );
+
+			$url = apply_filters( 'wpml_permalink', $url, $lang_code );
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Prefix cache key with get_locale() to ensure correct templates are loaded for different languages
+	 *
+	 * @since 1.7.1
+	 */
+	public function get_all_templates_cache_key( $cache_key ) {
+		return get_locale() . "_$cache_key";
+	}
+
+	/**
+	 * Reassign new IDs for filter elements when fixing the filter element DB
+	 *
+	 * @since 1.12.2
+	 */
+	public function fix_filter_element_db( $handled, $post_id, $template_type ) {
+		$language_code = self::get_post_language_code( $post_id );
+
+		if ( ! $language_code ) {
+			return $handled;
+		}
+
+		$default_language = apply_filters( 'wpml_default_language', null );
+
+		// If default language, skip
+		if ( $language_code === $default_language ) {
+			return $handled;
+		}
+
+		// We need to reassign new IDs for filter elements
+		$filter_elements = \Bricks\Query_Filters::filter_controls_elements();
+
+		// Ensure each Filter element Bricks ID is unique
+		$bricks_elements = Database::get_data( $post_id, $template_type );
+
+		$bricks_elements = \Bricks\Helpers::generate_new_element_ids( $bricks_elements, $filter_elements );
+
+		// Update the post meta with the new elements, will auto update custom element DB and reindex
+		update_post_meta( $post_id, Database::get_bricks_data_key( $template_type ), $bricks_elements );
+
+		// Return true to indicate the filter element DB has been handled
+		return true;
+	}
+
+	/**
+	 * Insert language code into the element settings
+	 *
+	 * @since 1.12.2
+	 */
+	public function set_filter_element_language( $data, $element, $post_id ) {
+		// Get the language code of the post
+		$language_code = self::get_post_language_code( $post_id );
+
+		if ( empty( $language_code ) ) {
+			return $data;
+		}
+
+		// Insert the language code into the element settings
+		$data['language'] = $language_code;
+
+		return $data;
+	}
+
+	/**
+	 * Switch language based on query filter index job
+	 * Otherwise, the values of the index records is following the current language set by WPML plugin
+	 *
+	 * @since 1.12.2
+	 */
+	public function bricks_execute_filter_index_job( $job ) {
+		$language_code = $job['language'] ?? false;
+
+		if ( ! empty( $language_code ) ) {
+			do_action( 'wpml_switch_language', $language_code );
+		}
+	}
+
+	/**
+	 * Run WPML hooks to auto-adjust term IDs in Bricks frontend endpoints
+	 *
+	 * Adjust queried categories and tags ids according to the language
+	 *
+	 * @since 1.12.2
+	 */
+	public function wpml_get_term_adjust_id( $request_data ) {
+		global $sitepress;
+
+		if ( ! $sitepress || ! method_exists( $sitepress, 'get_setting' ) ) {
+			return;
+		}
+
+		// @see sitepress.class.php set_term_filters_and_hooks()
+		if ( $sitepress->get_setting( 'auto_adjust_ids' ) ) {
+			add_filter( 'get_term', [ $sitepress, 'get_term_adjust_id' ], 1, 1 );
+		}
 	}
 }

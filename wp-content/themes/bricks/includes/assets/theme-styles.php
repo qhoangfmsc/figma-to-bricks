@@ -42,7 +42,11 @@ class Assets_Theme_Styles {
 			// NOTE: Undocumented (@since 1.5 see #2kgn9hf)
 			$theme_style_name = apply_filters( 'bricks/theme_style_name', $theme_style_name, $theme_style );
 
-			$settings      = ! empty( $theme_style['settings'] ) ? $theme_style['settings'] : false;
+			// Replace invalid file name characters based on common OS rules with underscore (@since 1.10)
+			$invalid_characters = [ '\\', '/', ':', '*', '?', '"', '<', '>', '|' ];
+			$theme_style_name   = strtolower( str_replace( $invalid_characters, '_', trim( $theme_style_name ) ) );
+
+			$settings      = $theme_style['settings'] ?? false;
 			$file_name     = "theme-style-$theme_style_name.min.css";
 			$css_file_path = Assets::$css_dir . "/$file_name";
 

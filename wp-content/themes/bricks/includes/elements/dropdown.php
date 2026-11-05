@@ -4,13 +4,12 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Element_Dropdown extends Element {
-	public $category         = 'general';
-	public $name             = 'dropdown';
-	public $icon             = 'ti-arrow-circle-down';
-	public $scripts          = [ 'bricksSubmenuPosition' ];
-	public $nestable         = true;
-	public $nestable_actions = false;
-	public $tag              = 'li';
+	public $category = 'general';
+	public $name     = 'dropdown';
+	public $icon     = 'ti-arrow-circle-down';
+	public $scripts  = [ 'bricksSubmenuPosition' ];
+	public $nestable = true;
+	public $tag      = 'li';
 
 	public function get_label() {
 		return esc_html__( 'Dropdown', 'bricks' );
@@ -48,6 +47,7 @@ class Element_Dropdown extends Element {
 			'type'        => 'text',
 			'inline'      => true,
 			'fullAccess'  => true,
+			'validate'    => $this->get_in_builder_html_tag_validation_rules(),
 			'placeholder' => $this->tag,
 		];
 
@@ -98,7 +98,6 @@ class Element_Dropdown extends Element {
 			'label' => esc_html__( 'Gap', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'gap',
@@ -185,8 +184,9 @@ class Element_Dropdown extends Element {
 			'inline'         => true,
 			'css'            => [
 				[
-					'property' => 'transition',
-					'selector' => '.brx-submenu-toggle button',
+					'property'  => 'transition',
+					'selector'  => '.brx-submenu-toggle button',
+					'important' => true, // To precede sticker header transition template setting (@since 1.11.1)
 				],
 			],
 		];
@@ -280,7 +280,6 @@ class Element_Dropdown extends Element {
 			'label'    => esc_html__( 'Min. width', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'css'      => [
 				[
 					'property' => 'min-width',
@@ -709,12 +708,11 @@ class Element_Dropdown extends Element {
 		$settings = $this->settings;
 
 		$text = isset( $settings['text'] ) ? $this->render_dynamic_data( $settings['text'] ) : null;
+		$icon = ! empty( $settings['icon'] ) ? $this->render_icon( $settings['icon'] ) : null;
 
-		// Default toggle SVG (icon click toggle dropdown)
-		$icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5"></path></svg>';
-
-		if ( ! empty( $settings['icon'] ) ) {
-			$icon = self::render_icon( $settings['icon'] );
+		// Default toggle SVG
+		if ( ! $icon ) {
+			$icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5" stroke="currentcolor"></path></svg>';
 		}
 
 		/**

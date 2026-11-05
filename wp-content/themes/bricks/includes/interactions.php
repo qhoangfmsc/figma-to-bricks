@@ -43,6 +43,35 @@ class Interactions {
 	 * @return void
 	 */
 	public function set_controls() {
+		$trigger_options = [
+			'elementGroupTitle' => esc_html__( 'Element', 'bricks' ),
+			'click'             => esc_html__( 'Click', 'bricks' ),
+			'mouseover'         => esc_html__( 'Hover', 'bricks' ),
+			'focus'             => esc_html__( 'Focus', 'bricks' ),
+			'blur'              => esc_html__( 'Blur', 'bricks' ),
+			'mouseenter'        => esc_html__( 'Mouse enter', 'bricks' ),
+			'mouseleave'        => esc_html__( 'Mouse leave', 'bricks' ),
+			'enterView'         => esc_html__( 'Enter viewport', 'bricks' ),
+			'leaveView'         => esc_html__( 'Leave viewport', 'bricks' ),
+			'animationEnd'      => esc_html__( 'Animation end', 'bricks' ),
+			'ajaxStart'         => esc_html__( 'Query', 'bricks' ) . ' ' . esc_html__( 'AJAX loader', 'bricks' ) . ' (' . esc_html__( 'Start', 'bricks' ) . ')',
+			'ajaxEnd'           => esc_html__( 'Query', 'bricks' ) . ' ' . esc_html__( 'AJAX loader', 'bricks' ) . ' (' . esc_html__( 'End', 'bricks' ) . ')',
+			'formSubmit'        => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Submit', 'bricks' ),
+			'formSuccess'       => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Success', 'bricks' ),
+			'formError'         => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Error', 'bricks' ),
+			'browserGroupTitle' => esc_html__( 'Browser', 'bricks' ) . ' / ' . esc_html__( 'Window', 'bricks' ),
+			'scroll'            => esc_html__( 'Scroll', 'bricks' ),
+			'contentLoaded'     => esc_html__( 'Content loaded', 'bricks' ),
+			'mouseleaveWindow'  => esc_html__( 'Mouse leave window', 'bricks' ),
+		];
+
+		// Query filter interactions (@since 1.11)
+		if ( Helpers::enabled_query_filters() ) {
+			$trigger_options['filterGroupTitle']     = esc_html__( 'Query filters', 'bricks' );
+			$trigger_options['filterOptionEmpty']    = esc_html__( 'Filter', 'bricks' ) . ': ' . esc_html__( 'Empty', 'bricks' );
+			$trigger_options['filterOptionNotEmpty'] = esc_html__( 'Filter', 'bricks' ) . ': ' . esc_html__( 'Not empty', 'bricks' );
+		}
+
 		// STEP: Add interaction controls (= repeater)
 		self::$control_options = [
 			'type'          => 'repeater',
@@ -69,27 +98,7 @@ class Interactions {
 				'trigger'                       => [
 					'label'       => esc_html__( 'Trigger', 'bricks' ),
 					'type'        => 'select',
-					'options'     => [
-						'elementGroupTitle' => esc_html__( 'Element', 'bricks' ),
-						'click'             => esc_html__( 'Click', 'bricks' ),
-						'mouseover'         => esc_html__( 'Hover', 'bricks' ),
-						'focus'             => esc_html__( 'Focus', 'bricks' ),
-						'blur'              => esc_html__( 'Blur', 'bricks' ),
-						'mouseenter'        => esc_html__( 'Mouse enter', 'bricks' ),
-						'mouseleave'        => esc_html__( 'Mouse leave', 'bricks' ),
-						'enterView'         => esc_html__( 'Enter viewport', 'bricks' ),
-						'leaveView'         => esc_html__( 'Leave viewport', 'bricks' ),
-						'animationEnd'      => esc_html__( 'Animation end', 'bricks' ),
-						'ajaxStart'         => esc_html__( 'Query', 'bricks' ) . ' ' . esc_html__( 'AJAX loader', 'bricks' ) . ' (' . esc_html__( 'Start', 'bricks' ) . ')',
-						'ajaxEnd'           => esc_html__( 'Query', 'bricks' ) . ' ' . esc_html__( 'AJAX loader', 'bricks' ) . ' (' . esc_html__( 'End', 'bricks' ) . ')',
-						'formSubmit'        => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Submit', 'bricks' ),
-						'formSuccess'       => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Success', 'bricks' ),
-						'formError'         => esc_html__( 'Form', 'bricks' ) . ' ' . esc_html__( 'Error', 'bricks' ),
-						'browserGroupTitle' => esc_html__( 'Browser', 'bricks' ) . ' / ' . esc_html__( 'Window', 'bricks' ),
-						'scroll'            => esc_html__( 'Scroll', 'bricks' ),
-						'contentLoaded'     => esc_html__( 'Content loaded', 'bricks' ),
-						'mouseleaveWindow'  => esc_html__( 'Mouse leave window', 'bricks' ),
-					],
+					'options'     => $trigger_options,
 					'placeholder' => esc_html__( 'Select', 'bricks' ),
 				],
 
@@ -97,6 +106,24 @@ class Interactions {
 					'label'    => esc_html__( 'Query', 'bricks' ),
 					'type'     => 'query-list',
 					'required' => [ 'trigger', '=', [ 'ajaxStart', 'ajaxEnd' ] ],
+				],
+
+				'filterElementId'               => [
+					'label'       => esc_html__( 'Filter', 'bricks' ) . ' (Bricks ID)',
+					'type'        => 'text',
+					'placeholder' => 'ah1yh' ,
+					'required'    => [ 'trigger', '=', [ 'filterOptionEmpty', 'filterOptionNotEmpty' ] ],
+					'description' => sprintf(
+						'%s: %s, %s, %s, %s, %s, %s, %s',
+						esc_html__( 'Supported filters', 'bricks' ),
+						esc_html__( 'Active filters', 'bricks' ),
+						esc_html__( 'Checkbox', 'bricks' ),
+						esc_html__( 'Datepicker', 'bricks' ),
+						esc_html__( 'Radio', 'bricks' ),
+						esc_html__( 'Range', 'bricks' ),
+						esc_html__( 'Search', 'bricks' ),
+						esc_html__( 'Select', 'bricks' )
+					),
 				],
 
 				'formId'                        => [
@@ -142,6 +169,7 @@ class Interactions {
 						'setAttribute'    => esc_html__( 'Set attribute', 'bricks' ),
 						'removeAttribute' => esc_html__( 'Remove attribute', 'bricks' ),
 						'toggleAttribute' => esc_html__( 'Toggle attribute', 'bricks' ),
+						'toggleOffCanvas' => esc_html__( 'Toggle offcanvas', 'bricks' ), // @since 1.11
 						'loadMore'        => esc_html__( 'Load more', 'bricks' ) . ' (' . esc_html__( 'Query loop', 'bricks' ) . ')',
 						'startAnimation'  => esc_html__( 'Start animation', 'bricks' ),
 						'scrollTo'        => esc_html__( 'Scroll to', 'bricks' ),
@@ -197,7 +225,6 @@ class Interactions {
 				'animationDuration'             => [
 					'label'          => esc_html__( 'Animation duration', 'bricks' ),
 					'type'           => 'text',
-					'inline'         => true,
 					'hasDynamicData' => false,
 					'hasVariables'   => true,
 					'placeholder'    => '1s',
@@ -223,13 +250,27 @@ class Interactions {
 						'popup'  => esc_html__( 'Popup', 'bricks' ),
 					],
 					'placeholder' => esc_html__( 'Self', 'bricks' ),
-					'required'    => [ 'action', '!=', [ 'loadMore', 'storageAdd', 'storageRemove', 'storageCount' ] ],
+					'required'    => [ 'action', '!=', [ 'loadMore', 'storageAdd', 'storageRemove', 'storageCount', 'toggleOffCanvas' ] ],
 				],
 
 				'targetSelector'                => [
 					'label'    => esc_html__( 'CSS selector', 'bricks' ),
 					'type'     => 'text',
 					'required' => [ 'target', '=', 'custom' ],
+				],
+
+				// (@since 1.11)
+				'toggleOffCanvasInfo'           => [
+					'type'     => 'info',
+					'content'  => esc_html__( 'Do not set this interaction on a Toggle element.', 'bricks' ),
+					'required' => [ 'action', '=', 'toggleOffCanvas' ],
+				],
+
+				'offCanvasSelector'             => [
+					'label'       => esc_html__( 'Offcanvas', 'bricks' ) . ': ' . esc_html__( 'CSS selector', 'bricks' ),
+					'type'        => 'text',
+					'placeholder' => '#brxe-off123',
+					'required'    => [ 'action', '=', 'toggleOffCanvas' ],
 				],
 
 				'scrollToOffset'                => [
@@ -442,14 +483,39 @@ class Interactions {
 
 		// STEP: Add interaction data attributes to element
 		if ( count( $interactions ) ) {
-			$attributes['data-interactions'] = htmlspecialchars( wp_json_encode( $interactions ) );
-
-			$attributes['data-interaction-id'] = Helpers::generate_random_id( false );
-
 			// @since 1.7 - Add attribute to element if it should be hidden initially
 			$hidden_on_load = false;
 
-			foreach ( $interactions as $element_interactions ) {
+			foreach ( $interactions as $index => $element_interactions ) {
+				// Interaction data modification for toggleOffCanvas (@since 1.11)
+				if ( isset( $element_interactions['action'] ) && $element_interactions['action'] === 'toggleOffCanvas' ) {
+					// Not allowed to set toggleOffCanvas interaction on toggle element
+					if ( $element->name === 'toggle' ) {
+						unset( $interactions[ $index ] );
+						continue;
+					}
+
+					$interactions[ $index ]['target'] = 'offcanvas';
+				}
+
+				// Interaction data modification for loadMore (@since 1.12.2)
+				if ( isset( $element_interactions['action'] ) && $element_interactions['action'] === 'loadMore' ) {
+					$load_more_query_id = isset( $element_interactions['loadMoreQuery'] ) ? $element_interactions['loadMoreQuery'] : 'main';
+
+					// Retrieve main_query_id from Database class (@since 1.12.2)
+					$main_query_id = (string) Database::$main_query_id;
+
+					// Only replace the actual query id if main_query_id is set and loadMoreQuery is 'main'
+					if ( $main_query_id !== '' && $load_more_query_id === 'main' ) {
+						$interactions[ $index ]['loadMoreQuery'] = $main_query_id;
+					}
+
+					// Support Load More inside component
+					if ( $load_more_query_id !== 'main' && isset( $element->element['instanceId'] ) && ! empty( $element->element['instanceId'] ) ) {
+						$interactions[ $index ]['loadMoreQuery'] = $load_more_query_id . '-' . $element->element['instanceId'];
+					}
+				}
+
 				// Early exit if action is not startAnimation
 				if ( isset( $element_interactions['action'] ) && $element_interactions['action'] !== 'startAnimation' ) {
 					continue;
@@ -477,6 +543,11 @@ class Interactions {
 				}
 			}
 
+			// Set attributes after modification in foreach loop logic above (@since 1.11)
+			$attributes['data-interactions'] = htmlspecialchars( wp_json_encode( $interactions ) );
+
+			$attributes['data-interaction-id'] = Helpers::generate_random_id( false );
+
 			if ( $hidden_on_load ) {
 				$attributes['data-interaction-hidden-on-load'] = true;
 			}
@@ -486,19 +557,33 @@ class Interactions {
 				wp_enqueue_style( 'bricks-animate' );
 			}
 
+			// Interaction has toggleOffcanvas: Add attributes (@since 1.11)
+			if ( strpos( $attributes['data-interactions'], 'toggleOffCanvas' ) !== false ) {
+				// For frontend bricksOffcanvas JavaScript
+				$attributes['data-brx-toggle-offcanvas'] = 'true';
+
+				// Set the element focusable
+				if ( ! isset( $attributes['tabindex'] ) ) {
+					$attributes['tabindex'] = '0';
+				}
+
+				// Set aria attributes
+				if ( ! isset( $attributes['aria-expanded'] ) ) {
+					$attributes['aria-expanded'] = 'false';
+				}
+
+				// Set aria-label (Note: always Open, no option to change or user can set on the attribute itself)
+				if ( ! isset( $attributes['aria-label'] ) ) {
+					$attributes['aria-label'] = esc_html__( 'Open', 'bricks' );
+				}
+			}
+
 			// Add interaction loop attributes for JavaScript logic (@since 1.7.1)
 			$looping_query_id = Query::is_any_looping();
 
 			if ( $looping_query_id ) {
 				// Unique identifier for each element in query loop to avoid targeting the wrong elements (popups, etc.) (@since 1.8.4)
-				$unique_loop_id = [
-					Query::get_query_element_id( $looping_query_id ),
-					Query::get_loop_index(),
-					Query::get_loop_object_type( $looping_query_id ),
-					Query::get_loop_object_id( $looping_query_id ),
-				];
-
-				$attributes['data-interaction-loop-id'] = implode( ':', $unique_loop_id );
+				$attributes['data-interaction-loop-id'] = Query::get_looping_unique_identifier( 'interaction' );
 			}
 		}
 

@@ -158,6 +158,19 @@ class Woocommerce_Cart_Collaterals extends Element {
 			'placeholder' => esc_html__( 'Proceed to checkout', 'woocommerce' ),
 		];
 
+		$this->controls['buttonWidth'] = [
+			'tab'   => 'content',
+			'label' => esc_html__( 'Width', 'bricks' ),
+			'type'  => 'number',
+			'units' => true,
+			'css'   => [
+				[
+					'property' => 'width',
+					'selector' => '.wc-proceed-to-checkout .button',
+				],
+			],
+		];
+
 		$this->controls['buttonBackground'] = [
 			'tab'   => 'content',
 			'label' => esc_html__( 'Background', 'bricks' ),

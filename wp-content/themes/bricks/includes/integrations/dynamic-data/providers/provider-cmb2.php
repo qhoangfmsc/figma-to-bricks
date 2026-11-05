@@ -117,9 +117,6 @@ class Provider_Cmb2 extends Base {
 
 		$value = ! is_array( $value ) ? [ $value ] : $value;
 
-		// Legacy from previous code (before Bricks 1.3.5)
-		$filters['separator'] = '<br>';
-
 		switch ( $field['type'] ) {
 			case 'file_list':
 				$filters['object_type'] = 'media';

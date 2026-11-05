@@ -3,6 +3,6 @@
   "box": { "negligiblePx": 2.5, "minorPx": 8 },
   "css": { "negligiblePx": 1.5, "minorPx": 8 },
   "look": { "minor": 18, "major": 30 },
-  "alwaysBlocker": ["exists", "on top at its center", "horizontal scroll", "failed", "transparent area without a background"],
+  "alwaysBlocker": ["exists", "on top at its center", "horizontal scroll", "inside the frame", "failed", "transparent area without a background"],
   "alwaysMajor": ["image weight", "hidden images downloaded", "visible h1"]
 }

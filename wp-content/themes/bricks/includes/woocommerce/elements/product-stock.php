@@ -14,17 +14,17 @@ class Product_Stock extends Element {
 
 	public function set_control_groups() {
 		$this->control_groups['inStock'] = [
-			'title' => esc_html__( 'In Stock', 'bricks' ),
+			'title' => esc_html__( 'In stock', 'bricks' ),
 			'tab'   => 'content',
 		];
 
 		$this->control_groups['lowStock'] = [
-			'title' => esc_html__( 'Low Stock / On backorder', 'bricks' ),
+			'title' => esc_html__( 'Low stock', 'bricks' ) . '/' . esc_html__( 'On backorder', 'bricks' ),
 			'tab'   => 'content',
 		];
 
 		$this->control_groups['outOfStock'] = [
-			'title' => esc_html__( 'Out of Stock', 'bricks' ),
+			'title' => esc_html__( 'Out of stock', 'bricks' ),
 			'tab'   => 'content',
 		];
 	}
@@ -140,8 +140,6 @@ class Product_Stock extends Element {
 	}
 
 	public function render() {
-		$settings = $this->settings;
-
 		global $product;
 
 		$product = wc_get_product( $this->post_id );
@@ -176,25 +174,37 @@ class Product_Stock extends Element {
 
 	public function woocommerce_get_availability( $availability, $product ) {
 		$settings        = $this->settings;
-		$stock_quantity  = $product->get_stock_quantity();
-		$is_manage_stock = $product->managing_stock();
+		$is_manage_stock = $this->is_product_or_variations_managing_stock( $product );
+		// Get stock via helper function if we don't manage stock on product level (to enable low stock for example)
+		$stock_quantity      = $is_manage_stock ? Woocommerce_Helpers::get_stock_amount( $product ) : $product->get_stock_quantity();
+		$is_variable_product = $product->is_type( 'variable' );
 
-		// Low stock amount should consider product level and WC Low stock threshold (@since 1.8.3)
-		$product_low_stock_amount = $product->get_low_stock_amount(); // Maybe zero or empty string, can't use absint here or "0" will be ignored
-		$wc_low_stock_amount      = absint( max( get_option( 'woocommerce_notify_low_stock_amount' ), 0 ) );
+		// Changed the way to get low stock amount
+		$low_stock_amount = wc_get_low_stock_amount( $product );
 
-		// If product level is not set, use WC Low stock threshold
-		$low_stock_amount = $product_low_stock_amount === '' ? $wc_low_stock_amount : absint( $product_low_stock_amount );
+		// If it's variable product, and we do not manage stock on main product, we need to set class and availability manually
+		if ( $is_variable_product && $is_manage_stock ) {
+			if ( $stock_quantity <= 0 ) {
+				$availability['class'] = 'out-of-stock';
+			} elseif ( $stock_quantity <= $low_stock_amount ) {
+				$availability['class'] = 'low-stock';
+			} else {
+				$availability['class'] = 'in-stock';
+			}
+			// Set default availability text
+			$availability['availability'] = Woocommerce_Helpers::format_stock_for_display( $product, $stock_quantity );
 
-		// Set availability class if stock is low and only if stock management is enabled, is_in_stock will be true if not managing stock (@since 1.8.3)
-		if ( $product->is_in_stock() && $stock_quantity <= $low_stock_amount && $is_manage_stock ) {
-			$availability['class'] = 'low-stock';
+		} else {
+			// Set availability class if stock is low and only if stock management is enabled, is_in_stock will be true if not managing stock
+			if ( $product->is_in_stock() && $stock_quantity <= $low_stock_amount && $is_manage_stock ) {
+				$availability['class'] = 'low-stock';
+			}
 		}
 
-		// Set availability text based on user input (@since 1.8.2)
+		// Set availability text based on user input
 		switch ( $availability['class'] ) {
 			case 'in-stock':
-				$availability['availability'] = ! empty( $settings['inStockText'] ) && $is_manage_stock ? $settings['inStockText'] : $availability['availability'];
+				$availability['availability'] = ! empty( $settings['inStockText'] ) && ( $is_manage_stock || $is_variable_product ) ? $settings['inStockText'] : $availability['availability'];
 				break;
 
 			case 'available-on-backorder':
@@ -208,5 +218,35 @@ class Product_Stock extends Element {
 		}
 
 		return $availability;
+	}
+
+	/**
+	 * Check if a WooCommerce product or all its variations manage stock
+	 *
+	 * @param WC_Product $product The product object.
+	 * @return bool True if the product (and any one variations, if variable) manage stock, false otherwise.
+	 *
+	 * @since 1.12
+	 */
+	public function is_product_or_variations_managing_stock( $product ) {
+		if ( ! $product || ! is_a( $product, 'WC_Product' ) ) {
+			return false;
+		}
+
+		if ( $product->is_type( 'variable' ) ) {
+			// For variable products, check each variation
+			$variations = $product->get_children(); // Get all variation IDs
+			foreach ( $variations as $variation_id ) {
+				$variation = wc_get_product( $variation_id );
+				if ( $variation && $variation->managing_stock() ) {
+					return true; // If any variation manages stock, return true
+				}
+			}
+
+			return false;
+		}
+
+		// For simple and other product types.
+		return $product->managing_stock();
 	}
 }

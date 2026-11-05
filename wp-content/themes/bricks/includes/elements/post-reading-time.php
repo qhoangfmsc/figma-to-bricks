@@ -35,28 +35,84 @@ class Element_Post_Reading_Time extends Element {
 			'default' => ' minutes',
 		];
 
+		// Calculation method (@since 1.11)
+		$this->controls['calculationMethod'] = [
+			'label'       => esc_html__( 'Calculation method', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'words'      => esc_html__( 'Words per minute', 'bricks' ),
+				'characters' => esc_html__( 'Characters per minute', 'bricks' ),
+			],
+			'placeholder' => esc_html__( 'Words per minute', 'bricks' ),
+			'inline'      => true,
+		];
+
 		$this->controls['wordsPerMinute'] = [
 			'label'       => esc_html__( 'Words per minutes', 'bricks' ),
 			'type'        => 'number',
-			'inline'      => true,
-			'large'       => true,
 			'placeholder' => 200,
+			'required'    => [ 'calculationMethod', '!=', 'characters' ],
+		];
+
+		// Characters per minute (@since 1.11)
+		$this->controls['charactersPerMinute'] = [
+			'label'       => esc_html__( 'Characters per minute', 'bricks' ),
+			'type'        => 'number',
+			'placeholder' => 1000,
+			'required'    => [ 'calculationMethod', '=', 'characters' ],
 		];
 	}
 
 	public function render() {
-		$settings = $this->settings;
+		$settings           = $this->settings;
+		$prefix             = $settings['prefix'] ?? '';
+		$suffix             = $settings['suffix'] ?? '';
+		$calculation_method = $settings['calculationMethod'] ?? 'words';
 
-		if ( ! empty( $settings['prefix'] ) ) {
-			$this->set_attribute( '_root', 'data-prefix', $settings['prefix'] );
+		/**
+		 * STEP: Calculate reading time inside query loop
+		 *
+		 * If no content selector is set, calculate reading time based on the post content.
+		 *
+		 * @since 1.10
+		 */
+		if ( Query::is_any_looping() && ! isset( $settings['contentSelector'] ) ) {
+			$post_content     = get_post_field( 'post_content', get_the_ID() );
+			$stripped_content = strip_tags( $post_content );
+
+			if ( $calculation_method === 'words' ) {
+				$count      = str_word_count( $stripped_content );
+				$per_minute = $settings['wordsPerMinute'] ?? 200;
+			} else {
+				// Remove whitespace before counting characters
+				$count      = mb_strlen( preg_replace( '/\s+/', '', $stripped_content ) );
+				$per_minute = $settings['charactersPerMinute'] ?? 1000;
+			}
+
+			$reading_time = ceil( $count / $per_minute );
+
+			$text = $prefix . $reading_time . $suffix;
+
+			echo "<div {$this->render_attributes( '_root' )}>$text</div>";
+
+			return;
 		}
 
-		if ( ! empty( $settings['suffix'] ) ) {
-			$this->set_attribute( '_root', 'data-suffix', $settings['suffix'] );
+		// STEP: Calculate reading time of content on the page outside any query loop (via JS)
+		if ( $prefix ) {
+			$this->set_attribute( '_root', 'data-prefix', $prefix );
 		}
 
-		if ( ! empty( $settings['wordsPerMinute'] ) ) {
-			$this->set_attribute( '_root', 'data-wpm', $settings['wordsPerMinute'] );
+		if ( $suffix ) {
+			$this->set_attribute( '_root', 'data-suffix', $suffix );
+		}
+
+		$this->set_attribute( '_root', 'data-calculation-method', $calculation_method );
+
+		if ( $calculation_method === 'words' ) {
+			$this->set_attribute( '_root', 'data-wpm', $settings['wordsPerMinute'] ?? 200 );
+		} else {
+			$this->set_attribute( '_root', 'data-cpm', $settings['charactersPerMinute'] ?? 1000 );
 		}
 
 		if ( ! empty( $settings['contentSelector'] ) ) {

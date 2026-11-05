@@ -29,15 +29,17 @@ class Element_Sidebar extends Element {
 		if ( bricks_is_builder() ) {
 			$sidebars = get_option( 'sidebars_widgets', [] );
 
-			foreach ( array_keys( $sidebars ) as $sidebar_key ) {
-				if ( $sidebar_key === 'wp_inactive_widgets' || $sidebar_key === 'array_version' ) {
-					continue;
+			if ( is_array( $sidebars ) ) {
+				foreach ( array_keys( $sidebars ) as $sidebar_key ) {
+					if ( $sidebar_key === 'wp_inactive_widgets' || $sidebar_key === 'array_version' ) {
+						continue;
+					}
+
+					$sidebar_label = str_replace( [ '-', '_' ], ' ', $sidebar_key );
+					$sidebar_label = ucwords( $sidebar_label );
+
+					$sidebar_options[ $sidebar_key ] = $sidebar_label;
 				}
-
-				$sidebar_label = str_replace( [ '-', '_' ], ' ', $sidebar_key );
-				$sidebar_label = ucwords( $sidebar_label );
-
-				$sidebar_options[ $sidebar_key ] = $sidebar_label;
 			}
 		}
 

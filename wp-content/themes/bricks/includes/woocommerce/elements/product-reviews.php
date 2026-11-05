@@ -65,6 +65,27 @@ class Product_Reviews extends Element {
 			],
 		];
 
+		// Added 'resize' option to textarea (@since 1.11)
+		$this->controls['formTextareaResize'] = [
+			'tab'         => 'content',
+			'group'       => 'form',
+			'label'       => esc_html__( 'Textarea', 'bricks' ) . ': ' . esc_html__( 'Resize', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'none'       => esc_html__( 'None', 'bricks' ),
+				'vertical'   => esc_html__( 'Vertical', 'bricks' ),
+				'horizontal' => esc_html__( 'Horizontal', 'bricks' ),
+				'both'       => esc_html__( 'Both', 'bricks' ),
+			],
+			'css'         => [
+				[
+					'property' => 'resize',
+					'selector' => 'form .comment-form-comment textarea',
+				],
+			],
+			'placeholder' => esc_html__( 'Vertical', 'bricks' )
+		];
+
 		// REVIEW
 
 		$this->controls['authorTypography'] = [

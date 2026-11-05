@@ -8,7 +8,8 @@ class Assets {
 	public static $css_dir        = '';
 	public static $css_url        = '';
 
-	public static $global_colors = [];
+	public static $global_colors     = [];
+	public static $google_fonts_urls = []; // @since 1.9.9
 
 	public static $inline_css = [
 		'color_vars'       => '',
@@ -61,14 +62,8 @@ class Assets {
 	// Keep track of element IDs that will add data-loop-index attribute (@since 1.8)
 	public static $loop_index_elements = [];
 
-	public static $webfonts_loaded = false;
-
 	public function __construct() {
-		$wp_uploads_dir = wp_upload_dir( null, false );
-
-		self::$wp_uploads_dir = $wp_uploads_dir['basedir'];
-		self::$css_dir        = $wp_uploads_dir['basedir'] . '/bricks/css';
-		self::$css_url        = $wp_uploads_dir['baseurl'] . '/bricks/css';
+		self::set_assets_directory();
 
 		// "CSS loading method" set to 'file'
 		if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
@@ -76,6 +71,58 @@ class Assets {
 		}
 
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_setting_specific_scripts' ] );
+
+		add_action( 'switch_blog', [ $this, 'set_assets_directory' ] );
+
+		// add_action( 'wp', [ $this,'schedule_global_classes_trash_cleanup' ] );
+		// add_action( 'bricks_global_classes_trash_cleanup', [ $this, 'cleanup_global_classes_trash' ] );
+
+		// Check if cascade layer is enabled to wrap block styles
+		if ( Database::get_setting( 'bricksCascadeLayer' ) ) {
+			add_filter( 'style_loader_tag', [ $this, 'wrap_block_styles_in_cascade_layer' ], 10, 2 );
+		}
+	}
+
+	public function schedule_global_classes_trash_cleanup() {
+		if ( ! wp_next_scheduled( 'bricks_global_classes_trash_cleanup' ) ) {
+			wp_schedule_event( time(), 'daily', 'bricks_global_classes_trash_cleanup' );
+		}
+	}
+
+	/**
+	 * Cleanup global classes trash
+	 *
+	 * NOTE: Not in use. User has to exclitily delete the global classes from the trash.
+	 *
+	 * @since 1.11
+	 */
+	public function cleanup_global_classes_trash() {
+		$trash            = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+		$retention_period = BRICKS_GLOBAL_CLASSES_DEFAULT_TRASH_RETENTION_DAYS * DAY_IN_SECONDS;
+		$current_time     = time();
+
+		foreach ( $trash as $index => $class ) {
+			if ( ( $current_time - $class['deletedAt'] ) > $retention_period ) {
+				unset( $trash[ $index ] );
+			}
+		}
+
+		update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, array_values( $trash ) );
+	}
+
+	/**
+	 * Helper function to set Bricks assets directory & URL
+	 *
+	 * In the constructor and on blog switch (multisite).
+	 *
+	 * @since 1.9.9
+	 */
+	public static function set_assets_directory() {
+		$wp_uploads_dir = wp_upload_dir( null, false );
+
+		self::$wp_uploads_dir = $wp_uploads_dir['basedir'];
+		self::$css_dir        = $wp_uploads_dir['basedir'] . '/bricks/css';
+		self::$css_url        = $wp_uploads_dir['baseurl'] . '/bricks/css';
 	}
 
 	/**
@@ -105,9 +152,41 @@ class Assets {
 	 */
 	public static function enqueue_setting_specific_scripts( $settings = [] ) {
 		if ( empty( $settings ) ) {
-			$bricks_settings_string  = wp_json_encode( Database::get_template_data( 'header' ) );
-			$bricks_settings_string .= wp_json_encode( Database::get_template_data( 'content' ) );
-			$bricks_settings_string .= wp_json_encode( Database::get_template_data( 'footer' ) );
+			// Get all Bricks elements used on the page (header, content, footer)
+			$bricks_settings_string = '';
+			$all_elements           = [];
+			$header_elements        = Database::get_template_data( 'header' );
+			$content_elements       = Database::get_template_data( 'content' );
+			$footer_elements        = Database::get_template_data( 'footer' );
+
+			if ( is_array( $header_elements ) ) {
+				$all_elements = array_merge( $all_elements, $header_elements );
+			}
+
+			if ( is_array( $content_elements ) ) {
+				$all_elements = array_merge( $all_elements, $content_elements );
+			}
+
+			if ( is_array( $footer_elements ) ) {
+				$all_elements = array_merge( $all_elements, $footer_elements );
+			}
+
+			foreach ( $all_elements as $element ) {
+				$bricks_settings_string .= wp_json_encode( $element );
+
+				// Get component instance (@since 1.12)
+				if ( ! empty( $element['cid'] ) ) {
+					$component_instance = Helpers::get_component_instance( $element );
+					if ( ! empty( $component_instance ) ) {
+						$bricks_settings_string .= wp_json_encode( $component_instance );
+					}
+				}
+
+				// Get local element
+				else {
+					$bricks_settings_string .= wp_json_encode( $element );
+				}
+			}
 
 			// Loop over popup template data to enqueue 'bricks-animate' for popups too (@since 1.6)
 			$popup_template_ids = Database::$active_templates['popup'];
@@ -135,10 +214,8 @@ class Assets {
 					$global_element_id = ! empty( $global_element['id'] ) ? $global_element['id'] : false;
 				}
 
-				if ( $global_element_id ) {
-					if ( strpos( $bricks_settings_string, $global_element_id ) ) {
-						$bricks_settings_string .= wp_json_encode( $global_element );
-					}
+				if ( $global_element_id && strpos( $bricks_settings_string, $global_element_id ) ) {
+					$bricks_settings_string .= wp_json_encode( $global_element );
 				}
 			}
 		}
@@ -274,11 +351,19 @@ class Assets {
 	 * @since 1.3.4
 	 */
 	public static function minify_css( $inline_css ) {
-		// Minify: Remove line breaks
-		$inline_css = str_replace( "\n", '', $inline_css );
+		if ( ! isset( $_GET['debug'] ) ) {
+			// Minify: Remove line breaks
+			$inline_css = str_replace( "\n", '', $inline_css );
 
-		// Minify: Remove tabs
-		$inline_css = preg_replace( '/\t+/', '', $inline_css );
+			// Minify: Remove tabs
+			$inline_css = preg_replace( '/\t+/', '', $inline_css );
+
+			// Minify: Remove double spaces (@since 1.9.9)
+			$inline_css = preg_replace( '/\s+/', ' ', $inline_css );
+
+			// Minify: Remove CSS code comments (@since 1.9.9)
+			$inline_css = preg_replace( '!/\*[^*]*\*+([^/][^*]*\*+)*/!', '', $inline_css );
+		}
 
 		return $inline_css;
 	}
@@ -436,22 +521,17 @@ class Assets {
 
 		// STEP: Concatinate styles (respecting precedences)
 
-		// Global Variables
+		// Global variables
 		if ( ! empty( self::$inline_css['global_variables'] ) ) {
 			$inline_css .= "/* GLOBAL VARIABLES CSS */\n" . self::$inline_css['global_variables'];
 		}
 
-		// Color palettes
-		if ( ! empty( self::$inline_css['color_vars'] ) ) {
-			$inline_css .= "\n/* COLOR VARS */\n" . self::$inline_css['color_vars'];
-		}
-
-		// Theme Styles
+		// Theme styles
 		if ( ! empty( self::$inline_css['theme_style'] ) ) {
 			$inline_css .= "\n/* THEME STYLE CSS */\n" . self::$inline_css['theme_style'];
 		}
 
-		// Global Classes
+		// Global classes
 		if ( ! empty( self::$inline_css['global_classes'] ) ) {
 			$inline_css .= "\n/* GLOBAL CLASSES CSS */\n" . self::$inline_css['global_classes'];
 		}
@@ -459,6 +539,11 @@ class Assets {
 		// Bricks settings - Custom CSS
 		if ( ! empty( self::$inline_css['global'] ) ) {
 			$inline_css .= "\n/* GLOBAL CSS */\n" . self::$inline_css['global'];
+		}
+
+		// Color palettes
+		if ( ! empty( self::$inline_css['color_vars'] ) ) {
+			$inline_css .= "\n/* COLOR VARS */\n" . self::$inline_css['color_vars'];
 		}
 
 		// Page settings
@@ -521,22 +606,6 @@ class Assets {
 			}
 
 			foreach ( $palette['colors'] as $color ) {
-				$color_value = '';
-
-				// 'raw' color value (e.g. 'blue', 'var(--custom-var)', etc.)
-				// if ( ! empty( $color['raw'] ) ) { // NOTE: Not working (#86bw0wage)
-				if ( ! empty( $color['raw'] ) && strpos( $color['raw'], 'var(' ) === false ) {
-					$color_value = bricks_render_dynamic_data( $color['raw'], self::$post_id );
-				} elseif ( ! empty( $color['rgb'] ) ) {
-					$color_value = $color['rgb'];
-				} elseif ( ! empty( $color['hex'] ) ) {
-					$color_value = $color['hex'];
-				}
-
-				if ( ! $color_value ) {
-					continue;
-				}
-
 				// Skip: color has no 'id'
 				$color_id = $color['id'] ?? false;
 
@@ -544,25 +613,63 @@ class Assets {
 					continue;
 				}
 
-				$css_var = "--bricks-color-{$color_id}";
+				$color_value  = '';
+				$css_var_name = "--bricks-color-{$color_id}";
 
-				$raw_value = $color['raw'] ?? '';
-
-				// 'raw' value is CSS var
-				if ( strpos( $raw_value, 'var(' ) !== false ) {
-					$css_var = str_replace( 'var(', '', $raw_value );
-					$css_var = str_replace( ')', '', $css_var );
-
-					self::$global_colors[ $color_id ] = $raw_value;
-				} else {
-					self::$global_colors[ $color_id ] = $color_value;
+				/**
+				 * Check for 'rgb' & 'hex' before 'raw' value
+				 *
+				 * As 'raw' can contain 'var()' color
+				 *
+				 * @since 1.10: Avoids creating a CSS var like: --cr: var(--cr)
+				 */
+				if ( ! empty( $color['rgb'] ) ) {
+					$color_value = $color['rgb'];
+				} elseif ( ! empty( $color['hex'] ) ) {
+					$color_value = $color['hex'];
 				}
 
-				$css_vars[] = "{$css_var}: {$color_value};";
+				/**
+				 * Check for 'raw' value: blue, var(--color-light), etc.
+				 *
+				 * @since 1.10
+				 * @see #86bw0wage
+				 */
+				$raw_value = $color['raw'] ?? false;
+				if ( $raw_value ) {
+					$raw_value = bricks_render_dynamic_data( $raw_value, self::$post_id );
+
+					// Raw is not a CSS var
+					if ( strpos( $raw_value, 'var(' ) === false ) {
+						$color_value = $raw_value;
+					}
+
+					// Raw is a CSS variable definition with hex/rgb color as the value
+					elseif ( $color_value ) {
+						// Remove 'var(' and ')' from $raw_value
+						$css_var_name = str_replace( [ 'var(', ')' ], '', $raw_value );
+
+						self::$global_colors[ $color_id ] = $raw_value;
+
+						// Output: --primary: #ffd64f
+						$css_vars[] = "$css_var_name: $color_value;";
+
+						// Skip logic below as color is a CSS variable name & value definition
+						$color_value = false;
+					}
+				}
+
+				if ( $color_value ) {
+					self::$global_colors[ $color_id ] = $color_value;
+
+					$css_vars[] = "$css_var_name: $color_value;";
+				}
 			}
 		}
 
-		return ! empty( $css_vars ) ? ':root {' . PHP_EOL . implode( PHP_EOL, $css_vars ) . PHP_EOL . '}' . PHP_EOL : '';
+		$css_variables = ! empty( $css_vars ) ? ':root {' . PHP_EOL . implode( PHP_EOL, $css_vars ) . PHP_EOL . '}' . PHP_EOL : '';
+
+		return $css_variables;
 	}
 
 	/**
@@ -641,11 +748,28 @@ class Assets {
 
 		$inline_css = '';
 
+		$links_additional_css_selectors = $settings['links']['cssSelectors'] ?? '';
+
 		foreach ( $settings as $group_key => $group_settings ) {
-			$group_controls = ! empty( $controls[ $group_key ] ) ? $controls[ $group_key ] : false;
+			$group_controls = $controls[ $group_key ] ?? false;
 
 			if ( ! $group_controls ) {
 				continue;
+			}
+
+			// Link: Custom CSS selectors (@since 1.10)
+			if ( $group_key === 'links' && $links_additional_css_selectors ) {
+				foreach ( $group_controls as &$group_control ) {
+					if ( ! empty( $group_control['css'] ) ) {
+						foreach ( $group_control['css'] as &$css_rule ) {
+							if ( ! empty( $css_rule['selector'] ) ) {
+								$css_rule['selector'] .= ", $links_additional_css_selectors";
+							} else {
+								$css_rule['selector'] = $links_additional_css_selectors;
+							}
+						}
+					}
+				}
 			}
 
 			$element = [ 'settings' => $group_settings ];
@@ -671,8 +795,8 @@ class Assets {
 	public static function format_variables_as_css( $variables ) {
 		$css = ':root {';
 		foreach ( $variables as $variable ) {
-			// Ensure that both 'name' and 'value' are set for each variable
-			if ( isset( $variable['name'] ) && isset( $variable['value'] ) ) {
+			// Ensure that the variable name is set. Value can be empty (@since 1.11)
+			if ( isset( $variable['name'] ) && isset( $variable['value'] ) && $variable['value'] !== '' ) {
 				$css .= "--{$variable['name']}: {$variable['value']};";
 			}
 		}
@@ -685,8 +809,10 @@ class Assets {
 	 * Generate global classes CSS string
 	 *
 	 * @return string Styles for global classes.
+	 *
+	 * @since 1.12: Add key param to generate separate CSS to avoid duplicated styles (no result template)
 	 */
-	public static function generate_global_classes() {
+	public static function generate_global_classes( $key = 'global_classes' ) {
 		if ( empty( self::$global_classes_elements ) ) {
 			return;
 		}
@@ -698,6 +824,9 @@ class Assets {
 		}
 
 		$inline_css = '';
+
+		// Ensure key is a string and not empty
+		$key = empty( $key ) ? 'global_classes' : (string) $key;
 
 		foreach ( self::$global_classes_elements as $global_class_id => $element_names ) {
 			// Get element name from class
@@ -717,7 +846,7 @@ class Assets {
 						'_cssGlobalClass' => $global_class['name'], // Special property to add global CSS class the CSS selector
 					],
 					$element_controls,
-					'global_classes'
+					$key
 				);
 			}
 		}
@@ -747,7 +876,7 @@ class Assets {
 				continue;
 			}
 
-			// Return: Template has not been published (@since 1.7.1)
+			// Return: Template has not been published
 			if ( $post_id && get_post_status( $post_id ) !== 'publish' && get_post_type( $post_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
 				continue;
 			}
@@ -809,9 +938,19 @@ class Assets {
 
 		if ( $adobe_fonts_project_id && is_array( $adobe_fonts ) && count( $adobe_fonts ) ) {
 			foreach ( $adobe_fonts as $adobe_font ) {
-				// Check if Adobe font is in use in inline CSS
+				// Check if Adobe font is used in inline CSS
 				if ( ! empty( $adobe_font['slug'] ) && strpos( $inline_css, $adobe_font['slug'] ) !== false ) {
 					$adobe_fonts_in_use[] = $adobe_font['slug'];
+					continue; // Font found, continue with the next font
+				}
+
+				// Font not found from the slug: Check css_names (@since 1.11)
+				if ( ! empty( $adobe_font['css_names'] ) && is_array( $adobe_font['css_names'] ) ) {
+					foreach ( $adobe_font['css_names'] as $css_name ) {
+						if ( strpos( $inline_css, $css_name ) !== false ) {
+							$adobe_fonts_in_use[] = $css_name;
+						}
+					}
 				}
 			}
 
@@ -1052,16 +1191,11 @@ class Assets {
 		}
 
 		// Use font stylesheet URLs
-		if (
-			bricks_is_builder() ||
-			self::$webfonts_loaded ||
-			! count( $active_google_fonts )
-		) {
+		if ( bricks_is_builder() || ! count( $active_google_fonts ) ) {
 			return;
 		}
 
 		// Frontend: Load Google font files (via Webfont loader OR stylesheets (= default))
-		self::$webfonts_loaded = true;
 
 		// Preconnect to Google Fonts for async DNS lookup
 		add_action(
@@ -1072,8 +1206,18 @@ class Assets {
 			7
 		);
 
-		// Pass null to allow to pass multiple Google fonts via the 'family' URL parameter
-		wp_enqueue_style( 'bricks-google-fonts', $active_google_fonts_url, [], null );
+		// Fonts are already loaded (@since 1.9.9)
+		if ( in_array( $active_google_fonts_url, self::$google_fonts_urls ) ) {
+			return;
+		}
+
+		$google_fonts_urls_count = count( self::$google_fonts_urls );
+
+		// Pass null to allow to pass multiple Google fonts via the 'family' URL parameter (#86byx84wn)
+		wp_enqueue_style( $google_fonts_urls_count ? "bricks-google-fonts-$google_fonts_urls_count" : 'bricks-google-fonts', $active_google_fonts_url, [], null );
+
+		// Add to list of loaded Google fonts to avoid duplicate loading the same font URL multiple times
+		self::$google_fonts_urls[] = $active_google_fonts_url;
 
 		/**
 		 * Hide DOM until all webfonts are loaded via fontfaceobserver.min.js (contains Promise polyfill)
@@ -1085,7 +1229,7 @@ class Assets {
 		 *
 		 * @since 1.8: Use FontFaceObserver (2.3.0) instead of Webfont Loader.
 		 */
-		if ( Database::get_setting( 'webfontLoading' ) === 'webfontloader' ) {
+		if ( Database::get_setting( 'webfontLoading' ) === 'webfontloader' && $google_fonts_urls_count === 0 ) {
 			$font_face_observer      = "document.addEventListener('DOMContentLoaded', function() {";
 			$font_face_observer_load = '';
 
@@ -1300,8 +1444,8 @@ class Assets {
 			}
 		}
 
-		$control      = ! empty( $controls[ $control_key ] ) ? $controls[ $control_key ] : false;
-		$control_type = ! empty( $control['type'] ) ? $control['type'] : '';
+		$control      = $controls[ $control_key ] ?? false;
+		$control_type = $control['type'] ?? '';
 		$css_rules    = [];
 
 		// STEP: Loop over repeater items to generate CSS string
@@ -1334,7 +1478,7 @@ class Assets {
 
 				// Append query loop index (to target specific loop item) if using dynamic tags (@since 1.8)
 				if ( $has_dynamic_value && Query::is_looping() ) {
-					$loop_index_selector = '[data-query-loop-index="' . Query::get_loop_index() . '"]';
+					$loop_index_selector = '[data-query-loop-index="' . Query::get_looping_unique_identifier() . '"]';
 
 					// Maybe add loop index to element attribute to the element
 					self::maybe_add_query_loop_index_attribute_to_element();
@@ -1393,14 +1537,29 @@ class Assets {
 				 * @since 1.3
 				 */
 				if ( isset( $css_definition['value'] ) ) {
+					/**
+					 * Skip adding CSS rule for 'value' if specific setting is set
+					 *
+					 * To fix having to apply setting in a specific order.
+					 *
+					 * Example: Nav menu: 'mobileMenuPosition' before 'mobileMenuWidth'
+					 *
+					 * @since 1.10
+					 */
+					$skip_if_set = $css_definition['skipIfSet'] ?? false;
+					if ( $skip_if_set ) {
+						$check_for_setting_key = str_replace( $control_key, $skip_if_set, $setting_key );
+
+						if ( isset( $settings[ $check_for_setting_key ] ) ) {
+							continue;
+						}
+					}
+
 					if ( $css_property === 'content' ) {
 						// Strip slashes except if it's the pseudo class "_content", then we'll keep the slashes e.g. "\f410" (@since 1.5.1)
 						if ( $control_key !== '_content' ) {
 							$setting_value = stripslashes_deep( $setting_value );
 						}
-
-						$setting_value = str_replace( "'", '', $setting_value );
-						$setting_value = str_replace( '"', '', $setting_value );
 
 						$setting_value = bricks_render_dynamic_data( $setting_value, $post_id );
 					}
@@ -1414,11 +1573,33 @@ class Assets {
 						$setting_value = $css_definition['value'];
 					} else {
 						$setting_value = str_replace( '%s', $setting_value, $css_definition['value'] );
+
+						/**
+						 * Wrap 'content' in quotes if not:
+						 *
+						 * CSS function: attr, counter, url
+						 * Keyword: none, open-quote, close-quote
+						 *
+						 * @since 1.10
+						 */
+						if ( $control_key === '_content' &&
+							strpos( $setting_value, 'attr(' ) === false &&
+							strpos( $setting_value, 'counter(' ) === false &&
+							strpos( $setting_value, 'url(' ) === false &&
+							$setting_value !== 'none' &&
+							$setting_value !== 'open-quote' &&
+							$setting_value !== 'close-quote'
+						) {
+							// Wrap in quotes if not already in single or double quotes
+							if ( substr( $setting_value, 0, 1 ) !== "'" && substr( $setting_value, 0, 1 ) !== '"' ) {
+								$setting_value = "'$setting_value'";
+							}
+						}
 					}
 
 					$css_rules[ $css_selector ][] = "$css_property: $setting_value";
 				} elseif ( is_array( $setting_value ) ) {
-					$background_size = ! empty( $setting_value['size'] ) ? $setting_value['size'] : false;
+					$background_size = $setting_value['size'] ?? false;
 					$background_url  = false;
 
 					// Generate CSS declarations according to control type
@@ -1444,17 +1625,25 @@ class Assets {
 
 										if ( $dynamic_tag ) {
 											// Generating template CSS file with dynamic image doesn't have a post ID (generate as inline CSS below instead)
-											if ( $post_id ) {
-												$image_size = ! empty( $background_value['size'] ) ? $background_value['size'] : BRICKS_DEFAULT_IMAGE_SIZE;
-												$images     = Integrations\Dynamic_Data\Providers::render_tag( $dynamic_tag, $post_id, 'image', [ 'size' => $image_size ] );
-												$image_id   = isset( $images[0] ) ? $images[0] : 0;
+											// Remove the checking of $post_id, otherwise term page with zero posts unable to generate background image (#86bzfj8d4)
+											$image_size = $background_value['size'] ?? BRICKS_DEFAULT_IMAGE_SIZE;
+											$images     = Integrations\Dynamic_Data\Providers::render_tag( $dynamic_tag, $post_id, 'image', [ 'size' => $image_size ] );
+											$image_id   = $images[0] ?? 0;
 
-												if ( $image_id ) {
-													$background_url = is_numeric( $image_id ) ? wp_get_attachment_image_url( $image_id, $image_size ) : $image_id;
-												}
+											if ( $image_id ) {
+												$background_url = is_numeric( $image_id ) ? wp_get_attachment_image_url( $image_id, $image_size ) : $image_id;
 											}
 										} else {
-											$background_url = ! empty( $background_value['url'] ) ? $background_value['url'] : false;
+											$background_url = false;
+
+											// originalUrl set: External URL with dynamic data (@since 1.11)
+											if ( ! empty( $background_value['external'] ) && $background_value['external'] != 'true' ) {
+												$background_url = bricks_render_dynamic_data( $background_value['external'], $post_id );
+											}
+
+											elseif ( ! empty( $background_value['url'] ) ) {
+												$background_url = $background_value['url'];
+											}
 										}
 
 										// Generate background image style if background_url is set (@since 1.8)
@@ -1592,7 +1781,7 @@ class Assets {
 
 									// border per direction (if style set)
 									elseif ( $border_style ) {
-										// Shouldn't set default border-color, but use currentcolor instead (using for backwards compatibility)
+										// NOTE: We shouldn't set a custom border-color as the default, but use currentcolor instead (keeping it for backwards compatibility)
 										if ( ! $border_color ) {
 											$border_color = 'var(--bricks-border-color)';
 										}
@@ -1607,6 +1796,11 @@ class Assets {
 										$border_style_set = true;
 										$border_color_set = true;
 									}
+
+									// Same border-width for all sides, but no border-style set (@since 1.10)
+									else {
+										$css_rules[ $css_selector . $loop_index_selector ][] = "border-width: {$border_width_values[0]}";
+									}
 								}
 
 								// Different values per direction: Use 'border-{direction}' CSS shorthand
@@ -1614,6 +1808,11 @@ class Assets {
 									foreach ( $border_widths as $direction => $value ) {
 										if ( $border_style && $border_color ) {
 											$css_rules[ $css_selector ][] = "border-$direction: {$value} {$border_style} {$border_color}";
+
+											// Support dynamic data border (@since 1.10)
+											if ( $has_dynamic_value ) {
+												self::$inline_css_dynamic_data .= $css_selector . $loop_index_selector . " {border-$direction: {$value} {$border_style} {$border_color}}";
+											}
 
 											$border_style_set = true;
 											$border_color_set = true;
@@ -1628,6 +1827,11 @@ class Assets {
 
 											if ( $border_color ) {
 												$css_rules[ $css_selector ][] = "border-$direction-color: {$border_color}";
+
+												// Support dynamic data border (@since 1.10)
+												if ( $has_dynamic_value ) {
+													self::$inline_css_dynamic_data .= $css_selector . $loop_index_selector . " {border-$direction-color: {$border_color}}";
+												}
 
 												$border_color_set = true;
 											}
@@ -2293,12 +2497,16 @@ class Assets {
 				}
 			}
 
-			// Add plain CSS: _cssCustom (@since 1.5.1) but skip 'breakpoints' controls like 'slidesToShow', etc.
+			/**
+			 * Add plain CSS: _cssCustom but skip 'breakpoints' controls like 'slidesToShow', etc.
+			 *
+			 * @since 1.10: Add breakpoint-specific page setting custom CSS ('customCss')
+			 */
 			elseif (
 				! count( $css_rules ) &&
 				is_string( $setting_value ) &&
 				strpos( $setting_value, '{' ) !== false
-				&& ! isset( $control['breakpoints'] )
+				&& ( ! isset( $control['breakpoints'] ) || $css_type === 'page' )
 			) {
 				if ( ! isset( self::$inline_css_breakpoints[ $css_type ][ $breakpoint ]['_cssCustom'] ) ) {
 					self::$inline_css_breakpoints[ $css_type ][ $breakpoint ]['_cssCustom'] = '';
@@ -2323,14 +2531,65 @@ class Assets {
 	 * @return string (use & process asset-optimization)
 	 */
 	public static function generate_inline_css_from_element( $element, $controls, $css_type ) {
-		$settings                         = ! empty( $element['settings'] ) ? $element['settings'] : [];
-		$element_id                       = ! empty( $element['id'] ) ? $element['id'] : '';
+		$settings                         = ! empty( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : [];
+		$element_id                       = $element['id'] ?? '';
 		self::$current_generating_element = $element;
+
+		// Update scroll snap selector in page settings
+		if ( $css_type === 'page' && isset( $controls['scrollSnapType']['css'] ) ) {
+			// Controls that apply CSS to the snapping elements (default: .brxe-section)
+			// These control the behavior of individual elements that snap into view
+			$snapping_element_controls = [ 'scrollSnapAlign', 'scrollMargin', 'scrollSnapStop' ];
+
+			if ( isset( $settings['scrollSnapSelector'] ) ) {
+				// Replace default .brxe-section selector with user's custom selector for snapping elements (@since 1.12.2)
+				foreach ( $snapping_element_controls as $control_key ) {
+					if ( isset( $controls[ $control_key ]['css'] ) ) {
+						foreach ( $controls[ $control_key ]['css'] as &$css_rule ) {
+							if ( isset( $css_rule['selector'] ) && $css_rule['selector'] === '.brxe-section' ) {
+								$css_rule['selector'] = $settings['scrollSnapSelector'];
+							}
+						}
+					}
+				}
+
+				if ( isset( $settings['scrollSnapAlign'] ) ) {
+					// Remove the default scroll-snap-align rule from scrollSnapType when custom selector is defined (@since 1.10)
+					$controls['scrollSnapType']['css'] = array_filter(
+						$controls['scrollSnapType']['css'],
+						function( $css_rule ) {
+							return ! ( isset( $css_rule['selector'] ) && $css_rule['selector'] === '.brxe-section' );
+						}
+					);
+				} else {
+					// Just update the selector if scrollSnapAlign is not set (@since 1.12.2)
+					foreach ( $controls['scrollSnapType']['css'] as &$css_rule ) {
+						if ( isset( $css_rule['selector'] ) && $css_rule['selector'] === '.brxe-section' ) {
+							$css_rule['selector'] = $settings['scrollSnapSelector'];
+						}
+					}
+				}
+			} elseif ( isset( $settings['scrollSnapAlign'] ) ) {
+				// Remove the default scroll-snap-align rule from scrollSnapType (@since 1.12.2)
+				$controls['scrollSnapType']['css'] = array_filter(
+					$controls['scrollSnapType']['css'],
+					function( $css_rule ) {
+						return ! ( isset( $css_rule['selector'] ) && $css_rule['selector'] === '.brxe-section' );
+					}
+				);
+			}
+		}
 
 		// STEP: Generate CSS selector
 		$css_selector = '';
 
-		if ( $element_id ) {
+		// Is component: Set selector to component root or child ID (@since 1.12)
+		$component_id = $element['cid'] ?? $element['parentComponent'] ?? false;
+		if ( $component_id ) {
+			$css_selector = ! empty( $element['cid'] ) ? ".brxe-{$element['cid']}" : ".brxe-{$element['id']}";
+		}
+
+		elseif ( $element_id ) {
 			// Check if user has set a custom CSS ID
 			$element_attribute_id = Helpers::get_element_attribute_id( $element_id, $settings );
 
@@ -2342,12 +2601,17 @@ class Assets {
 			}
 
 			// Element in loop selector
-			elseif ( Query::is_looping() ) {
-				$loop_element_id = Query::get_query_element_id();
-				$loop_index      = Query::get_loop_index();
-				// Combine loop element ID and element id (enable multiple query loops containing the same template element (@since 1.5)
-				// Combine loop index (@since 1.8)
-				$loop_style_key = $loop_element_id . $element_id . $loop_index;
+			elseif ( Query::is_any_looping() ) {
+				$looping_query_id = Query::is_any_looping();
+				$loop_element_id  = Query::get_query_element_id( $looping_query_id );
+				// Combine loop element ID, element ID, and loop index (enable multiple query loops containing the same template element
+				$loop_style_key = $loop_element_id . $element_id . Query::get_loop_index( $looping_query_id );
+
+				// Is nested query: Append parent loop element ID and parent loop index (@since 1.10)
+				if ( Query::get_looping_level() > 0 ) {
+					$parent_loop_id  = Query::get_parent_loop_id();
+					$loop_style_key .= Query::get_query_element_id( $parent_loop_id ) . Query::get_loop_index( $parent_loop_id );
+				}
 
 				// CSS is identical for every loop item (except DD featured image)
 				if ( ! in_array( $loop_style_key, self::$css_looping_elements ) ) {
@@ -2430,7 +2694,8 @@ class Assets {
 
 		// Increase specificity of popup CSS selectors for inside query loop (@since 1.9.4)
 		if ( Api::is_current_endpoint( 'load_popup_content' ) ) {
-			$css_selector = ".brx-popup$css_selector";
+			// Wrong selector if not looping (#86bx46frm; @since 1.12)
+			$css_selector = Query::is_any_looping() ? ".brx-popup$css_selector" : ".brx-popup $css_selector";
 		}
 
 		// STEP: Generate CSS rules array of every element setting
@@ -2507,7 +2772,7 @@ class Assets {
 			}
 		}
 
-		// Parse CSS (@since 1.6.2)
+		// Parse CSS
 		$custom_css = Helpers::parse_css( $custom_css );
 
 		if ( $custom_css ) {
@@ -2523,7 +2788,8 @@ class Assets {
 			$inline_css = self::generate_inline_css_for_breakpoints( $css_type, $inline_css ) . PHP_EOL;
 		}
 
-		if ( Query::is_looping() ) {
+		// Is loop OR component child (@since 1.12)
+		if ( Query::is_looping() || ! empty( $element['parentComponent'] ) ) {
 			$inline_css = str_replace( "#brxe-$element_id", ".brxe-$element_id", $inline_css );
 		}
 
@@ -2695,7 +2961,7 @@ class Assets {
 			return;
 		}
 
-		// Set the preview environment CU #3je4ru0 (@since 1.5.7)
+		// Set the preview environment
 		if ( Helpers::is_bricks_template( self::$post_id ) ) {
 			$template_preview_post_id = Helpers::get_template_setting( 'templatePreviewPostId', self::$post_id );
 
@@ -2706,23 +2972,43 @@ class Assets {
 			setup_postdata( $post );
 		}
 
-		// Flat element list (@since 1.2)
+		// Flat element list
 		self::$elements = [];
 
 		// Prepare flat list of elements for recursive calls
 		foreach ( $elements as $element ) {
-			self::$elements[ $element['id'] ] = $element;
-		}
+			// STEP: Get component (@since 1.12)
+			$component_id = $element['cid'] ?? false;
+			$component    = $component_id ? Helpers::get_component_instance( $element ) : false;
 
-		foreach ( $elements as $element ) {
-			if ( ! empty( $element['parent'] ) ) {
-				continue;
+			// Is component: Add all elements of this component to self::$elements array to generate CSS for them
+			if ( $component ) {
+				foreach ( $component['elements'] as $component_element ) {
+					// Set 'parentComponent' to add .brxe- component class to child elements
+					$component_element['parentComponent']       = $component_id;
+					self::$elements[ $component_element['id'] ] = $component_element;
+				}
 			}
 
-			self::generate_css_from_element( $element, $css_type );
+			// Is local element: Add element to self::$elements array
+			elseif ( empty( self::$elements[ $element['id'] ] ) ) {
+				// Component no longer exists: Remove component ID from element
+				if ( $component_id && ! $component ) {
+					unset( $element['cid'] );
+				}
+
+				self::$elements[ $element['id'] ] = $element;
+			}
 		}
 
-		// Reset the preview environment CU #3je4ru0 (@since 1.5.7)
+		// Get CSS for each root element (children will be processed recursively in generate_css_from_element)
+		foreach ( self::$elements as $element_id => $element ) {
+			if ( empty( $element['parent'] ) ) {
+				self::generate_css_from_element( $element, $css_type );
+			}
+		}
+
+		// Reset the preview environment
 		if ( Helpers::is_bricks_template( self::$post_id ) ) {
 			wp_reset_postdata();
 		}
@@ -2758,7 +3044,7 @@ class Assets {
 		if ( in_array( $element['name'], $loop_elements ) && isset( $settings['hasLoop'] ) && ! Query::is_looping( $element['id'] ) ) {
 			$query = new Query( $element );
 
-			// Run the query at least once to generate the minimum styles - CU #3je4ru0 (@since 1.5.7)
+			// Run the query at least once to generate the minimum styles
 			if ( empty( $query->count ) ) {
 				// Fake the loop so it doesn't run the query again
 				$query->is_looping = 1;
@@ -2782,16 +3068,22 @@ class Assets {
 			return;
 		}
 
-		// Nestable elements (container, div, slider-nested, etc.)
+		// Nestable elements (section, container, block, div, slider-nested, etc.)
 		if ( ! empty( $element['children'] ) ) {
-			foreach ( $element['children'] as $child_index => $child_id ) {
-				if ( ! array_key_exists( $child_id, self::$elements ) ) {
+			foreach ( $element['children'] as $child_id ) {
+				$parent_id  = $element['parent'] ?? false;
+				$element_id = $element['id'] ?? false;
+
+				// Ensure the child_id is not the same as the parent_id to avoid infinite loops (#86bzkuvge)
+				if ( $child_id === $element_id || $child_id === $parent_id ) {
 					continue;
 				}
 
-				$child_element = self::$elements[ $child_id ];
+				if ( array_key_exists( $child_id, self::$elements ) ) {
+					$child_element = self::$elements[ $child_id ];
 
-				self::generate_css_from_element( $child_element, $css_type ); // Recursive
+					self::generate_css_from_element( $child_element, $css_type ); // Recursive
+				}
 			}
 		}
 
@@ -2922,7 +3214,12 @@ class Assets {
 			return;
 		}
 
-		$current_element_id = self::$current_generating_element['id'];
+		$current_element_id = self::$current_generating_element['id'] ?? false;
+
+		// Return: Without element ID, could be a popup template (@since 1.12)
+		if ( ! $current_element_id ) {
+			return;
+		}
 
 		// Stop if the element ID previously processed before
 		if ( in_array( $current_element_id, self::$loop_index_elements ) ) {
@@ -2940,10 +3237,10 @@ class Assets {
 					return $attributes;
 				}
 
-				$query_loop_index = Query::get_loop_index();
+				$unique_loop_index = Query::get_looping_unique_identifier();
 
-				if ( $query_loop_index !== '' ) {
-					$attributes[ $key ]['data-query-loop-index'] = Query::get_loop_index();
+				if ( $unique_loop_index !== '' ) {
+					$attributes[ $key ]['data-query-loop-index'] = $unique_loop_index;
 				}
 
 				return $attributes;
@@ -2951,5 +3248,23 @@ class Assets {
 			10,
 			3
 		);
+	}
+
+	/**
+	 * Wrap WordPress block styles in cascade layer when enabled
+	 *
+	 * @since 1.12.2
+	 */
+	public function wrap_block_styles_in_cascade_layer( $tag, $handle ) {
+		if ( $handle === 'wp-block-library' || $handle === 'global-styles' ) {
+			// Extract the CSS file URL from the tag
+			preg_match( '/href=(["\'])([^\1]+)\1.*?media=\'([^\']+)\'/', $tag, $matches );
+			$css_url = $matches[2];
+			$media   = $matches[3]; // media='(.*?)'
+
+			// Create a new style tag that wraps the content in a cascade layer
+			$tag = "<style>@import url('$css_url') layer(bricks.gutenberg);</style>";
+		}
+		return $tag;
 	}
 }

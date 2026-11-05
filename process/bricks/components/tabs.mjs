@@ -5,13 +5,21 @@
 // The first tab is the open one (Bricks default); styling of the active title is not read.
 // params: content.panes { titleNodeId: text } (what the owner typed in the Plan for a tab whose pane Figma does not draw: a pane block with the settings of the
 //         drawn pane and a text with the typography of its first text)
-import { CONTAINER, visibleKids, hidden, firstText, flexDirectionCss } from './helpers.mjs';
+import { CONTAINER, visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from './helpers.mjs';
+import { tabsChromeCss } from './tabs-chrome.mjs';
 
 // the tabs Figma draws no pane for, with the title text: what the Plan asks the content of
-export function emptyTabs(node) {
+const tabLabel = (title) => firstText(title)?.text?.characters?.replace(/\s+/g, ' ').trim() || title.name;
+
+export function tabInventory(node) {
   const [bar, content] = visibleKids(node);
+  if (!bar) return [];
   const panes = visibleKids(content);
-  return visibleKids(bar).slice(panes.length).map((t) => ({ title: t, label: firstText(t)?.text.characters.replace(/\s+/g, ' ').trim() ?? t.name }));
+  return visibleKids(bar).map((title, i) => ({ title, label: tabLabel(title), drawn: panes[i] ? (textSnippet(panes[i]) || 'đã vẽ') : '' }));
+}
+
+export function emptyTabs(node) {
+  return tabInventory(node).filter((row) => !row.drawn).map((row) => ({ title: row.title, label: row.label }));
 }
 
 export default {
@@ -43,7 +51,8 @@ export default {
     const titles = visibleKids(bar), panes = visibleKids(content);
     const sample = panes[0], sampleText = sample && firstText(sample);
     const out = {
-      ...(node.layout?.mode === 'HORIZONTAL' && { [node.id]: { css: flexDirectionCss(node) } }), // the theme's root is a column; vertical tabs (bar beside the panes) need a row
+      // The theme root is a column. A horizontal bar beside the panes needs a row. The pane rules keep one pane open.
+      [node.id]: { css: [...(node.layout?.mode === 'HORIZONTAL' ? flexDirectionCss(node) : []), ...tabsChromeCss()] },
       [bar.id]: { kind: 'block', settings: hidden('tab-menu') },
       [content.id]: { kind: 'block', settings: hidden('tab-content'), extraChildren: Array.from({ length: titles.length - panes.length }, (_, i) => {
         const text = det?.params?.content?.panes?.[titles[panes.length + i].id];

@@ -28,6 +28,19 @@ class Woocommerce_Theme_Styles {
 	 * Add Woo Theme style controls
 	 */
 	public function set_controls( $controls ) {
+		// @since 1.11.1: Selector for WooCommerce button (for non-WooCommerce pages)
+		$button_selectors = [
+			'.woocommerce .button',
+			'body:not(.woocommerce) .product_type_variable',
+			'body:not(.woocommerce) .product_type_grouped',
+			'body:not(.woocommerce) .product_type_external',
+			'body:not(.woocommerce) .product_type_simple',
+			// For woo quick view popup, in builder (@since 1.11.1.1)
+			'body:not(.woocommerce) .brx-popup-content:not(.woocommerce) form.cart .single_add_to_cart_button',
+		];
+
+		$button_selectors = implode( ', ', $button_selectors );
+
 		// WooCommerce - Button
 		$controls['woocommerce-button'] = [
 			'padding'    => [
@@ -36,7 +49,7 @@ class Woocommerce_Theme_Styles {
 				'type'  => 'spacing',
 				'css'   => [
 					[
-						'selector' => '.woocommerce .button',
+						'selector' => $button_selectors,
 						'property' => 'padding',
 					],
 				],
@@ -48,9 +61,9 @@ class Woocommerce_Theme_Styles {
 				'type'  => 'color',
 				'css'   => [
 					[
-						'selector' => '.woocommerce .button',
+						'selector' => $button_selectors,
 						'property' => 'background-color',
-					],
+					]
 				],
 			],
 
@@ -60,9 +73,9 @@ class Woocommerce_Theme_Styles {
 				'type'  => 'border',
 				'css'   => [
 					[
-						'selector' => '.woocommerce .button',
+						'selector' => $button_selectors,
 						'property' => 'border',
-					],
+					]
 				],
 			],
 
@@ -72,9 +85,9 @@ class Woocommerce_Theme_Styles {
 				'type'  => 'typography',
 				'css'   => [
 					[
-						'selector' => '.woocommerce .button',
+						'selector' => $button_selectors,
 						'property' => 'font',
-					],
+					]
 				],
 			],
 		];

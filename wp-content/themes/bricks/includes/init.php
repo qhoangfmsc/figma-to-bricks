@@ -4,6 +4,7 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Theme {
+	public $components;
 	public $capabilities;
 	public $database;
 	public $helpers;
@@ -35,6 +36,9 @@ class Theme {
 	public $integrations_form;
 	public $wpml;
 	public $instagram;
+	public $rank_math;
+	public $yoast;
+
 	public $builder;
 	public $frontend;
 
@@ -48,6 +52,8 @@ class Theme {
 	public $auth_redirects;
 
 	public $query_filters;
+	public $query_filters_indexer;
+	public $query_filters_fields;
 
 	/**
 	 * The one and only Theme instance
@@ -79,6 +85,7 @@ class Theme {
 	public function init() {
 		Compatibility::register();
 
+		$this->components   = new Components();
 		$this->capabilities = new Capabilities();
 		$this->database     = new Database();
 		$this->helpers      = new Helpers();
@@ -121,6 +128,8 @@ class Theme {
 		$this->polylang          = new Integrations\Polylang\Polylang();
 		$this->wpml              = new Integrations\Wpml\Wpml();
 		$this->instagram         = new Integrations\Instagram\Instagram();
+		$this->rank_math         = new Integrations\Rank_Math\Rank_Math();
+		$this->yoast             = new Integrations\Yoast\Yoast();
 
 		if ( is_admin() ) {
 			$this->admin     = new Admin();
@@ -147,13 +156,11 @@ class Theme {
 				'pods',
 				'metabox',
 				'toolset',
-				'jetengine' ,
+				'jetengine',
 			]
 		);
 
 		Integrations\Dynamic_Data\Providers::register( $dynamic_data_providers );
-
-		Integrations\Rank_Math\Rank_Math::register();
 
 		// Check for builder instance inside Heartbeat class
 		$this->heartbeat = new Heartbeat();
@@ -170,9 +177,13 @@ class Theme {
 
 		// Query Filters (@since 1.9.6)
 		if ( Helpers::enabled_query_filters() ) {
-			$this->query_filters = Query_Filters::get_instance();
-		}
+			$this->query_filters         = Query_Filters::get_instance();
+			$this->query_filters_indexer = Query_Filters_Indexer::get_instance(); // @since 1.10
 
+			if ( Helpers::enabled_query_filters_integration() ) {
+				$this->query_filters_fields = Integrations\Query_Filters\Fields::get_instance(); // @since 1.11.1
+			}
+		}
 	}
 
 	/**

@@ -237,11 +237,54 @@ class Assets_Files {
 			$template_ids = is_array( $template_id ) ? $template_id : [ $template_id ];
 
 			foreach ( $template_ids as $template_id ) {
+				// Get template data to scan for nested template elements and enqueue found template CSS files (@since 1.12)
+				if ( $type === 'popup' ) {
+					// For popups, get the content directly using the current popup ID
+					$template_data = get_post_meta( $template_id, BRICKS_DB_PAGE_CONTENT, true );
+				} else {
+					$template_data = Database::get_template_data( $type );
+				}
+
+				if ( $template_data ) {
+					$this->scan_for_templates( $template_data );
+				}
+
 				$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
 				$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
 
 				if ( file_exists( $css_file_dir ) ) {
 					wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+				}
+			}
+		}
+
+		// STEP: Enqueue WooCommerce template CSS files (@since 1.12)
+		if ( WooCommerce::is_woocommerce_active() ) {
+			$wc_templates = WooCommerce::get_active_templates_for_current_endpoint();
+
+			foreach ( $wc_templates as $template_id ) {
+				$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+				$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+				if ( file_exists( $css_file_dir ) ) {
+					wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+				}
+			}
+		}
+
+		// STEP: Check post content for shortcodes to enqueue template CSS files (@since 1.12)
+		global $post;
+		if ( $post && has_shortcode( $post->post_content, 'bricks_template' ) ) {
+			preg_match_all( '/\[bricks_template.*?id=[\'"](\d+)[\'"].*?\]/', $post->post_content, $matches );
+			if ( ! empty( $matches[1] ) ) {
+				foreach ( $matches[1] as $template_id ) {
+					$template_id  = intval( $template_id );
+					$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+					$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+					if ( file_exists( $css_file_dir ) ) {
+						wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+					}
 				}
 			}
 		}
@@ -274,6 +317,89 @@ class Assets_Files {
 		$content_elements = get_post_meta( $content_template_id, BRICKS_DB_PAGE_CONTENT, true );
 
 		$this->load_content_extra_css_files( $content_elements ); // Recursive
+	}
+
+	/**
+	 * Recursively scan elements array for template & shortcode elements and enqueue found template CSS files
+	 *
+	 * @param array $elements Array of Bricks elements to scan.
+	 *
+	 * @since 1.12
+	 */
+	private function scan_for_templates( $elements ) {
+		foreach ( $elements as $element ) {
+			// Check template elements
+			if ( $element['name'] === 'template' && ! empty( $element['settings']['template'] ) ) {
+				$template_id  = $element['settings']['template'];
+				$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+				$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+				if ( file_exists( $css_file_dir ) ) {
+					wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+				}
+			}
+
+			// Check shortcode elements for bricks_template shortcode
+			if ( $element['name'] === 'shortcode' && ! empty( $element['settings']['shortcode'] ) ) {
+				$shortcode_content = $element['settings']['shortcode'];
+
+				if ( has_shortcode( $shortcode_content, 'bricks_template' ) ) {
+					preg_match_all( '/\[bricks_template.*?id=[\'"](\d+)[\'"].*?\]/', $shortcode_content, $matches );
+
+					if ( ! empty( $matches[1] ) ) {
+						foreach ( $matches[1] as $template_id ) {
+							$template_id  = intval( $template_id );
+							$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+							$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+							if ( file_exists( $css_file_dir ) ) {
+								wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+							}
+						}
+					}
+				}
+			}
+
+			// Check query loop (block, div, container, section) for "no results" templates
+			// Optimistically enqueue "no results" template CSS file
+			// NOTE: If query has results, this CSS file will be dequeued in Query->render()
+			if ( in_array( $element['name'], [ 'block', 'div', 'container', 'section' ], true ) &&
+			! empty( $element['settings']['hasLoop'] ) &&
+			! empty( $element['settings']['query']['no_results_template'] ) ) {
+				$template_id = intval( $element['settings']['query']['no_results_template'] );
+
+				$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+				$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+				if ( file_exists( $css_file_dir ) ) {
+					wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+				}
+			}
+
+			// Check nav-menu elements for mega menu templates
+			if ( $element['name'] === 'nav-menu' &&
+			! empty( $element['settings']['megaMenu'] ) ) {
+
+				$menu_id    = intval( $element['settings']['menu'] ) ?? '';
+				$menu_items = wp_get_nav_menu_items( $menu_id );
+
+				if ( $menu_items ) {
+					foreach ( $menu_items as $item ) {
+						$mega_menu_template_id = get_post_meta( $item->ID, '_bricks_mega_menu_template_id', true );
+
+						if ( ! empty( $mega_menu_template_id ) ) {
+							$template_id  = intval( $mega_menu_template_id );
+							$css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+							$css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+							if ( file_exists( $css_file_dir ) ) {
+								wp_enqueue_style( "bricks-post-$template_id", $css_file_url, [], filemtime( $css_file_dir ) );
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/**
@@ -353,9 +479,48 @@ class Assets_Files {
 	 * @since 1.3.4
 	 */
 	public static function generate_post_css_file( $post_id, $content_type, $elements ) {
-		// Check: Only run when "CSS loading method" is set to "External Files"
+		// Return: "CSS loading method" not set to "External Files"
 		if ( Database::get_setting( 'cssLoading' ) !== 'file' ) {
 			return;
+		}
+
+		// Fetch components data from database (@since 1.12)
+		Database::$global_data['components'] = get_option( BRICKS_DB_COMPONENTS, [] );
+
+		// STEP: Get active element names
+		$active_element_names = [];
+		foreach ( $elements as $element ) {
+			$active_element_names[] = $element['name'];
+
+			// Get component elements (@since 1.12)
+			if ( ! empty( $element['cid'] ) ) {
+				$component_instance = Helpers::get_component_instance( $element );
+				if ( ! empty( $component_instance['elements'] ) ) {
+					$active_element_names = array_merge( $active_element_names, array_column( $component_instance['elements'], 'name' ) );
+				}
+			}
+		}
+
+		// Remove duplicates element names
+		$active_element_names = array_unique( $active_element_names );
+
+		// STEP: Load style files of every element of requested page
+		$element_css_default = [];
+
+		foreach ( $active_element_names as $element_name ) {
+			if ( ! isset( $element_css_default[ $element_name ] ) ) {
+				$element_css_file_path = BRICKS_PATH_ASSETS . "css/elements/$element_name.min.css";
+				if ( file_exists( $element_css_file_path ) ) {
+					$element_css = file_get_contents( $element_css_file_path );
+
+					// STEP: Wrap CSS in @layer bricks (@since 1.12)
+					if ( Database::get_setting( 'bricksCascadeLayer' ) ) {
+						$element_css = "@layer bricks {\n$element_css\n}";
+					}
+
+					$element_css_default[ $element_name ] = $element_css;
+				}
+			}
 		}
 
 		// Directory doesn't exist: Create recursively
@@ -370,8 +535,7 @@ class Assets_Files {
 		// Set the post_id
 		Assets::$post_id = $post_id;
 
-		$element_css         = '';
-		$element_css_default = [];
+		$element_css = '';
 
 		// STEP: Page settings
 		$page_settings = get_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, true );
@@ -413,19 +577,6 @@ class Assets_Files {
 					$template_settings_controls['controls'],
 					'template'
 				);
-			}
-		}
-
-		// STEP: Load style files of every element of requested page
-		if ( is_array( $elements ) ) {
-			foreach ( $elements as $element ) {
-				if ( ! isset( $element_css_default[ $element['name'] ] ) ) {
-					$element_css_file_path = BRICKS_PATH_ASSETS . 'css/elements/' . $element['name'] . '.min.css';
-
-					if ( file_exists( $element_css_file_path ) ) {
-						$element_css_default[ $element['name'] ] = file_get_contents( $element_css_file_path );
-					}
-				}
 			}
 		}
 

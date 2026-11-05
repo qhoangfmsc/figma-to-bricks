@@ -15,22 +15,18 @@ class Element_Post_Author extends Element {
 	public function set_control_groups() {
 		$this->control_groups['avatar'] = [
 			'title' => esc_html__( 'Avatar', 'bricks' ),
-			'tab'   => 'content',
 		];
 
 		$this->control_groups['name'] = [
 			'title' => esc_html__( 'Name', 'bricks' ),
-			'tab'   => 'content',
 		];
 
 		$this->control_groups['bio'] = [
 			'title' => esc_html__( 'Bio', 'bricks' ),
-			'tab'   => 'content',
 		];
 
 		$this->control_groups['posts'] = [
 			'title' => esc_html__( 'posts', 'bricks' ),
-			'tab'   => 'content',
 		];
 	}
 
@@ -39,7 +35,6 @@ class Element_Post_Author extends Element {
 		// Group: avatar
 
 		$this->controls['avatar'] = [
-			'tab'     => 'content',
 			'group'   => 'avatar',
 			'label'   => esc_html__( 'Show avatar', 'bricks' ),
 			'type'    => 'checkbox',
@@ -47,7 +42,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['avatarSize'] = [
-			'tab'         => 'content',
 			'group'       => 'avatar',
 			'label'       => esc_html__( 'Avatar size', 'bricks' ),
 			'type'        => 'number',
@@ -67,7 +61,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['avatarPosition'] = [
-			'tab'         => 'content',
 			'group'       => 'avatar',
 			'label'       => esc_html__( 'Avatar position', 'bricks' ),
 			'type'        => 'select',
@@ -83,7 +76,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['avatarBorder'] = [
-			'tab'      => 'content',
 			'group'    => 'avatar',
 			'label'    => esc_html__( 'Avatar border', 'bricks' ),
 			'type'     => 'border',
@@ -97,7 +89,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['avatarBoxShadow'] = [
-			'tab'      => 'content',
 			'group'    => 'avatar',
 			'label'    => esc_html__( 'Avatar box shadow', 'bricks' ),
 			'type'     => 'box-shadow',
@@ -113,7 +104,6 @@ class Element_Post_Author extends Element {
 		// Group: name
 
 		$this->controls['name'] = [
-			'tab'     => 'content',
 			'group'   => 'name',
 			'label'   => esc_html__( 'Show name', 'bricks' ),
 			'type'    => 'checkbox',
@@ -121,30 +111,40 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['website'] = [
-			'tab'     => 'content',
-			'group'   => 'name',
-			'label'   => esc_html__( 'Show website', 'bricks' ),
-			'type'    => 'checkbox',
-			'default' => true,
+			'group'    => 'name',
+			'label'    => esc_html__( 'Link to website', 'bricks' ),
+			'type'     => 'checkbox',
+			'default'  => true,
+			'required' => [ 'name', '=', true ],
 		];
 
 		$this->controls['nameTypography'] = [
-			'tab'   => 'content',
-			'group' => 'name',
-			'label' => esc_html__( 'Typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'group'    => 'name',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
 				[
 					'property' => 'font',
 					'selector' => '.author-name',
 				],
 			],
+			'required' => [ 'name', '=', true ],
+		];
+
+		// Author name tag (@since 1.11.1)
+		$this->controls['nameTag'] = [
+			'group'          => 'name',
+			'label'          => esc_html__( 'HTML tag', 'bricks' ),
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => false,
+			'placeholder'    => 'h2',
+			'required'       => [ 'name', '=', true ],
 		];
 
 		// Group: bio
 
 		$this->controls['bio'] = [
-			'tab'     => 'content',
 			'group'   => 'bio',
 			'label'   => esc_html__( 'Show bio', 'bricks' ),
 			'type'    => 'checkbox',
@@ -152,7 +152,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['bioTypography'] = [
-			'tab'      => 'content',
 			'group'    => 'bio',
 			'label'    => esc_html__( 'Typography', 'bricks' ),
 			'type'     => 'typography',
@@ -168,7 +167,6 @@ class Element_Post_Author extends Element {
 		// Group: posts
 
 		$this->controls['postsLink'] = [
-			'tab'     => 'content',
 			'group'   => 'posts',
 			'label'   => esc_html__( 'Show link to author posts', 'bricks' ),
 			'type'    => 'checkbox',
@@ -176,7 +174,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsPadding'] = [
-			'tab'      => 'content',
 			'group'    => 'posts',
 			'label'    => esc_html__( 'Padding', 'bricks' ),
 			'type'     => 'spacing',
@@ -190,7 +187,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsText'] = [
-			'tab'            => 'content',
 			'group'          => 'posts',
 			'label'          => esc_html__( 'Text', 'bricks' ),
 			'type'           => 'text',
@@ -201,7 +197,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsSize'] = [
-			'tab'         => 'content',
 			'group'       => 'posts',
 			'label'       => esc_html__( 'Size', 'bricks' ),
 			'type'        => 'select',
@@ -212,7 +207,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsStyle'] = [
-			'tab'         => 'content',
 			'group'       => 'posts',
 			'label'       => esc_html__( 'Style', 'bricks' ),
 			'type'        => 'select',
@@ -224,7 +218,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsBackgroundColor'] = [
-			'tab'      => 'content',
 			'group'    => 'posts',
 			'label'    => esc_html__( 'Background', 'bricks' ),
 			'type'     => 'color',
@@ -238,7 +231,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsBorder'] = [
-			'tab'      => 'content',
 			'group'    => 'posts',
 			'label'    => esc_html__( 'Border', 'bricks' ),
 			'type'     => 'border',
@@ -252,7 +244,6 @@ class Element_Post_Author extends Element {
 		];
 
 		$this->controls['postsTypography'] = [
-			'tab'      => 'content',
 			'group'    => 'posts',
 			'label'    => esc_html__( 'Typography', 'bricks' ),
 			'type'     => 'typography',
@@ -267,16 +258,12 @@ class Element_Post_Author extends Element {
 	}
 
 	public function render() {
+		$post_id  = $this->post_id;
 		$settings = $this->settings;
 
-		$post_id = $this->post_id;
-
-		// Get author ID from template preview (as no $authordata exists)
-		$template_preview_author = Helpers::get_template_setting( 'templatePreviewAuthor', $post_id );
-
-		$post_author_id = $template_preview_author ? $template_preview_author : get_post_field( 'post_author', $post_id );
-
-		$avatar_position = ! empty( $settings['avatarPosition'] ) ? $settings['avatarPosition'] : 'left';
+		// Get author ID from dynamic tag (@since 1.10.2)
+		$post_author_id  = Integrations\Dynamic_Data\Providers::render_tag( '{author_id}', $post_id );
+		$avatar_position = $settings['avatarPosition'] ?? 'left';
 
 		$this->set_attribute( '_root', 'class', "avatar-{$avatar_position}" );
 
@@ -293,7 +280,9 @@ class Element_Post_Author extends Element {
 		echo '<div class="content">';
 
 		if ( isset( $settings['name'] ) ) {
-			echo '<h4 class="author-name">';
+			// Author name tag (@since 1.11.1)
+			$author_name_tag = ! empty( $settings['nameTag'] ) ? Helpers::sanitize_html_tag( $settings['nameTag'], 'h2' ) : 'h2';
+			echo "<$author_name_tag class=\"author-name\">";
 
 			if ( isset( $settings['website'] ) && get_the_author_meta( 'user_url', $post_author_id ) ) {
 				echo '<a href="' . get_the_author_meta( 'user_url', $post_author_id ) . '">' . get_the_author_meta( 'display_name', $post_author_id ) . '</a>';
@@ -301,7 +290,7 @@ class Element_Post_Author extends Element {
 				echo get_the_author_meta( 'display_name', $post_author_id );
 			}
 
-			echo '</h4>';
+			echo "</$author_name_tag>";
 		}
 
 		if ( isset( $settings['bio'] ) ) {

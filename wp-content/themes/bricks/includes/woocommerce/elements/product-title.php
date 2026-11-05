@@ -60,14 +60,24 @@ class Product_Title extends Element {
 			'required' => [ 'suffix', '!=', '' ],
 		];
 
+		$this->controls['linkToProduct'] = [
+			'tab'   => 'content',
+			'label' => esc_html__( 'Link to product', 'bricks' ),
+			'type'  => 'checkbox',
+		];
 	}
 
 	public function render() {
 		$settings = $this->settings;
 
-		$prefix = ! empty( $settings['prefix'] ) ? $settings['prefix'] : false;
-		$suffix = ! empty( $settings['suffix'] ) ? $settings['suffix'] : false;
-		$output = '';
+		$prefix          = ! empty( $settings['prefix'] ) ? $settings['prefix'] : false;
+		$suffix          = ! empty( $settings['suffix'] ) ? $settings['suffix'] : false;
+		$link_to_product = isset( $settings['linkToProduct'] );
+		$output          = '';
+
+		if ( $link_to_product ) {
+			$output .= '<a href="' . get_the_permalink( $this->post_id ) . '">';
+		}
 
 		if ( $prefix ) {
 			$this->set_attribute( 'prefix', 'class', [ 'post-prefix' ] );
@@ -81,6 +91,10 @@ class Product_Title extends Element {
 			$this->set_attribute( 'suffix', 'class', [ 'post-suffix' ] );
 
 			$output .= isset( $settings['suffixBlock'] ) ? "<div {$this->render_attributes( 'suffix' )}>{$suffix}</div>" : "<span {$this->render_attributes( 'suffix' )}>{$suffix}</span>";
+		}
+
+		if ( $link_to_product ) {
+			$output .= '</a>';
 		}
 
 		echo "<{$this->tag} {$this->render_attributes( '_root' )}>{$output}</{$this->tag}>";

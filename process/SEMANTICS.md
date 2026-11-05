@@ -17,7 +17,7 @@ rows of the catalog below. Nothing is skipped because it "looks fine as blocks".
 "Today" is what the pipeline can build **now**. When it says *gap*, the question for the owner must offer the missing-component choices
 (section 4); never silently fall back to blocks.
 
-| Pattern (Figma evidence) | Bricks 1.9.8 element | Today | Must be asked |
+| Pattern (Figma evidence) | Bricks 1.12.3 element | Today | Must be asked |
 |---|---|---|---|
 | Section wrapper (full-width frame) | `section` / `block` with `tag` header, footer, nav, article, aside | `tag` via `overrides.json` on a node | which HTML tag; is it the page's `<header>` / `<footer>` / `<nav>` |
 | Text with style H1..H6, or looks like a title | `heading` | built from text style only | tag per heading; exactly one H1 for the page; heading order |
@@ -25,19 +25,19 @@ rows of the catalog below. Nothing is skipped because it "looks fine as blocks".
 | Button (frame/instance, one label) | `button` + `link` | `button` component (no icon inside) | link URL, target (`_blank`), rel; button with icon = gap |
 | Text that is a link (breadcrumb, "Xem thêm", footer link) | `text-link` | basic, never proposed by a rule | URL, target; or is it a plain label |
 | Whole card is clickable | `block` with `tag: a` + `link` | gap (no rule) | card URL |
-| Image (content) | `image` with `altText`, `link`, `loading` | yes, alt = layer name (wrong for SEO) | alt text (never the layer name), link, lazy or eager (above the fold = eager) |
+| Image (content) | `image` with `altText`, `link`, `loading` | yes. Another file on a pasted tablet or phone frame, same crop, is `sources` at that breakpoint. A moved crop stays that frame's own element | alt text (never the layer name), link, lazy or eager (above the fold = eager) |
 | Image (decoration / background) | `_background` image, or `svg`, no alt | partly | confirm decorative |
 | Logo | `logo` / `image` with link to home | gap | is it a link, URL |
 | Icon (vector or icon font) | `svg` (decorative, no text) or `icon` | `svg` | decorative or meaningful (needs a label) |
 | Row/grid of similar items, no controls | `block` with `tag: ul` + items `tag: li`, or Bricks `list` | tag via `overrides.json` | list or just layout; columns; which items |
-| Checklist (icon + text rows) | `list` (icon list) or `ul/li` | gap | which |
-| Menu / on-page anchors / sub-menu | `nav > ul > li > text-link` (component `menu`); `nav-nested` only when Figma draws the hamburger / open panel | built (2026-10-29): `rules/menu.mjs`, `components/menu.mjs` | URLs (the Plan asks); sticky; mobile menu only if Figma draws it |
-| Breadcrumbs | `breadcrumbs` | gap | static or dynamic |
+| Checklist (icon + text rows) | `list` (icon list) or `ul/li` | built: `icon-list` (one text per row, the Figma svg) | which rows are the list |
+| Menu / on-page anchors / sub-menu | `nav > ul > li > text-link` (component `menu`) when the items fit. When they run past the frame, component `menu-slider`: a `slider-nested` of those links (each keeps its width, type slide, drag and arrows, no loop, no autoplay). A click moves the drawn Active look. `nav-nested` only when Figma draws the hamburger / open panel | built: `rules/menu.mjs`, `components/menu.mjs`, `components/menu-slider.mjs` | URLs (the Plan asks); mobile menu only if Figma draws it |
+| Breadcrumbs | `breadcrumbs` | built: home label, separator icon, current page follows WordPress | static or dynamic |
 | Row of slides + arrows + dots | `slider-nested` (arrows, pagination, autoplay, loop) | built: slides, gap, pagination, arrows from the drawn nodes; autoplay / loop from the Plan | what is a slide, arrows (which Figma nodes), dots, autoplay, loop, slides per view |
-| Title rows with open/closed state (FAQ) | `accordion-nested` | built (2026-10-29): `rules/accordion.mjs` (designer variants State=Collapsed / Expand, or name, or shape = asked) | answers of the closed ones (the Plan asks); icon turn on open = later |
-| Tab bar + panes | `tabs-nested` | built (2026-10-29): `rules/tabs.mjs` (needs a hint: active variant or a tab name) | pane content (the Plan asks); Bricks 1.9.8 opens the first tab (no `openTab`) |
-| Form (inputs, labels, submit) | `form` | basic: first-field look only (gap: per-field size, label spacing, gradient submit, checkbox, select) | field names/types/required, action (email / webhook / save), recipient, messages, consent |
-| Stat numbers ("80,000+") | `counter` | gap | count up or static |
+| Title rows with open/closed state (FAQ) | `accordion-nested` | built: `rules/accordion.mjs`. Closed content shows only while `.brx-open`. Direction and gap are custom css. Theme padding starts at zero. Answers are copied onto every breakpoint that has the same item | answers of the closed ones (the Plan asks); a breakpoint that already answered keeps its text. Icons do not rotate |
+| Tab bar + panes | `tabs-nested` | built: `rules/tabs.mjs` when the bar and the panes are the two children; `rules/tab-switch.mjs` reads the buttons first, then the repeated items under them as the one open tab's data. Chrome is `tabs-chrome.mjs`. Below desktop, `responsive/solo.mjs` stacks every pane of that widget the same way | every button is listed; the open tab keeps those items; a tab without them asks for a Figma link, read the same way; typed text only when nothing is drawn; the same data is copied to a breakpoint that has the tab |
+| Form (inputs, labels, submit) | `form` | built: fields the Plan lists, each field's width and height, first-field look, submit look, theme label and gap overridden. Submit action is Save submission. Form name is the Figma file, the section and the form frame. A select lists the drawn lines. The same fields are copied onto a breakpoint that has the form | email recipient is not invented. Save submission records only after the Bricks site setting is on |
+| Stat numbers ("80,000+") | `counter` | built: `countTo`, separator, prefix / suffix. Duration stays the Bricks default | count up or static |
 | Rating stars + score | `text` + `svg` row (no native element) or `testimonials` | gap | static is fine? schema markup? |
 | Testimonial cards | `testimonials` / `slider-nested` + cards | gap | slider or grid; real content (CMS)? |
 | Post cards (title, excerpt, date, image) | `posts` query loop | gap | dynamic from posts, or static cards |
@@ -115,7 +115,7 @@ Pixel verification (`verify.md`) is a second, separate verdict. A template can m
 | B1 | `scripts/09-audit.mjs`: the audit of section 5, failing on a block that holds content directly | new |
 | B2 | Detect rules for link, list, checklist, nav/anchor menu, breadcrumbs, slider with arrows/dots, counter, testimonial, post card, gallery, heading/H1 | `detect/rules/` |
 | B3 | Image alt policy: nearby text or empty + flagged, never the layer name | `render/index.mjs`, `bricks/components/` |
-| B4 | Form: per-field size, label spacing, textarea, gradient submit, checkbox/select, button text style | `bricks/components/form.mjs` |
+| B4 | Form per-field width and height, label gap, textarea, gradient submit, checkbox, the drawn select lines, and Save submission (form name from the Figma file, the section and the form frame) are in `form.mjs` | `bricks/components/form.mjs` |
 | B5 | Slider: arrows and pagination nodes become Bricks arrows/dots with Figma values; autoplay/loop from answers | `bricks/components/carousel.mjs` |
 | B6 | Accordion: content of closed items from answers, icon/title style | `bricks/components/accordion.mjs` |
 | B7 | `link`/`card-link` component (text-link, `a` block) fed by answers | `bricks/components/` |

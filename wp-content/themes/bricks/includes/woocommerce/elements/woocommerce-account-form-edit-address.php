@@ -34,20 +34,22 @@ class Woocommerce_Account_Form_Edit_Address extends Woo_Element {
 			'label' => esc_html__( 'Hide', 'bricks' ),
 			'css'   => [
 				[
-					'selector' => '> form > h3',
+					'selector' => '> form > h2',
 					'property' => 'display',
 					'value'    => 'none',
 				]
 			],
 		];
 
-		$title_controls = $this->generate_standard_controls( 'title', '> form > h3' );
+		$title_controls = $this->generate_standard_controls( 'title', '> form > h2' );
 		$title_controls = $this->controls_grouping( $title_controls, 'title' );
 		$this->controls = array_merge( $this->controls, $title_controls );
 
 		// FIELDS
 		$fields_controls = $this->get_woo_form_fields_controls();
 		$fields_controls = $this->controls_grouping( $fields_controls, 'fields' );
+
+		$fields_controls['fieldsInputMargin']['css'][0]['selector'] = '.form-row';
 
 		unset( $fields_controls['fieldsAlignItems'] );
 		unset( $fields_controls['fieldsWidth'] );

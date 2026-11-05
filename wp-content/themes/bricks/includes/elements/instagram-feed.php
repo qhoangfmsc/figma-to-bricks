@@ -453,6 +453,10 @@ class Element_Instagram_Feed extends \Bricks\Element {
 			$media_response = wp_remote_get( $media_api_url );
 
 			if ( is_wp_error( $media_response ) || wp_remote_retrieve_response_code( $media_response ) != 200 ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( 'Failed to fetch Instagram posts: ' . print_r( json_decode( wp_remote_retrieve_body($media_response)), true ) ); // phpcs:ignore
+				}
+
 				return $this->render_element_placeholder(
 					[
 						'icon-class' => 'ion-md-warning',
@@ -476,6 +480,10 @@ class Element_Instagram_Feed extends \Bricks\Element {
 			$response = wp_remote_get( $account_api_url );
 
 			if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) != 200 ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					error_log( 'Failed to fetch Instagram account details: ' . print_r( json_decode( wp_remote_retrieve_body( $response ) ), true ) ); // phpcs:ignore
+				}
+
 				return $this->render_element_placeholder(
 					[
 						'icon-class' => 'ion-md-warning',

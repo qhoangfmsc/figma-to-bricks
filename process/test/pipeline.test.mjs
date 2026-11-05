@@ -46,7 +46,10 @@ test('mirrors the Figma tree: one element per visible node (+1 crop wrapper), hi
   const b = build();
   assert.equal(b.mapping['1586:396'].skipped, 'hidden in Figma');
   const visibleNodes = Object.values(b.mapping).filter((m) => m.bricksId && !m.expect === false).length;
-  assert.equal(b.template.content.length, visibleNodes + 1); // + crop image inside its wrapper
+  const pictures = b.template.content.filter((e) => e.name === 'image');
+  const cropFrames = b.template.content.filter((e) => e.label?.endsWith('(crop)'));
+  assert.equal(b.template.content.length, visibleNodes + pictures.length + cropFrames.length); // the div is the mapped node; a crop adds one more div; the image is always the child
+  for (const img of pictures) assert.equal(b.template.content.find((e) => e.id === img.parent).name, 'div');
   assert.equal(find(b, '1586:393').name, 'section');
 });
 
@@ -69,7 +72,7 @@ test('sizing + layout come straight from the Figma values', () => {
   assert.equal(title._justifyContent, 'flex-start');
   const card = find(b, 'I1586:402;c2').settings;
   assert.equal(card._flexGrow, 1);
-  assert.equal(card._alignSelf, undefined); // in a row: plain align-self via custom css, Bricks' `_alignSelf: stretch` would add width:100%
+  assert.equal(card._alignSelf, 'stretch'); // the control is set; its width:100% is cancelled by a class rule of the same specificity
   assert.match(card._cssCustom, /align-self: stretch;/);
   assert.deepEqual(card._border.radius, { top: '12px', right: '12px', bottom: '12px', left: '12px' });
 });
@@ -77,13 +80,18 @@ test('sizing + layout come straight from the Figma values', () => {
 test('CROP image becomes wrapper + absolutely positioned image with exact percentages', () => {
   const b = build();
   const wrap = find(b, 'I1586:402;1095:30407');
-  assert.equal(wrap.name, 'block');
+  assert.equal(wrap.name, 'div');
   assert.equal(wrap.settings._overflow, 'hidden');
-  const img = b.template.content.find((e) => e.parent === wrap.id);
-  assert.equal(img.settings._width, '294.1176%');
-  assert.equal(img.settings._height, '118.5818%');
-  assert.equal(img.settings._left, '-174.8235%');
-  assert.equal(img.settings._top, '-8.5616%');
+  const crop = b.template.content.find((e) => e.parent === wrap.id);
+  assert.equal(crop.name, 'div');
+  assert.equal(crop.settings._width, '294.1176%');
+  assert.equal(crop.settings._height, '118.5818%');
+  assert.equal(crop.settings._left, '-174.8235%');
+  assert.equal(crop.settings._top, '-8.5616%');
+  const img = b.template.content.find((e) => e.parent === crop.id);
+  assert.equal(img.name, 'image');
+  assert.equal(img.settings._width, '100%');
+  assert.equal(img.settings._height, '100%');
 });
 
 test('overrides: slider owns the flow, slides keep height rules but lose width rules', () => {
@@ -306,11 +314,13 @@ test('flat-image approved: one image element, subtree merged, alt = unique texts
   const flats = { bn: { file: 'flat/bn.png', width: 800, height: 200, scale: 2 } };
   const b = build(flats);
   const img = byFigma(b, 'bn');
-  assert.equal(img.name, 'image');
-  assert.equal(img.settings.altText, 'SALE NOW');
-  assert.deepEqual(img.settings.image, { $asset: 'flat/bn.png', size: 'full' });
-  assert.equal(img.settings.url, undefined);
-  assert.equal(b.template.content.filter((e) => e.parent === img.id).length, 0);
+  assert.equal(img.name, 'div');
+  const pic = b.template.content.find((e) => e.parent === img.id);
+  assert.equal(pic.name, 'image');
+  assert.equal(pic.settings.altText, 'SALE NOW');
+  assert.deepEqual(pic.settings.image, { $asset: 'flat/bn.png', size: 'full' });
+  assert.equal(pic.settings.url, undefined);
+  assert.equal(b.template.content.filter((e) => e.parent === img.id).length, 1);
   assert.equal(b.mapping.a1.skipped, 'merged into flat-image ' + d.id);
 
   d.params.link = 'https://example.com/signup';
@@ -486,8 +496,8 @@ test('form: fields from params, field and submit look read from the cited frames
   assert.equal(f.settings.submitButtonText, 'Send');
   assert.equal(f.settings.submitButtonBackgroundColor.hex, '#0066ff');
   assert.equal(f.settings.labelTypography['text-transform'], 'none'); // the theme uppercases labels
-  assert.match(f.settings._cssCustom, new RegExp(`#brxe-${f.id} \\.form-group \\{ padding: 0 0 12px;`)); // the theme's 20px is replaced by the Figma gap
-  assert.match(f.settings._cssCustom, /button\[type=submit\] \{ width: 100px; height: 40px;/);
+  assert.deepEqual(f.settings.fieldMargin, { top: '0px', right: '0px', bottom: '12px', left: '0px' }); // the theme's 20px is replaced by the Figma gap
+  assert.match(f.settings._cssCustom, /button\[type=submit\] \{ width: 100%; max-width: 100%; height: 40px;/);
   assert.equal(b.template.content.filter((e) => e.parent === wrap.id).length, 1); // fields and submit are merged: only the form element
 });
 
@@ -544,9 +554,10 @@ test('rotation: absolute node is placed unrotated + matrix from relativeTransfor
 test('row child with a fixed width and cross-axis FILL keeps its width (no Bricks _alignSelf, which writes width:100%)', () => {
   const els = buildMini({ layoutMode: 'HORIZONTAL', children: [kid('w', { layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FILL' })] });
   const w = els.find((e) => e.label === 'w').settings;
-  assert.equal(w._alignSelf, undefined);
+  assert.equal(w._alignSelf, 'stretch');
   assert.equal(w._width, '100px');
   assert.match(w._cssCustom, /align-self: stretch;/);
+  assert.match(w._cssCustom, /\.brxe-\w+\.brxe-\w+ \{ width: 100px; \}/);
 });
 
 test('fixed child wider than the parent content box overflows like in Figma (max-width none instead of 100%)', () => {
@@ -781,7 +792,11 @@ test('GRID: Figma grid auto layout becomes CSS grid with the Figma tracks, gaps 
   const g = byFigma(b, 'gr').settings;
   assert.equal(g._display, 'grid');
   assert.equal(g._direction, undefined);
-  assert.match(g._cssCustom, /grid-template-columns: repeat\(2,minmax\(0,1fr\)\); grid-template-rows: repeat\(2,fit-content\(100%\)\); column-gap: 12px; row-gap: 10px; align-items: start !important;/);
+  assert.equal(g._gridTemplateColumns, 'repeat(2,minmax(0,1fr))');
+  assert.equal(g._gridTemplateRows, 'repeat(2,fit-content(100%))');
+  assert.equal(g._gridGap, '12px 10px');
+  assert.equal(g._alignItemsGrid, 'flex-start');
+  assert.match(g._cssCustom, /grid-template-columns: repeat\(2,minmax\(0,1fr\)\); grid-template-rows: repeat\(2,fit-content\(100%\)\); column-gap: 12px; row-gap: 10px; align-items: flex-start !important; justify-content: flex-start !important;/);
   assert.equal(g._padding.top, '16px');
   const c2 = byFigma(b, 'c2').settings;
   assert.match(c2._cssCustom, /grid-column: 2 \/ span 1; grid-row: 1 \/ span 1;/);
@@ -845,11 +860,14 @@ test('responsive merge: breakpoint keys for changed values, unset for dropped cs
   assert.equal(get('D').settings['_display:tablet_portrait'], 'none'); // no partner: hidden in the tablet range, by the Bricks attribute (no css)
   assert.doesNotMatch(get('D').settings._cssCustom ?? '', /display/);
   assert.equal(get('X').settings['_display:tablet_portrait'], 'none'); // its wrapper only became `contents`: the child with no partner hides itself
-  assert.equal(get('P').settings['_display:tablet_portrait'], 'none'); // different picture: two elements, the base one is hidden at tablet
+  assert.equal(get('P').settings.image.$asset, 'images/a.png');
+  assert.deepEqual(get('P').settings.sources, [{ breakpoint: 'tablet_portrait', image: { $asset: 'images/b.png', size: 'full' } }]);
+  assert.equal(get('P').settings['_width:tablet_portrait'], '150px');
+  assert.equal(get('P').settings['_display:tablet_portrait'], undefined);
   const strip = get('VS');
   assert.equal(strip.parent, 'R'); // variant-only elements hang under the partner of their parent
   assert.match(strip.settings._cssCustom, /@media \(min-width: 992px\) \{ body #brxe-VS \{ display: none; \} \}/); // hidden above the breakpoint
-  assert.equal(get('P').settings.loading, 'lazy'); // hidden at tablet: not downloaded there
+  assert.equal(get('P').settings.loading, undefined); // the tablet file is a source, so this image is still shown there
   assert.equal(mappings.tablet_portrait.vt.bricksId, 'T'); // verify at 768 measures the shared element
   assert.equal(mappings.tablet_portrait.vs.bricksId, 'VS');
   assert.equal(warnings.some((w) => /cannot unset/.test(w.msg)), false);
@@ -867,10 +885,12 @@ test('stacking + image transform: flow siblings of absolute layers become relati
   const manifest = { images: { r: { file: 'images/r.png', bytes: 1, sha256: 'x', width: 100, height: 100, ext: 'png' } }, svgs: {} };
   const tree = (T) => normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 300 }, children: [stretch(T)] } } } }, 'r', manifest);
   const crop = byFigma(buildTemplate(tree([[0.5, 0, 0.25], [0, 0.5, 0.1]]), { overrides: {}, salt: 's' }), 'im');
-  assert.equal(crop.name, 'block'); // wrapper that clips
+  assert.equal(crop.name, 'div'); // wrapper that clips
   assert.equal(crop.settings._overflow, 'hidden');
-  const plain = byFigma(buildTemplate(tree([[1, 0, 0], [0, 1, 0]]), { overrides: {}, salt: 's' }), 'im');
-  assert.equal(plain.name, 'image'); // identity transform: nothing to crop
+  const plainBuild = buildTemplate(tree([[1, 0, 0], [0, 1, 0]]), { overrides: {}, salt: 's' });
+  const plain = byFigma(plainBuild, 'im');
+  assert.equal(plain.name, 'div'); // identity transform: the picture still sits in a div
+  assert.equal(plainBuild.template.content.find((e) => e.parent === plain.id).name, 'image');
 });
 
 
@@ -1334,7 +1354,7 @@ test('an image that fills the height of a hugging row is a wrapper + covering pi
   assert.equal(inner.settings._position, 'absolute');
   assert.equal(inner.settings._height, '100%');
   const wrapper = els.find((e) => e.id === inner.parent);
-  assert.equal(wrapper.name, 'block');
+  assert.equal(wrapper.name, 'div');
 });
 
 test('relayout: a FILL child of a SPACE_BETWEEN row ignores the stale itemSpacing (faq title row 1100 = 1076 + 24)', () => {
@@ -1550,7 +1570,7 @@ test('relayout: when a parent\'s FILL resizes a node, that node\'s own children 
 
 test('handling: an enum value that no rule maps is reported when a node has it, and a mapped one is not', async () => {
   const { enumFlag, HANDLING } = await import('../schema/handling.mjs');
-  assert.match(enumFlag('textCase', 'SMALL_CAPS'), /\[gap\]/);
+  assert.equal(enumFlag('textCase', 'SMALL_CAPS'), null);
   assert.match(enumFlag('textAutoResize', 'TRUNCATE'), /\[gap\]/);
   assert.equal(enumFlag('textCase', 'UPPER'), null);
   // every entry must name a value that the schema knows, so that a typo cannot hide a real value

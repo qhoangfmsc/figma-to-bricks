@@ -53,10 +53,12 @@ function vietnix_tools_screen() {
 		<div class="vietnix-board">
 			<section class="vietnix-card" id="vietnix-links">
 				<h2>Liên kết</h2>
-				<p>Desktop là khung sẽ thành template. Tablet và Mobile là cùng khung đó ở bề rộng khác.</p>
+				<p>Desktop là khung gốc. Các ô còn lại là cùng khung đó ở bề rộng khác. Ô nào để trống thì bỏ qua.</p>
 				<label><span class="vietnix-label">Desktop <abbr class="vietnix-req" title="bắt buộc">*</abbr></span><input id="vn-desktop" type="url" placeholder="https://www.figma.com/design/…?node-id=…" required></label>
-				<label>Tablet <input id="vn-tablet" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
-				<label>Mobile <input id="vn-mobile" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
+				<label>Widescreen <input id="vn-widescreen" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
+				<label>Tablet portrait <input id="vn-tablet" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
+				<label>Mobile landscape <input id="vn-landscape" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
+				<label>Mobile portrait <input id="vn-mobile" type="url" placeholder="https://www.figma.com/design/…?node-id=…"></label>
 				<p class="vietnix-time" id="vn-plan-time"></p>
 				<button type="button" class="button button-primary" id="vn-read">Đọc Figma</button>
 				<p class="vietnix-msg" id="vn-link-msg"></p>
@@ -72,7 +74,7 @@ function vietnix_tools_screen() {
 			</section>
 			<section class="vietnix-card" id="vietnix-result">
 				<h2>Kết quả</h2>
-				<div id="vn-result-body"><p class="vietnix-wait">Template hiện ở đây khi tạo xong. Bạn tự gắn nó trong Bricks.</p></div>
+				<div id="vn-result-body"><p class="vietnix-wait">Link hiện ở đây khi template đã kiểm tra xong.</p></div>
 				<div class="vietnix-error" id="vn-result-error" hidden></div>
 			</section>
 		</div>

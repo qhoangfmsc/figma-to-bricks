@@ -16,7 +16,7 @@ class Providers {
 	 *
 	 * @var array
 	 */
-	private $providers = [];
+	private static $providers = [];
 
 	/**
 	 * Holds the tags instances
@@ -27,21 +27,24 @@ class Providers {
 
 	public function __construct( $providers ) {
 		$this->providers_keys = $providers;
+
+		// @since 1.10
+		add_filter( 'bricks/dynamic_data/format_value', [ $this, 'handle_fallback' ], 10, 5 );
 	}
 
 	public static function register( $providers = [] ) {
 		$instance = new self( $providers );
 
-		// Priority set to 10000 due to CMB2 priority
+		// Register providers (priority 10000 due to CMB2 priority)
 		add_action( 'init', [ $instance, 'register_providers' ], 10000 );
 
-		// Register tags on init after register_providers, otherwise pre_get_posts for main query unable to get tags (@since 1.9.8)
+		// Register tags on init after register_providers (@since 1.9.8)
 		add_action( 'init', [ $instance, 'register_tags' ], 10001 );
 
 		// Register providers during WP REST API call (priority 7 to run before register_tags() on WP REST API)
 		add_action( 'rest_api_init', [ $instance, 'register_providers' ], 7 );
 
-		// Hook "init" doesn't run on REST API calls so we need this to register the tags when rendering elements (needed for Posts element) or fetching dynamic data content
+		// Hook 'init' doesn't run on REST API calls so we need this to register the tags when rendering elements (needed for Posts element) or fetching dynamic data content
 		add_action( 'rest_api_init', [ $instance, 'register_tags' ], 8 );
 
 		// Register tags before wp_enqueue_scripts (but not before wp to get the post custom fields)
@@ -63,18 +66,45 @@ class Providers {
 		add_filter( 'bricks/dynamic_data/render_tag', [ $instance, 'get_tag_value' ], 10, 3 );
 	}
 
+	/**
+	 * Get a registered provider
+	 *
+	 * @since 1.9.9
+	 */
+	public static function get_registered_provider( $provider ) {
+		return self::$providers[ $provider ] ?? null;
+	}
+
 	public function register_providers() {
 		foreach ( $this->providers_keys as $provider ) {
 			$classname = 'Bricks\Integrations\Dynamic_Data\Providers\Provider_' . str_replace( ' ', '_', ucwords( str_replace( '-', ' ', $provider ) ) );
 
+			// Check if required_hooks() method exists (@since 1.11)
+			if ( class_exists( $classname ) && method_exists( $classname, 'required_hooks' ) ) {
+				$classname::required_hooks();
+			}
+
+			/**
+			 * Don't register providers in WP admin
+			 *
+			 * Interferes with default ACF logic of displaying ACF fields in the backend.
+			 *
+			 * @see #86byqukg8, #86bx5f831
+			 *
+			 * @since 1.9.9
+			 */
+			if ( is_admin() && ! bricks_is_ajax_call() && ! bricks_is_rest_call() ) {
+				continue;
+			}
+
 			if ( $classname::load_me() ) {
-				$this->providers[ $provider ] = new $classname( str_replace( '-', '_', $provider ) );
+				self::$providers[ $provider ] = new $classname( str_replace( '-', '_', $provider ) );
 			}
 		}
 	}
 
 	public function register_tags() {
-		foreach ( $this->providers as $key => $provider ) {
+		foreach ( self::$providers as $key => $provider ) {
 			$this->tags = array_merge( $this->tags, $provider->get_tags() );
 		}
 	}
@@ -123,11 +153,14 @@ class Providers {
 		 * "|" and "," needed for the post terms like {post_terms_post_tag:sep} where sep could be a pipe or comma
 		 * "(", ")" and "'" for the function arguments of the dynamic tag {echo}
 		 * "@" to support email addresses as arguments of the dynamic tag {echo} #3kazphp
-		 * "u" modifier: Pattern strings are treated as UTF-8 to support Cyrillic, Arabic, etc. (@since 1.9.4)
+		 *
+		 * @since 1.9.4: "u" modifier: Pattern strings are treated as UTF-8 to support Cyrillic, Arabic, etc.
+		 * @since 1.10: "$", "+", "%", "#", "!", "=", "<", ">", "&", "~", "[", "]", ";" as arguments of the dynamic tag {echo}
+		 * @since 1.10.2: "?" as arguments of the dynamic tag {echo}
 		 *
 		 * @see https://regexr.com/
 		 */
-		$pattern = '/{([\wÀ-ÖØ-öø-ÿ\-\s\.\/:\(\)\'@|,]+)}/u';
+		$pattern = '/{([\wÀ-ÖØ-öø-ÿ\-\s\.\/:\(\)\'@|,$%#!+=<>&~\[\];?]+)}/u';
 
 		/**
 		 * Matches the echo tag pattern (#86bwebj6m)
@@ -221,6 +254,8 @@ class Providers {
 				return $content;
 			}
 
+			$run_again = false;
+
 			foreach ( $matches[1] as $key => $match ) {
 				$tag = $matches[0][ $key ];
 
@@ -235,13 +270,34 @@ class Providers {
 					$value = false;
 				}
 
+				// Value is null: Set value to false to avoid error (@since 1.12)
+				if ( is_null( $value ) ) {
+					$value = false;
+				}
+
 				// NOTE: Undocumented (only enable if really needed)
 				$echo_everywhere = apply_filters( 'bricks/code/echo_everywhere', false );
-				if ( $value && strpos( $value, '{echo:' ) !== false && $echo_everywhere === false ) {
-					continue;
+				if ( $value && strpos( $value, '{echo:' ) !== false ) {
+					if ( $echo_everywhere !== true ) {
+						// Default: Stop the parser if the value contains an echo tag
+						continue;
+					}
+
+					/**
+					 * Certain tags might not be parsed correctly after {echo:}
+					 *
+					 * So we need to run the parser again later
+					 *
+					 * @since 1.9.9
+					 */
+					$run_again = true;
 				}
 
 				$content = str_replace( $tag, $value, $content );
+			}
+
+			if ( $run_again ) {
+				$dd_tag_count++;
 			}
 		}
 
@@ -256,23 +312,21 @@ class Providers {
 	 * @param string  $context text, link, image.
 	 */
 	public function get_tag_value( $tag, $post, $context = 'text' ) {
-		// Keep the original tag to be used later on in case we don't replace nonexistent tags
-		$original_tag = $tag;
+		// Parse the tag and extract arguments
+		$parser = new \Bricks\Integrations\Dynamic_Data\Dynamic_Data_Parser();
+		$parsed = $parser->parse( $tag );
+
+		$tag          = $parsed['tag'] ?? $tag;
+		$args         = $parsed['args'];
+		$original_tag = $parsed['original_tag'];
 
 		$tags = $this->get_tags();
-
-		// Check if tag has arguments
-		$args = strpos( $tag, ':' ) > 0 ? explode( ':', $tag ) : [];
-
-		if ( ! empty( $args ) ) {
-			$tag = array_shift( $args );
-		}
 
 		if ( ! array_key_exists( $tag, $tags ) ) {
 			// Last resort: Try to get field content if it is a WordPress custom field
 			if ( strpos( $tag, 'cf_' ) === 0 ) {
 				// Use get_tag_value function in provider-wp.php (@since 1.9.8)
-				return $this->providers['wp']->get_tag_value( $tag, $post, $args, $context );
+				return self::$providers['wp']->get_tag_value( $tag, $post, $args, $context );
 			}
 
 			/**
@@ -291,7 +345,62 @@ class Providers {
 
 		$provider = $tags[ $tag ]['provider'];
 
-		return $this->providers[ $provider ]->get_tag_value( $tag, $post, $args, $context );
+		return self::$providers[ $provider ]->get_tag_value( $tag, $post, $args, $context );
+	}
+
+	/**
+	 * Handle fallbacks for dynamic data tags
+	 *
+	 * @since 1.10
+	 */
+	public function handle_fallback( $value, $tag, $post_id, $filters, $context ) {
+		// STEP: Check if the value is empty based on value type (#86c15qkw6)
+		$is_empty_value = is_string( $value ) && $value === '' || is_array( $value ) && empty( $value ) || is_null( $value );
+
+		// STEP: Check for fallback argument
+		if ( $is_empty_value && isset( $filters['fallback'] ) ) {
+			// Remove the single quotes and handle escaped characters
+			$fallback = stripslashes( $filters['fallback'] );
+
+			if ( substr( $fallback, 0, 1 ) === "'" && substr( $fallback, -1 ) === "'" ) {
+				$fallback = substr( $fallback, 1, -1 );
+			}
+
+			return $fallback;
+		}
+
+		// STEP: Check for fallback-image arugment
+		if ( $is_empty_value && isset( $filters['fallback-image'] ) ) {
+			// Remove the single quotes and handle escaped characters
+			$fallback_image = stripslashes( $filters['fallback-image'] );
+
+			if ( substr( $fallback_image, 0, 1 ) === "'" && substr( $fallback_image, -1 ) === "'" ) {
+				$fallback_image = substr( $fallback_image, 1, -1 );
+			}
+
+			// Check if the fallback is a numeric ID
+			if ( is_numeric( $fallback_image ) ) {
+				$attachment_id = intval( $fallback_image );
+
+				if ( $context === 'image' ) {
+					return [ $attachment_id ];
+				}
+
+				$image = wp_get_attachment_image( $attachment_id, 'full' );
+				if ( $image ) {
+					return $image;
+				}
+			} else {
+				if ( $context === 'image' ) {
+					return [ $fallback_image ];
+				}
+
+				// Assume fallback is an image URL
+				return '<img src="' . esc_url( $fallback_image ) . '" />';
+			}
+		}
+
+		return $value;
 	}
 
 	public static function render_tag( $tag = '', $post_id = 0, $context = 'text', $args = [] ) {
@@ -300,7 +409,13 @@ class Providers {
 
 		$tag = trim( $tag );
 
-		$tag = str_replace( [ '{', '}' ], '', $tag );
+		// Remove all curly brackets from DD tag (@pre 1.9.9)
+		// $tag = str_replace( [ '{', '}' ], '', $tag );
+
+		// Only remove outermost curly brackets from DD tag (@since 1.9.9)
+		if ( substr( $tag, 0, 1 ) === '{' && substr( $tag, -1 ) === '}' ) {
+			$tag = substr( $tag, 1, -1 );
+		}
 
 		// Image is user avatar (get_avatar_url): Set the size
 		if ( $context === 'image' && in_array( $tag, [ 'wp_user_picture', 'author_avatar' ] ) && isset( $args['size'] ) ) {
@@ -338,12 +453,52 @@ class Providers {
 		$post_id = empty( $post_id ) ? get_the_ID() : $post_id;
 		$post    = get_post( $post_id );
 
+		// Get the post object if we are in a loop and the loop object type is not a post (@since 1.11) (#86c0arcxn)
+		if ( \Bricks\Query::is_looping() && \Bricks\Query::get_loop_object_type() !== 'post' ) {
+			$post = get_post();
+		}
+
+		// Set the correct post when previewing (@since 1.12; #86bw6re4w)
+		if ( \Bricks\Helpers::is_bricks_preview() ) {
+
+			if ( ! \Bricks\Query::is_looping() && isset( \Bricks\Database::$page_data['preview_or_post_id'] ) ) {
+				$post = get_post( \Bricks\Database::$page_data['preview_or_post_id'] );
+			}
+
+			// Rendering dynamic data in a nested query in the builder (Before Query run) (@since 1.12.2)
+			if ( ! \Bricks\Query::is_looping() && \Bricks\Query::is_any_looping() ) {
+				$loop_object_type = \Bricks\Query::get_loop_object_type( \Bricks\Query::is_any_looping() );
+				$loop_object      = \Bricks\Query::get_loop_object( \Bricks\Query::is_any_looping() );
+
+				if ( $loop_object_type === 'post' ) {
+					$post = $loop_object;
+				}
+			}
+		}
+
 		return apply_filters( 'bricks/dynamic_data/render_content', $content, $post, $context );
 	}
 
 	public static function get_dynamic_tags_list() {
 		// NOTE: Undocumented. This allows the dynamic data providers to add their tags to the builder
 		$tags = apply_filters( 'bricks/dynamic_tags_list', [] );
+
+		return $tags;
+	}
+
+	/**
+	 * Get a list of all supported dynamic data tags - for builder
+	 *
+	 * @since 1.12
+	 */
+	public static function get_query_supported_tags_list() {
+		$tags = [];
+
+		foreach ( self::$providers as $provider ) {
+			if ( method_exists( $provider, 'get_query_supported_tags' ) ) {
+				$tags = array_merge( $tags, $provider->get_query_supported_tags() );
+			}
+		}
 
 		return $tags;
 	}

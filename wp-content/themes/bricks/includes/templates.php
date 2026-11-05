@@ -158,7 +158,19 @@ class Templates {
 			);
 		}
 
+		// Get template elements
 		$elements = get_post_meta( $template_id, BRICKS_DB_PAGE_CONTENT, true );
+
+		// Check if header or footer template (@since 1.11)
+		if ( empty( $elements ) ) {
+			$template_type = self::get_template_type( $template_id );
+
+			if ( $template_type === 'header' ) {
+				$elements = get_post_meta( $template_id, BRICKS_DB_PAGE_HEADER, true );
+			} elseif ( $template_type === 'footer' ) {
+				$elements = get_post_meta( $template_id, BRICKS_DB_PAGE_FOOTER, true );
+			}
+		}
 
 		if ( empty( $elements ) || ! is_array( $elements ) ) {
 			return Helpers::get_element_placeholder(
@@ -186,6 +198,28 @@ class Templates {
 
 		$template_inline_css = self::generate_inline_css( $template_id, $elements );
 
+		// To store popup settings CSS (@since 1.12)
+		$popup_setting_css = '';
+		/**
+		 * Template type: Popup
+		 *
+		 * Generate CSS for popup template settings when popup added via Templates element.
+		 *
+		 * Non-loop, No condition.
+		 *
+		 * @since 1.11.1
+		 */
+		if (
+			self::get_template_type( $template_id ) === 'popup' &&
+			! in_array( $template_id, Database::$active_templates['popup'] ) &&
+			! Query::is_looping()
+		) {
+			$popup_setting_css = self::generate_popup_setting_css( $template_id );
+			if ( $popup_setting_css ) {
+				$template_inline_css .= $popup_setting_css;
+			}
+		}
+
 		// STEP: Builder (append template CSS as inline <style> to element HTML)
 		if ( bricks_is_builder() || bricks_is_builder_call() ) {
 			// Use 'data-template-id' to get template ID in builder to generate global classes CSS of Template element (@since 1.8.2)
@@ -198,12 +232,16 @@ class Templates {
 			$template_css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
 			$template_css_file_url = Assets::$css_url . "/post-$template_id.min.css";
 
-			if ( file_exists( $template_css_file_dir ) ) {
+			// Make sure the template CSS file is not already enqueued (@since 1.12)
+			if ( file_exists( $template_css_file_dir ) && ! wp_style_is( "bricks-post-$template_id" ) ) {
 				wp_enqueue_style( "bricks-post-$template_id", $template_css_file_url, [], filemtime( $template_css_file_dir ) );
 			}
 
 			// When assign section template to hook, some ID level styles are missing when using external files and is looping (@since 1.9.1)
-			if ( $is_on_hook && Query::is_any_looping() ) {
+			if (
+				( $is_on_hook && Query::is_any_looping() ) ||
+				$popup_setting_css !== ''
+			) {
 				Assets::$inline_css_dynamic_data .= $template_inline_css;
 			}
 		}
@@ -543,8 +581,10 @@ class Templates {
 	 */
 	public static function get_templates_query( $custom_args = [] ) {
 		$last_changed = wp_cache_get_last_changed( 'bricks_' . BRICKS_DB_TEMPLATE_SLUG );
+		$cache_key    = md5( 'get_templates_query_' . $last_changed . wp_json_encode( $custom_args ) );
 
-		$cache_key = md5( 'get_templates_query_' . $last_changed . wp_json_encode( $custom_args ) );
+		// Undocumented (@since 1.9.9)
+		$cache_key = apply_filters( 'bricks/get_templates_query/cache_key', $cache_key );
 
 		$query = wp_cache_get( $cache_key, 'bricks' );
 
@@ -555,7 +595,8 @@ class Templates {
 				'post_status'    => 'publish',
 			];
 
-			$merged_args = wp_parse_args( $custom_args, $default_args );
+			// Undocumented (@since 1.9.9)
+			$merged_args = apply_filters( 'bricks/get_templates/query_vars', wp_parse_args( $custom_args, $default_args ) );
 
 			$query = new \WP_Query( $merged_args );
 
@@ -590,14 +631,28 @@ class Templates {
 	 * @since 1.0
 	 */
 	public static function get_templates( $custom_args = [] ) {
+		// Get excluded templates setting (@since 1.12.2)
+		$excluded_templates = Database::get_setting( 'excludedTemplates', [] );
+
+		// If this is a remote request, modify the query to exclude templates (@since 1.12.2)
+		if ( ! empty( $custom_args['remote_request'] ) && ! empty( $excluded_templates ) ) {
+			if ( ! isset( $custom_args['post__not_in'] ) ) {
+				$custom_args['post__not_in'] = [];
+			}
+
+			$custom_args['post__not_in'] = array_merge( $custom_args['post__not_in'], $excluded_templates );
+		}
+
 		$templates_query = self::get_templates_query( $custom_args );
 
 		$templates = [];
 
 		if ( $templates_query->have_posts() ) {
 			foreach ( $templates_query->get_posts() as $template ) {
+				$template_id = $template->ID;
+
 				// Template bundles
-				$template_bundles = wp_get_object_terms( $template->ID, BRICKS_DB_TEMPLATE_TAX_BUNDLE, [ 'fields' => 'slugs' ] );
+				$template_bundles = wp_get_object_terms( $template_id, BRICKS_DB_TEMPLATE_TAX_BUNDLE, [ 'fields' => 'slugs' ] );
 				$bundles          = [];
 
 				if ( $template_bundles ) {
@@ -607,7 +662,7 @@ class Templates {
 				}
 
 				// Template tags
-				$template_tags = wp_get_object_terms( $template->ID, BRICKS_DB_TEMPLATE_TAX_TAG, [ 'fields' => 'slugs' ] );
+				$template_tags = wp_get_object_terms( $template_id, BRICKS_DB_TEMPLATE_TAX_TAG, [ 'fields' => 'slugs' ] );
 				$tags          = [];
 
 				if ( $template_tags ) {
@@ -620,18 +675,47 @@ class Templates {
 
 				// Check if my template thumbnail exists locally in WP root 'template-screenshots' folder
 				$template_thumbnail_path = ABSPATH . trailingslashit( 'template-screenshots' ) . $template->post_name . '.jpg';
+				$template_thumbnail      = null;
 
-				if ( file_exists( $template_thumbnail_path ) ) {
-					$template_thumbnail = get_site_url( null, '/' ) . trailingslashit( 'template-screenshots' ) . $template->post_name . '.jpg';
-				}
+				if ( has_post_thumbnail( $template_id ) ) {
+					$template_thumbnail = get_the_post_thumbnail_url( $template_id, 'bricks_medium' );
+				} elseif ( Database::get_setting( 'generateTemplateScreenshots' ) ) {
+					// Define the base directory and URL for the custom screenshots
+					$wp_upload_dir = wp_upload_dir();
+					$custom_dir    = $wp_upload_dir['basedir'] . '/' . BRICKS_TEMPLATE_SCREENSHOTS_DIR . '/';
+					$custom_url    = $wp_upload_dir['baseurl'] . '/' . BRICKS_TEMPLATE_SCREENSHOTS_DIR . '/';
 
-				// Fallback: Check template featured image
-				else {
-					$template_thumbnail = has_post_thumbnail( $template->ID ) ? get_the_post_thumbnail_url( $template->ID, 'bricks_medium' ) : false;
+					// Get all files for this template ID
+					$all_files = glob( $custom_dir . "template-screenshot-$template_id-*" );
+
+					$latest_file = null;
+					$latest_time = 0;
+
+					foreach ( $all_files as $file ) {
+						// Check if the file is of a valid type
+						$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
+						if ( in_array( $extension, [ 'webp', 'png' ] ) ) {
+							// Extract the timestamp from the filename
+							if ( preg_match( '/-(\d+)\.' . $extension . '$/', $file, $matches ) ) {
+								$file_time = intval( $matches[1] );
+								if ( $file_time > $latest_time ) {
+									$latest_time = $file_time;
+									$latest_file = $file;
+								}
+							}
+						}
+					}
+
+					if ( $latest_file ) {
+						$filename           = basename( $latest_file );
+						$template_thumbnail = $custom_url . $filename;
+					} elseif ( file_exists( $template_thumbnail_path ) ) {
+						$template_thumbnail = get_site_url( null, '/' ) . trailingslashit( 'template-screenshots' ) . $template->post_name . '.jpg';
+					}
 				}
 
 				$template_data = [
-					'id'             => $template->ID,
+					'id'             => $template_id,
 					'name'           => $template->post_name,
 					'title'          => $template->post_title,
 					'date'           => $template->post_date,
@@ -641,30 +725,30 @@ class Templates {
 						'avatar' => get_avatar_url( $template->post_author, [ 'size' => 60 ] ),
 						'url'    => get_the_author_meta( 'user_url', $template->post_author ),
 					],
-					'permalink'      => get_permalink( $template->ID ),
+					'permalink'      => get_permalink( $template_id ),
 					'thumbnail'      => $template_thumbnail,
 					'bundles'        => $bundles,
 					'tags'           => $tags,
-					'type'           => self::get_template_type( $template->ID ),
+					'type'           => self::get_template_type( $template_id ),
 				];
 
 				$template_elements = [];
 				$area              = false;
 
-				if ( is_array( get_post_meta( $template->ID, BRICKS_DB_PAGE_HEADER, true ) ) ) {
-					$template_elements       = get_post_meta( $template->ID, BRICKS_DB_PAGE_HEADER, true );
+				if ( is_array( get_post_meta( $template_id, BRICKS_DB_PAGE_HEADER, true ) ) ) {
+					$template_elements       = get_post_meta( $template_id, BRICKS_DB_PAGE_HEADER, true );
 					$template_data['header'] = $template_elements;
 					$area                    = 'header';
 				}
 
-				if ( is_array( get_post_meta( $template->ID, BRICKS_DB_PAGE_CONTENT, true ) ) ) {
-					$template_elements        = get_post_meta( $template->ID, BRICKS_DB_PAGE_CONTENT, true );
+				if ( is_array( get_post_meta( $template_id, BRICKS_DB_PAGE_CONTENT, true ) ) ) {
+					$template_elements        = get_post_meta( $template_id, BRICKS_DB_PAGE_CONTENT, true );
 					$template_data['content'] = $template_elements;
 					$area                     = 'content';
 				}
 
-				if ( is_array( get_post_meta( $template->ID, BRICKS_DB_PAGE_FOOTER, true ) ) ) {
-					$template_elements       = get_post_meta( $template->ID, BRICKS_DB_PAGE_FOOTER, true );
+				if ( is_array( get_post_meta( $template_id, BRICKS_DB_PAGE_FOOTER, true ) ) ) {
+					$template_elements       = get_post_meta( $template_id, BRICKS_DB_PAGE_FOOTER, true );
 					$template_data['footer'] = $template_elements;
 					$area                    = 'footer';
 				}
@@ -684,7 +768,7 @@ class Templates {
 					$template_data[ $area ] = $template_elements;
 				}
 
-				$template_page_settings = get_post_meta( $template->ID, BRICKS_DB_PAGE_SETTINGS, true );
+				$template_page_settings = get_post_meta( $template_id, BRICKS_DB_PAGE_SETTINGS, true );
 
 				if ( $template_page_settings ) {
 					$template_data['pageSettings'] = $template_page_settings;
@@ -840,13 +924,13 @@ class Templates {
 	 *
 	 * @since 1.0
 	 */
-	public static function get_template_by_id( $template_id ) {
-		$template = self::get_templates(
-			[
-				'p'           => $template_id,
-				'post_status' => 'any', // @since 1.5.1
-			]
-		);
+	public static function get_template_by_id( $template_id, $custom_args = [] ) {
+		$template_args = [
+			'p'           => $template_id,
+			'post_status' => 'any',
+		];
+
+		$template = self::get_templates( $template_args );
 
 		// Check if template match found
 		if ( count( $template ) === 1 ) {
@@ -900,6 +984,11 @@ class Templates {
 				BRICKS_DB_TEMPLATE_TYPE,
 				$template_data['templateType']
 			);
+
+			// STEP: Handle password protection template population
+			if ( $template_data['templateType'] === 'password_protection' && Capabilities::current_user_has_full_access() ) {
+				Password_Protection::populate_template( $template_id );
+			}
 		}
 
 		$my_templates = self::get_templates(
@@ -921,10 +1010,10 @@ class Templates {
 
 		$template_data = Ajax::decode( $_POST['templateData'] ?? [] );
 
-		// Insert new template into db
+		// Insert new template into database
 		$insert_post_data = [
 			'post_status' => current_user_can( 'publish_posts' ) ? 'publish' : 'pending',
-			'post_title'  => ! empty( $template_data['templateTitle'] ) ? $template_data['templateTitle'] : esc_html__( '(no title)', 'bricks' ),
+			'post_title'  => $template_data['templateTitle'] ?? esc_html__( '(no title)', 'bricks' ),
 			'post_type'   => BRICKS_DB_TEMPLATE_SLUG,
 		];
 
@@ -1033,6 +1122,9 @@ class Templates {
 			wp_send_json_error( 'verify_request: Sorry, you are not allowed to perform this action.' );
 		}
 
+		// Builer only: Import images (@since 1.10.2)
+		$import_images = isset( $_POST['importImages'] ) && $_POST['importImages'] == 'true';
+
 		/**
 		 * Builder: Get global classes via 'globalClasses'
 		 *
@@ -1103,11 +1195,22 @@ class Templates {
 			}
 		}
 
+		// Capture current time to be used as post_date (@since 1.10.2)
+		$time_now    = current_time( 'mysql' );
+		$time_offset = 0;
+
 		foreach ( $templates as $template_data ) {
+			// Reset template instance data for new template insert
+			self::$template_images = [];
+
+			// Ensure each post has at least 1 second difference (@since 1.10.2)
+			$post_date = date( 'Y-m-d H:i:s', strtotime( $time_now ) - $time_offset );
+
 			$insert_post_data = [
 				'post_status' => current_user_can( 'publish_posts' ) ? 'publish' : 'pending',
 				'post_title'  => ! empty( $template_data['title'] ) ? $template_data['title'] : esc_html__( '(no title)', 'bricks' ),
 				'post_type'   => BRICKS_DB_TEMPLATE_SLUG,
+				'post_date'   => $post_date, // (@since 1.10.2)
 			];
 
 			// Template tags (terms)
@@ -1128,6 +1231,7 @@ class Templates {
 			$area            = 'content';
 			$meta_key        = BRICKS_DB_PAGE_CONTENT;
 			$elements        = false;
+			$time_offset++; // Increase time offset for next post (@since 1.10.2)
 
 			if ( ! empty( $template_data['templateType'] ) ) {
 				update_post_meta( $new_template_id, BRICKS_DB_TEMPLATE_TYPE, $template_data['templateType'] );
@@ -1150,8 +1254,38 @@ class Templates {
 			}
 
 			// Add template settings (@since 1.8.1)
-			if ( isset( $template_data['templateSettings'] ) ) {
-				Helpers::set_template_settings( $new_template_id, $template_data['templateSettings'] );
+			$template_settings = $template_data['templateSettings'] ?? false;
+			if ( is_array( $template_settings ) ) {
+				// Remove template preview post ID if it's not a single post (@since 1.10.2)
+				$template_preview_post_id = $template_settings['templatePreviewPostId'] ?? 0;
+				if ( $template_preview_post_id && ! is_single( $template_preview_post_id ) ) {
+					unset( $template_settings['templatePreviewPostId'] );
+				}
+
+				// Remove templatePreviewTerm if term ID doesn't exist (@since 1.10.2)
+				$template_preview_term = $template_settings['templatePreviewTerm'] ?? 0;
+				if ( $template_preview_term ) {
+					$preview_term     = $template_preview_term ? explode( '::', $template_preview_term ) : [];
+					$preview_taxonomy = isset( $preview_term[0] ) ? $preview_term[0] : '';
+					$preview_term_id  = isset( $preview_term[1] ) ? intval( $preview_term[1] ) : '';
+					if ( ! term_exists( $preview_term_id, $preview_taxonomy ) ) {
+						unset( $template_settings['templatePreviewTerm'] );
+					}
+				}
+
+				// Remove templatePreviewAuthor if author ID doesn't exist (@since 1.10.2)
+				$template_preview_author = $template_settings['templatePreviewAuthor'] ?? 0;
+				if ( $template_preview_author && ! get_user_by( 'id', $template_preview_author ) ) {
+					unset( $template_settings['templatePreviewAuthor'] );
+				}
+
+				// Remove templatePreviewPostType if post type doesn't exist (@since 1.10.2)
+				$template_preview_post_type = $template_settings['templatePreviewPostType'] ?? '';
+				if ( $template_preview_post_type && ! post_type_exists( $template_preview_post_type ) ) {
+					unset( $template_settings['templatePreviewPostType'] );
+				}
+
+				Helpers::set_template_settings( $new_template_id, $template_settings );
 			}
 
 			// STEP: Add global classes used in template to global classes in this database
@@ -1208,9 +1342,40 @@ class Templates {
 			// STEP: Save final template elements
 			$elements = Helpers::sanitize_bricks_data( $elements );
 
-			// Add back slashes to element settings (needed for '_content' HTML entities, and Custom CSS) @since 1.7.1
+			// Add back slashes to element settings (needed for '_content' HTML entities, and Custom CSS)
 			foreach ( $elements as $index => $element ) {
 				$element_settings = ! empty( $element['settings'] ) ? $element['settings'] : [];
+				$element_name     = ! empty( $element['name'] ) ? $element['name'] : '';
+
+				// STEP: Import element images & update template data with local image data. (@since 1.10.2) Should run even if importImages is untick (@since 1.12.2)
+				if ( count( $element_settings ) ) {
+
+					// Handle image-gallery element (@since 1.12.2)
+					if ( $element_name === 'image-gallery' ) {
+						// The images are stored in the 'images' setting key
+						$images = $element_settings['items']['images'] ?? [];
+						$size   = $element_settings['items']['size'] ?? 'full';
+
+						if ( count( $images ) ) {
+							foreach ( $images as $image_index => $image ) {
+								// import_image requires size to be set
+								$image['size'] = $size;
+
+								$new_image = self::import_image( $image, $import_images );
+
+								if ( is_array( $new_image ) && ! isset( $new_image['error'] ) ) {
+									// Directly update the image in the element settings as str_replace doesn't work here
+									$elements[ $index ]['settings']['items']['images'][ $image_index ] = $new_image;
+								}
+							}
+						}
+					}
+
+					// Handle Image and SVG element (single image) (@since 1.12.2)
+					else {
+						self::import_images( $element_settings, $import_images );
+					}
+				}
 
 				foreach ( $element_settings as $setting_key => $setting_value ) {
 					if ( is_string( $setting_value ) ) {
@@ -1221,6 +1386,21 @@ class Templates {
 
 			// STEP: Generate element IDs (@since 1.9.8)
 			$elements = Helpers::generate_new_element_ids( $elements );
+
+			// STEP: Replace remote image data with imported/existing image data (@since 1.10.2)
+			if ( count( self::$template_images ) ) {
+				$elements_encoded = wp_json_encode( $elements );
+
+				foreach ( self::$template_images as $template_image ) {
+					$elements_encoded = str_replace(
+						wp_json_encode( $template_image['old'] ),
+						wp_json_encode( $template_image['new'] ),
+						$elements_encoded
+					);
+				}
+
+				$elements = json_decode( $elements_encoded, true );
+			}
 
 			update_post_meta( $new_template_id, $meta_key, $elements );
 
@@ -1271,168 +1451,68 @@ class Templates {
 	 * @since 1.7.1
 	 */
 	public static function template_import_create_missing_pseudo_classes( $pseudo_classes, $setting_keys = [] ) {
-		// Pseudo elements source of truth: https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-elements
-		$valid_pseudo_elements = [
-			'::after',
-			':after',
+		// Get valid pseudo elements & pseudo classes from Helper method (@since 1.12)
+		$valid_pseudo_elements = Helpers::get_valid_pseudo_elements();
+		$valid_pseudo_classes  = Helpers::get_valid_pseudo_classes();
 
-			'::backdrop',
-			':backdrop',
-
-			'::before',
-			':before',
-
-			'::cue',
-			':cue',
-
-			'::cue-region',
-			':cue-region',
-
-			'::first-letter',
-			':first-letter',
-
-			'::first-line',
-			':first-line',
-
-			'::file-selector-button',
-			':file-selector-button',
-
-			'::grammar-error',
-			':grammar-error',
-
-			'::marker',
-			':marker',
-
-			// '::part(',
-
-			'::placeholder',
-			':placeholder',
-
-			'::selection',
-			':selection',
-
-			// '::slotted(',
-
-			'::spelling-error',
-			':spelling-error',
-
-			'::target-text',
-			':target-text',
-		];
-
-		// Pseudo classes source of truth: https://developer.mozilla.org/en-US/docs/Web/CSS/Pseudo-classes
-		$valid_pseudo_classes = [
-			':active',
-			':any-link',
-			':autofill',
-			':blank', // Experimental
-			':checked',
-			':current', // Experimental
-			':default',
-			':defined',
-			':dir(', // Experimental
-			':disabled',
-			':empty',
-			':enabled',
-			':first',
-			':first-child',
-			':first-of-type',
-			':fullscreen',
-			':future', // Experimental
-			':focus',
-			':focus-visible',
-			':focus-within',
-			':has(', // Experimental
-			':host',
-			':host(',
-			':host-context(', // Experimental
-			':hover',
-			':indeterminate',
-			':in-range',
-			':invalid',
-			':is(',
-			':lang(',
-			':last-child',
-			':last-of-type',
-			':left',
-			':link',
-			':local-link', // Experimental
-			':modal',
-			':not(',
-			':nth-child(',
-			':nth-col(', // Experimental
-			':nth-last-child(',
-			':nth-last-col(', // Experimental
-			':nth-last-of-type(',
-			':nth-of-type(',
-			':only-child',
-			':only-of-type',
-			':optional',
-			':out-of-range',
-			':past', // Experimental
-			':picture-in-picture',
-			':placeholder-shown',
-			':paused',
-			':playing',
-			':read-only',
-			':read-write',
-			':required',
-			':right',
-			':root',
-			':scope',
-			':state(', // Experimental
-			':target',
-			':target-within', // Experimental
-			':user-invalid', // Experimental
-			':valid',
-			':visited',
-			':where(',
-		];
+		// Merge pseudo elements & pseudo classes, as we need to check for both anyway (@since 1.12)
+		$allowed_pseudo = array_merge( $valid_pseudo_classes, $valid_pseudo_elements );
 
 		// Loop over all settings keys to find pseudo classes & pseudo elements
+		// Format is <settingKey>:<breakpoint>:<pseudoClass>, and only the settingKey is mandatory
 		foreach ( $setting_keys as $setting_key ) {
-			// Pseudo class is always the last setting key part
-			$setting_key_parts  = explode( ':', $setting_key );
-			$maybe_pseudo_class = ':' . end( $setting_key_parts );
+			$parts = explode( ':', $setting_key, 2 );
 
-			// STEP: Detect pseudo classes
-			foreach ( $valid_pseudo_classes as $pseudo_class ) {
-				// Pseudo class with arguments: :nth-child(even)
-				if ( strpos( $pseudo_class, '(' ) !== false ) {
-					if (
-						strpos( $maybe_pseudo_class, $pseudo_class ) !== false &&
-						! in_array( $maybe_pseudo_class, $pseudo_classes )
-					) {
-						$pseudo_classes[] = $maybe_pseudo_class;
-						break;
+			if ( count( $parts ) > 1 ) {
+				$secondPart = $parts[1];
+
+				// Check if second part starts with allowed_pseudo
+				if ( self::is_pseudo_class( ':' . $secondPart, $allowed_pseudo ) ) {
+					$pseudo_classes[] = ':' . $secondPart;
+				}
+
+				// If it's not, it might be a breakpoint, so try to split it again
+				else {
+					$parts = explode( ':', $secondPart, 2 );
+
+					if ( count( $parts ) > 1 ) {
+						$secondPart = $parts[1];
+
+						// Check if second part starts with allowed_pseudo
+						// If it's not, then it's not a pseudo class/element, or not allowed one.
+						if ( self::is_pseudo_class( ':' . $secondPart, $allowed_pseudo ) ) {
+							$pseudo_classes[] = ':' . $secondPart;
+						}
 					}
-				}
-
-				// All other pseudo classes
-				elseif (
-					substr( $setting_key, -strlen( $pseudo_class ) ) === $pseudo_class && // setting key ends with pseudo clas
-					substr( $setting_key, strpos( $setting_key, $pseudo_class ) - 1, 1 ) !== ':' && // charcter before pseudo clas is not a ':'
-					! in_array( $pseudo_class, $pseudo_classes ) // pseudo class not part of global pseudo classes array
-				) {
-					$pseudo_classes[] = $pseudo_class;
-					break;
-				}
-			}
-
-			// STEP: Detect pseudo elements
-			foreach ( $valid_pseudo_elements as $pseudo_element ) {
-				if (
-					substr( $setting_key, -strlen( $pseudo_element ) ) === $pseudo_element && // setting key ends with pseudo element
-					substr( $setting_key, strpos( $setting_key, $pseudo_element ) - 1, 1 ) !== ':' && // charcter before pseudo element is not a ':'
-					! in_array( $pseudo_element, $pseudo_classes ) // pseudo element not part of global pseudo classes array
-				) {
-					$pseudo_classes[] = $pseudo_element;
-					break;
 				}
 			}
 		}
 
+		// Distinct pseudo classes
+		$pseudo_classes = array_unique( $pseudo_classes );
+
+		// Convert to array
+		$pseudo_classes = array_values( $pseudo_classes );
+
 		return $pseudo_classes;
+	}
+
+	/**
+	 * Check if input is a pseudo class/element
+	 *
+	 * Use this one to distinguish between pseudo classes/elements and breakpoints
+	 *
+	 * @since 1.12
+	 */
+	private static function is_pseudo_class( $possible_pseudo, $allowed_pseudo_classes ) {
+		foreach ( $allowed_pseudo_classes as $allowed ) {
+			// Check if pseudo class is at the beginning of the string
+			if ( strpos( $possible_pseudo, $allowed ) === 0 ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -1519,6 +1599,8 @@ class Templates {
 		}
 
 		if ( count( $global_classes_to_add ) ) {
+			// Add category metadata before adding to template data (@since 1.12.2)
+			$global_classes_to_add           = Helpers::add_category_metadata_to_classes( $global_classes_to_add );
 			$template_data['global_classes'] = $global_classes_to_add;
 		}
 
@@ -1613,12 +1695,18 @@ class Templates {
 		$is_svg = pathinfo( $image['url'], PATHINFO_EXTENSION ) === 'svg';
 
 		// STEP: No image import requested: Return placeholder image
-		if ( ! $import_images && ! $is_svg ) {
+		if ( ! $import_images ) {
 			// Add to instance property to replace templateData before returning it to Vue
 			$placeholder_image = [
-				'url'  => Builder::get_template_placeholder_image(),
-				'full' => Builder::get_template_placeholder_image(),
+				'url'           => Builder::get_template_placeholder_image( $is_svg ),
+				'full'          => Builder::get_template_placeholder_image( $is_svg ),
+				'isPlaceholder' => true,
 			];
+
+			// Add placeholder image path. For SVG elements (@since 1.12.2)
+			if ( $is_svg ) {
+				$placeholder_image['path'] = Builder::get_template_placeholder_image( $is_svg, 'path' );
+			}
 
 			self::$template_images[] = [
 				'old' => $image,
@@ -1630,12 +1718,12 @@ class Templates {
 
 		// Not allowed to upload SVG: Remove 'file' value
 		elseif ( $import_images && $is_svg && ! Capabilities::current_user_can_upload_svg() && ! empty( $image['url'] ) ) {
-			$svg_blank = $image;
-			unset( $svg_blank['url'] );
-
-			if ( isset( $svg_blank['filename'] ) ) {
-				unset( $svg_blank['filename'] );
-			}
+			// Use placeholder SVG image instead. (@since 1.12.2)
+			$svg_blank = [
+				'url'  => Builder::get_template_placeholder_image( true ),
+				'full' => Builder::get_template_placeholder_image( true ),
+				'path' => Builder::get_template_placeholder_image( true, 'path' ),
+			];
 
 			self::$template_images[] = [
 				'old' => $image,
@@ -1804,7 +1892,7 @@ class Templates {
 			$elements = json_decode( $elements_encoded, true );
 		}
 
-		// STEP: Generate new element IDs (@since 1.x)
+		// STEP: Generate new element IDs (@since 1.9.9)
 		$elements = Helpers::generate_new_element_ids( $elements );
 
 		wp_send_json_success( [ 'elements' => $elements ] );
@@ -1977,6 +2065,16 @@ class Templates {
 
 				if ( ! $run_hook ) {
 					continue;
+				}
+
+				if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
+					// Enqueue template styles early to avoid FOUC & CLS (@since 1.12)
+					$template_css_file_dir = Assets::$css_dir . "/post-$template_id.min.css";
+					$template_css_file_url = Assets::$css_url . "/post-$template_id.min.css";
+
+					if ( file_exists( $template_css_file_dir ) ) {
+						wp_enqueue_style( "bricks-post-$template_id", $template_css_file_url, [], filemtime( $template_css_file_dir ) );
+					}
 				}
 
 				// STEP: Add template to hook
@@ -2293,5 +2391,48 @@ class Templates {
 		}
 
 		return $run_template;
+	}
+
+	/**
+	 * Only used for popup inserted directly through the Template element (non-loop).
+	 *
+	 * NOTE: Do not use this function in other places!
+	 *
+	 * @since 1.12
+	 */
+	public static function generate_popup_setting_css( $popup_id ) {
+		$unique_key = 'template_popup_' . $popup_id;
+
+		// Return if already generated
+		if ( isset( Assets::$inline_css[ $unique_key ] ) ) {
+			return Assets::$inline_css[ $unique_key ];
+		}
+
+		$styles                     = '';
+		$template_settings_controls = Settings::get_controls_data( 'template' );
+		$popup_template_settings    = Helpers::get_template_settings( $popup_id );
+
+		// Maybe need to enqueue some scripts like AJAX loader
+		if ( is_array( $popup_template_settings ) && ! empty( $popup_template_settings ) ) {
+			Assets::enqueue_setting_specific_scripts( $popup_template_settings );
+		}
+
+		if ( ! empty( $template_settings_controls['controls'] ) ) {
+			// Generate CSS for popup settings
+			Assets::generate_inline_css_from_element(
+				[
+					'settings'             => $popup_template_settings,
+					'_templateCssSelector' => ".brxe-popup-{$popup_id}"
+				],
+				$template_settings_controls['controls'],
+				$unique_key
+			);
+
+			if ( isset( Assets::$inline_css[ $unique_key ] ) ) {
+				$styles .= "\n/* POPUP SETTINGS CSS */\n" . Assets::$inline_css[ $unique_key ] . "\n";
+			}
+		}
+
+		return $styles;
 	}
 }

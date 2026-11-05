@@ -1,13 +1,15 @@
 // The frames a person pastes on the Vietnix Tools screen. Desktop is the template.
-// Tablet and mobile are merged as Bricks breakpoints. Widescreen is kept and not merged:
-// Bricks 1.9.8 has no breakpoint wider than the desktop frame (the 2504 frame is only a check).
+// Every other slot is optional. A blank slot is skipped. A filled slot is merged.
+// Tablet portrait, mobile landscape and mobile portrait are Bricks 1.9.8 breakpoints (max-width).
+// Widescreen is not one of those breakpoints: Bricks applies it as min-width CSS from the wide frame's own width.
 import { parseFigmaUrl } from '../figma/url.mjs';
 
 export const SLOTS = [
   { id: 'desktop', label: 'Desktop', required: true },
-  { id: 'tablet', label: 'Tablet', required: false, key: 'tablet_portrait', maxWidth: 991 },
-  { id: 'mobile', label: 'Mobile', required: false, key: 'mobile_portrait', maxWidth: 478 },
-  { id: 'widescreen', label: 'Widescreen', required: false, merge: false },
+  { id: 'widescreen', label: 'Widescreen', required: false, key: 'widescreen', wide: true },
+  { id: 'tablet', label: 'Tablet portrait', required: false, key: 'tablet_portrait', maxWidth: 991 },
+  { id: 'landscape', label: 'Mobile landscape', required: false, key: 'mobile_landscape', maxWidth: 767 },
+  { id: 'mobile', label: 'Mobile portrait', required: false, key: 'mobile_portrait', maxWidth: 478 },
 ];
 
 export function parseFrameInput(input) {

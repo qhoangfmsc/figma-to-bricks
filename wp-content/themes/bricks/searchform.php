@@ -1,11 +1,15 @@
 <?php
-$search_text  = ! empty( $settings['placeholder'] ) ? $settings['placeholder'] : esc_html__( 'Search ...', 'bricks' );
-$button_text  = ! empty( $settings['buttonText'] ) ? $settings['buttonText'] : '';
-$aria_label   = ! empty( $settings['buttonAriaLabel'] ) ? $settings['buttonAriaLabel'] : '';
+$search_text  = $settings['placeholder'] ?? esc_html__( 'Search ...', 'bricks' );
+$button_text  = $settings['buttonText'] ?? '';
+$aria_label   = $settings['buttonAriaLabel'] ?? '';
 $icon         = ! empty( $settings['icon'] ) ? Bricks\Element::render_icon( $settings['icon'], [ 'overlay-trigger' ] ) : false;
 $for          = isset( $element_id ) ? "search-input-{$element_id}" : 'search-input';
 $input_name   = 's'; // NOTE: Allow setting custom name value (needed for SearchWP)?
 $search_value = get_search_query();
+
+// Check for custom label settings (@since 1.11.1)
+$show_label = isset( $settings['showLabel'] );
+$label_text = $settings['labelText'] ?? esc_html__( 'Search', 'bricks' );
 
 /**
  * Use predefined search value (if get_search_query() is empty and pre_search_value is set)
@@ -26,7 +30,11 @@ if ( ! empty( $settings['actionURL'] ) ) {
 ?>
 
 <form role="search" method="get" class="bricks-search-form" action="<?php echo esc_url( $action_url ); ?>">
-	<label for="<?php echo esc_attr( $for ); ?>" class="screen-reader-text"><span><?php esc_html_e( 'Search ...', 'bricks' ); ?></span></label>
+	<?php if ( $show_label ) { ?>
+		<label for="<?php echo esc_attr( $for ); ?>"><?php echo esc_html( $label_text ); ?></label>
+	<?php } else { ?>
+		<label for="<?php echo esc_attr( $for ); ?>" class="screen-reader-text"><span><?php echo esc_html( $label_text ); ?></span></label>
+	<?php } ?>
 	<input type="search" placeholder="<?php echo esc_attr( $search_text ); ?>" value="<?php echo $search_value; ?>" name="s" id="<?php echo esc_attr( $for ); ?>" />
 
 	<?php

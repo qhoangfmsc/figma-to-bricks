@@ -127,7 +127,13 @@ export function applyText({ node, s, css, warn }) {
     'font-size': ty['font-size'], 'font-weight': ty['font-weight'], 'line-height': ty['line-height'], 'text-align': ty['text-align'],
     ...(fill && { color: cssColor(fill) }), ...(ty['letter-spacing'] && { 'letter-spacing': ty['letter-spacing'] }),
   });
-  if (node.sizing.v === 'FIXED' && t.valign !== 'TOP') warn(node, `text vertical align ${t.valign} in a fixed-height box is not applied`);
+  if (node.sizing?.v === 'FIXED' && t.valign && t.valign !== 'TOP') {
+    const vertical = t.valign === 'CENTER' ? 'center' : t.valign === 'BOTTOM' ? 'flex-end' : null;
+    if (vertical) addCustomCss(s, `display: flex; flex-direction: column; justify-content: ${vertical};`);
+    else warn(node, `text vertical align ${t.valign} in a fixed-height box is not applied`);
+  }
+  if (t.case === 'SMALL_CAPS') addCustomCss(s, 'font-variant-caps: small-caps;');
+  else if (t.case === 'SMALL_CAPS_FORCED') addCustomCss(s, 'font-variant-caps: all-small-caps;');
   // "Truncate text" with a max line count: Bricks 1.9.8 has no line-clamp control, so it is css (listed in the report as custom css)
   // Figma draws the list marker and the indent of a list text itself (UNORDERED / ORDERED, level in lineIndentations); neither is an attribute that can be written
   // as a Bricks value without inventing it, so the text is built as plain lines and the difference is listed

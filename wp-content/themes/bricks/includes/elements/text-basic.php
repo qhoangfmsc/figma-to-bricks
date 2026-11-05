@@ -15,7 +15,6 @@ class Element_Text_Basic extends Element {
 
 	public function set_controls() {
 		$this->controls['text'] = [
-			'tab'         => 'content',
 			'type'        => 'textarea',
 			'lineBreak'   => 'br',
 			'default'     => esc_html__( 'Here goes your text ... Select any part of your text to access the formatting toolbar.', 'bricks' ),
@@ -23,7 +22,6 @@ class Element_Text_Basic extends Element {
 		];
 
 		$this->controls['tag'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'HTML tag', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
@@ -41,29 +39,33 @@ class Element_Text_Basic extends Element {
 		];
 
 		$this->controls['customTag'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Custom tag', 'bricks' ),
+			'info'        => esc_html__( 'Without attributes', 'bricks' ),
 			'type'        => 'text',
 			'inline'      => true,
 			'placeholder' => 'div',
 			'required'    => [ 'tag', '=', 'custom' ],
 		];
 
+		// p-tag info (@since 1.12)
+		$this->controls['textInfo'] = [
+			'type'     => 'info',
+			'content'  => esc_html__( 'When using dynamic data that contains formatted text (e.g. WYSIWYG field, or any other HTML tags such as p, div, headings, etc.), set the HTML tag to "div", not "p". Alternatively, use the Rich Text element.', 'bricks' ),
+			'required' => [ 'tag', '=', 'p' ],
+		];
+
 		$this->controls['link'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Link to', 'bricks' ),
 			'type'  => 'link',
 		];
 
 		$this->controls['wordsLimit'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Words limit', 'bricks' ),
 			'type'  => 'number',
 			'min'   => 1,
 		];
 
 		$this->controls['readMore'] = [
-			'tab'            => 'content',
 			'label'          => esc_html__( 'Read more', 'bricks' ),
 			'type'           => 'text',
 			'inline'         => true,

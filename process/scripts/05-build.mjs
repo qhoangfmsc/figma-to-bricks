@@ -10,6 +10,8 @@ import { requireSignOff } from '../review/index.mjs';
 import { buildTemplate } from '../bricks/render/index.mjs';
 import { stats } from '../figma/tree-md.mjs';
 import { mergeResponsive } from '../responsive/merge.mjs';
+import { fitFluid, fitSoloTemplate, holdMobileBand } from '../responsive/solo.mjs';
+import { bundleOpenPanes } from '../template/tab-frames.mjs';
 
 // [{ family, weights: [400, 700], italicWeights: [] }] for every visible text node (incl. mixed-style runs)
 export function collectFonts(root) {
@@ -34,8 +36,9 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   const ws = resolveWorkspace(urlOrDir);
   requireSignOff(ws, 'build'); // the owner must have reviewed detections.md first
   const tree = ws.readJson('tree.json');
-  const overrides = ws.readJson('overrides.json', { nodes: {} });
   const detections = ws.readJson('detections.json', null);
+  bundleOpenPanes(tree, detections);
+  const overrides = ws.readJson('overrides.json', { nodes: {} });
   const flats = ws.readJson('assets/manifest.json', {}).flats ?? {};
   const readAsset = (file) => readFileSync(ws.file('assets/' + file), 'utf8');
 
@@ -54,18 +57,20 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   // Breakpoint variants (responsive.json): every variant frame is built with its own workspace (tree, decisions, assets) and merged in
   const responsive = ws.readJson('responsive.json', null);
   const fontSources = [tree];
+  const narrowing = (responsive?.variants ?? []).filter((v) => v.maxWidth != null);
   if (responsive?.variants?.length) {
     const variants = responsive.variants.map((v) => {
       const vws = resolveWorkspace(join(dirname(ws.dir), v.workspace));
       requireSignOff(vws, 'build');
       const vtree = vws.readJson('tree.json');
+      bundleOpenPanes(vtree, vws.readJson('detections.json', null));
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {
         overrides: vws.readJson('overrides.json', { nodes: {} }), detections: vws.readJson('detections.json', null), flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
         readAsset: (file) => readFileSync(vws.file('assets/' + file), 'utf8'), salt: `${ws.ref?.fileKey ?? ''}|${v.key}`,
       });
       for (const w of b.warnings) warnings.push({ ...w, msg: `[${v.key}] ${w.msg}` });
-      return { key: v.key, maxWidth: v.maxWidth, aliases: v.aliases ?? {}, tree: vtree, template: b.template, mapping: b.mapping, ws: vws, sig: signature(vws) };
+      return { key: v.key, maxWidth: v.maxWidth, minWidth: v.minWidth, aliases: v.aliases ?? {}, tree: vtree, template: b.template, mapping: b.mapping, ws: vws, sig: signature(vws) };
     });
     const merged = mergeResponsive({ base: { tree, template, mapping, sig: signature(ws) }, variants });
     template = merged.template;
@@ -80,8 +85,16 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       mkdirSync(dirname(ws.file('assets/' + file)), { recursive: true });
       copyFileSync(src.ws.file('assets/' + file), ws.file('assets/' + file));
     }
-    console.log(`  responsive: ${variants.map((v) => `${v.key} (<=${v.maxWidth}px, ${Object.keys(merged.mappings[v.key]).length} nodes)`).join(' · ')}`);
+    console.log(`  responsive: ${variants.map((v) => `${v.key} (${v.minWidth != null ? `>=${v.minWidth}` : `<=${v.maxWidth}`}px, ${Object.keys(merged.mappings[v.key]).length} nodes)`).join(' · ')}`);
   }
+  // Every generate keeps undesigned widths inside the window. A pasted frame keeps the values it drew.
+  // The breakpoints with no frame get the same steps (padding, type, rows that no longer fit).
+  const keep = narrowing.map((v) => v.key);
+  const coveredUntil = narrowing.reduce((max, v) => Math.max(max, v.maxWidth ?? 0), 0);
+  fitSoloTemplate(template, { keep });
+  fitFluid(template, { frameWidth: tree.box?.w, coveredUntil, keep });
+  // A pasted phone frame holds until 768. The open 479–767 band is not a third layout.
+  holdMobileBand(template, { keep });
   ws.writeJson('bricks.json', template);
   ws.writeJson('mapping.json', mapping);
   ws.writeJson('warnings.json', warnings);

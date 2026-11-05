@@ -67,7 +67,7 @@ class Woocommerce_Account_Addresses extends Woo_Element {
 			'label' => esc_html__( 'Title', 'bricks' ),
 		];
 
-		$title_controls = $this->generate_standard_controls( 'title', '.woocommerce-Address-title h3' );
+		$title_controls = $this->generate_standard_controls( 'title', '.woocommerce-Address-title h2' );
 		$title_controls = $this->controls_grouping( $title_controls, 'title' );
 		$this->controls = array_merge( $this->controls, $title_controls );
 

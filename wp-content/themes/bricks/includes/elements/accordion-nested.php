@@ -9,6 +9,7 @@ class Element_Accordion_Nested extends Element {
 	public $icon     = 'ti-layout-accordion-merged';
 	public $scripts  = [ 'bricksAccordion' ];
 	public $nestable = true;
+	private $faqpage_schema;
 
 	public function get_label() {
 		return esc_html__( 'Accordion', 'bricks' ) . ' (' . esc_html__( 'Nestable', 'bricks' ) . ')';
@@ -34,8 +35,19 @@ class Element_Accordion_Nested extends Element {
 		];
 
 		$this->controls['expandFirstItem'] = [
-			'label' => esc_html__( 'Expand first item', 'bricks' ),
-			'type'  => 'checkbox',
+			'deprecated' => '1.11.2', // Use 'expandItem' instead
+			'label'      => esc_html__( 'Expand first item', 'bricks' ),
+			'type'       => 'checkbox',
+		];
+
+		// Expand item on page load (@since 1.12)
+		$this->controls['expandItem'] = [
+			'label'       => esc_html__( 'Expand item indexes', 'bricks' ),
+			'type'        => 'text',
+			'description' => esc_html__( 'Indexes of the items to expand on page load, separated by comma, start at 0.', 'bricks' ),
+			'inline'      => true,
+			'placeholder' => '',
+			'required'    => [ 'expandFirstItem', '!=', true ],
 		];
 
 		$this->controls['independentToggle'] = [
@@ -48,6 +60,12 @@ class Element_Accordion_Nested extends Element {
 			'label'       => esc_html__( 'Transition', 'bricks' ) . ' (ms)',
 			'type'        => 'number',
 			'placeholder' => 200,
+		];
+
+		$this->controls['faqSchema'] = [
+			'label'       => esc_html__( 'FAQ schema', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => '<a href="https://developers.google.com/search/docs/appearance/structured-data/faqpage" target="_blank">' . esc_html__( 'Generate FAQPage structured data (JSON-LD).', 'bricks' ) . '</a>',
 		];
 
 		// TITLE
@@ -279,7 +297,7 @@ class Element_Accordion_Nested extends Element {
 							'name'     => 'heading',
 							'settings' => [
 								'text' => esc_html__( 'Accordion', 'bricks' ) . ' {item_index}',
-								'tag'  => 'h5',
+								'tag'  => 'h3',
 							],
 						],
 						[
@@ -335,6 +353,15 @@ class Element_Accordion_Nested extends Element {
 	public function render() {
 		$settings = $this->settings;
 
+		// FAQ Schema initialization if it's enabled in settings
+		if ( isset( $settings['faqSchema'] ) ) {
+			$this->faqpage_schema = [
+				'@context'   => 'https://schema.org',
+				'@type'      => 'FAQPage',
+				'mainEntity' => [],
+			];
+		}
+
 		// data-script-args: Expand first item & Independent toggle
 		$data_script_args = [];
 
@@ -342,6 +369,11 @@ class Element_Accordion_Nested extends Element {
 			if ( isset( $settings[ $setting_key ] ) ) {
 				$data_script_args[] = $setting_key;
 			}
+		}
+
+		// Expand item on page load (@since 1.12)
+		if ( isset( $settings['expandItem'] ) ) {
+			$this->set_attribute( '_root', 'data-expand-item', $settings['expandItem'] );
 		}
 
 		if ( count( $data_script_args ) ) {
@@ -356,10 +388,117 @@ class Element_Accordion_Nested extends Element {
 		$output = "<div {$this->render_attributes( '_root' )}>";
 
 		// Render children elements (= individual items)
-		$output .= Frontend::render_children( $this );
+		$accordion_content = Frontend::render_children( $this, 'div' );
+
+		// Render children elements (= individual items)
+		$output .= $accordion_content;
 
 		$output .= '</div>';
 
-		echo $output;
+		// Enhance accessibility using DOMDocument
+		echo $this->enhance_accessibility( $output );
+
+		// FAQ Schema
+		if ( ! empty( $this->faqpage_schema ) ) {
+			echo '<script type="application/ld+json">' . wp_json_encode( $this->faqpage_schema ) . '</script>';
+		}
+	}
+
+	/**
+	 * Enhances the accessibility of the accordion content by adding ARIA attributes.
+	 * Generate FAQPage structured data if enabled in settings.
+	 *
+	 * This method parses the given HTML content using DOMDocument and adds
+	 * necessary ARIA attributes to make the accordion more accessible. It focuses on:
+	 * - Adding role, aria-expanded, and aria-controls to accordion headers
+	 * - Adding role, aria-labelledby, and id to accordion content sections
+	 * - Ensuring unique ids for accordion titles and content sections
+	 *
+	 * The method only adds attributes if they don't already exist, preserving any
+	 * manually set attributes.
+	 *
+	 * @param string $html_content The HTML content of the accordion to be enhanced.
+	 * @return string The enhanced HTML content with added accessibility attributes.
+	 *
+	 * @since 1.11
+	 */
+	private function enhance_accessibility( $html_content ) {
+		$dom = new \DOMDocument();
+
+		// Suppress warnings during HTML loading
+		libxml_use_internal_errors( true );
+		$dom->loadHTML( '<?xml encoding="UTF-8">' . $html_content, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+		libxml_clear_errors();
+
+		$xpath = new \DOMXPath( $dom );
+
+		$items = $xpath->query( "//*[contains(@class, 'brxe-accordion-nested')]/*[contains(@class, 'brxe-block')]" );
+
+		foreach ( $items as $index => $item ) {
+			$title_wrapper   = $xpath->query( ".//*[contains(@class, 'accordion-title-wrapper')]", $item )->item( 0 );
+			$content_wrapper = $xpath->query( ".//*[contains(@class, 'accordion-content-wrapper')]", $item )->item( 0 );
+
+			if ( $title_wrapper && $content_wrapper ) {
+				// Set attributes for the title wrapper
+				$this->set_attribute_if_not_exists( $title_wrapper, 'role', 'button' );
+				$this->set_attribute_if_not_exists( $title_wrapper, 'aria-expanded', 'false' );
+				$this->set_attribute_if_not_exists( $title_wrapper, 'tabindex', '0' );
+
+				// Set content wrapper ID if it doesn't exist
+				$content_id = $content_wrapper->getAttribute( 'id' ) ?? 'accordion-content-' . $index;
+
+				$this->set_attribute_if_not_exists( $content_wrapper, 'id', $content_id );
+
+				// Set aria-controls on title wrapper
+				$this->set_attribute_if_not_exists( $title_wrapper, 'aria-controls', $content_id );
+
+				// Set attributes for the content wrapper
+				$this->set_attribute_if_not_exists( $content_wrapper, 'role', 'region' );
+
+				// Find any heading element within the title wrapper
+				$heading = $xpath->query( './/h1|.//h2|.//h3|.//h4|.//h5|.//h6', $title_wrapper )->item( 0 );
+				if ( $heading ) {
+					$heading_id = $heading->getAttribute( 'id' ) ?? 'accordion-title-' . $index;
+
+					$this->set_attribute_if_not_exists( $heading, 'id', $heading_id );
+					$this->set_attribute_if_not_exists( $content_wrapper, 'aria-labelledby', $heading_id );
+				}
+
+				// STEP: Generate FAQ schema if it's enabled in settings
+				if ( isset( $this->faqpage_schema ) && $heading && $content_wrapper ) {
+					$title_text   = $heading->textContent; // @phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+					$content_text = $content_wrapper->textContent; // @phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+
+					// Add the question-answer pair to the FAQ schema if both exist
+					if ( $title_text && $content_text ) {
+						$this->faqpage_schema['mainEntity'][] = [
+							'@type'          => 'Question',
+							'name'           => $title_text,
+							'acceptedAnswer' => [
+								'@type' => 'Answer',
+								'text'  => $content_text,
+							],
+						];
+					}
+				}
+			}
+		}
+
+		return $dom->saveHTML();
+	}
+
+	/**
+	 * Sets an attribute on a DOM element if it doesn't already exist.
+	 *
+	 * @since 1.11
+	 *
+	 * @param \DOMElement $element The DOM element to set the attribute on.
+	 * @param string      $attribute The name of the attribute to set.
+	 * @param string      $value The value to set for the attribute.
+	 */
+	private function set_attribute_if_not_exists( $element, $attribute, $value ) {
+		if ( ! $element->hasAttribute( $attribute ) ) {
+			$element->setAttribute( $attribute, $value );
+		}
 	}
 }

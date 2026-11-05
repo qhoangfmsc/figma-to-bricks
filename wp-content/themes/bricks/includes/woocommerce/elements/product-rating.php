@@ -98,7 +98,7 @@ class Product_Rating extends Element {
 		$show_empty_stars  = isset( $settings['noRatingsStars'] );
 		$hide_reviews_link = isset( $settings['hideReviewsLink'] );
 
-		echo "<div {$this->render_attributes( '_root' )}>";
+		$rating_html = '';
 
 		if ( $show_empty_stars || $product->get_rating_count() ) {
 			$params = [
@@ -107,16 +107,21 @@ class Product_Rating extends Element {
 				'hide_reviews_link' => $hide_reviews_link,
 			];
 
-			Woocommerce_Helpers::render_product_rating( $product, $params );
+			$rating_html = Woocommerce_Helpers::render_product_rating( $product, $params, false );
 		}
 
 		// No ratings txt
 		elseif ( ! empty( $settings['noRatingsText'] ) ) {
-			echo $settings['noRatingsText'];
+			$rating_html = $settings['noRatingsText'];
 		} else {
-			$this->render_element_placeholder( [ 'title' => esc_html__( 'No ratings yet.', 'bricks' ) ] );
+			$rating_html = $this->render_element_placeholder( [ 'title' => esc_html__( 'No ratings yet.', 'bricks' ) ] );
 		}
 
-		echo '</div>';
+		// Return: No ratings, and no text or stars to show
+		if ( ! $rating_html ) {
+			return;
+		}
+
+		echo "<div {$this->render_attributes( '_root' )}>$rating_html</div>";
 	}
 }

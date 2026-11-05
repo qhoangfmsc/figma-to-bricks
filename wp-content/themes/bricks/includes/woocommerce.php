@@ -18,6 +18,11 @@ class Woocommerce {
 			return;
 		}
 
+		// Remove Woo Asset Controller hook in the builder (@since 1.12)
+		if ( bricks_is_builder() ) {
+			add_action( 'init', [ $this, 'remove_woo_resource_hints' ], 15 );
+		}
+
 		add_filter( 'woocommerce_show_admin_notice', [ $this, 'show_admin_notice' ], 10, 2 );
 
 		add_action( 'admin_notices', [ $this, 'admin_notice_outdated_template_files' ] );
@@ -98,7 +103,7 @@ class Woocommerce {
 
 		// Query loop: using the query loop builder for products
 		add_filter( 'bricks/posts/merge_query', [ $this, 'maybe_merge_query' ], 10, 2 );
-		add_filter( 'bricks/posts/query_vars', [ $this, 'set_products_query_vars' ], 10, 3 );
+		add_filter( 'bricks/posts/query_vars', [ $this, 'set_products_query_vars' ], 10, 4 );
 
 		// Query: Add Woo Cart contents
 		add_filter( 'bricks/setup/control_options', [ $this, 'add_control_options' ], 10, 1 );
@@ -137,8 +142,7 @@ class Woocommerce {
 		add_filter( 'bricks/content/attributes', [ $this, 'template_preview_main_classes' ], 10, 2 );
 
 		// Woo Phase 3 - My account endpoints: Render Bricks template in account content areas (e.g. Oders, Downloads, Addresses, etc.)
-		add_action( 'woocommerce_before_account_navigation', [ $this, 'remove_my_account_content' ] );
-		add_action( 'woocommerce_account_content', [ $this, 'add_my_account_content' ] );
+		add_action( 'woocommerce_account_content', [ $this, 'add_my_account_content' ], 1 );
 
 		// Woo Phase 3 - Set account navigation active class in builder
 		add_filter( 'woocommerce_account_menu_item_classes', [ $this, 'woocommerce_account_menu_item_classes' ], 10, 2 );
@@ -358,98 +362,26 @@ class Woocommerce {
 	}
 
 	/**
-	 * Woo Phase 3 - Check if account dashboard requested
+	 * Woo Phase 3 - Check if current page is my account dashboard page
 	 *
-	 * is_account_page && no endpoint is in the query vars.
+	 * @see includes/wc-template-functions.php woocommerce_account_content()
 	 */
 	public static function is_wc_account_dashboard() {
 		global $wp;
 
-		if ( is_account_page() ) {
-			foreach ( WC()->query->get_query_vars() as $key => $value ) {
-				if ( isset( $wp->query_vars[ $key ] ) ) {
+		if ( ! empty( $wp->query_vars ) ) {
+			foreach ( $wp->query_vars as $key => $value ) {
+				if ( $key === 'pagename' ) {
+					continue;
+				}
+
+				if ( has_action( 'woocommerce_account_' . $key . '_endpoint' ) ) {
 					return false;
 				}
 			}
-
-			return true;
 		}
 
-		return false;
-	}
-
-	/**
-	 * My account: Remove default WooCommerce account template if Bricks template data is available
-	 *
-	 * @since 1.9
-	 */
-	public function remove_my_account_content() {
-		// Orders
-		if ( is_wc_endpoint_url( 'orders' ) ) {
-			$template_data = self::get_template_data_by_type( 'wc_account_orders' );
-
-			if ( $template_data ) {
-				remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-			}
-		}
-
-		// Downloads
-		elseif ( is_wc_endpoint_url( 'downloads' ) ) {
-			$template_data = self::get_template_data_by_type( 'wc_account_downloads' );
-
-			if ( $template_data ) {
-				remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-			}
-		}
-
-		// Edit account
-		elseif ( is_wc_endpoint_url( 'edit-account' ) ) {
-			$template_data = self::get_template_data_by_type( 'wc_account_form_edit_account' );
-
-			if ( $template_data ) {
-				remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-			}
-		}
-
-		// View order
-		elseif ( is_wc_endpoint_url( 'view-order' ) ) {
-			$template_data = self::get_template_data_by_type( 'wc_account_view_order' );
-
-			if ( $template_data ) {
-				remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-			}
-		}
-
-		// Addresses
-		elseif ( is_wc_endpoint_url( 'edit-address' ) ) {
-			global $wp;
-
-			// View addresses
-			if ( empty( $wp->query_vars['edit-address'] ) ) {
-				$template_data = self::get_template_data_by_type( 'wc_account_addresses' );
-				if ( $template_data ) {
-					remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-				}
-			}
-
-			// Edit address form requested (billing or shipping)
-			else {
-				$template_data = self::get_template_data_by_type( 'wc_account_form_edit_address' );
-				if ( $template_data ) {
-					remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-				}
-			}
-		}
-
-		// Dashboard
-		else {
-			$template_data = self::get_template_data_by_type( 'wc_account_dashboard' );
-			if ( $template_data ) {
-				if ( self::is_wc_account_dashboard() ) {
-					remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
-				}
-			}
-		}
+		return true;
 	}
 
 	/**
@@ -458,40 +390,26 @@ class Woocommerce {
 	 * @since 1.9
 	 */
 	public function add_my_account_content() {
+		$template_data = null;
+
 		// Orders
 		if ( is_wc_endpoint_url( 'orders' ) ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_orders' );
-
-			if ( $template_data ) {
-				echo $template_data;
-			}
 		}
 
 		// Downloads
 		elseif ( is_wc_endpoint_url( 'downloads' ) ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_downloads' );
-
-			if ( $template_data ) {
-				echo $template_data;
-			}
 		}
 
 		// Edit account
 		elseif ( is_wc_endpoint_url( 'edit-account' ) ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_form_edit_account' );
-
-			if ( $template_data ) {
-				echo $template_data;
-			}
 		}
 
 		// View order
 		elseif ( is_wc_endpoint_url( 'view-order' ) ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_view_order' );
-
-			if ( $template_data ) {
-				echo $template_data;
-			}
 		}
 
 		// Addresses
@@ -501,28 +419,24 @@ class Woocommerce {
 			// View addresses
 			if ( empty( $wp->query_vars['edit-address'] ) ) {
 				$template_data = self::get_template_data_by_type( 'wc_account_addresses' );
-				if ( $template_data ) {
-					echo $template_data;
-				}
 			}
 
 			// Edit address form requested (billing or shipping)
 			else {
 				$template_data = self::get_template_data_by_type( 'wc_account_form_edit_address' );
-				if ( $template_data ) {
-					echo $template_data;
-				}
 			}
 		}
 
 		// Dashboard
-		else {
+		elseif ( self::is_wc_account_dashboard() ) {
 			$template_data = self::get_template_data_by_type( 'wc_account_dashboard' );
-			if ( $template_data ) {
-				if ( self::is_wc_account_dashboard() ) {
-					echo $template_data;
-				}
-			}
+		}
+
+		// Render Bricks template data & remove default WooCommerce content (@since 1.10)
+		if ( $template_data ) {
+			echo $template_data;
+
+			remove_action( 'woocommerce_account_content', 'woocommerce_account_content' );
 		}
 	}
 
@@ -643,21 +557,17 @@ class Woocommerce {
 			}
 		}
 
-		// Mark removed billing fields to not-required
+		// Directly remove the selected fields from billing
 		if ( ! empty( $customer_details_settings['removeBillingFields'] ) && ! empty( $fields['billing'] ) ) {
 			foreach ( $customer_details_settings['removeBillingFields'] as $field_id ) {
-				if ( isset( $fields['billing'][ $field_id ] ) ) {
-					$fields['billing'][ $field_id ]['required'] = 0;
-				}
+				unset( $fields['billing'][ $field_id ] );
 			}
 		}
 
-		// Mark removed shipping fields to not-required
+		// Directly remove the selected fields from shipping
 		if ( ! empty( $customer_details_settings['removeShippingFields'] ) && ! empty( $fields['shipping'] ) ) {
 			foreach ( $customer_details_settings['removeShippingFields'] as $field_id ) {
-				if ( isset( $fields['shipping'][ $field_id ] ) ) {
-					$fields['shipping'][ $field_id ]['required'] = 0;
-				}
+				unset( $fields['shipping'][ $field_id ] );
 			}
 		}
 
@@ -807,6 +717,11 @@ class Woocommerce {
 			$regular_price = (float) $product->get_regular_price();
 			$sale_price    = (float) $product->get_sale_price();
 
+			// Return: Don't devide by zero (@since 1.10)
+			if ( $regular_price == 0 ) {
+				return $html;
+			}
+
 			if ( $sale_price != 0 || ! empty( $sale_price ) ) {
 				$percentage = round( 100 - ( $sale_price / $regular_price * 100 ) ) . '%';
 			} else {
@@ -842,7 +757,13 @@ class Woocommerce {
 		$is_new            = $newness_timestamp < $created; // Created less than {$newness_in_days} days ago
 
 		if ( $is_new ) {
-			echo '<span class="badge new">' . esc_html__( 'New', 'bricks' ) . '</span>';
+			$html = '<span class="badge new">' . esc_html__( 'New', 'bricks' ) . '</span>';
+			// Echo or return based on the current filter, used in provider-woo and woo products element (@since 1.11.1)
+			if ( current_filter() === 'woocommerce_before_shop_loop_item_title' ) {
+				echo $html;
+			} else {
+				return $html;
+			}
 		}
 	}
 
@@ -987,6 +908,8 @@ class Woocommerce {
 			'woocommerce-cart-coupon',
 			'woocommerce-cart-items',
 
+			'woocommerce-checkout-coupon',
+			'woocommerce-checkout-login',
 			'woocommerce-checkout-customer-details',
 			'woocommerce-checkout-order-review',
 			'woocommerce-checkout-thankyou',
@@ -1003,7 +926,7 @@ class Woocommerce {
 			'woocommerce-notice',
 			// 'woocommerce-template-hook', // NOTE: Not in use as action hooks can be added via the 'do_action' DD tag (@since 1.7)
 
-			// Woo Phase 3 (@since 1.9)
+			// Woo Phase 3
 			'woocommerce-account-page',
 
 			'woocommerce-account-form-login',
@@ -1021,8 +944,18 @@ class Woocommerce {
 		];
 
 		foreach ( $woo_elements as $element_name ) {
-			// @since 1.8.1 - Only register woocommerce-notice if user activated it
+			// Only register woocommerce-notice if user activated it
 			if ( $element_name === 'woocommerce-notice' && ! self::use_bricks_woo_notice_element() ) {
+				continue;
+			}
+
+			// Only register checkout-coupon if user activated it
+			if ( $element_name === 'woocommerce-checkout-coupon' && ! self::use_bricks_woo_checkout_coupon_element() ) {
+				continue;
+			}
+
+			// Only register checkout-login if user activated it
+			if ( $element_name === 'woocommerce-checkout-login' && ! self::use_bricks_woo_checkout_login_element() ) {
 				continue;
 			}
 
@@ -1177,95 +1110,19 @@ class Woocommerce {
 	}
 
 	/**
-	 * Cart page / Checkout page: Return no title if rendered via Bricks template
+	 * Cart/Checkout/Account page: Return no title if rendered via Bricks template
 	 *
 	 * @since 1.8
 	 */
 	public function default_page_title( $post_title, $post_id ) {
-		if ( is_cart() ) {
-			if ( WC()->cart->is_empty() ) {
-				// Empty cart template
-				$cart_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_cart_empty' );
-			} else {
-				// Normal cart template
-				$cart_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_cart' );
+		// Only amend the title for these pages
+		if ( is_cart() || is_checkout() || is_account_page() ) {
+			$wc_templates = self::get_active_templates_for_current_page();
+
+			// As long as there is a active Bricks template, return no title
+			if ( ! empty( $wc_templates ) ) {
+				return '';
 			}
-
-			return empty( $cart_template_ids ) ? $post_title : '';
-		}
-
-		if ( is_checkout() ) {
-			$checkout_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_form_checkout' );
-
-			return empty( $checkout_template_ids ) ? $post_title : '';
-		}
-
-		// My account page (@since Woo Phase 3)
-		if ( is_account_page() ) {
-			// Get current endpoint
-			$endpoint = WC()->query->get_current_endpoint();
-
-			$navigation_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_navigation' );
-
-			switch ( $endpoint ) {
-				case 'orders':
-					$wc_template_ids         = \Bricks\Templates::get_templates_by_type( 'wc_account_orders' );
-					$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-
-					break;
-				case 'view-order':
-					$wc_template_ids         = \Bricks\Templates::get_templates_by_type( 'wc_account_view_order' );
-					$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-
-					break;
-				case 'downloads':
-					$wc_template_ids         = \Bricks\Templates::get_templates_by_type( 'wc_account_downloads' );
-					$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-
-					break;
-				case 'edit-address':
-					// maybe wc_account_addresses or wc_account_form_edit_address
-					global $wp;
-					$is_edit_address = isset( $wp->query_vars['edit-address'] ) ? true : false;
-
-					if ( $is_edit_address ) {
-						$wc_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_form_edit_address' );
-					} else {
-						$wc_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_addresses' );
-					}
-
-					$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-
-					break;
-				case 'edit-account':
-					$wc_template_ids         = \Bricks\Templates::get_templates_by_type( 'wc_account_form_edit_account' );
-					$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-
-					break;
-				case 'lost-password':
-					// maybe wc_account_form_lost_password or wc_account_reset_password or wc_account_form_lost_password_confirmation
-					// check woocommerce/includes/shortcodes/class-wc-shortcode-my-account.php
-					if ( ! empty( $_GET['reset-link-sent'] ) ) {
-						$my_account_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_form_lost_password_confirmation' );
-					} elseif ( ! empty( $_GET['show-reset-form'] ) ) {
-						$my_account_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_reset_password' );
-					} else {
-						$my_account_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_form_lost_password' );
-					}
-
-					break;
-				case '':
-					// maybe login form or wc_account_dashboard
-					if ( is_user_logged_in() ) {
-						$wc_template_ids         = \Bricks\Templates::get_templates_by_type( 'wc_account_dashboard' );
-						$my_account_template_ids = array_merge( $wc_template_ids, $navigation_ids );
-					} else {
-						$my_account_template_ids = \Bricks\Templates::get_templates_by_type( 'wc_account_form_login' );
-					}
-					break;
-			}
-
-			return empty( $my_account_template_ids ) ? $post_title : '';
 		}
 
 		return $post_title;
@@ -1481,7 +1338,7 @@ class Woocommerce {
 			wp_enqueue_style( 'bricks-woocommerce-rtl', BRICKS_URL_ASSETS . 'css/integrations/woocommerce-rtl.min.css', [ 'bricks-frontend' ], filemtime( BRICKS_PATH_ASSETS . 'css/integrations/woocommerce-rtl.min.css' ) );
 		}
 
-		// @since 1.6.1 - Bricks WooCommerce settings for frontend
+		// Bricks WooCommerce settings for frontend
 		wp_localize_script(
 			'bricks-scripts',
 			'bricksWooCommerce',
@@ -1494,6 +1351,8 @@ class Woocommerce {
 				'scrollToNotice'       => self::global_ajax_scroll_to_notice(),
 				'resetTextAfter'       => self::global_ajax_reset_text_after(),
 				'useQtyInLoop'         => self::use_quantity_in_loop(),
+				'errorAction'          => self::global_ajax_error_action(),
+				'errorScrollToNotice'  => self::global_ajax_error_scroll_to_notice(),
 			]
 		);
 	}
@@ -1523,6 +1382,43 @@ class Woocommerce {
 	}
 
 	/**
+	 * All WooCommerce templates in Bricks
+	 *
+	 * @since 1.11.1
+	 * @return array
+	 */
+	public static function get_woo_templates() {
+		$templates = [
+			// Product archive & single product templates
+			'wc_archive'                                 => esc_html__( 'Product archive', 'bricks' ),
+			'wc_product'                                 => esc_html__( 'Single product', 'bricks' ),
+
+			// Cart & checkout templates
+			'wc_cart'                                    => esc_html__( 'Cart', 'bricks' ),
+			'wc_cart_empty'                              => esc_html__( 'Empty cart', 'bricks' ),
+			'wc_form_checkout'                           => esc_html__( 'Checkout', 'bricks' ),
+			'wc_form_pay'                                => esc_html__( 'Pay', 'bricks' ),
+			'wc_thankyou'                                => esc_html__( 'Thank you', 'bricks' ),
+			'wc_order_receipt'                           => esc_html__( 'Order receipt', 'bricks' ),
+
+			// Woo Phase 3
+			'wc_account_form_login'                      => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Login', 'bricks' ),
+			'wc_account_form_lost_password'              => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Lost password', 'bricks' ),
+			'wc_account_form_lost_password_confirmation' => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Lost password', 'bricks' ) . ' (' . esc_html__( 'Confirmation', 'bricks' ) . ')',
+			'wc_account_reset_password'                  => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Reset password', 'bricks' ),
+			'wc_account_dashboard'                       => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Dashboard', 'bricks' ),
+			'wc_account_orders'                          => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Orders', 'bricks' ),
+			'wc_account_view_order'                      => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'View order', 'bricks' ),
+			'wc_account_downloads'                       => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Downloads', 'bricks' ),
+			'wc_account_addresses'                       => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Addresses', 'bricks' ),
+			'wc_account_form_edit_address'               => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit address', 'bricks' ),
+			'wc_account_form_edit_account'               => esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit account', 'bricks' ),
+		];
+
+		return $templates;
+	}
+
+	/**
 	 * Add template types to control options
 	 *
 	 * @param array $control_options
@@ -1533,30 +1429,18 @@ class Woocommerce {
 	public function add_template_types( $control_options ) {
 		$template_types = $control_options['templateTypes'];
 
-		// @since 1.3: Product archive & single product templates
-		$template_types['wc_archive'] = 'WooCommerce - ' . esc_html__( 'Product archive', 'bricks' );
-		$template_types['wc_product'] = 'WooCommerce - ' . esc_html__( 'Single product', 'bricks' );
+		$woo_templates = self::get_woo_templates();
 
-		// @since 1.4: Cart & checkout templates
-		$template_types['wc_cart']          = 'WooCommerce - ' . esc_html__( 'Cart', 'bricks' );
-		$template_types['wc_cart_empty']    = 'WooCommerce - ' . esc_html__( 'Empty cart', 'bricks' );
-		$template_types['wc_form_checkout'] = 'WooCommerce - ' . esc_html__( 'Checkout', 'bricks' );
-		$template_types['wc_form_pay']      = 'WooCommerce - ' . esc_html__( 'Pay', 'bricks' );
-		$template_types['wc_thankyou']      = 'WooCommerce - ' . esc_html__( 'Thank you', 'bricks' );
-		$template_types['wc_order_receipt'] = 'WooCommerce - ' . esc_html__( 'Order receipt', 'bricks' );
+		// Add Prefix 'WooCommerce - ' to WooCommerce templates
+		$woo_templates = array_map(
+			function( $value ) {
+				return 'WooCommerce - ' . $value;
+			},
+			$woo_templates
+		);
 
-		// Woo Phase 3
-		$template_types['wc_account_form_login']                      = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Login', 'bricks' );
-		$template_types['wc_account_form_lost_password']              = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Lost password', 'bricks' );
-		$template_types['wc_account_form_lost_password_confirmation'] = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Lost password', 'bricks' ) . ' (' . esc_html__( 'Confirmation', 'bricks' ) . ')';
-		$template_types['wc_account_reset_password']                  = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Reset password', 'bricks' );
-		$template_types['wc_account_dashboard']                       = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Dashboard', 'bricks' );
-		$template_types['wc_account_orders']                          = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Orders', 'bricks' );
-		$template_types['wc_account_view_order']                      = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'View order', 'bricks' );
-		$template_types['wc_account_downloads']                       = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Downloads', 'bricks' );
-		$template_types['wc_account_addresses']                       = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Addresses', 'bricks' );
-		$template_types['wc_account_form_edit_address']               = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit address', 'bricks' );
-		$template_types['wc_account_form_edit_account']               = 'WooCommerce - ' . esc_html__( 'Account', 'bricks' ) . ' - ' . esc_html__( 'Edit account', 'bricks' );
+		// Merge WooCommerce templates with existing template types
+		$template_types = array_merge( $template_types, $woo_templates );
 
 		$control_options['templateTypes'] = $template_types;
 
@@ -1572,27 +1456,15 @@ class Woocommerce {
 	 * @since 1.4
 	 */
 	public function remove_template_conditions( $settings ) {
-		$excluded_templates = [
-			'wc_cart',
-			'wc_cart_empty',
-			'wc_form_checkout',
-			'wc_form_pay',
-			'wc_thankyou',
-			'wc_order_receipt',
+		// Get all WooCommerce templates
+		$excluded_templates = self::get_woo_templates();
 
-			// Woo Phase 3
-			'wc_account_dashboard',
-			'wc_account_orders',
-			'wc_account_view_order',
-			'wc_account_downloads',
-			'wc_account_addresses',
-			'wc_account_form_edit_address',
-			'wc_account_form_edit_account',
-			'wc_account_form_login',
-			'wc_account_form_lost_password',
-			'wc_account_form_lost_password_confirmation',
-			'wc_account_reset_password',
-		];
+		// 'wc_archive' & 'wc_product' need conditions
+		unset( $excluded_templates['wc_archive'] );
+		unset( $excluded_templates['wc_product'] );
+
+		// Get the array keys
+		$excluded_templates = array_keys( $excluded_templates );
 
 		if ( isset( $settings['controlGroups']['template-preview'] ) ) {
 			$settings['controlGroups']['template-preview']['required'] = [ 'templateType', '!=', $excluded_templates, 'templateType' ];
@@ -1804,7 +1676,7 @@ class Woocommerce {
 	 * @param string $element_id
 	 * @return boolean
 	 */
-	public function set_products_query_vars( $query_vars, $settings, $element_id ) {
+	public function set_products_query_vars( $query_vars, $settings, $element_id, $element_name ) {
 		if ( ! isset( $query_vars['post_type'] ) ) {
 			return $query_vars;
 		}
@@ -1838,7 +1710,7 @@ class Woocommerce {
 
 		$new_query_vars = $query_vars;
 
-		$filter_args = Woocommerce_Helpers::filters_query_args( $settings );
+		$filter_args = Woocommerce_Helpers::filters_query_args( $settings, $query_vars, $element_name );
 
 		// Override the query settings by the filters (orderby, filters)
 		foreach ( $filter_args as $key => $filter_value ) {
@@ -2035,6 +1907,29 @@ class Woocommerce {
 	}
 
 	/**
+	 * Get global AJAX error action setting
+	 *
+	 * - Redirect to product page (default)
+	 * - Show notice
+	 *
+	 * @return string
+	 * @since 1.11
+	 */
+	public static function global_ajax_error_action() {
+		return Database::get_setting( 'woocommerceAjaxErrorAction', 'redirect' );
+	}
+
+	/**
+	 * Get global AJAX error scroll to notice setting
+	 *
+	 * @return string
+	 * @since 1.11
+	 */
+	public static function global_ajax_error_scroll_to_notice() {
+		return Database::get_setting( 'woocommerceAjaxErrorScrollToNotice', false );
+	}
+
+	/**
 	 * AJAX Add to cart
 	 * Support product types: simple, variable, grouped
 	 *
@@ -2105,11 +2000,18 @@ class Woocommerce {
 
 		// Return error
 		if ( ! $passed_validation ) {
-			// If there was an error adding to the cart, redirect to the product page to show any errors
+			// If there was an error adding to the cart
 			$data = [
-				'error'       => true,
-				'product_url' => apply_filters( 'woocommerce_cart_redirect_after_error', get_permalink( $product_id ), $product_id ),
+				'error' => true,
 			];
+
+			if ( self::global_ajax_error_action() === 'redirect' ) {
+				// Redirect to the product page (Default WooCommerce behavior)
+				$data['product_url'] = apply_filters( 'woocommerce_cart_redirect_after_error', get_permalink( $product_id ), $product_id );
+			} else {
+				// Print and return error message (@since 1.11)
+				$data['notices'] = wc_print_notices( true );
+			}
 
 			// Send error json
 			wp_send_json( $data );
@@ -2151,11 +2053,20 @@ class Woocommerce {
 	/**
 	 * Take over the native WooCommerce AJAX add to cart button
 	 *
-	 * @since 7
+	 * @since 1.8.5
 	 */
 	public function overwrite_native_ajax_add_to_cart( $args, $product ) {
-		// Only for simple product, purchasable and in stock
-		if ( ! ( $product->is_type( 'simple' ) && $product->is_purchasable() && $product->is_in_stock() ) ) {
+		/**
+		 * Must be purchasable, in stock, supports ajax_add_to_cart (#86c1rp5u8)
+		 *
+		 * @since 1.10: Support variation product: which is using direct link for add to cart button inside loop
+		 */
+		if (
+			! $product->is_purchasable() ||
+			! $product->is_in_stock() ||
+			! $product->supports( 'ajax_add_to_cart' ) || // @since 1.12
+			( ! $product->is_type( 'simple' ) && ! $product->is_type( 'variation' ) )
+		) {
 			return $args;
 		}
 
@@ -2183,49 +2094,61 @@ class Woocommerce {
 
 	/**
 	 * Remove all native woocommerce notices hooks if use Bricks woo notice element
-	 * So user can control the location of notices via the Bricks woo notice element
+	 *
+	 * So user can control the location of notices via the Bricks woo notice element.
 	 *
 	 * @since 1.8.1
+	 * @since 1.11.1: Included logic for Woo Checkout Coupon & Login Element
 	 * @see woocommerce/includes/wc-template-hooks.php Notices
 	 */
 	public static function maybe_remove_native_woocommerce_notices_hooks() {
-		if ( ! self::use_bricks_woo_notice_element() ) {
-			return;
+		// Woo Notice Element is active
+		if ( self::use_bricks_woo_notice_element() ) {
+			// cart-empty.php
+			remove_action( 'woocommerce_cart_is_empty', 'woocommerce_output_all_notices', 5 );
+
+			remove_action( 'woocommerce_shortcode_before_product_cat_loop', 'woocommerce_output_all_notices', 10 );
+
+			// archive-product.php
+			remove_action( 'woocommerce_before_shop_loop', 'woocommerce_output_all_notices', 10 );
+			remove_action( 'woocommerce_before_single_product', 'woocommerce_output_all_notices', 10 );
+
+			// cart.php
+			remove_action( 'woocommerce_before_cart', 'woocommerce_output_all_notices', 10 );
+
+			// This hook is fired when using the [woocommerce_checkout] shortcode
+			remove_action( 'woocommerce_before_checkout_form_cart_notices', 'woocommerce_output_all_notices', 10 );
+
+			// form-checkout.php
+			remove_action( 'woocommerce_before_checkout_form', 'woocommerce_output_all_notices', 10 );
+
+			// inside shortcode [woocommerce_checkout] order_pay
+			remove_action( 'before_woocommerce_pay', 'woocommerce_output_all_notices', 10 );
+
+			// my-account.php
+			remove_action( 'woocommerce_account_content', 'woocommerce_output_all_notices', 5 );
+
+			// myaccount/form-login.php
+			remove_action( 'woocommerce_before_customer_login_form', 'woocommerce_output_all_notices', 10 );
+
+			// myaccount/form-lost-password.php
+			remove_action( 'woocommerce_before_lost_password_form', 'woocommerce_output_all_notices', 10 );
+
+			// myaccount/form-reset-password.php
+			remove_action( 'woocommerce_before_reset_password_form', 'woocommerce_output_all_notices', 10 );
 		}
 
-		// cart-empty.php
-		remove_action( 'woocommerce_cart_is_empty', 'woocommerce_output_all_notices', 5 );
+		// Woo Checkout Coupon Element is active
+		if ( self::use_bricks_woo_checkout_coupon_element() ) {
+			// form-checkout.php
+			remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_coupon_form', 10 );
+		}
 
-		remove_action( 'woocommerce_shortcode_before_product_cat_loop', 'woocommerce_output_all_notices', 10 );
-
-		// archive-product.php
-		remove_action( 'woocommerce_before_shop_loop', 'woocommerce_output_all_notices', 10 );
-		remove_action( 'woocommerce_before_single_product', 'woocommerce_output_all_notices', 10 );
-
-		// cart.php
-		remove_action( 'woocommerce_before_cart', 'woocommerce_output_all_notices', 10 );
-
-		// This hook is fired when using the [woocommerce_checkout] shortcode
-		remove_action( 'woocommerce_before_checkout_form_cart_notices', 'woocommerce_output_all_notices', 10 );
-
-		// form-checkout.php
-		remove_action( 'woocommerce_before_checkout_form', 'woocommerce_output_all_notices', 10 );
-
-		// inside shortcode [woocommerce_checkout] order_pay
-		remove_action( 'before_woocommerce_pay', 'woocommerce_output_all_notices', 10 );
-
-		// my-account.php
-		remove_action( 'woocommerce_account_content', 'woocommerce_output_all_notices', 5 );
-
-		// myaccount/form-login.php
-		remove_action( 'woocommerce_before_customer_login_form', 'woocommerce_output_all_notices', 10 );
-
-		// myaccount/form-lost-password.php
-		remove_action( 'woocommerce_before_lost_password_form', 'woocommerce_output_all_notices', 10 );
-
-		// myaccount/form-reset-password.php
-		remove_action( 'woocommerce_before_reset_password_form', 'woocommerce_output_all_notices', 10 );
-
+		// Woo Checkout Login Element is active
+		if ( self::use_bricks_woo_checkout_login_element() ) {
+			// form-checkout.php
+			remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_login_form', 10 );
+		}
 	}
 
 	/**
@@ -2414,5 +2337,232 @@ class Woocommerce {
 		}
 
 		return $args;
+	}
+
+	/**
+	 * @since 1.11.1
+	 */
+	public static function use_bricks_woo_checkout_coupon_element() {
+		return Database::get_setting( 'woocommerceUseBricksWooCheckoutCoupon', false );
+	}
+
+	/**
+	 * @since 1.11.1
+	 */
+	public static function use_bricks_woo_checkout_login_element() {
+		return Database::get_setting( 'woocommerceUseBricksWooCheckoutLogin', false );
+	}
+
+	/**
+	 * Get active WooCommerce templates for current page
+	 * Use by admin top bar
+	 *
+	 * @return array Array of template IDs indexed by template type
+	 * @since 1.12
+	 */
+	public static function get_active_templates_for_current_page() {
+		if ( ! self::is_woocommerce_active() ) {
+			return [];
+		}
+
+		$post_id          = get_the_ID();
+		$active_templates = [];
+
+		$wc_pages = [
+			'cart'     => [
+				'page_id'   => wc_get_page_id( 'cart' ),
+				'templates' => [
+					'wc_cart'       => false,
+					'wc_cart_empty' => false,
+				],
+			],
+			'checkout' => [
+				'page_id'   => wc_get_page_id( 'checkout' ),
+				'templates' => [
+					'wc_form_checkout' => false,
+					'wc_form_pay'      => false,
+					'wc_thankyou'      => false,
+					'wc_order_receipt' => false,
+				],
+			],
+			'account'  => [
+				'page_id'   => wc_get_page_id( 'myaccount' ),
+				'templates' => [
+					'wc_account_dashboard'          => false,
+					'wc_account_orders'             => false,
+					'wc_account_view_order'         => false,
+					'wc_account_downloads'          => false,
+					'wc_account_addresses'          => false,
+					'wc_account_form_edit_address'  => false,
+					'wc_account_form_edit_account'  => false,
+					'wc_account_form_login'         => false,
+					'wc_account_form_lost_password' => false,
+					'wc_account_form_lost_password_confirmation' => false,
+					'wc_account_reset_password'     => false,
+				],
+			],
+		];
+
+		// Detect WooCommerce templates
+		foreach ( $wc_pages as $wc_page => $wc ) {
+			// Skip if current page is not same as WooCommerce page
+			if ( $post_id !== $wc['page_id'] ) {
+				continue;
+			}
+
+			// Get template IDs
+			foreach ( $wc['templates'] as $template => $temp_id ) {
+				$template_id = self::get_template_data_by_type( $template, false );
+				if ( $template_id ) {
+					$active_templates[ $template ] = $template_id;
+				}
+			}
+		}
+
+		return $active_templates;
+	}
+
+	/**
+	 * Get active WooCommerce templates for current endpoint
+	 *
+	 * Remove unrelated arrays generated from get_active_templates_for_current_page() based on the current endpoint
+	 *
+	 * @since 1.12
+	 */
+	public static function get_active_templates_for_current_endpoint() {
+		$wc_templates = self::get_active_templates_for_current_page();
+		$target_key   = '';
+
+		// Cart page
+		if ( is_cart() ) {
+			if ( WC()->cart->is_empty() ) {
+				// Just need wc_cart_empty
+				$target_key = 'wc_cart_empty';
+			} else {
+				// Just need wc_cart
+				$target_key = 'wc_cart';
+			}
+		}
+
+		// Checkout page
+		if ( is_checkout() ) {
+			$target_key = '';
+			// Order pay
+			if ( get_query_var( 'order-pay' ) ) {
+				// Just need wc_form_pay
+				$target_key = 'wc_form_pay';
+			}
+
+			// Order receipt (= thank you page)
+			elseif ( get_query_var( 'order-received' ) ) {
+				// Just need wc_thankyou
+				$target_key = 'wc_thankyou';
+			}
+
+			// Checkout page
+			else {
+				// Just need wc_form_checkout
+				$target_key = 'wc_form_checkout';
+			}
+		}
+
+		// Account page
+		if ( is_account_page() ) {
+			// Get current endpoint
+			$endpoint = WC()->query->get_current_endpoint();
+
+			switch ( $endpoint ) {
+				case 'orders':
+					$target_key = 'wc_account_orders';
+
+					break;
+				case 'view-order':
+					$target_key = 'wc_account_view_order';
+
+					break;
+				case 'downloads':
+					$target_key = 'wc_account_downloads';
+
+					break;
+				case 'edit-address':
+					global $wp;
+					$is_edit_address = isset( $wp->query_vars['edit-address'] ) ? true : false;
+					if ( $is_edit_address ) {
+						$target_key = 'wc_account_form_edit_address';
+					} else {
+						$target_key = 'wc_account_addresses';
+					}
+
+					break;
+				case 'edit-account':
+					$target_key = 'wc_account_form_edit_account';
+
+					break;
+				case 'lost-password':
+					if ( ! empty( $_GET['reset-link-sent'] ) ) {
+						// Lost password confirmation
+						$target_key = 'wc_account_form_lost_password_confirmation';
+					} elseif ( ! empty( $_GET['show-reset-form'] ) ) {
+						// Reset password form
+						$target_key = 'wc_account_reset_password';
+					} else {
+						// Lost password form
+						$target_key = 'wc_account_form_lost_password';
+					}
+
+					break;
+				case '':
+					if ( is_user_logged_in() ) {
+						// Dashboard
+						$target_key = 'wc_account_dashboard';
+					} else {
+						// Login form
+						$target_key = 'wc_account_form_login';
+					}
+
+					break;
+			}
+		}
+
+		// Remove unrelated arrays
+		if ( ! empty( $target_key ) ) {
+			$wc_templates = array_filter(
+				$wc_templates,
+				function( $key ) use ( $target_key ) {
+					return $key === $target_key;
+				},
+				ARRAY_FILTER_USE_KEY
+			);
+		}
+
+		return $wc_templates;
+	}
+
+	/**
+	 * Remove WooCommerce resource hints that could cause PHP fatal errors (preg_match use on boolean) (#86c1r48gg)
+	 * We deregister wp-polyfill in the builder and register it as false
+	 *
+	 * @see src/Blocks/AssetsController.php get_absolute_url() (WooCommerce plugin)
+	 * @since 1.12
+	 */
+	public function remove_woo_resource_hints() {
+		// Access the WooCommerce Blocks' Asset API instance.
+		global $wp_filter;
+
+		// Iterate through all `init` hooks to find the one tied to `AssetsController`.
+		if ( isset( $wp_filter['init'] ) ) {
+			foreach ( $wp_filter['init']->callbacks as $priority => $callbacks ) {
+				foreach ( $callbacks as $callback_key => $callback ) {
+					if (
+						is_array( $callback['function'] ) &&
+						is_object( $callback['function'][0] ) &&
+						get_class( $callback['function'][0] ) === 'Automattic\WooCommerce\Blocks\AssetsController'
+					) {
+						// Use the found instance to remove the filter.
+						remove_filter( 'wp_resource_hints', [ $callback['function'][0], 'add_resource_hints' ], 10 );
+					}
+				}
+			}
+		}
 	}
 }

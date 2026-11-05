@@ -12,18 +12,21 @@
 //     typography…) that differ from the wider frame are written as `<key>:<breakpoint>` (objects: only the sub-keys that changed). The mobile
 //     frame is compared with the tablet frame when the element exists there (CSS cascades down), otherwise with the base.
 //   * `_cssCustom` rules that differ are appended inside `@media (max-width: <maxWidth>px)`.
-//   * content that a setting cannot swap per breakpoint (text, image, svg file, repeater rows) splits the pair into two elements, one shown per
-//     frame; other content (link, tag, alt…) is never made responsive: a difference is reported, the base value stays.
+//   * content that a setting cannot swap per breakpoint (text, svg file, repeater rows) splits the pair into two elements, one shown per
+//     frame. An image file that changes, with the same crop, stays one element: `sources` on the image element (image.php) points at that frame's file. A crop that moves by more than 2% cannot share the element, so that frame keeps its own picture. Other content (link, tag, alt…) is never made responsive: a difference is reported, the base value stays.
 //   * an element missing in a frame gets `display: none !important` in the width range of that frame (`display: contents` when a part of it
 //     lives on in that frame, e.g. a wrapper the mobile design dropped). An element that exists only in a variant is added to the tree
 //     (under the partner of its nearest paired ancestor, after its previous sibling) and hidden in the other ranges.
 // Not supported (reported, never silently approximated): a setting present in the wider frame and absent in the variant (CSS cannot unset it),
-//   a paired node whose parent changed to another paired node (moved between containers), different image / content per breakpoint.
+//   a paired node whose parent changed to another paired node (moved between containers).
 import { matchTrees } from './match.mjs';
 
 const NON_STYLE = new Set(['_cssId', '_cssClasses', '_attributes', '_hidden', '_cssCustom']);
 const COMPONENT_STYLE = new Set(['typography', 'typographyPrefix', 'typographySuffix', 'gutter', 'iconGap', 'titleTypography', 'titleMargin', 'countTypography', 'prefixTypography', 'suffixTypography']);
-const isStyleKey = (k) => (k.startsWith('_') && !NON_STYLE.has(k)) || COMPONENT_STYLE.has(k);
+// Slider options Bricks 1.9.8 reads per breakpoint (`perPage:mobile_portrait` becomes a Splide breakpoint; arrow position is CSS on the same suffix).
+// source: includes/elements/slider-nested.php (the breakpoint loop over splide options, and the arrow position controls)
+const SLIDER_RESPONSIVE = new Set(['perPage', 'perMove', 'gap', 'focus', 'start', 'arrowWidth', 'arrowHeight', 'prevArrowTop', 'prevArrowRight', 'prevArrowBottom', 'prevArrowLeft', 'nextArrowTop', 'nextArrowRight', 'nextArrowBottom', 'nextArrowLeft', 'paginationWidth', 'paginationHeight', 'paginationWidthActive', 'paginationHeightActive', 'paginationSpacing', 'paginationTop', 'paginationRight', 'paginationBottom', 'paginationLeft']);
+const isStyleKey = (k) => (k.startsWith('_') && !NON_STYLE.has(k)) || COMPONENT_STYLE.has(k) || SLIDER_RESPONSIVE.has(k);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // content that cannot change per breakpoint through a setting: when these differ the two frames hold two elements (one hidden per range)
 // semantic settings come from the base frame (decided once, never per breakpoint): a difference is not worth a warning or a split
@@ -56,6 +59,60 @@ function cssDelta(refBody, nextBody) {
   return out.join(' ');
 }
 const cssText = (rules) => [...rules].map(([sel, body]) => `${sel} { ${body} }`).join(' ');
+const bareId = (id) => String(id).split('#')[0];
+const assetOf = (settings) => {
+  const image = settings?.image;
+  if (!image) return null;
+  return typeof image === 'string' ? image : image.$asset ?? null;
+};
+const pctNum = (v) => {
+  if (typeof v !== 'string' || !v.endsWith('%')) return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+};
+// A crop that moves by more than 2% cannot be one element: rewriting the percentages knocks the layout over
+// (a phone background taller than the desktop one, showing another region of the art). A different file with
+// the same crop is not this case. That file is written as `sources` so the picture updates at that breakpoint.
+function cropDiffers(a, b) {
+  const box = (s) => ['_left', '_top', '_width', '_height'].map((k) => pctNum(s?.[k]));
+  const ca = box(a), cb = box(b);
+  if (ca.some((n) => n == null) || cb.some((n) => n == null)) return false;
+  return ca.some((n, i) => Math.abs(n - cb[i]) > 2);
+}
+function pictureDiffers(a, b) {
+  const aa = assetOf(a), bb = assetOf(b);
+  if (!aa && !bb) return false;
+  if (!aa || !bb) return true;
+  return cropDiffers(a, b);
+}
+// image.php reads `sources` smallest breakpoint first. The first matching max-width wins, so the phone row
+// has to be ahead of the tablet row or a phone would show the tablet file.
+const SOURCE_ORDER = ['mobile_portrait', 'mobile_landscape', 'tablet_portrait'];
+function addImageSource(el, key, image) {
+  const row = { breakpoint: key, image: { ...image, size: image.size || 'full' } };
+  const rest = (el.settings.sources ?? []).filter((s) => s.breakpoint !== key);
+  el.settings.sources = [...rest, row].sort((p, q) => SOURCE_ORDER.indexOf(p.breakpoint) - SOURCE_ORDER.indexOf(q.breakpoint));
+}
+function nodeHasText(n) {
+  if (!n || n.visible === false) return false;
+  if (n.type === 'TEXT') return true;
+  return (n.children ?? []).some(nodeHasText);
+}
+function paintTop(startId, parentOf, rootId) {
+  let top = startId;
+  for (;;) {
+    const p = parentOf.get(top);
+    if (!p || p.id === rootId || nodeHasText(p)) break;
+    top = p.id;
+  }
+  return top;
+}
+function addBranch(id, byId, into) {
+  const n = byId.get(id);
+  if (!n || into.has(n.id)) return;
+  into.add(n.id);
+  for (const c of n.children ?? []) addBranch(c.id, byId, into);
+}
 
 const mediaFor = (range) => {
   const parts = [];
@@ -64,13 +121,36 @@ const mediaFor = (range) => {
   return parts.join(' and ');
 };
 
+const SIDE = (v) => (v && ['top', 'right', 'bottom', 'left'].every((k) => typeof v[k] === 'string') ? `${v.top} ${v.right} ${v.bottom} ${v.left}` : '');
+// Bricks 1.9.8 has no breakpoint wider than desktop, so a wide frame cannot use `_width:widescreen`.
+// These are the layout values that map onto one CSS declaration. Anything else stays the desktop value and is warned.
+const WIDE_CSS = {
+  _width: 'width', _height: 'height', _widthMin: 'min-width', _widthMax: 'max-width', _heightMin: 'min-height', _heightMax: 'max-height',
+  _position: 'position', _top: 'top', _right: 'right', _bottom: 'bottom', _left: 'left', _zIndex: 'z-index',
+  _display: 'display', _overflow: 'overflow', _opacity: 'opacity', _flexGrow: 'flex-grow', _flexShrink: 'flex-shrink', _flexBasis: 'flex-basis',
+  _alignSelf: 'align-self', _alignItems: 'align-items', _justifyContent: 'justify-content', _direction: 'flex-direction', _flexWrap: 'flex-wrap',
+  _rowGap: 'row-gap', _columnGap: 'column-gap', _gap: 'gap', _mixBlendMode: 'mix-blend-mode', _objectFit: 'object-fit', _objectPosition: 'object-position',
+};
+function wideDecl(key, value) {
+  if (key === '_padding') { const s = SIDE(value); return s ? `padding: ${s};` : ''; }
+  if (key === '_margin') { const s = SIDE(value); return s ? `margin: ${s};` : ''; }
+  const prop = WIDE_CSS[key];
+  if (!prop || value == null || typeof value === 'object') return '';
+  return `${prop}: ${value};`;
+}
+
 export function mergeResponsive({ base, variants }) { // base.sig / variants[].sig: (assetFile) -> content signature (optional)
   const warnings = [];
   const warn = (node, msg) => warnings.push({ node: node?.id ?? '-', name: node?.name ?? '-', msg });
-  const sorted = [...variants].sort((a, b) => b.maxWidth - a.maxWidth);
+  const narrowing = variants.filter((v) => v.maxWidth != null).sort((a, b) => b.maxWidth - a.maxWidth);
+  const widening = variants.filter((v) => v.minWidth != null);
+  const sorted = narrowing;
 
-  // width ranges: base is everything above the first variant, variant i runs from the next variant's max + 1 up to its own max
-  const ranges = [{ key: 'base', min: sorted[0].maxWidth + 1 }, ...sorted.map((v, i) => ({ key: v.key, max: v.maxWidth, ...(sorted[i + 1] && { min: sorted[i + 1].maxWidth + 1 }) }))];
+  // width ranges: base is everything above the first narrowing variant. A wide frame is not in this list:
+  // it applies from its own width upward, on top of the desktop values.
+  const ranges = sorted.length
+    ? [{ key: 'base', min: sorted[0].maxWidth + 1 }, ...sorted.map((v, i) => ({ key: v.key, max: v.maxWidth, ...(sorted[i + 1] && { min: sorted[i + 1].maxWidth + 1 }) }))]
+    : [{ key: 'base' }];
 
   const composite = base.template.content.map((e) => ({ ...e, settings: structuredCloneSafe(e.settings) }));
   const elById = new Map(composite.map((e) => [e.id, e]));
@@ -81,43 +161,85 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
   const baseCss = new Map(composite.map((e) => [e.id, cssRules(e.settings._cssCustom)]));
   const media = new Map(); // element id -> [{ range, selector, body }]
   const addMedia = (id, range, selector, body) => { if (!media.has(id)) media.set(id, []); media.get(id).push({ range, selector, body }); };
+  const writeStyle = (el, v, k, value, range, wide, node) => {
+    if (!wide) { el.settings[`${k}:${v.key}`] = value; return; }
+    const decl = wideDecl(k, value);
+    if (decl) { addMedia(el.id, range, `body #brxe-${el.id}`, decl); return; }
+    warn(node, `${v.key}: "${k}" differs from desktop and is not written (Bricks 1.9.8 has no breakpoint wider than desktop)`);
+  };
   const mappings = {};
   const variantOnly = []; // { variant, el, node }
 
-  for (const v of sorted) {
-    const range = ranges.find((r) => r.key === v.key);
+  for (const v of [...sorted, ...widening]) {
+    const wide = v.minWidth != null;
+    const range = ranges.find((r) => r.key === v.key) ?? { key: v.key, min: v.minWidth };
     const { pairs } = matchTrees(base.tree, v.tree, { aliases: v.aliases });
     const vNode = new Map(); (function rec(n) { vNode.set(n.id, n); (n.children ?? []).forEach(rec); })(v.tree);
     // Elements Bricks needs that Figma does not draw (the content block of a closed FAQ item) are keyed "<host node>#extraN" and are not in the tree: they follow their
     // host node, so the base frame and the variant frame share ONE element instead of getting one each.
     for (const [vFid, bFid] of [...pairs]) {
       for (const k of Object.keys(v.mapping)) {
-        if (!k.startsWith(`${vFid}#extra`)) continue;
+        if (!k.startsWith(`${vFid}#`)) continue; // #extra, and the image sitting in its div (#image, #crop, #fill)
         const bKey = bFid + k.slice(vFid.length);
         if (base.mapping[bKey]?.bricksId) { pairs.set(k, bKey); vNode.set(k, vNode.get(vFid)); }
       }
     }
     const vParent = new Map(); (function rec(n) { for (const c of n.children ?? []) { vParent.set(c.id, n); rec(c); } })(v.tree);
     const vElOf = (fid) => { const id = v.mapping[fid]?.bricksId; return id ? v.template.content.find((e) => e.id === id) : null; };
+    // The desktop frame is a tab and the mobile frame is a plain section (or the other way around).
+    // Pairing them pulls the desktop title out through `display: contents` and leaves a gap above the mobile blocks.
+    // The two frames stay complete, each hidden outside its own width.
+    const rootBid = pairs.get(v.tree.id);
+    if (rootBid === base.tree.id) {
+      const vRootEl = vElOf(v.tree.id);
+      const bRootEl = baseElOf(rootBid);
+      if (vRootEl && bRootEl && vRootEl.name !== bRootEl.name) {
+        warn(v.tree, `${v.key}: the frame is "${vRootEl.name}" here and "${bRootEl.name}" in the base frame, so each frame stays whole`);
+        pairs.clear();
+      }
+    }
     const vMap = {};
     const pairedBase = new Set(pairs.values());
-    const baseParent = new Map(); (function rec(n) { for (const c of n.children ?? []) { baseParent.set(c.id, n.id); rec(c); } })(base.tree);
+    const baseById = new Map(); (function rec(n) { baseById.set(n.id, n); (n.children ?? []).forEach(rec); })(base.tree);
+    const baseParentNode = new Map(); (function rec(n) { for (const c of n.children ?? []) { baseParentNode.set(c.id, n); rec(c); } })(base.tree);
+    const baseParent = new Map(); for (const [id, p] of baseParentNode) baseParent.set(id, p.id);
+    const splitBase = new Set();
+    const splitVar = new Set();
+    let pictureWarned = false;
+    for (const [vFid, bFid] of pairs) {
+      const vEl = vElOf(vFid);
+      const bEl = baseElOf(bFid);
+      if (!vEl || !bEl || !pictureDiffers(bEl.settings, vEl.settings)) continue;
+      const bTop = paintTop(bareId(bFid), baseParentNode, base.tree.id);
+      const vTop = paintTop(bareId(vFid), vParent, v.tree.id);
+      if (!pictureWarned) {
+        warn(vNode.get(vTop) ?? vNode.get(bareId(vFid)), `${v.key}: picture differs from the wider frame, so this frame keeps its own elements`);
+        pictureWarned = true;
+      }
+      addBranch(bTop, baseById, splitBase);
+      addBranch(vTop, vNode, splitVar);
+    }
     const pairedEl = new Map(); // variant element id -> base element
 
     for (const [vFid, bFid] of pairs) {
       const vEl = vElOf(vFid);
       const bEl = baseElOf(bFid);
       if (!vEl || !bEl) continue;
+      if (splitBase.has(bareId(bFid)) || splitVar.has(bareId(vFid))) continue;
       if (vEl.name !== bEl.name) { warn(vNode.get(vFid), `${v.key}: element is "${vEl.name}" here and "${bEl.name}" in the base frame: kept as two elements, one per frame`); continue; }
       const aSig = withSignatures(orig.get(bEl.id), base.sig), bSig = withSignatures(vEl.settings, v.sig);
-      const split = SPLIT_ON.filter((k) => !same(aSig[k], bSig[k]));
+      // Same crop, another file: one image element, `sources` carries the frame's file. A wide frame has no Bricks breakpoint for that.
+      const samePictureBox = !wide && bEl.name === 'image' && vEl.name === 'image' && !cropDiffers(orig.get(bEl.id), vEl.settings);
+      const split = SPLIT_ON.filter((k) => !(k === 'image' && samePictureBox) && !same(aSig[k], bSig[k]));
       if (split.length) { warn(vNode.get(vFid), `${v.key}: ${split.join(', ')} differs from the base frame (a setting cannot swap it per breakpoint): two elements, one shown per frame`); continue; }
       pairedEl.set(vEl.id, bEl);
       exists.get(bEl.id).add(v.key);
       vMap[vFid] = { ...v.mapping[vFid], bricksId: bEl.id };
 
       // ---- values
-      const ref = effective.get(bEl.id);
+      const ref = wide
+        ? { settings: withSignatures(orig.get(bEl.id), base.sig), css: baseCss.get(bEl.id) ?? new Map() }
+        : effective.get(bEl.id);
       const next = structuredCloneSafe(vEl.settings);
       const nextCss = cssRules(String(next._cssCustom ?? '').replaceAll(`#brxe-${vEl.id}`, `#brxe-${bEl.id}`));
       const nodeForWarn = vNode.get(vFid);
@@ -125,6 +247,7 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
         if (k === '_cssCustom' || k.includes(':')) continue;
         const a = ref.settings[k];
         let b = next[k];
+        if (k === 'image' && samePictureBox) continue;
         if (same(a, withSignatures(b, v.sig))) continue;
         if (SEMANTIC_KEYS.has(k)) continue;
         if (!isStyleKey(k)) { warn(nodeForWarn, `${v.key}: "${k}" differs from the wider frame (content cannot change per breakpoint): base value kept`); continue; }
@@ -133,6 +256,7 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
           if (!(k in NEUTRAL)) { warn(nodeForWarn, `${v.key}: "${k}" is set in the wider frame and absent here: CSS cannot unset it`); continue; }
           b = NEUTRAL[k];
         }
+        if (wide && (k === '_padding' || k === '_margin')) { writeStyle(bEl, v, k, b, range, true, nodeForWarn); continue; }
         if (a && b && typeof a === 'object' && typeof b === 'object' && !Array.isArray(a) && !Array.isArray(b) && !ONE_DECLARATION.has(k)) {
           const diff = Object.fromEntries(Object.entries(b).filter(([sk, sv]) => !same(a[sk], sv)));
           for (const sk of Object.keys(a)) {
@@ -140,15 +264,22 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
             if (sk in SUB_NEUTRAL) diff[sk] = SUB_NEUTRAL[sk];
             else warn(nodeForWarn, `${v.key}: "${k}.${sk}" is set in the wider frame and absent here: CSS cannot unset it`);
           }
-          if (Object.keys(diff).length) bEl.settings[`${k}:${v.key}`] = diff;
-        } else bEl.settings[`${k}:${v.key}`] = b;
+          if (Object.keys(diff).length) writeStyle(bEl, v, k, diff, range, wide, nodeForWarn);
+        } else writeStyle(bEl, v, k, b, range, wide, nodeForWarn);
       }
       // the Bricks control `_alignSelf: stretch` also writes `width: 100%` (see render/size.mjs): taking `stretch` away at a breakpoint without a width of its own
       // leaves the 100% behind, so the element stays as wide as its parent (Certificate mobile: a 124px counter became 319px)
       if (bEl.settings._alignSelf === 'stretch' && `_alignSelf:${v.key}` in bEl.settings && bEl.settings[`_alignSelf:${v.key}`] !== 'stretch' && !(`_width:${v.key}` in bEl.settings)) bEl.settings[`_width:${v.key}`] = 'auto';
+      const widerFile = assetOf(ref.settings);
+      const frameFile = assetOf(withSignatures(next, v.sig));
+      if (samePictureBox && widerFile && frameFile && widerFile !== frameFile && next.image && typeof next.image === 'object') addImageSource(bEl, v.key, next.image);
       for (const sel of new Set([...ref.css.keys(), ...nextCss.keys()])) {
         const delta = cssDelta(ref.css.get(sel), nextCss.get(sel));
-        if (delta) addMedia(bEl.id, range, sel, delta);
+        // max-width only, so the rule still applies on a narrower phone. The exclusive band between two
+        // breakpoints would leave that phone on the desktop rule (the hero background stayed vertically
+        // centered below 479px and the section clipped the top half). A narrower frame that differs writes
+        // its own query later, and that one wins.
+        if (delta) addMedia(bEl.id, wide ? range : { key: v.key, max: v.maxWidth }, sel, delta);
       }
       // parent check: a node moved into another PAIRED container cannot be reproduced by CSS (a dropped wrapper is fine: it becomes `contents`)
       const vp = vParent.get(vFid);
@@ -156,7 +287,7 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
       const haveParent = baseParent.get(bFid);
       if (wantParent && haveParent && wantParent !== haveParent && pairedBase.has(haveParent)) warn(nodeForWarn, `${v.key}: the parent changed to another paired container (moved): the layout may differ`);
       // what the next (narrower) frame is compared with
-      effective.set(bEl.id, { settings: { ...ref.settings, ...withSignatures(next, v.sig) }, css: nextCss });
+      if (!wide) effective.set(bEl.id, { settings: { ...ref.settings, ...withSignatures(next, v.sig) }, css: nextCss });
     }
     mappings[v.key] = vMap;
 
@@ -201,6 +332,16 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
     for (const [fid, m] of Object.entries(v.mapping)) if (m.bricksId && !vMap[fid]) vMap[fid] = m;
   }
 
+  // Captured before the hide pass replaces a wide-only element's display with none.
+  const wideDisplay = new Map();
+  for (const v of widening) {
+    for (const [id, keys] of exists) {
+      if (!keys.has(v.key) || keys.has('base') || wideDisplay.has(id)) continue;
+      const display = elById.get(id).settings._display;
+      wideDisplay.set(id, display && display !== 'none' ? display : 'block');
+    }
+  }
+
   // ---- hide / contents in the ranges where an element does not exist
   const hideNone = new Map(); // element id -> keys of the ranges where it is hidden (display: none)
   const kids = new Map();
@@ -226,7 +367,19 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
     let j = 0;
     while (j < narrowToWide.length && keys.has(narrowToWide[j])) j++;
     if (j) elById.get(id).settings[`_display:${narrowToWide[j - 1]}`] = 'none';
-    for (const k of keys) if (!narrowToWide.slice(0, j).includes(k)) addMedia(id, ranges.find((r) => r.key === k), `body #brxe-${id}`, 'display: none;');
+    for (const k of keys) if (!narrowToWide.slice(0, j).includes(k)) {
+      const range = ranges.find((r) => r.key === k);
+      if (range && range.min == null && range.max == null) elById.get(id).settings._display = 'none';
+      else addMedia(id, range, `body #brxe-${id}`, 'display: none;');
+    }
+  }
+  // An element that exists only on the wide frame is hidden on every narrower range above. The min-width rule is written last so it wins at that width.
+  for (const v of widening) {
+    const range = { key: v.key, min: v.minWidth };
+    for (const [id, keys] of exists) {
+      if (!keys.has(v.key) || keys.has('base')) continue;
+      addMedia(id, range, `body #brxe-${id}`, `display: ${wideDisplay.get(id) || 'block'};`);
+    }
   }
 
   // An image that is hidden at some widths must not be downloaded there: a hidden image with loading=eager is still fetched, a lazy one is not.

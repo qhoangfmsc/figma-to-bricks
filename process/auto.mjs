@@ -18,7 +18,8 @@ import { signOff, gate } from './review/index.mjs';
 import { parseFigmaUrl } from './figma/url.mjs';
 import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './figma/api.mjs';
 import { writePlan, assemblePage, plansFile, sectionTitles } from './shared/deliverable.mjs';
-import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, groupQuestions, consumeConfirmation, planProblems } from './plan/index.mjs';
+import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, shareAccordionAnswers, groupQuestions, consumeConfirmation, planProblems } from './plan/index.mjs';
+import { attachFilledFrames } from './template/filled.mjs';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 import { writeFileSync } from 'node:fs';
@@ -93,6 +94,11 @@ async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, ti
     if (variants.length) base.writeJson('responsive.json', { note: 'written by process/auto.mjs (breakpoint frames of the same section found in the Figma file)', variants: variants.map(({ ws, ...v }) => v) });
   }
   base.writeJson('context.json', context); // what shows behind a transparent section, per frame: verify lays Figma's render over it
+  const shared = shareAccordionAnswers(base);
+  if (shared.copied) console.log(`  content: ${shared.copied} value(s) copied onto the other frames`);
+  const frameLog = (line) => console.log(`  ${line}`);
+  await attachFilledFrames(base, { log: frameLog });
+  for (const v of variants) await attachFilledFrames(v.ws, { log: frameLog });
   const ctx = { base, result, variants, sectionUrl, sectionId, idx, title };
   if (sign) signAll(ctx);
   return ctx;

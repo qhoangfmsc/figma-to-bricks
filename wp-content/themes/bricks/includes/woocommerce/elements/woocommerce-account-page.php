@@ -14,7 +14,8 @@ class Woocommerce_Account_Page extends Woo_Element {
 
 	public function set_control_groups() {
 		$this->control_groups['navigation'] = [
-			'title' => esc_html__( 'Navigation', 'bricks' ),
+			'title'    => esc_html__( 'Navigation', 'bricks' ),
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->control_groups['content'] = [
@@ -35,18 +36,26 @@ class Woocommerce_Account_Page extends Woo_Element {
 					'property' => 'flex-direction',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['gap'] = [
-			'label' => esc_html__( 'Gap', 'bricks' ),
-			'type'  => 'number',
-			'units' => true,
-			'css'   => [
+			'label'    => esc_html__( 'Gap', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
 				[
 					'selector' => '.woocommerce:not(#brx-content)',
 					'property' => 'gap',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
+		];
+
+		// @since 1.10
+		$this->controls['disableNav'] = [
+			'label' => esc_html__( 'Disable navigation', 'bricks' ),
+			'type'  => 'checkbox',
 		];
 
 		// NAVIGATION
@@ -62,205 +71,223 @@ class Woocommerce_Account_Page extends Woo_Element {
 					'property' => 'flex-direction',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navAlignItems'] = [
-			'group'   => 'navigation',
-			'label'   => esc_html__( 'Align items', 'bricks' ),
-			'type'    => 'align-items',
-			'inline'  => true,
-			'exclude' => [ 'stretch' ],
-			'css'     => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Align items', 'bricks' ),
+			'type'     => 'align-items',
+			'inline'   => true,
+			'exclude'  => [ 'stretch' ],
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation ul',
 					'property' => 'align-items',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navJustifyContent'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Justify content', 'bricks' ),
-			'type'  => 'justify-content',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Justify content', 'bricks' ),
+			'type'     => 'justify-content',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation ul',
 					'property' => 'justify-content',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navGap'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Gap', 'bricks' ),
-			'type'  => 'number',
-			'units' => true,
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Gap', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation ul',
 					'property' => 'gap',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navBackground'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Background', 'bricks' ),
-			'type'  => 'color',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Background', 'bricks' ),
+			'type'     => 'color',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation',
 					'property' => 'background-color',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navBorder'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Border', 'bricks' ),
-			'type'  => 'border',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Border', 'bricks' ),
+			'type'     => 'border',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation',
 					'property' => 'border',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navBoxShadow'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Box shadow', 'bricks' ),
-			'type'  => 'box-shadow',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Box shadow', 'bricks' ),
+			'type'     => 'box-shadow',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation',
 					'property' => 'box-shadow',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		// NAV ITEM
 
 		$this->controls['navItemSep'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Item', 'bricks' ),
-			'type'  => 'separator',
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Item', 'bricks' ),
+			'type'     => 'separator',
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemPadding'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Padding', 'bricks' ),
-			'type'  => 'spacing',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Padding', 'bricks' ),
+			'type'     => 'spacing',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation a',
 					'property' => 'padding',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBackground'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Background', 'bricks' ),
-			'type'  => 'color',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Background', 'bricks' ),
+			'type'     => 'color',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation a',
 					'property' => 'background-color',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBorder'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Border', 'bricks' ),
-			'type'  => 'border',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Border', 'bricks' ),
+			'type'     => 'border',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation a',
 					'property' => 'border',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBoxShadow'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Box shadow', 'bricks' ),
-			'type'  => 'box-shadow',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Box shadow', 'bricks' ),
+			'type'     => 'box-shadow',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation a',
 					'property' => 'box-shadow',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemTypogaphy'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation a',
 					'property' => 'font',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		// ACTIVE
 
 		$this->controls['navItemActiveSep'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Active', 'bricks' ),
-			'type'  => 'separator',
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Active', 'bricks' ),
+			'type'     => 'separator',
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBackgroundActive'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Background', 'bricks' ),
-			'type'  => 'color',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Background', 'bricks' ),
+			'type'     => 'color',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation .is-active a',
 					'property' => 'background-color',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBorderActive'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Border', 'bricks' ),
-			'type'  => 'border',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Border', 'bricks' ),
+			'type'     => 'border',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation .is-active a',
 					'property' => 'border',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemBoxShadowActive'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Box shadow', 'bricks' ),
-			'type'  => 'box-shadow',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Box shadow', 'bricks' ),
+			'type'     => 'box-shadow',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation .is-active a',
 					'property' => 'box-shadow',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		$this->controls['navItemTypogaphyActive'] = [
-			'group' => 'navigation',
-			'label' => esc_html__( 'Typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
+			'group'    => 'navigation',
+			'label'    => esc_html__( 'Typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
 				[
 					'selector' => '.woocommerce-MyAccount-navigation .is-active a',
 					'property' => 'font',
 				],
 			],
+			'required' => [ 'disableNav', '!=', true ],
 		];
 
 		// CONTENT
@@ -328,6 +355,9 @@ class Woocommerce_Account_Page extends Woo_Element {
 
 	public function render() {
 		global $wp;
+
+		// STEP: Disable WooCommerce account navigation (@since 1.10)
+		$this->maybe_disable_navigation();
 
 		// STEP: Lost/reset password form (Bricks template)
 		if ( isset( $wp->query_vars['lost-password'] ) ) {
@@ -413,5 +443,18 @@ class Woocommerce_Account_Page extends Woo_Element {
 		// STEP: Fallback: Get 'wc_account_form_login' Woo template
 		wc_get_template( 'myaccount/form-login.php' );
 		return;
+	}
+
+	/**
+	 * Maybe disable WooCommerce account navigation.
+	 *
+	 * @since 1.10
+	 */
+	private function maybe_disable_navigation() {
+		$settings           = $this->settings;
+		$disable_navigation = $settings['disableNav'] ?? false;
+		if ( $disable_navigation ) {
+			remove_action( 'woocommerce_account_navigation', 'woocommerce_account_navigation' );
+		}
 	}
 }

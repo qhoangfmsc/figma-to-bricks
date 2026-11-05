@@ -345,6 +345,26 @@ class Woocommerce_Account_View_Order extends Woo_Element {
 		$order    = $this->get_order();
 		$order_id = $order ? $order->get_id() : 0;
 
+		// Check if order exists and user has permission to view it (@since 1.10)
+		if ( ! is_a( $order, 'WC_Order' ) || ! current_user_can( 'view_order', $order_id ) ) {
+			if ( bricks_is_builder() || bricks_is_builder_call() || Helpers::is_bricks_template( get_the_ID() ) ) {
+				// Maybe no order exists
+				$this->render_element_placeholder(
+					[
+						'title' => esc_html__( 'No order found or the order is not suitable for this element.', 'bricks' ),
+					]
+				);
+			} else {
+				// Standard Woo error message
+				wc_print_notice(
+					esc_html__( 'Invalid order.', 'woocommerce' ) . ' <a href="' . esc_url( wc_get_page_permalink( 'myaccount' ) ) . '" class="wc-forward">' . esc_html__( 'My account', 'woocommerce' ) . '</a>',
+					'error'
+				);
+			}
+
+			return;
+		}
+
 		ob_start();
 
 		wc_get_template(

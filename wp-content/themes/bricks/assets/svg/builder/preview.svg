@@ -1,6 +1,1 @@
-<svg version="1.1" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-	<g fill="currentColor">
-		<path d="M10.5,8v0c0,1.38071 -1.11929,2.5 -2.5,2.5c-1.38071,0 -2.5,-1.11929 -2.5,-2.5l2.84217e-14,3.77489e-07c-2.08482e-07,-1.38071 1.11929,-2.5 2.5,-2.5c1.38071,-2.08482e-07 2.5,1.11929 2.5,2.5c0,0 0,2.66454e-15 0,2.66454e-15Z"></path>
-		<path fill-rule="evenodd" d="M0,8c0,0 3,-5.5 8,-5.5c5,0 8,5.5 8,5.5c0,0 -3,5.5 -8,5.5c-5,0 -8,-5.5 -8,-5.5Zm8,3.5l-1.5299e-07,-3.55271e-15c1.933,8.4494e-08 3.5,-1.567 3.5,-3.5c8.4494e-08,-1.933 -1.567,-3.5 -3.5,-3.5l-1.5299e-07,3.55271e-15c-1.933,8.4494e-08 -3.5,1.567 -3.5,3.5c8.4494e-08,1.933 1.567,3.5 3.5,3.5Z"></path>
-	</g>
-</svg>
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 5.251C7.969 5.183 3.8 8 1.179 10.885a1.663 1.663 0 0 0 0 2.226C3.743 15.935 7.9 18.817 12 18.748c4.1 0.069 8.258 -2.813 10.824 -5.637a1.663 1.663 0 0 0 0 -2.226C20.2 8 16.031 5.183 12 5.251Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15.75 12A3.75 3.75 0 1 1 12 8.249 3.749 3.749 0 0 1 15.75 12Z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>

@@ -6,8 +6,8 @@ $controls['layout'] = [
 	'type'        => 'select',
 	'options'     => [
 		'grid'    => esc_html__( 'Grid', 'bricks' ),
-		'masonry' => esc_html__( 'Masonry', 'bricks' ),
-		'metro'   => esc_html__( 'Metro', 'bricks' ),
+		'masonry' => 'Masonry',
+		'metro'   => 'Metro',
 	],
 	'placeholder' => esc_html__( 'Grid', 'bricks' ),
 	'inline'      => true,

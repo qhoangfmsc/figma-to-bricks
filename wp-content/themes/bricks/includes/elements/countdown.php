@@ -22,7 +22,7 @@ class Element_Countdown extends Element {
 		$this->controls['date'] = [
 			'label'          => esc_html__( 'Date', 'bricks' ),
 			'type'           => 'datepicker',
-			'default'        => '2024-01-01 12:00',
+			'default'        => '2026-01-01 12:00',
 			'hasDynamicData' => false, // TODO: Set to true to use dynamic data
 			'rerender'       => true,
 		];

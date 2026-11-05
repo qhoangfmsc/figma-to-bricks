@@ -8,7 +8,7 @@ class Conditions {
 	public static $options = [];
 
 	public function __construct() {
-		// Init conditions after WP is loaded (@since 1.8.5)
+		// Init conditions after WP is loaded
 		add_action( 'wp_loaded', [ $this, 'init' ] );
 	}
 
@@ -42,6 +42,13 @@ class Conditions {
 			'label' => esc_html__( 'Date & time', 'bricks' ),
 		];
 
+		if ( \Bricks\Woocommerce::is_woocommerce_active() ) {
+			$groups[] = [
+				'name'  => 'woocommerce',
+				'label' => 'WooCommerce',
+			];
+		}
+
 		$groups[] = [
 			'name'  => 'other',
 			'label' => esc_html__( 'Other', 'bricks' ),
@@ -61,6 +68,17 @@ class Conditions {
 	 * @since 1.8.4
 	 */
 	public function set_options() {
+		/**
+		 * Return: No need to get condition controls if not in builder
+		 *
+		 * Results in better performance as we no longer query get_users, etc.
+		 *
+		 * @since 1.11.1
+		 */
+		if ( ! bricks_is_builder() ) {
+			return;
+		}
+
 		// OPTIONS
 		$math_options = [
 			'==' => '==',
@@ -79,14 +97,43 @@ class Conditions {
 		// post_author: 'id' => 'display_name' of all users with 'edit_posts' capability
 		$authors = get_users(
 			[
-				'fields'       => [ 'ID', 'display_name' ],
-				'orderby'      => 'display_name',
-				'capabilities' => [ 'edit_posts' ],
+				'fields'     => [ 'ID', 'display_name' ],
+				'orderby'    => 'display_name',
+				'capability' => 'edit_posts', // @since 1.11.1
 			]
 		);
 
-		$author_options = [];
+		// Get product categories and tags for WooCommerce conditions (@since 1.11.1)
+		if ( \Bricks\Woocommerce::is_woocommerce_active() ) {
+			// Category options
+			$product_categories = get_terms(
+				[
+					'taxonomy'   => 'product_cat',
+					'hide_empty' => false,
+				]
+			);
 
+			$product_category_options = [];
+			foreach ( $product_categories as $category ) {
+				$product_category_options[ $category->term_id ] = $category->name;
+			}
+
+			// Tag options
+			$product_tags = get_terms(
+				[
+					'taxonomy'   => 'product_tag',
+					'hide_empty' => false,
+				]
+			);
+
+			$product_tag_options = [];
+			foreach ( $product_tags as $tag ) {
+				$product_tag_options[ $tag->term_id ] = $tag->name;
+			}
+		}
+
+		// Author options
+		$author_options = [];
 		foreach ( $authors as $author ) {
 			$author_options[ $author->ID ] = $author->display_name;
 		}
@@ -346,7 +393,6 @@ class Conditions {
 			],
 		];
 
-		// @since 1.8
 		$options[] = [
 			'key'     => 'datetime',
 			'group'   => 'date',
@@ -364,6 +410,239 @@ class Conditions {
 			],
 		];
 
+		// WOOCOMMERCE (@since 1.11.1)
+		if ( \Bricks\Woocommerce::is_woocommerce_active() ) {
+			// Product price
+			$options[] = [
+				'key'     => 'woo_product_type',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product type', 'bricks' ),
+				'compare' => [
+					'type'    => 'select',
+					'options' => $is_not_options,
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'simple'   => esc_html__( 'Simple', 'bricks' ),
+						'grouped'  => esc_html__( 'Grouped', 'bricks' ),
+						'external' => esc_html__( 'External', 'bricks' ) . '/' . esc_html__( 'Affiliate', 'bricks' ),
+						'variable' => esc_html__( 'Variable', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product on sale
+			$options[] = [
+				'key'     => 'woo_product_sale',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product sale status', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'On sale', 'bricks' ),
+						'0' => esc_html__( 'Not on sale', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product is new
+			$options[] = [
+				'key'     => 'woo_product_new',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product new status', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'New', 'bricks' ),
+						'0' => esc_html__( 'Not new', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product stock status
+			$options[] = [
+				'key'     => 'woo_product_stock_status',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product stock status', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'instock'     => esc_html__( 'In stock', 'bricks' ),
+						'outofstock'  => esc_html__( 'Out of stock', 'bricks' ),
+						'onbackorder' => esc_html__( 'On backorder', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product stock quantity
+			$options[] = [
+				'key'     => 'woo_product_stock_quantity',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product stock quantity', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $math_options,
+					'placeholder' => '==',
+				],
+				'value'   => [
+					'type'        => 'text',
+					'placeholder' => '',
+				],
+			];
+
+			// Product stock management
+			$options[] = [
+				'key'     => 'woo_product_stock_management',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product stock management', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'Enabled', 'bricks' ),
+						'0' => esc_html__( 'Disabled', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product is sold individually
+			$options[] = [
+				'key'     => 'woo_product_sold_individually',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product sold individually', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'Enabled', 'bricks' ),
+						'0' => esc_html__( 'Disabled', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product was purchased by current user
+			$options[] = [
+				'key'     => 'woo_product_purchased_by_user',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product purchased by user', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'True', 'bricks' ),
+						'0' => esc_html__( 'False', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product is featured
+			$options[] = [
+				'key'     => 'woo_product_featured',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product featured', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => [
+						'1' => esc_html__( 'True', 'bricks' ),
+						'0' => esc_html__( 'False', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product rating
+			$options[] = [
+				'key'     => 'woo_product_rating',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product rating', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $math_options,
+					'placeholder' => '==',
+				],
+				'value'   => [
+					'type'        => 'text',
+					'placeholder' => '',
+				],
+			];
+
+			// Product category
+			$options[] = [
+				'key'     => 'woo_product_category',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product category', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => $product_category_options,
+					'multiple'    => true,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+
+			// Product tag
+			$options[] = [
+				'key'     => 'woo_product_tag',
+				'group'   => 'woocommerce',
+				'label'   => esc_html__( 'Product tag', 'bricks' ),
+				'compare' => [
+					'type'        => 'select',
+					'options'     => $is_not_options,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+				'value'   => [
+					'type'        => 'select',
+					'options'     => $product_tag_options,
+					'multiple'    => true,
+					'placeholder' => esc_html__( 'Select', 'bricks' ),
+				],
+			];
+		}
+
 		// OTHER
 		$options[] = [
 			'key'     => 'dynamic_data',
@@ -375,6 +654,8 @@ class Conditions {
 					[
 						'contains'     => esc_html__( 'contains', 'bricks' ),
 						'contains_not' => esc_html__( 'does not contain', 'bricks' ),
+						'empty'        => esc_html__( 'is empty', 'bricks' ), // @since 1.10
+						'empty_not'    => esc_html__( 'is not empty', 'bricks' ), // @since 1.10
 					],
 					$math_options
 				),
@@ -435,7 +716,7 @@ class Conditions {
 			],
 		];
 
-		// Current URL incl. params (@since 1.9.3)
+		// Current URL incl. params
 		$options[] = [
 			'key'     => 'current_url',
 			'group'   => 'other',
@@ -486,7 +767,7 @@ class Conditions {
 	 * @return array
 	 */
 	public static function get_controls_data() {
-		// Return: Prevent querying database outside of builder for condition controls (@since 1.5.7)
+		// Return: Prevent querying database outside of builder for condition controls
 		if ( ! bricks_is_builder() ) {
 			return;
 		}
@@ -524,6 +805,57 @@ class Conditions {
 	}
 
 	/**
+	 * Transform dynamic data tag
+	 *
+	 * Add ':value' to ACF true_false tag to get unlocalized value.
+	 *
+	 * @since 1.9.9
+	 */
+	public static function maybe_transform_dynamic_tag( $dynamic_tag ) {
+		// Return: Not a string
+		if ( ! is_string( $dynamic_tag ) ) {
+			return $dynamic_tag;
+		}
+
+		// Add ':value' filter to ACF true_false tag to avoid localisation (in element conditions)
+		if (
+			strpos( $dynamic_tag, '{acf_' ) === 0 &&
+			strpos( $dynamic_tag, ':value}' ) === false &&
+			$dynamic_tag !== '{acf_get_row_layout}'
+		) {
+			// ACF: Get field type from dynamic data tag
+			$acf_provider = Integrations\Dynamic_Data\Providers::get_registered_provider( 'acf' );
+
+			if ( $acf_provider ) {
+				$tags       = $acf_provider->get_tags();
+				$my_key     = str_replace( [ '{','}' ], '', $dynamic_tag );
+				$field_type = $tags[ $my_key ]['field']['type'] ?? false;
+
+				// Add ':value' to true_false DD tag to get unlocalized value
+				if ( $field_type === 'true_false' ) {
+					$dynamic_tag = str_replace( '}', ':value}', $dynamic_tag );
+				}
+			}
+		}
+
+		return $dynamic_tag;
+	}
+
+	/**
+	 * Convert boolean-like strings to actual booleans for proper true/false comparisions
+	 *
+	 * @since 1.7
+	 */
+	public static function boolean_converter( &$value, &$required ) {
+		$possible_boolean = [ 'True', 'False', 'true', 'false', true, false, '1', '0', '' ];
+
+		if ( in_array( $required, $possible_boolean, true ) && in_array( $value, $possible_boolean, true ) ) {
+			$required = filter_var( $required, FILTER_VALIDATE_BOOLEAN );
+			$value    = filter_var( $value, FILTER_VALIDATE_BOOLEAN );
+		}
+	}
+
+	/**
 	 * Check element conditions
 	 *
 	 * At least one condition set must be fulfilled for the element to be rendered.
@@ -545,6 +877,7 @@ class Conditions {
 		$post           = get_post( $post_id );
 		$user           = wp_get_current_user();
 		$render_element = false;
+		$product        = \Bricks\Woocommerce::is_woocommerce_active() ? wc_get_product( $post_id ) : false;
 
 		// Loop over condition sets (logic between sets: OR)
 		foreach ( $conditions as $condition_set ) {
@@ -557,8 +890,9 @@ class Conditions {
 					continue;
 				}
 
-				$key      = isset( $condition['key'] ) ? $condition['key'] : false;
-				$compare  = isset( $condition['compare'] ) ? $condition['compare'] : '==';
+				$key     = isset( $condition['key'] ) ? $condition['key'] : false;
+				$compare = isset( $condition['compare'] ) ? $condition['compare'] : '==';
+				// NOTE: Might need to use maybe_transform_dynamic_tag() here (@since 1.9.9)
 				$required = isset( $condition['value'] ) ? $instance->render_dynamic_data( $condition['value'] ) : false;
 
 				$value = false;
@@ -571,23 +905,23 @@ class Conditions {
 						break;
 
 					case 'post_title':
-						$value = $post->post_title;
+						$value = $post->post_title ?? '';
 						break;
 
 					case 'post_parent':
-						$value = $post->post_parent;
+						$value = $post->post_parent ?? 0;
 						break;
 
 					case 'post_status':
-						$value = $post->post_status;
+						$value = $post->post_status ?? '';
 						break;
 
 					case 'post_author':
-						$value = $post->post_author;
+						$value = $post->post_author ?? 0;
 						break;
 
 					case 'post_date':
-						$value = date( 'Y-m-d', strtotime( $post->post_date ) ); // 2022-12-31
+						$value = isset( $post->post_date ) ? date( 'Y-m-d', strtotime( $post->post_date ) ) : false; // 2022-12-31
 						break;
 
 					case 'featured_image':
@@ -600,7 +934,7 @@ class Conditions {
 						break;
 
 					case 'user_id':
-						$value = $user->ID;
+						$value = is_a( $user, 'WP_User' ) ? $user->ID : 0;
 						break;
 
 					case 'user_registered':
@@ -612,7 +946,7 @@ class Conditions {
 						break;
 
 					case 'user_role':
-						$value = $user->roles;
+						$value = is_a( $user, 'WP_User' ) ? $user->roles : [];
 						break;
 
 					// DATE
@@ -624,11 +958,11 @@ class Conditions {
 					case 'date':
 					case 'time':
 					case 'datetime':
-						// Use website current time (@since 1.9.3)
+						// Use website current time
 						$value = current_time( 'timestamp' );
 
 						if ( $required ) {
-							// Convert user input to timestamp for comparison (@since 1.9.3)
+							// Convert user input to timestamp for comparison
 							$required = strtotime( $required );
 						} else {
 							// No user input, use current time
@@ -649,19 +983,82 @@ class Conditions {
 
 						break;
 
-					// OTHER
+						// WOOCOMMERCE
+					case 'woo_product_type':
+						$value = $product ? $product->get_type() : '';
+						break;
+
+					case 'woo_product_sale':
+						$value = $product ? $product->is_on_sale() : 0;
+						break;
+
+					case 'woo_product_stock_status':
+						$value = $product ? $product->get_stock_status() : '';
+						break;
+
+					case 'woo_product_stock_quantity':
+						$value = $product ? $product->get_stock_quantity() : 0;
+						break;
+
+					case 'woo_product_stock_management':
+						$value = $product ? $product->managing_stock() : 0;
+						break;
+
+					case 'woo_product_sold_individually':
+						$value = $product ? $product->is_sold_individually() : 0;
+						break;
+
+					case 'woo_product_purchased_by_user':
+						$value = $product ? wc_customer_bought_product( $user->user_email, $user->ID, $product->get_id() ) : 0;
+						break;
+
+					case 'woo_product_featured':
+						$value = $product ? $product->is_featured() : 0;
+						break;
+
+					case 'woo_product_new':
+						$newness_in_days = Database::get_setting( 'woocommerceBadgeNew', false );
+						$value           = 0;
+
+						if ( $newness_in_days ) {
+							$newness_timestamp = time() - ( 60 * 60 * 24 * $newness_in_days );
+							$created           = $product ? strtotime( $product->get_date_created() ) : 0;
+							$value             = $newness_timestamp < $created;
+						}
+
+						break;
+
+					case 'woo_product_category':
+						$value = $product ? $product->get_category_ids() : [];
+						break;
+
+					case 'woo_product_tag':
+						$value = $product ? $product->get_tag_ids() : [];
+						break;
+
+					case 'woo_product_rating':
+						$value = $product ? $product->get_average_rating() : 0;
+						break;
+
+						// OTHER
 					case 'dynamic_data':
-						if ( ! empty( $condition['dynamic_data'] ) ) {
-							$dynamic_data_tag = $condition['dynamic_data'];
-
-							// NOTE: Not in use (keep for reference in case we provide a "compare_against" value/label select control)
-							// if ( strpos( $dynamic_data_tag, '{' ) === 0 ) {
-								// Add 'value' filter to dynamic data tag: For element conditions like MB checkbox_list, ACF true_false, etc. (@since 1.5.7)
-								// $dynamic_data_tag = str_replace( '}', ':value}', $required );
-							// }
-
+						$dynamic_data_tag = $condition['dynamic_data'] ?? false;
+						if ( $dynamic_data_tag ) {
+							// Transform dynamic data tag - Add ':value' to ACF true_false tag to get unlocalized value
+							$dynamic_data_tag = self::maybe_transform_dynamic_tag( $dynamic_data_tag );
+							// Render dynamic data and assign to value
 							$value = $instance->render_dynamic_data( $dynamic_data_tag );
 						}
+
+						// Re-evaluate value field again because user might use the condition in value field
+						$condition_value = $condition['value'] ?? false;
+						if ( $condition_value ) {
+							// Transform dynamic data tag: Add ':value' filter to ACF true_false tag to get unlocalized value
+							$condition_value = self::maybe_transform_dynamic_tag( $condition_value );
+							// Render dynamic data and assign to required
+							$required = $instance->render_dynamic_data( $condition_value );
+						}
+
 						break;
 
 					case 'browser':
@@ -678,7 +1075,6 @@ class Conditions {
 						$value = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : '';
 						break;
 
-					// @since 1.9.3
 					case 'current_url':
 						global $wp;
 						// Retrieve all GET query parameters and sanitize them
@@ -688,21 +1084,11 @@ class Conditions {
 						break;
 				}
 
-				/**
-				 * Convert boolean-like strings to actual booleans for proper true/false comparisions
-				 *
-				 * @since 1.7
-				 */
-				$possible_boolean = [ 'True', 'False', 'true', 'false', true, false, '1', '0', '' ];
-
-				if ( in_array( $required, $possible_boolean, true ) && in_array( $value, $possible_boolean, true ) ) {
-					$required = filter_var( $required, FILTER_VALIDATE_BOOLEAN );
-					$value    = filter_var( $value, FILTER_VALIDATE_BOOLEAN );
-				}
-
 				// COMPARISON OPERANDS
 				switch ( $compare ) {
 					case '==':
+						// Convert boolean-like strings to actual booleans (@since 1.10)
+						self::boolean_converter( $value, $required );
 						// user_role (one of the user roles must be in requested roles array)
 						if ( is_array( $value ) && is_array( $required ) ) {
 							$render_set = count( array_intersect( $value, $required ) ) > 0;
@@ -717,7 +1103,9 @@ class Conditions {
 						break;
 
 					case '!=':
-						// @since 1.7.2 - User role (one of the user roles must be in requested roles array) (#862jj0afz)
+						// Convert boolean-like strings to actual booleans (@since 1.10)
+						self::boolean_converter( $value, $required );
+						// User role (one of the user roles must be in requested roles array) (#862jj0afz)
 						if ( is_array( $value ) && is_array( $required ) ) {
 							$render_set = count( array_intersect( $value, $required ) ) == 0;
 						}
@@ -764,6 +1152,16 @@ class Conditions {
 						} else {
 							$render_set = false;
 						}
+						break;
+
+					// dynamic_data (@since 1.10)
+					case 'empty':
+						$render_set = (string) $value === '';
+						break;
+
+					// dynamic_data (@since 1.10)
+					case 'empty_not':
+						$render_set = (string) $value !== '';
 						break;
 				}
 

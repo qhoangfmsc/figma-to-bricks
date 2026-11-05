@@ -29,7 +29,7 @@ if ( $template_id ) {
 	$elements = get_post_meta( $template_id, BRICKS_DB_PAGE_CONTENT, true );
 
 	/**
-	 * Add CSS class 'cart-empty' to the first Bricks element via 'bricks/element/settings'
+	 * Add CSS class 'cart-empty' to the first Bricks element via 'bricks/element/render_attributes'
 	 *
 	 * So empty cart shows when remove last item from cart.
 	 *

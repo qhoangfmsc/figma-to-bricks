@@ -81,11 +81,13 @@ class Filter_Checkbox extends Filter_Element {
 				break;
 		}
 
-		$this->set_options();
+		$this->set_options_with_count();
 
 		// Insert filter settings as data-brx-filter attribute
 		$filter_settings                 = $this->get_common_filter_settings();
 		$filter_settings['filterSource'] = $settings['filterSource'];
+		$filter_settings['hierarchy']    = $settings['filterHierarchical'] ?? false;
+		$filter_settings['autoCheck']    = $settings['filterAutoCheckChildren'] ?? false;
 
 		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 	}
@@ -93,59 +95,124 @@ class Filter_Checkbox extends Filter_Element {
 	public function render() {
 		$settings         = $this->settings;
 		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
+		$hierarchy        = $settings['filterHierarchical'] ?? false;
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
+
+			// Return: Indexing in progress (@since 1.10)
+			if ( $this->is_indexing() ) {
+				return $this->render_element_placeholder(
+					[
+						'title' => esc_html__( 'Indexing in progress.', 'bricks' ),
+					]
+				);
+			}
 		} else {
 			// Not in Beta
 			// $this->populate_user_options();
 		}
 
 		// Set current value
-		$current_value = isset( $settings['value'] ) ? $settings['value'] : [];
+		$current_value = isset( $settings['value'] ) && is_array( $settings['value'] ) ? $settings['value'] : [];
 
 		// In filter AJAX call, filterValue is the current filter value
 		if ( isset( $settings['filterValue'] ) ) {
 			$current_value = $settings['filterValue'];
 		}
 
-		// Experiment to get current value from page query
-		$page_filters = Query_Filters::$page_filters;
+		// Escape attributes or it can't match with the options (@since 1.12)
+		if ( is_array( $current_value ) ) {
+			$current_value = array_map( 'esc_attr', $current_value );
+		} else {
+			$current_value = esc_attr( $current_value );
+		}
 
-		// Disable pointer events for this filter if the taxonomy is same as the current page filter
-		if ( ! empty( $page_filters ) && isset( $page_filters[ $this->input_name ] ) ) {
-			$this->set_attribute( '_root', 'class', [ 'page-filtered' ] );
+		// Button mode (@since 1.11)
+		$display_mode = $settings['displayMode'] ?? 'default';
+
+		if ( $display_mode === 'button' ) {
+			$this->set_attribute( '_root', 'data-mode', 'button' );
 		}
 
 		echo "<ul {$this->render_attributes('_root')}>";
 
-		foreach ( $this->populated_options as $option ) {
-			if ( empty( $option['text'] ) ) {
+		foreach ( $this->populated_options as $index => $option ) {
+			/**
+			 * Skip empty text options
+			 *
+			 * Each option must have a text. 0 is allowed, otherwise it will conflict with the "All" option / Placeholder option.
+			 *
+			 * @since 1.12
+			 */
+			if ( isset( $option['text'] ) && $option['text'] === '' ) {
 				continue;
 			}
 
-			$option_text     = strip_tags( trim( $option['text'] ) );
-			$option_value    = esc_attr( strip_tags( $option['value'] ) );
+			$option_text     = $this->get_option_text_with_count( $option );
+			$option_value    = esc_attr( $option['value'] );
 			$option_class    = esc_attr( $option['class'] );
-			$option_selected = in_array( $option_value, $current_value ) ? 'checked' : '';
-			$option_disabled = isset( $option['disabled'] ) ? 'disabled' : '';
+			$option_selected = in_array( rawurldecode( $option_value ), $current_value );
+			$option_disabled = isset( $option['disabled'] ) && ! $option_selected;
 
-			// Maybe the value match with page_filters
-			if ( ! empty( $page_filters ) && isset( $page_filters[ $this->input_name ] ) ) {
-				if ( $page_filters[ $this->input_name ] === $option_value ) {
-					$option_selected = 'checked';
+			$li_key    = 'li_' . $index;
+			$label_key = 'label_' . $index;
+			$input_key = 'input_' . $index;
+			$span_key  = 'span_' . $index;
+
+			$this->set_attribute( $input_key, 'type', 'checkbox' );
+			$this->set_attribute( $input_key, 'name', $this->input_name );
+			$this->set_attribute( $input_key, 'value', $option_value );
+
+			$this->set_attribute( $span_key, 'class', 'brx-option-text' );
+			$this->set_attribute( $label_key, 'class', $option_class );
+
+			if ( $hierarchy ) {
+				$depth = $option['depth'] ?? 0;
+				$this->set_attribute( $li_key, 'data-depth', $depth );
+			}
+
+			if ( $option_selected ) {
+				// Set checked attribute
+				$this->set_attribute( $input_key, 'checked', 'checked' );
+
+				// Set .brx-option-active classes so user could style easily (avoid using .active as it's too general)
+				$this->set_attribute( $li_key, 'class', 'brx-option-active' );
+				$this->set_attribute( $label_key, 'class', 'brx-option-active' );
+				$this->set_attribute( $span_key, 'class', 'brx-option-active' );
+			}
+
+			if ( $option_disabled ) {
+				// Set disabled attribute
+				$this->set_attribute( $input_key, 'disabled', 'disabled' );
+			}
+
+			// Mode: Button
+			if ( $display_mode === 'button' ) {
+				$this->set_attribute( $span_key, 'class', 'bricks-button' );
+				$this->set_attribute( $span_key, 'tabindex', '0' ); // Make it focusable
+
+				if ( isset( $settings['buttonSize'] ) ) {
+					$this->set_attribute( $span_key, 'class', $settings['buttonSize'] );
+				}
+
+				if ( isset( $settings['buttonStyle'] ) ) {
+					if ( isset( $settings['buttonOutline'] ) ) {
+						$this->set_attribute( $span_key, 'class', 'outline bricks-color-' . $settings['buttonStyle'] );
+					} else {
+						$this->set_attribute( $span_key, 'class', 'bricks-background-' . $settings['buttonStyle'] );
+					}
+				}
+
+				if ( isset( $settings['buttonCircle'] ) ) {
+					$this->set_attribute( $span_key, 'class', 'circle' );
 				}
 			}
 
-			echo '<li>';
-			echo "<label class=\"$option_class\">";
-
-			echo '<input type="checkbox" name="' . $this->input_name . '" value="' . $option_value . '" ' .
-			$option_selected . ' ' .
-			$option_disabled . '>';
-
-			echo "<span>$option_text</span>";
-
+			echo "<li {$this->render_attributes( $li_key )}>";
+			echo "<label {$this->render_attributes( $label_key )}>";
+			echo "<input {$this->render_attributes( $input_key )}>";
+			echo "<span {$this->render_attributes( $span_key )}>{$option_text}</span>";
 			echo '</label>';
 			echo '</li>';
 		}

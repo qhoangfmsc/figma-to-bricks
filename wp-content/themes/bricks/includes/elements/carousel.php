@@ -3,7 +3,7 @@ namespace Bricks;
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-class Element_Carousel extends Element {
+class Element_Carousel extends Custom_Render_Element {
 	public $category     = 'media';
 	public $name         = 'carousel';
 	public $icon         = 'ti-layout-slider-alt';
@@ -23,6 +23,11 @@ class Element_Carousel extends Element {
 			wp_enqueue_script( 'bricks-photoswipe' );
 			wp_enqueue_script( 'bricks-photoswipe-lightbox' );
 			wp_enqueue_style( 'bricks-photoswipe' );
+
+			// Lightbox caption (@since 1.10)
+			if ( isset( $this->settings['lightboxCaption'] ) ) {
+				wp_enqueue_script( 'bricks-photoswipe-caption' );
+			}
 		}
 	}
 
@@ -102,6 +107,7 @@ class Element_Carousel extends Element {
 				'infinite_scroll_separator',
 				'infinite_scroll',
 				'infinite_scroll_margin',
+				'infinite_scroll_delay', // @since 1.12
 			],
 		];
 
@@ -169,6 +175,16 @@ class Element_Carousel extends Element {
 			'required' => [ 'imageDisable', '=', '' ],
 		];
 
+		// LIGHTBOX
+
+		$this->controls['lightboxSep'] = [
+			'tab'      => 'content',
+			'group'    => 'image',
+			'label'    => esc_html__( 'Lightbox', 'bricks' ),
+			'type'     => 'separator',
+			'required' => [ 'imageLightbox', '=', true ],
+		];
+
 		$this->controls['imageLightbox'] = [
 			'tab'      => 'content',
 			'group'    => 'image',
@@ -180,21 +196,86 @@ class Element_Carousel extends Element {
 		$this->controls['imageLightboxSize'] = [
 			'tab'      => 'content',
 			'group'    => 'image',
-			'label'    => esc_html__( 'Lightbox', 'bricks' ) . ': ' . esc_html__( 'Image size', 'bricks' ),
+			'label'    => esc_html__( 'Image size', 'bricks' ),
 			'type'     => 'select',
 			'options'  => $this->control_options['imageSizes'],
-			'required' => [ 'imageLightbox', '!=', '' ],
+			'required' => [ 'imageLightbox', '=', true ],
 		];
 
-		// @since 1.8.4
+		// https://photoswipe.com/click-and-tap-actions/#supported-action-values
+		$this->controls['lightboxImageClick'] = [
+			'tab'         => 'content',
+			'group'       => 'image',
+			'label'       => esc_html__( 'Image click action', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'zoom'            => esc_html__( 'Zoom', 'bricks' ),
+				'zoom-or-close'   => esc_html__( 'Zoom or close', 'bricks' ),
+				'toogle-controls' => esc_html__( 'Toggle controls', 'bricks' ),
+				'next'            => esc_html__( 'Next', 'bricks' ),
+				'close'           => esc_html__( 'Close', 'bricks' ),
+			],
+			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
+			'required'    => [ 'imageLightbox', '=', true ],
+		];
+
 		$this->controls['lightboxAnimationType'] = [
 			'tab'         => 'content',
 			'group'       => 'image',
-			'label'       => esc_html__( 'Lightbox animation type', 'bricks' ),
+			'label'       => esc_html__( 'Animation', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $this->control_options['lightboxAnimationTypes'],
 			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
-			'required'    => [ 'imageLightbox', '!=', '' ],
+			'required'    => [ 'imageLightbox', '=', true ],
+		];
+
+		$this->controls['lightboxCaption'] = [
+			'tab'      => 'content',
+			'group'    => 'image',
+			'label'    => esc_html__( 'Caption', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'imageLightbox', '=', true ],
+		];
+
+		$this->controls['lightboxThumbnails'] = [
+			'tab'      => 'content',
+			'group'    => 'image',
+			'label'    => esc_html__( 'Thumbnail navigation', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'imageLightbox', '=', true ]
+		];
+
+		$this->controls['lightboxThumbnailSize'] = [
+			'tab'         => 'content',
+			'group'       => 'image',
+			'label'       => esc_html__( 'Thumbnail size', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'placeholder' => 60,
+			'required'    => [
+				[ 'imageLightbox', '=', true ],
+				[ 'lightboxThumbnails', '=', true ],
+			],
+		];
+
+		$this->controls['lightboxThumbnailInfo'] = [
+			'tab'      => 'content',
+			'group'    => 'image',
+			'content'  => esc_html__( 'We recommend setting a padding for your lightbox to accommodate the thumbnail navigation.', 'bricks' ),
+			'type'     => 'info',
+			'required' => [
+				[ 'imageLightbox', '=', true ],
+				[ 'lightboxThumbnails', '=', true ],
+				[ 'lightboxPadding', '=', '' ],
+			],
+		];
+
+		$this->controls['lightboxPadding'] = [
+			'tab'      => 'content',
+			'group'    => 'image',
+			'label'    => esc_html__( 'Padding', 'bricks' ) . ' (px)',
+			'type'     => 'dimensions',
+			'required' => [ 'imageLightbox', '=', true ],
 		];
 
 		// FIELDS
@@ -264,6 +345,7 @@ class Element_Carousel extends Element {
 
 	public function render() {
 		$settings = $this->settings;
+		$fields   = $settings['fields'] ?? [];
 
 		// https://swiperjs.com/swiper-api
 		$options = [
@@ -310,11 +392,8 @@ class Element_Carousel extends Element {
 		$this->set_attribute( 'swiper', 'data-script-args', wp_json_encode( $options ) );
 
 		$type = $settings['type'] ?? 'media';
-
 		// TYPE: MEDIA
 		if ( $type === 'media' ) {
-			// NOTE: $this->element['settings'] is not updated by bricks/element/settings filter. Best if we update in base.php (#86bwkh7y2; @since 1.9.4)
-			$this->element['settings'] = $this->settings;
 			// Dynamic data already checked inside this helper function (@since 1.9.3)
 			$query_settings = Helpers::populate_query_vars_for_element( $this->element, $this->post_id );
 
@@ -329,8 +408,8 @@ class Element_Carousel extends Element {
 
 				$carousel_query = new Query( $this->element );
 
-				// Destroy query to explicitly remove it from the global store
-				$carousel_query->destroy();
+				// Set $bricks_query (@since 1.10.2)
+				$this->set_bricks_query( $carousel_query );
 
 				$carousel_query = $carousel_query ? $carousel_query->query_result : false;
 			}
@@ -359,8 +438,8 @@ class Element_Carousel extends Element {
 				}
 			}
 
-			// Destroy query to explicitly remove it from the global store
-			$carousel_query->destroy();
+			// Set $bricks_query (@since 1.10.2)
+			$this->set_bricks_query( $carousel_query );
 
 			$carousel_query = $carousel_query ? $carousel_query->query_result : false;
 		}
@@ -370,8 +449,29 @@ class Element_Carousel extends Element {
 		if ( $type === 'media' && isset( $settings['imageLightbox'] ) ) {
 			$this->set_attribute( '_root', 'class', 'bricks-lightbox' );
 
+			// Lightbox caption (@since 1.10)
+			if ( isset( $settings['lightboxCaption'] ) ) {
+				$this->set_attribute( '_root', 'class', 'has-lightbox-caption' );
+			}
+
+			if ( isset( $settings['lightboxImageClick'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-image-click', esc_attr( $settings['lightboxImageClick'] ) );
+			}
+
 			if ( ! empty( $settings['lightboxAnimationType'] ) ) {
 				$this->set_attribute( '_root', 'data-animation-type', esc_attr( $settings['lightboxAnimationType'] ) );
+			}
+
+			if ( ! empty( $settings['lightboxPadding'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-padding', wp_json_encode( $settings['lightboxPadding'] ) );
+			}
+
+			if ( ! empty( $settings['lightboxThumbnails'] ) ) {
+				$this->set_attribute( '_root', 'class', 'has-lightbox-thumbnails' );
+			}
+
+			if ( ! empty( $settings['lightboxThumbnailSize'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-thumbnail-size', esc_attr( $settings['lightboxThumbnailSize'] ) );
 			}
 		}
 
@@ -381,28 +481,35 @@ class Element_Carousel extends Element {
 		if ( $type === 'posts' && $carousel_query && $carousel_query->count === 0 ) {
 			echo $no_results_content;
 		} else {
+			// (@since 1.10.2)
+			$this->start_iteration();
+
 			echo "<div {$this->render_attributes( 'swiper' )}>";
 			echo '<div class="swiper-wrapper">';
 
 			$item_classes = [ 'repeater-item', 'swiper-slide' ];
-
-			$image_size = isset( $settings['imageSize'] ) ? $settings['imageSize'] : BRICKS_DEFAULT_IMAGE_SIZE;
+			$image_size   = $settings['imageSize'] ?? BRICKS_DEFAULT_IMAGE_SIZE;
 
 			foreach ( $carousel_posts as $item_index => $item ) {
+				// (@since 1.10.2)
+				$item_id = $item->ID;
+				$this->set_loop_object( get_post( $item_id ) );
 				$this->set_attribute( "list-item-$item_index", 'class', $item_classes );
 
+				$aria_label = get_post_meta( $item_id, '_wp_attachment_image_alt', true );
+				$image_url  = false;
+
 				echo "<div {$this->render_attributes( "list-item-$item_index" )}>";
-					$image_url = false;
 
 				// Selected media image
 				if ( $type === 'media' ) {
-					$image_url = wp_get_attachment_image_src( $item->ID, $image_size );
+					$image_url = wp_get_attachment_image_src( $item_id, $image_size );
 					$image_url = $image_url[0];
 				}
 
 				// Featured image
-				if ( $type === 'posts' && has_post_thumbnail( $item->ID ) && ! isset( $settings['imageDisable'] ) ) {
-					$image_url = get_the_post_thumbnail_url( $item->ID, $image_size );
+				if ( $type === 'posts' && has_post_thumbnail( $item_id ) && ! isset( $settings['imageDisable'] ) ) {
+					$image_url = get_the_post_thumbnail_url( $item_id, $image_size );
 				}
 
 				if ( $image_url ) {
@@ -410,19 +517,30 @@ class Element_Carousel extends Element {
 					$lightbox = $type === 'media' && isset( $settings['imageLightbox'] );
 
 					if ( $lightbox ) {
-						$lightbox_image_size = ! empty( $settings['imageLightboxSize'] ) ? $settings['imageLightboxSize'] : 'full';
-						$lightbox_image_src  = wp_get_attachment_image_src( $item->ID, $lightbox_image_size );
+						$lightbox_image_src = wp_get_attachment_image_src( $item_id, $settings['imageLightboxSize'] ?? 'full' );
 
+						$this->set_attribute( "a-$item_index", 'href', $lightbox_image_src[0] );
 						$this->set_attribute( "a-$item_index", 'data-pswp-src', $lightbox_image_src[0] );
 						$this->set_attribute( "a-$item_index", 'data-pswp-width', $lightbox_image_src[1] );
 						$this->set_attribute( "a-$item_index", 'data-pswp-height', $lightbox_image_src[2] );
+						$this->set_attribute( "a-$item_index", 'data-pswp-index', $item_index );
+
+						// Add aria-label to <a> tag (@since 1.10)
+						$this->set_attribute( "a-$item_index", 'aria-label', esc_html__( 'Open image in lightbox', 'bricks' ) . ' (ID: ' . $item_id . ')' );
+
+						// Lightbox caption (@since 1.10)
+						$lightbox_caption = isset( $settings['lightboxCaption'] ) && $item_id ? wp_get_attachment_caption( $item_id ) : false;
+
+						if ( $lightbox_caption ) {
+							$this->set_attribute( "a-$item_index", 'data-lightbox-caption', $lightbox_caption );
+						}
 
 						echo "<a {$this->render_attributes( "a-$item_index" )}>";
 					}
 
 					// Use img tag
 					if ( isset( $settings['adaptiveHeight'] ) ) {
-						$image_id   = $type === 'posts' ? get_post_thumbnail_id( $item->ID ) : $item->ID;
+						$image_id   = $type === 'posts' ? get_post_thumbnail_id( $item_id ) : $item_id;
 						$image_atts = [ 'class' => 'image css-filter' ];
 
 						if ( ! $this->lazy_load() ) {
@@ -442,7 +560,10 @@ class Element_Carousel extends Element {
 
 						$this->set_attribute( "image-$item_index", 'class', $image_classes );
 						$this->set_attribute( "image-$item_index", 'role', 'img' );
-						$this->set_attribute( "image-$item_index", 'aria-label', get_post_meta( $item->ID, '_wp_attachment_image_alt', true ) );
+
+						if ( $aria_label ) {
+							$this->set_attribute( "image-$item_index", 'aria-label', $aria_label );
+						}
 
 						if ( $this->lazy_load() ) {
 							$this->set_attribute( "image-$item_index", 'data-style', 'background-image: url("' . esc_url( $image_url ) . '")' );
@@ -458,11 +579,11 @@ class Element_Carousel extends Element {
 					}
 				}
 
-					// Overlay wrapper
-				if ( $type === 'posts' && is_array( $settings['fields'] ) ) {
+				// Overlay wrapper
+				if ( $type === 'posts' && ! empty( $fields ) ) {
 					$overlay_fields = [];
 
-					foreach ( $settings['fields'] as $field ) {
+					foreach ( $fields as $field ) {
 						if ( isset( $field['overlay'] ) ) {
 							$overlay_fields[] = $field;
 						}
@@ -479,7 +600,6 @@ class Element_Carousel extends Element {
 								isset( $settings['overlayAnimation'] ) ? $settings['overlayAnimation'] : '',
 							]
 						);
-
 						$overlay_wrapper_html  = "<div {$this->render_attributes( "overlay-wrapper-$item_index" )}>";
 						$overlay_wrapper_html .= '<div class="overlay-inner">';
 						$overlay_wrapper_html .= Frontend::get_content_wrapper( $settings, $overlay_fields, $item );
@@ -491,10 +611,10 @@ class Element_Carousel extends Element {
 				}
 
 				// Content wrapper
-				if ( $type === 'posts' && is_array( $settings['fields'] ) ) {
+				if ( $type === 'posts' && ! empty( $fields ) ) {
 					$content_fields = [];
 
-					foreach ( $settings['fields'] as $field ) {
+					foreach ( $fields as $field ) {
 						if ( ! isset( $field['overlay'] ) ) {
 							$content_fields[] = $field;
 						}
@@ -516,6 +636,9 @@ class Element_Carousel extends Element {
 					}
 				}
 				echo '</div>';
+
+				// (@since 1.10.2)
+				$this->next_iteration();
 			}
 
 			echo '</div>';
@@ -523,6 +646,9 @@ class Element_Carousel extends Element {
 
 			echo $this->render_swiper_nav();
 		}
+
+		// (@since 1.10.2)
+		$this->end_iteration();
 
 		echo '</div>';
 	}

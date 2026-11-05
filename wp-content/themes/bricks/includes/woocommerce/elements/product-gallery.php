@@ -27,6 +27,7 @@ class Product_Gallery extends Element {
 
 	public function set_controls() {
 		$this->controls['_width']['rerender']    = true;
+		$this->controls['_widthMin']['rerender'] = true;
 		$this->controls['_widthMax']['rerender'] = true;
 
 		$this->controls['productImageSize'] = [
@@ -57,7 +58,7 @@ class Product_Gallery extends Element {
 
 		$this->controls['thumbnailSep'] = [
 			'tab'   => 'content',
-			'label' => esc_html__( 'Thumbnails', 'bricks' ),
+			'label' => esc_html__( 'Thumbnail navigation', 'bricks' ),
 			'type'  => 'separator',
 		];
 
@@ -189,7 +190,7 @@ class Product_Gallery extends Element {
 					'property' => 'border',
 				],
 				[
-					'selector' => '&.thumbnail-slider .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image',
+					'selector' => '&.thumbnail-slider .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image img', // Target image to avoid overflow (#86bzpa085)
 					'property' => 'border',
 				],
 			],
@@ -205,7 +206,7 @@ class Product_Gallery extends Element {
 					'property' => 'border',
 				],
 				[
-					'selector' => '&.thumbnail-slider .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image.flex-active-slide',
+					'selector' => '&.thumbnail-slider .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image.flex-active-slide img', // Target image to avoid overflow (#86bzpa085)
 					'property' => 'border',
 				],
 			],
@@ -244,6 +245,14 @@ class Product_Gallery extends Element {
 			'type'        => 'number',
 			'units'       => true,
 			'css'         => [
+				[
+					'selector' => '&.thumbnail-slider[data-pos="top"] .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image',
+					'property' => 'margin-inline-end',
+				],
+				[
+					'selector' => '&.thumbnail-slider[data-pos="bottom"] .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image',
+					'property' => 'margin-inline-end',
+				],
 				[
 					'selector' => '&.thumbnail-slider[data-pos="right"] .brx-product-gallery-thumbnail-slider .woocommerce-product-gallery__image',
 					'property' => 'margin-bottom',
@@ -411,11 +420,11 @@ class Product_Gallery extends Element {
 		$this->product = $product;
 		$settings      = $this->settings;
 
-		if ( ! empty( $settings['thumbnailPosition'] ) ) {
-			$this->set_attribute( '_root', 'data-pos', esc_attr( $settings['thumbnailPosition'] ) );
-		}
+		// Thumbnail position
+		$thumbnail_position = ! empty( $settings['thumbnailPosition'] ) ? $settings['thumbnailPosition'] : 'bottom';
+		$this->set_attribute( '_root', 'data-pos', esc_attr( $thumbnail_position ) );
 
-		// STEP: Thumbnail slider enabled
+		// Thumbnail slider enabled
 		$thumbnail_slider = isset( $settings['thumbnailSlider'] ) ? $settings['thumbnailSlider'] : false;
 
 		if ( $thumbnail_slider ) {
@@ -487,6 +496,15 @@ class Product_Gallery extends Element {
 		$direction   = in_array( $position, [ 'bottom', 'top' ] ) ? 'horizontal' : 'vertical';
 		$item_margin = isset( $settings['itemMargin'] ) ? absint( $settings['itemMargin'] ) : 30;
 
+		/**
+		 * Set item margin to 0 for RTL as gap is always set via margin-right inline CSS (flexslider)
+		 *
+		 * @since 1.11.1
+		 */
+		if ( is_rtl() ) {
+			$item_margin = 0;
+		}
+
 		// flexslider settings https://gist.github.com/warrendholmes/9481310
 		$thumbnail_settings = [
 			'animation'      => 'slide',
@@ -503,12 +521,20 @@ class Product_Gallery extends Element {
 			'prevText'       => $prev_arrow,
 			'nextText'       => $next_arrow,
 			'rtl'            => is_rtl(),
-			'asNavFor'       => '.woocommerce-product-gallery',
-			'selector'       => '.brx-thumbail-slider-wrapper > .woocommerce-product-gallery__image',
+			// Target the correct main slider (@since 1.10.2)
+			'asNavFor'       => '.brxe-product-gallery[data-script-id="' . $this->id . '"] > .woocommerce-product-gallery',
+			'selector'       => '.brx-thumbnail-slider-wrapper > .woocommerce-product-gallery__image',
 		];
 
 		$this->set_attribute( 'product_thumbnails', 'class', 'brx-product-gallery-thumbnail-slider' );
 		$this->set_attribute( 'product_thumbnails', 'data-thumbnail-settings', wp_json_encode( $thumbnail_settings ) );
+		// Set opacity to avoid flickering on flexslider init
+		$this->set_attribute( 'product_thumbnails', 'style', 'opacity: 0; transition: opacity .25s ease-in-out;' );
+
+		// Set all possible variation IDs (@since 1.11)
+		if ( $product->is_type( 'variable' ) ) {
+			$this->set_attribute( 'product_thumbnails', 'data-variation-ids', wp_json_encode( $product->get_children() ) );
+		}
 
 		// STEP: single-product/product-image.php
 		$post_thumbnail_id = $product->get_image_id();
@@ -541,7 +567,7 @@ class Product_Gallery extends Element {
 		remove_filter( 'woocommerce_gallery_image_size', [ $this, 'set_gallery_thumbnail_size' ] );
 
 		// Return thumbnail slider HTML
-		return "<div {$this->render_attributes( 'product_thumbnails' )}><div class=\"brx-thumbail-slider-wrapper\">" . $html . '</div></div>';
+		return "<div {$this->render_attributes( 'product_thumbnails' )}><div class=\"brx-thumbnail-slider-wrapper\">" . $html . '</div></div>';
 	}
 
 	/**

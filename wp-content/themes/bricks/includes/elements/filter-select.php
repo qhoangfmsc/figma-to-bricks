@@ -16,6 +16,14 @@ class Filter_Select extends Filter_Element {
 		$filter_controls = $this->get_filter_controls();
 
 		if ( ! empty( $filter_controls ) ) {
+			// fieldCompareOperator placeholder and default value should be Equal
+			$filter_controls['fieldCompareOperator']['placeholder'] = esc_html__( 'Equal', 'bricks' );
+
+			// Remove "IN", "NOT IN", "BETWEEN", "NOT BETWEEN" from select options
+			unset( $filter_controls['fieldCompareOperator']['options']['IN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['NOT IN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['BETWEEN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['NOT BETWEEN'] );
 			$this->controls = array_merge( $this->controls, $filter_controls );
 		}
 
@@ -29,17 +37,6 @@ class Filter_Select extends Filter_Element {
 			'label'  => esc_html__( 'Placeholder', 'bricks' ),
 			'type'   => 'text',
 			'inline' => true,
-		];
-
-		$this->controls['placeholderTypography'] = [
-			'label' => esc_html__( 'Placeholder typography', 'bricks' ),
-			'type'  => 'typography',
-			'css'   => [
-				[
-					'property' => 'font',
-					'selector' => '&::placeholder',
-				],
-			],
 		];
 	}
 
@@ -66,6 +63,10 @@ class Filter_Select extends Filter_Element {
 	 *
 	 * If is a sort input
 	 * - Set sorting options
+	 *
+	 * If is a per_page input
+	 * - Set per_page options
+	 *
 	 * If is a filter input
 	 * - Prepare sources
 	 * - Set data_source
@@ -105,11 +106,18 @@ class Filter_Select extends Filter_Element {
 					break;
 			}
 
-			$this->set_options();
+			$this->set_options_with_count();
 
-		} else {
+		}
+
+		elseif ( $filter_action === 'sort' ) {
 			// User wish to use what options as sort options
 			$this->setup_sort_options();
+		}
+
+		else {
+			// User wish to use what options as per_page options
+			$this->setup_per_page_options();
 		}
 
 		// Insert filter settings as data-brx-filter attribute
@@ -170,10 +178,22 @@ class Filter_Select extends Filter_Element {
 			$current_value = $settings['filterValue'];
 		}
 
+		// Escape attributes or it can't match with the options (@since 1.12)
+		$current_value = esc_attr( $current_value );
+
 		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
+
+			// Return: Indexing in progress (@since 1.10)
+			if ( $this->is_indexing() ) {
+				return $this->render_element_placeholder(
+					[
+						'title' => esc_html__( 'Indexing in progress.', 'bricks' ),
+					]
+				);
+			}
 		} else {
 			// Not in Beta
 			// $this->populate_user_options();
@@ -197,10 +217,21 @@ class Filter_Select extends Filter_Element {
 
 		// Generate options HTML
 		foreach ( $this->populated_options as $option ) {
-			$option_value    = esc_attr( strip_tags( $option['value'] ) );
-			$option_text     = strip_tags( $option['text'] );
+			/**
+			 * Skip empty text options
+			 *
+			 * Each option must have a text. 0 is allowed, otherwise it will conflict with the "All" option / Placeholder option.
+			 *
+			 * @since 1.12
+			 */
+			if ( isset( $option['text'] ) && $option['text'] === '' ) {
+				continue;
+			}
+
+			$option_value    = esc_attr( $option['value'] );
+			$option_text     = $this->get_option_text_with_count( $option );
 			$option_class    = ! empty( $option['class'] ) ? esc_attr( trim( $option['class'] ) ) : '';
-			$option_selected = selected( $current_value, $option_value, false );
+			$option_selected = selected( $current_value, rawurldecode( $option_value ), false );
 			$option_disabled = isset( $option['disabled'] ) ? 'disabled' : '';
 
 			echo '<option value="' . $option_value . '" ' .

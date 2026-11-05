@@ -163,8 +163,10 @@ They live in the header of [bricks/render/index.mjs](bricks/render/index.mjs) (r
 | root frame | `section` (width 100%: the artboard is a viewport) |
 | TEXT, text style `H<n>/…` | `heading` (tag `h<n>`) |
 | TEXT, anything else | `text-basic` |
-| rectangle/frame with image fill and no children | `image` (`FILL`→cover, `FIT`→contain) |
-| image fill `CROP` | `block` wrapper (overflow hidden) + absolutely positioned `image`, percentages computed from `imageTransform` |
+| rectangle/frame with image fill and no children | `div` (this div sets the width and height) > `image` always `100%` × `100%` (`FILL`→cover, `FIT`→contain). The div has no theme layout CSS; a `block` would be flex and width 100%. Another file on a pasted narrower frame, same crop, is `sources` at that breakpoint |
+| background, relative, content | decided on every build. Paint (image, gradient, solid, or a group of those, no text) at least as wide as its screen is a background: width is a percentage of that screen, the same pixels at the Figma width, and it grows on a wider screen. `SCALE` / `LEFT_RIGHT`, and layers inside a background, follow their parent. Text, icons and a smaller picture keep their Figma pixels; a centered column stays centered. A frame drawn edge to edge is `width: 100%`, so what is inside follows the screen |
+| image fill `CROP` | `div` (the Figma box: width and height, overflow hidden) > `div` (the crop, from `imageTransform`) > `image` always `100%` × `100%` |
+| group of images, no text | one picture rendered by Figma (`flat-image`). The div sets the width and height. The image is `100%` × `100%` and has no custom CSS |
 | subtree made only of vectors, or text in an icon font (Font Awesome…) | `svg` (file uploaded to the media library, rendered by Figma) |
 | every other node | `block` |
 | hidden node | not built (listed in report) |

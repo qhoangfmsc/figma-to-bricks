@@ -1,6 +1,8 @@
 <?php
 namespace Bricks\Integrations\Dynamic_Data\Providers;
 
+use Bricks\Woocommerce_Helpers;
+
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Provider_Woo extends Base {
@@ -28,95 +30,109 @@ class Provider_Woo extends Base {
 	public function get_tags_config() {
 		$tags = [
 			// Product
-			'woo_product_price'         => [
+			'woo_product_price'          => [
 				'label' => esc_html__( 'Product price', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_regular_price' => [
+			'woo_product_regular_price'  => [
 				'label' => esc_html__( 'Product regular price', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_sale_price'    => [
+			'woo_product_sale_price'     => [
 				'label' => esc_html__( 'Product sale price', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_excerpt'       => [
+			'woo_product_excerpt'        => [
 				'label' => esc_html__( 'Product short description', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_stock'         => [
+			'woo_product_stock'          => [
 				'label' => esc_html__( 'Product stock', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_sku'           => [
+			'woo_product_sku'            => [
 				'label' => esc_html__( 'Product SKU', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_rating'        => [
+			'woo_product_rating'         => [
 				'label' => esc_html__( 'Product rating', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_on_sale'       => [
+			'woo_product_on_sale'        => [
 				'label' => esc_html__( 'Product on sale', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_add_to_cart'           => [
+			'woo_product_badge_new'      => [
+				'label' => esc_html__( 'Product badge new', 'bricks' ),
+				'group' => esc_html__( 'Product', 'bricks' ),
+			],
+			'woo_add_to_cart'            => [
 				'label' => esc_html__( 'Add to cart', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_cat_image'     => [
+			'woo_product_cat_image'      => [
 				'label' => esc_html__( 'Product category image', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
-			'woo_product_stock_status'  => [
+			// Featured image & product gallery images (@since 1.11)
+			'woo_product_images'         => [
+				'label' => esc_html__( 'Product images', 'bricks' ),
+				'group' => esc_html__( 'Product', 'bricks' ),
+			],
+			// Product gallery images only, not including featured image (@since 1.11)
+			'woo_product_gallery_images' => [
+				'label' => esc_html__( 'Product gallery images', 'bricks' ),
+				'group' => esc_html__( 'Product', 'bricks' ),
+			],
+			'woo_product_stock_status'   => [
 				'label' => esc_html__( 'Product stock status', 'bricks' ),
 				'group' => esc_html__( 'Product', 'bricks' ),
 			],
 
 			// Cart
-			'woo_cart_product_name'     => [
+			'woo_cart_product_name'      => [
 				'label' => esc_html__( 'Cart product name', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_cart_remove_link'      => [
+			'woo_cart_remove_link'       => [
 				'label' => esc_html__( 'Cart remove product', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_cart_quantity'         => [
+			'woo_cart_quantity'          => [
 				'label' => esc_html__( 'Cart product quantity', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_cart_subtotal'         => [
+			'woo_cart_subtotal'          => [
 				'label' => esc_html__( 'Cart product subtotal', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_cart_update'           => [
+			'woo_cart_update'            => [
 				'label' => esc_html__( 'Cart update', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
 
 			// Checkout Order
-			'woo_order_id'              => [
+			'woo_order_id'               => [
 				'label' => esc_html__( 'Order id', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_order_number'          => [
+			'woo_order_number'           => [
 				'label' => esc_html__( 'Order number', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_order_date'            => [
+			'woo_order_date'             => [
 				'label' => esc_html__( 'Order date', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_order_total'           => [
+			'woo_order_total'            => [
 				'label' => esc_html__( 'Order total', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_order_payment_title'   => [
+			'woo_order_payment_title'    => [
 				'label' => esc_html__( 'Order payment method', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
-			'woo_order_email'           => [
+			'woo_order_email'            => [
 				'label' => esc_html__( 'Order email', 'bricks' ),
 				'group' => 'WooCommerce',
 			],
@@ -226,7 +242,7 @@ class Provider_Woo extends Base {
 			case 'product_stock':
 				if ( isset( $filters['value'] ) ) {
 					// Return stock value only if value filter is set
-					$value = $product ? $this->get_stock_amount( $product ) : 0;
+					$value = $product ? Woocommerce_Helpers::get_stock_amount( $product ) : 0;
 				} else {
 					$value = $product ? $this->get_stock_html( $product ) : '';
 				}
@@ -269,6 +285,10 @@ class Provider_Woo extends Base {
 
 			case 'product_on_sale':
 				$value = $product && $product->is_on_sale() ? apply_filters( 'woocommerce_sale_flash', '<span class="badge onsale">' . esc_html__( 'Sale!', 'bricks' ) . '</span>', $post, $product ) : '';
+				break;
+
+			case 'product_badge_new':
+				$value = \Bricks\Woocommerce::badge_new();
 				break;
 
 			case 'add_to_cart':
@@ -318,6 +338,27 @@ class Provider_Woo extends Base {
 				}
 
 				$value = ! empty( $term_id ) ? get_term_meta( $term_id, 'thumbnail_id', true ) : '';
+				break;
+
+			// Product gallery images (@since 1.11)
+			case 'product_images':
+			case 'product_gallery_images':
+				// Support ':value' filter to get the gallery image ids as a simple string (e.g.: 1, 2, 3)
+				if ( ! isset( $filters['value'] ) ) {
+					$filters['object_type'] = 'media';
+					$filters['image']       = 'true';
+					$filters['separator']   = '';
+				}
+
+				// Get the product gallery images
+				$gallery_ids = $product ? $product->get_gallery_image_ids() : [];
+
+				// Prepend the featured image to the gallery images
+				if ( $render === 'product_images' && $product && $product->get_image_id() ) {
+					array_unshift( $gallery_ids, $product->get_image_id() );
+				}
+
+				$value = ! empty( $gallery_ids ) ? $gallery_ids : '';
 				break;
 
 			// Expected result: 'instock', 'outofstock', 'onbackorder' (@since 1.6.1)
@@ -580,9 +621,9 @@ class Provider_Woo extends Base {
 
 		// Get all the product variations and sum up the stocks if needed - stock is managed in the variation level (@since 1.5.7)
 		if ( empty( $availability['availability'] ) && $product->is_type( 'variable' ) ) {
-			$stock_amount = $this->get_stock_amount( $product );
+			$stock_amount = Woocommerce_Helpers::get_stock_amount( $product );
 
-			$availability['availability'] = $this->format_stock_for_display( $product, $stock_amount );
+			$availability['availability'] = Woocommerce_Helpers::format_stock_for_display( $product, $stock_amount );
 		}
 
 		if ( ! empty( $availability['availability'] ) ) {
@@ -601,65 +642,6 @@ class Provider_Woo extends Base {
 		}
 
 		return apply_filters( 'woocommerce_get_stock_html', $html, $product );
-	}
-
-	/**
-	 * Similar function to wc_format_stock_for_display but adapted to be possible to use the stock sum up of the product variations
-	 *
-	 * @since 1.5.7
-	 */
-	public function format_stock_for_display( $product, $stock_amount ) {
-		$display = __( 'In stock', 'woocommerce' );
-
-		switch ( get_option( 'woocommerce_stock_format' ) ) {
-			case 'low_amount':
-				if ( $stock_amount <= wc_get_low_stock_amount( $product ) ) {
-					/* translators: %s: stock amount */
-					$display = sprintf( __( 'Only %s left in stock', 'woocommerce' ), wc_format_stock_quantity_for_display( $stock_amount, $product ) );
-				}
-				break;
-			case '':
-				/* translators: %s: stock amount */
-				$display = sprintf( __( '%s in stock', 'woocommerce' ), wc_format_stock_quantity_for_display( $stock_amount, $product ) );
-				break;
-		}
-
-		if ( $product->backorders_allowed() && $product->backorders_require_notification() ) {
-			$display .= ' ' . __( '(can be backordered)', 'woocommerce' );
-		}
-
-		return $display;
-	}
-
-	/**
-	 * Get product stock amount value
-	 *
-	 * Previously in get_stock_html(), but refactored into a separate function for reusability and readability.
-	 * Bare in mind if the product is not managed stock, the value will be 0 even stock status is instock.
-	 *
-	 * @param \WC_Product $product
-	 * @return int
-	 *
-	 * @since 1.6.1
-	 */
-	public function get_stock_amount( $product ) {
-		$stock_amount = $product->get_stock_quantity();
-
-		if ( $product->is_type( 'variable' ) ) {
-			$variations = $product->get_available_variations();
-
-			foreach ( $variations as $variation ) {
-				if ( empty( $variation['is_in_stock'] ) ) {
-					continue;
-				}
-
-				$variation_obj = new \WC_Product_variation( $variation['variation_id'] );
-
-				$stock_amount += $variation_obj->get_stock_quantity();
-			}
-		}
-
-		return (int) $stock_amount; // @since 1.9.1 - Possible to return negative value when using backorders (#861n84vua)
 	}
 
 	/**

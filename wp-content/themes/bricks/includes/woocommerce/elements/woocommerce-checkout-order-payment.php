@@ -3,7 +3,7 @@ namespace Bricks;
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-class Woocommerce_Checkout_Order_Payment extends Element {
+class Woocommerce_Checkout_Order_Payment extends Woo_Element {
 	public $category        = 'woocommerce';
 	public $name            = 'woocommerce-checkout-order-payment';
 	public $icon            = 'ti-menu-alt';
@@ -26,6 +26,14 @@ class Woocommerce_Checkout_Order_Payment extends Element {
 	}
 
 	public function set_controls() {
+		// Preview order ID (@since 1.10)
+		$this->controls['previewOrderId'] = [
+			'type'     => 'number',
+			'label'    => esc_html__( 'Preview order ID', 'bricks' ),
+			'info'     => esc_html__( 'Fallback', 'bricks' ) . ': ' . esc_html__( 'Last order', 'bricks' ),
+			'rerender' => true,
+		];
+
 		// PAYMENT
 
 		$this->controls['paymentMargin'] = [
@@ -328,31 +336,16 @@ class Woocommerce_Checkout_Order_Payment extends Element {
 
 	public function render() {
 		$settings = $this->settings;
-		$order    = false;
+		$order    = $this->get_order( 'form-pay' );
 
-		// Populate the template with the last order
-		if ( bricks_is_builder() || bricks_is_builder_call() ) {
-			$orders = wc_get_orders(
+		// Check if the order exists
+		if ( ! is_a( $order, 'WC_Order' ) ) {
+			// Maybe no order exists
+			return $this->render_element_placeholder(
 				[
-					'limit' => 1,
+					'title' => esc_html__( 'No order found or the order is not suitable for this element.', 'bricks' ),
 				]
 			);
-
-			$order = $orders ? $orders[0] : false;
-		}
-
-		// Logic from WC_Shortcode_Checkout::order_received()
-		else {
-			$order_id  = get_query_var( 'order-pay', false );
-			$order_key = isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
-
-			if ( $order_id > 0 ) {
-				$order = wc_get_order( $order_id );
-
-				if ( ! $order || ! hash_equals( $order->get_order_key(), $order_key ) ) {
-					$order = false;
-				}
-			}
 		}
 
 		// Render WooCommerce part templates/checkout/form-pay.php

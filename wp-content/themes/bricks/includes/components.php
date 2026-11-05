@@ -1,0 +1,119 @@
+<?php
+namespace Bricks;
+
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
+class Components {
+	public function __construct() {
+		add_action( 'wp_ajax_bricks_upgrade_components', [ $this, 'upgrade_components' ] );
+		add_action( 'wp_ajax_bricks_get_component_instances', [ $this, 'get_component_instances' ] );
+	}
+
+	/**
+	 * Upgrade components to latest data structure
+	 *
+	 * @since 1.12
+	 */
+	public static function upgrade_components( $components ) {
+		// Component in-builder (PanelElements.vue)
+		if ( bricks_is_ajax_call() ) {
+			Ajax::verify_request( 'bricks-nonce-builder' );
+			$components = $_POST['components'] ?? [];
+		}
+
+		foreach ( $components as $index => $component ) {
+			/**
+			 * STEP: Convert 1.12-beta components to 1.12 data structure
+			 *
+			 * Move root component element (incl. name, settings, children, label) from component object to elements array.
+			 */
+			if ( isset( $component['name'] ) ) {
+				$component_root_element = [
+					'id'       => $component['id'],
+					'name'     => $component['name'],
+					'settings' => $component['settings'] ?? [],
+					'children' => $component['children'] ?? [],
+					'parent'   => 0,
+				];
+
+				// Move component label to root element
+				if ( ! empty( $component['label'] ) ) {
+					$component_root_element['label'] = $component['label'];
+				}
+
+				// Add root element as first item to elements array
+				if ( isset( $components[ $index ]['elements'] ) && is_array( $components[ $index ]['elements'] ) ) {
+					array_unshift( $components[ $index ]['elements'], $component_root_element );
+				} else {
+					$components[ $index ]['elements'] = [ $component_root_element ];
+				}
+
+				// Remove root level properties
+				unset( $components[ $index ]['name'] );
+				unset( $components[ $index ]['settings'] );
+				unset( $components[ $index ]['children'] );
+			}
+		}
+
+		// Return: Components in-builder import (PanelElements.vue)
+		if ( bricks_is_ajax_call() ) {
+			wp_send_json_success( [ 'newComponents' => $components ] );
+		}
+
+		// Return upgraded components
+		return $components;
+	}
+
+	public function get_component_instances() {
+		Ajax::verify_request( 'bricks-nonce-builder' );
+
+		// Get component IDS from real-time builder data to account for deleted components, etc.
+		$component_ids   = $_POST['componentIds'] ?? [];
+		$current_post_id = $_POST['postId'] ?? 0;
+
+		// Loop over all Bricks-enabled post types to get elements with 'cid' key
+		$instances = [];
+		$post_ids  = Helpers::get_all_bricks_post_ids();
+
+		foreach ( $post_ids as $post_id ) {
+			// Skip the current post (get instances in builder from dynamicElements
+			if ( $post_id == $current_post_id ) {
+				continue;
+			}
+
+			$bricks_data = Database::get_data( $post_id );
+
+			// Stringify the data to search for all 'cid' appearances
+			$bricks_data_json = json_encode( $bricks_data );
+
+			// Find all 'cid' keys in the data
+			preg_match_all( '/"cid":"(.*?)"/', $bricks_data_json, $matches );
+
+			// Loop over all matches and add them to the $instances array
+			foreach ( $matches[1] as $cid ) {
+				// Skip if the component ID is not in the list of component IDs
+				if ( ! in_array( $cid, $component_ids ) ) {
+					continue;
+				}
+
+				if ( empty( $instances[ $cid ][ $post_id ] ) ) {
+					$post_title       = get_the_title( $post_id );
+					$post_type        = get_post_type( $post_id );
+					$post_type_object = get_post_type_object( $post_type );
+
+					$instances[ $cid ][ $post_id ] = [
+						'count'      => 1,
+						'post_title' => $post_title,
+						'post_type'  => $post_type_object->labels->singular_name ?? $post_type,
+						'permalink'  => Helpers::get_builder_edit_link( $post_id ),
+					];
+				} else {
+					$instances[ $cid ][ $post_id ]['count']++;
+				}
+			}
+
+		}
+
+		wp_send_json_success( $instances );
+	}
+}

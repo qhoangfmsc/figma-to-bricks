@@ -19,6 +19,13 @@ class Registration extends Base {
 		$last_name            = isset( $form_settings['registrationLastName'] ) && isset( $form_fields[ "form-field-{$form_settings['registrationLastName']}" ] ) ? $form_fields[ "form-field-{$form_settings['registrationLastName']}" ] : false;
 		$user_pass            = isset( $form_settings['registrationPassword'] ) && isset( $form_fields[ "form-field-{$form_settings['registrationPassword']}" ] ) ? $form_fields[ "form-field-{$form_settings['registrationPassword']}" ] : false;
 		$user_pass_min_length = isset( $form_settings['registrationPasswordMinLength'] ) ? intval( $form_settings['registrationPasswordMinLength'] ) : false;
+		$user_role            = isset( $form_settings['registrationRole'] ) ? $form_settings['registrationRole'] : get_option( 'default_role' );
+		$wp_notification      = isset( $form_settings['registrationWPNotification'] ) && $form_settings['registrationWPNotification']; // (@since 1.12.2)
+
+		// Unset if $user_role is 'administrator' or 'super_admin' (for security reasons)
+		if ( in_array( $user_role, [ 'administrator', 'super_admin' ], true ) ) {
+			$user_role = get_option( 'default_role' );
+		}
 
 		// No user_login: Auto generate username from email address
 		if ( ! $user_login && is_email( $user_email ) ) {
@@ -47,6 +54,7 @@ class Registration extends Base {
 			'last_name'            => $last_name,
 			'user_pass'            => $user_pass,
 			'user_pass_min_length' => $user_pass_min_length,
+			'role'                 => $user_role,
 		];
 
 		// Form validation
@@ -83,7 +91,14 @@ class Registration extends Base {
 			return;
 		}
 
-		// Success
+		/**
+		 * Success, trigger 'register_new_user' action hook (so notifications can be sent)
+		 *
+		 * @since 1.12.2
+		 */
+		if ( $wp_notification ) {
+			do_action( 'register_new_user', $user_id );
+		}
 
 		// Auto log in user
 		if ( isset( $form_settings['registrationAutoLogin'] ) ) {

@@ -17,150 +17,22 @@ class Filter_Radio extends Filter_Element {
 		$filter_controls = $this->get_filter_controls();
 
 		if ( ! empty( $filter_controls ) ) {
+			// fieldCompareOperator placeholder and default value should be Equal
+			$filter_controls['fieldCompareOperator']['placeholder'] = esc_html__( 'Equal', 'bricks' );
+
+			// Remove "IN", "NOT IN", "BETWEEN", "NOT BETWEEN" from select options
+			unset( $filter_controls['fieldCompareOperator']['options']['IN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['NOT IN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['BETWEEN'] );
+			unset( $filter_controls['fieldCompareOperator']['options']['NOT BETWEEN'] );
 			$this->controls = array_merge( $this->controls, $filter_controls );
 		}
-
-		// MODE: Radio / Button
-		$this->controls['modeSep'] = [
-			'label' => esc_html__( 'Mode', 'bricks' ),
-			'type'  => 'separator',
-		];
-
-		$this->controls['displayMode'] = [
-			'label'       => esc_html__( 'Mode', 'bricks' ),
-			'type'        => 'select',
-			'inline'      => true,
-			'options'     => [
-				'radio'  => esc_html__( 'Radio', 'bricks' ),
-				'button' => esc_html__( 'Button', 'bricks' ),
-			],
-			'placeholder' => esc_html__( 'Radio', 'bricks' ),
-		];
-
-		// BUTTON
-		$this->controls['buttonSep'] = [
-			'label'    => esc_html__( 'Button', 'bricks' ),
-			'type'     => 'separator',
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonSize'] = [
-			'label'       => esc_html__( 'Size', 'bricks' ),
-			'type'        => 'select',
-			'options'     => $this->control_options['buttonSizes'],
-			'inline'      => true,
-			'placeholder' => esc_html__( 'Default', 'bricks' ),
-			'required'    => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonStyle'] = [
-			'label'       => esc_html__( 'Style', 'bricks' ),
-			'type'        => 'select',
-			'options'     => $this->control_options['styles'],
-			'inline'      => true,
-			'placeholder' => esc_html__( 'None', 'bricks' ),
-			'required'    => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonCircle'] = [
-			'label'    => esc_html__( 'Circle', 'bricks' ),
-			'type'     => 'checkbox',
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonOutline'] = [
-			'label'    => esc_html__( 'Outline', 'bricks' ),
-			'type'     => 'checkbox',
-			'required' => [
-				[ 'displayMode', '=', 'button' ],
-				[ 'buttonStyle', '!=', '' ],
-			],
-		];
-
-		// Style none: Show background color, border, typography controls
-		$this->controls['buttonBackgroundColor'] = [
-			'label'    => esc_html__( 'Background color', 'bricks' ),
-			'type'     => 'color',
-			'css'      => [
-				[
-					'property' => 'background-color',
-					'selector' => '.bricks-button',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonBorder'] = [
-			'label'    => esc_html__( 'Border', 'bricks' ),
-			'type'     => 'border',
-			'css'      => [
-				[
-					'property' => 'border-color',
-					'selector' => '.bricks-button',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonTypography'] = [
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'type'     => 'typography',
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-button',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		// Active button
-		$this->controls['buttonActiveSep'] = [
-			'label'    => esc_html__( 'Button', 'bricks' ) . ' (' . esc_html__( 'Active', 'bricks' ) . ')',
-			'type'     => 'separator',
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonActiveBackgroundColor'] = [
-			'label'    => esc_html__( 'Background color', 'bricks' ),
-			'type'     => 'color',
-			'css'      => [
-				[
-					'property' => 'background-color',
-					'selector' => '.bricks-button.active',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonActiveBorder'] = [
-			'label'    => esc_html__( 'Border', 'bricks' ),
-			'type'     => 'border',
-			'css'      => [
-				[
-					'property' => 'border-color',
-					'selector' => '.bricks-button.active',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
-
-		$this->controls['buttonActiveTypography'] = [
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'type'     => 'typography',
-			'css'      => [
-				[
-					'property' => 'font',
-					'selector' => '.bricks-button.active',
-				],
-			],
-			'required' => [ 'displayMode', '=', 'button' ],
-		];
 	}
 
 	/**
 	 * Populate options from user input and set to $this->populated_options
-	 * Not in Beta
+	 *
+	 * NOTE: Not in 1.11-beta
 	 */
 	private function populate_user_options() {
 		$settings = $this->settings;
@@ -190,12 +62,16 @@ class Filter_Radio extends Filter_Element {
 	 *
 	 * If is a sort input
 	 * - Set sorting options
+	 *
+	 * If is a per_page input
+	 * - Set per_page options
+	 *
 	 * If is a filter input
 	 * - Prepare sources
 	 * - Set data_source
 	 * - Set final options
 	 *
-	 * - Set data-brx-filter attribute
+	 * - Set attribute 'data-brx-filter'
 	 */
 	private function set_as_filter() {
 		$settings = $this->settings;
@@ -229,12 +105,17 @@ class Filter_Radio extends Filter_Element {
 					break;
 			}
 
-			$this->set_options();
+			$this->set_options_with_count();
 		}
 
-		// Sort
-		else {
+		elseif ( $filter_action === 'sort' ) {
+			// User wish to use what options as sort options
 			$this->setup_sort_options();
+		}
+
+		else {
+			// User wish to use what options as per_page options
+			$this->setup_per_page_options();
 		}
 
 		// Insert filter settings as data-brx-filter attribute
@@ -263,16 +144,29 @@ class Filter_Radio extends Filter_Element {
 			$current_value = $settings['filterValue'];
 		}
 
+		// Escape attributes or it can't match with the options (@since 1.12)
+		$current_value = esc_attr( $current_value );
+
 		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
+
+			// Return: Indexing in progress (@since 1.10)
+			if ( $this->is_indexing() ) {
+				return $this->render_element_placeholder(
+					[
+						'title' => esc_html__( 'Indexing in progress.', 'bricks' ),
+					]
+				);
+			}
 		} else {
 			// Not in Beta
 			// $this->populate_user_options();
 		}
 
-		$display_mode = $settings['displayMode'] ?? 'radio';
+		$display_mode    = $settings['displayMode'] ?? 'default';
+		$hide_all_option = isset( $settings['filterHideAllOption'] );
 
 		if ( $display_mode === 'button' ) {
 			$this->set_attribute( '_root', 'data-mode', 'button' );
@@ -280,56 +174,82 @@ class Filter_Radio extends Filter_Element {
 
 		echo "<ul {$this->render_attributes('_root')}>";
 
-		foreach ( $this->populated_options as $option ) {
-			$option_value    = esc_attr( strip_tags( $option['value'] ) );
-			$option_text     = strip_tags( $option['text'] );
+		foreach ( $this->populated_options as $index => $option ) {
+			// Skip the "All" option is set (@since 1.11)
+			if ( $hide_all_option && isset( $option['is_all'] ) && $option['is_all'] ) {
+				continue;
+			}
+
+			/**
+			 * Skip empty text options
+			 *
+			 * Each option must have a text. 0 is allowed, otherwise it will conflict with the "All" option / Placeholder option.
+			 *
+			 * @since 1.12
+			 */
+			if ( isset( $option['text'] ) && $option['text'] === '' ) {
+				continue;
+			}
+
+			$option_value    = esc_attr( $option['value'] );
+			$option_text     = $this->get_option_text_with_count( $option );
 			$option_class    = esc_attr( $option['class'] );
-			$option_checked  = $option_value === $current_value ? 'checked' : '';
-			$option_disabled = isset( $option['disabled'] ) ? 'disabled' : '';
-			$span_class      = '';
+			$option_checked  = self::is_option_value_matched( rawurldecode( $option_value ), $current_value );
+			$option_disabled = isset( $option['disabled'] );
+
+			$li_key    = 'li_' . $index;
+			$label_key = 'label_' . $index;
+			$input_key = 'input_' . $index;
+			$span_key  = 'span_' . $index;
+
+			$this->set_attribute( $input_key, 'type', 'radio' );
+			$this->set_attribute( $input_key, 'name', $this->input_name );
+			$this->set_attribute( $input_key, 'value', $option_value );
+
+			$this->set_attribute( $span_key, 'class', 'brx-option-text' );
+			$this->set_attribute( $label_key, 'class', $option_class );
+
+			if ( $option_checked ) {
+				// Set checked attribute
+				$this->set_attribute( $input_key, 'checked', 'checked' );
+
+				// Set .brx-option-active classes so user could style easily (avoid using .active as it's too general)
+				$this->set_attribute( $li_key, 'class', 'brx-option-active' );
+				$this->set_attribute( $label_key, 'class', 'brx-option-active' );
+				$this->set_attribute( $span_key, 'class', 'brx-option-active' );
+			}
+
+			if ( $option_disabled ) {
+				// Set disabled attribute
+				$this->set_attribute( $input_key, 'disabled', 'disabled' );
+			}
 
 			// Mode: Button
 			if ( $display_mode === 'button' ) {
-				$span_class = 'bricks-button';
+				$this->set_attribute( $span_key, 'class', 'bricks-button' );
+				$this->set_attribute( $span_key, 'tabindex', '0' ); // Make it focusable
 
 				if ( isset( $settings['buttonSize'] ) ) {
-					$span_class .= ' ' . $settings['buttonSize'];
+					$this->set_attribute( $span_key, 'class', $settings['buttonSize'] );
 				}
 
 				if ( isset( $settings['buttonStyle'] ) ) {
 					if ( isset( $settings['buttonOutline'] ) ) {
-						$span_class .= ' outline bricks-color-' . $settings['buttonStyle'];
+						$this->set_attribute( $span_key, 'class', 'outline bricks-color-' . $settings['buttonStyle'] );
 					} else {
-						$span_class .= ' bricks-background-' . $settings['buttonStyle'];
+						$this->set_attribute( $span_key, 'class', 'bricks-background-' . $settings['buttonStyle'] );
 					}
 				}
 
 				if ( isset( $settings['buttonCircle'] ) ) {
-					$span_class .= ' circle';
-				}
-
-				if ( $option_checked === 'checked' ) {
-					$span_class .= ' active';
+					$this->set_attribute( $span_key, 'class', 'circle' );
 				}
 			}
 
-			echo '<li>';
-			echo "<label class=\"$option_class\">";
-
-			echo '<input type="radio" name="' . $this->input_name . '" value="' . $option_value . '" ' .
-			$option_checked . ' ' .
-			$option_disabled . '>';
-
-			if ( $span_class ) {
-				echo "<span class=\"$span_class\">";
-			} else {
-				echo '<span>';
-			}
-
-			echo $option_text;
-
-			echo '</span>';
-
+			echo "<li {$this->render_attributes( $li_key )}>";
+			echo "<label {$this->render_attributes( $label_key )}>";
+			echo "<input {$this->render_attributes( $input_key )}>";
+			echo "<span {$this->render_attributes( $span_key )}>{$option_text}</span>";
 			echo '</label>';
 			echo '</li>';
 		}

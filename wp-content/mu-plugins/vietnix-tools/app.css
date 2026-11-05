@@ -23,11 +23,19 @@
 .vietnix-template strong { display: block; margin-top: 2px; font-size: 15px; }
 .vietnix-part { margin: 0 0 10px; padding: 10px; border: 1px solid #dcdcde; border-radius: 4px; background: #f6f7f7; }
 .vietnix-part header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-.vietnix-part header strong { flex: 1; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.vietnix-part-name { flex: 1; }
+.vietnix-kind { display: block; margin-bottom: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #2271b1; }
+.vietnix-part header strong { font-size: 13px; font-weight: 600; line-height: 1.4; }
 .vietnix-part header a { font-size: 12px; font-weight: 400; }
+.vietnix-part .vietnix-note { margin: 0 0 8px; color: #50575e; font-size: 12px; }
 .vietnix-part label { display: flex; flex-direction: column; gap: 8px; margin: 0 0 8px; }
 .vietnix-part label:last-child { margin-bottom: 0; }
 .vietnix-summary { margin: 0 0 12px; color: #50575e; }
+.vietnix-review { margin: 12px 0; padding: 10px 12px; background: #f6f7f7; border-radius: 4px; }
+.vietnix-review.is-fail { border-left: 4px solid #dba617; }
+.vietnix-review.is-pass { border-left: 4px solid #146c2e; }
+.vietnix-review-title { margin: 0 0 6px; font-weight: 700; }
+.vietnix-review ul { margin: 0; padding-left: 18px; }
 .vietnix-log { margin-top: 16px; }
 .vietnix-log pre { max-height: 220px; overflow: auto; margin: 0; white-space: pre-wrap; }
 @media (max-width: 1200px) {

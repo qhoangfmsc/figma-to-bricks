@@ -13,8 +13,10 @@ class Ajax {
 		add_filter( 'sanitize_post_meta_' . BRICKS_DB_PAGE_CONTENT, [ $this, 'sanitize_bricks_postmeta' ], 10, 3 );
 		add_filter( 'sanitize_post_meta_' . BRICKS_DB_PAGE_HEADER, [ $this, 'sanitize_bricks_postmeta' ], 10, 3 );
 		add_filter( 'sanitize_post_meta_' . BRICKS_DB_PAGE_FOOTER, [ $this, 'sanitize_bricks_postmeta' ], 10, 3 );
+		add_filter( 'sanitize_post_meta_' . BRICKS_DB_PAGE_SETTINGS, [ $this, 'sanitize_bricks_postmeta_page_settings' ], 10, 3 );
 		add_action( 'update_post_metadata', [ $this, 'update_bricks_postmeta' ], 10, 5 );
 
+		add_action( 'wp_ajax_bricks_import_images', [ $this, 'import_images' ] );
 		add_action( 'wp_ajax_bricks_download_image', [ $this, 'download_image' ] );
 		add_action( 'wp_ajax_bricks_get_image_metadata', [ $this, 'get_image_metadata' ] );
 		add_action( 'wp_ajax_bricks_get_image_from_custom_field', [ $this, 'get_image_from_custom_field' ] );
@@ -29,6 +31,7 @@ class Ajax {
 
 		add_action( 'wp_ajax_bricks_publish_post', [ $this, 'publish_post' ] );
 		add_action( 'wp_ajax_bricks_save_post', [ $this, 'save_post' ] );
+		add_action( 'wp_ajax_bricks_save_template_screenshot', [ $this, 'save_template_screenshot' ] );
 		add_action( 'wp_ajax_bricks_create_autosave', [ $this, 'create_autosave' ] );
 		add_action( 'wp_ajax_bricks_get_builder_url', [ $this, 'get_builder_url' ] );
 
@@ -64,6 +67,33 @@ class Ajax {
 		// Frontend: Regenerate form nonce (@since 1.9.6)
 		add_action( 'wp_ajax_bricks_regenerate_form_nonce', [ $this, 'regenerate_form_nonce' ] );
 		add_action( 'wp_ajax_nopriv_bricks_regenerate_form_nonce', [ $this, 'regenerate_form_nonce' ] );
+
+		// Frontend: Regenerate query nonce (@since 1.11)
+		add_action( 'wp_ajax_bricks_regenerate_query_nonce', [ $this, 'regenerate_query_nonce' ] );
+		add_action( 'wp_ajax_nopriv_bricks_regenerate_query_nonce', [ $this, 'regenerate_query_nonce' ] );
+
+		// Restore global class (@since 1.11)
+		add_action( 'wp_ajax_bricks_restore_global_class', [ $this, 'restore_global_class' ] );
+
+		// Add new action for deleting global classes permanently (@since 1.11)
+		add_action( 'wp_ajax_bricks_delete_global_classes_permanently', [ $this, 'delete_global_classes_permanently' ] );
+	}
+
+	/**
+	 * Check if current endpoint is Bricks AJAX endpoint
+	 *
+	 * @param string $action E.g. 'get_template_elements_by_id' or 'form_submit'
+	 *
+	 * @since 1.11
+	 *
+	 * @return bool
+	 */
+	public static function is_current_endpoint( $action ) {
+		if ( ! bricks_is_ajax_call() || ! isset( $_POST['action'] ) ) {
+			return false;
+		}
+
+		return sanitize_text_field( $_POST['action'] ) === 'bricks_' . $action;
 	}
 
 	/**
@@ -73,6 +103,11 @@ class Ajax {
 	 */
 	public function generate_code_signature() {
 		self::verify_request( 'bricks-nonce-builder' );
+
+		// Check if code signatures are locked (@since 1.11.1)
+		if ( defined( 'BRICKS_LOCK_CODE_SIGNATURES' ) && BRICKS_LOCK_CODE_SIGNATURES ) {
+			wp_send_json_error( esc_html__( 'Code signatures are locked.', 'bricks' ) );
+		}
 
 		if (
 			! empty( $_POST['element'] ) &&
@@ -110,6 +145,21 @@ class Ajax {
 	public function regenerate_form_nonce() {
 		echo wp_create_nonce( 'bricks-nonce-form' );
 		wp_die();
+	}
+
+	/**
+	 *
+	 * Query Sort/Filter: Regenerate nonce
+	 *
+	 * @since 1.11
+	 */
+	public function regenerate_query_nonce() {
+		wp_send_json_success(
+			[
+				'bricks_nonce' => wp_create_nonce( 'bricks-nonce' ),
+				'rest_nonce'   => wp_create_nonce( 'wp_rest' ),
+			]
+		);
 	}
 
 	/**
@@ -169,7 +219,7 @@ class Ajax {
 	public function save_panel_width() {
 		self::verify_request( 'bricks-nonce-builder' );
 
-		// Min. panel width check to fix disappearing panel issue
+		// STEP: Update panel width
 		$panel_width = isset( $_POST['panelWidth'] ) ? intval( $_POST['panelWidth'] ) : 0;
 
 		if ( $panel_width >= 100 ) {
@@ -180,14 +230,28 @@ class Ajax {
 					'panel_width'         => $panel_width,
 				]
 			);
-		} else {
-			wp_send_json_error(
+		}
+
+		// STEP: Update structure width
+		$structure_width = isset( $_POST['structureWidth'] ) ? intval( $_POST['structureWidth'] ) : 0;
+
+		if ( $structure_width >= 100 ) {
+			$structure_width_updated = update_option( BRICKS_DB_STRUCTURE_WIDTH, $structure_width );
+			wp_send_json_success(
 				[
-					'message'     => esc_html__( 'Panel width could not be saved.', 'bricks' ),
-					'panel_width' => $panel_width,
+					'structure_width_updated' => $structure_width_updated,
+					'structure_width'         => $structure_width,
 				]
 			);
 		}
+
+		// Return error
+		wp_send_json_error(
+			[
+				'message'     => esc_html__( 'Panel width could not be saved.', 'bricks' ),
+				'panel_width' => $panel_width || $structure_width,
+			]
+		);
 	}
 
 	/**
@@ -251,10 +315,12 @@ class Ajax {
 		self::verify_request( 'bricks-nonce-builder' );
 
 		$query_args = [
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
-			'post_type'      => ! empty( $_GET['postType'] ) ? sanitize_text_field( $_GET['postType'] ) : 'page',
-			'fields'         => 'ids'
+			'posts_per_page'   => -1,
+			'post_status'      => 'any',
+			'post_type'        => ! empty( $_GET['postType'] ) ? sanitize_text_field( $_GET['postType'] ) : 'page',
+			'fields'           => 'ids',
+			'suppress_filters' => true, // WPML (also prevents any posts_where filters from modifying the query)
+			'lang'             => '', // Polylang
 		];
 
 		// NOTE: Undocumented
@@ -319,11 +385,12 @@ class Ajax {
 	public function duplicate_content() {
 		self::verify_request( 'bricks-nonce-builder' );
 
-		if ( ! current_user_can( Admin::EDITING_CAP ) ) {
-			wp_send_json_error( esc_html__( 'Not allowed', 'bricks' ) );
-		}
-
 		$post_id = ! empty( $_POST['postId'] ) ? absint( $_POST['postId'] ) : 0;
+
+		// Return: User can not edit this post
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'Not allowed', 'bricks' ) ] );
+		}
 
 		$new_post_id = Admin::duplicate_content( $post_id );
 
@@ -352,6 +419,7 @@ class Ajax {
 		$loop_element = $data['loopElement'] ?? false;
 		$element      = $data['element'] ?? false;
 		$element_name = $element['name'] ?? false;
+		$parent_loops = $data['parentLoops'] ?? [];
 
 		// AJAX call
 		if ( $is_ajax ) {
@@ -375,14 +443,24 @@ class Ajax {
 		 * @since 1.4
 		 */
 		if ( ! empty( $loop_element ) ) {
-			$query = new Query( $loop_element );
+			// If it's an element inside a component, should use the component data (@since 1.12)
+			$cid       = $loop_element['cid'] ?? false;
+			$component = $element['componentInstance'] ?? false;
 
-			if ( ! empty( $query->count ) ) {
-				$query->is_looping = true;
-
-				// NOTE: Use array_shift because not all the results are sequential arrays (e.g. JetEngine)
-				$query->loop_object = $query->object_type == 'post' ? $query->query_result->posts[0] : array_shift( $query->query_result );
+			if ( $cid && isset( $component['id'] ) && $component['id'] === $cid ) {
+				$loop_element = $component;
 			}
+
+			// Run parent queries (@since 1.12.2)
+			if ( ! empty( $parent_loops ) ) {
+				foreach ( $parent_loops as $parent_loop ) {
+					// Run each parent query
+					self::simulate_bricks_query( $parent_loop );
+				}
+			}
+
+			// Run the current query
+			self::simulate_bricks_query( $loop_element );
 		}
 
 		// Init element class (i.e. new Bricks\Element_Alert( $element ))
@@ -398,8 +476,6 @@ class Ajax {
 			ob_start();
 			$element_instance->init();
 			$response = ob_get_clean();
-			// NOTE: stripslashes no longer in use (@since 1.8.5) as they caused unicode characters to be escaped (e.g. \u00a0) (#862jxcrde; #862jxw1w7)
-			// $response = stripslashes( $response );
 		}
 
 		// Element doesn't exist
@@ -433,9 +509,9 @@ class Ajax {
 	/**
 	 * Generate the HTML based on the builder content data (post Id or content)
 	 *
-	 * Used to feed Rank Math SEO analyses
+	 * Used to feed Rank Math SEO & Yoast content analysis (@since 1.11)
 	 *
-	 * Note: This method doesn't generate styles
+	 * NOTE: This method doesn't generate any styles!
 	 */
 	public function get_html_from_content() {
 		if ( bricks_is_builder() ) {
@@ -449,11 +525,12 @@ class Ajax {
 		self::verify_request( $nonce );
 
 		$post_id = ! empty( $_POST['postId'] ) ? intval( $_POST['postId'] ) : false;
-		$data    = ! empty( $_POST['content'] ) ? self::decode( $_POST['content'], false ) : get_post_meta( $post_id, BRICKS_DB_PAGE_CONTENT, true );
 
-		if ( is_array( $data ) ) {
-			$data = array_map( 'Bricks\Helpers::set_is_frontend_to_false', $data );
-		}
+		// Set active templates for the current post
+		Database::set_active_templates( $post_id );
+
+		// Get the content data
+		$data = Helpers::get_bricks_data( $post_id, 'content' );
 
 		$html = ! empty( $data ) ? Frontend::render_data( $data ) : '';
 
@@ -566,7 +643,8 @@ class Ajax {
 		}
 
 		if ( ! empty( $_GET['search'] ) ) {
-			$query_args['s'] = stripslashes_deep( sanitize_text_field( $_GET['search'] ) );
+			$query_args['s']       = stripslashes_deep( sanitize_text_field( $_GET['search'] ) );
+			$query_args['orderby'] = 'relevance'; // (#86c0zr03p)
 		}
 
 		$posts = Helpers::get_posts_by_post_id( $query_args );
@@ -639,20 +717,67 @@ class Ajax {
 	public function get_terms_options() {
 		self::verify_request( 'bricks-nonce-builder' );
 
-		$post_types = ! empty( $_GET['postTypes'] ) ? array_map( 'sanitize_text_field', $_GET['postTypes'] ) : null;
-		$taxonomy   = ! empty( $_GET['taxonomy'] ) ? array_map( 'sanitize_text_field', $_GET['taxonomy'] ) : null;
-		$terms      = [];
+		$post_types  = ! empty( $_GET['postTypes'] ) ? array_map( 'sanitize_text_field', $_GET['postTypes'] ) : null;
+		$taxonomy    = ! empty( $_GET['taxonomy'] ) ? array_map( 'sanitize_text_field', $_GET['taxonomy'] ) : null;
+		$search      = ! empty( $_GET['search'] ) ? stripslashes_deep( sanitize_text_field( $_GET['search'] ) ) : ''; // Improve performance (@since 1.12)
+		$include_all = ! empty( $_GET['includeAll'] ) ? true : null;
+		$terms       = [];
 
 		if ( ! empty( $post_types ) ) {
 			foreach ( (array) $post_types as $post_type ) {
-				$type_terms = Helpers::get_terms_options( $taxonomy, $post_type );
+				$type_terms = Helpers::get_terms_options( $taxonomy, $post_type, $include_all, $search );
 
 				if ( ! empty( $type_terms ) ) {
 					$terms = array_merge( $terms, $type_terms );
 				}
 			}
 		} elseif ( ! empty( $taxonomy ) ) {
-			$terms = Helpers::get_terms_options( $taxonomy );
+			$terms = Helpers::get_terms_options( $taxonomy, null, $include_all, $search );
+		}
+
+		// If AJAX request contains "include" parameter, make sure some term_ids are included in the response (@since 1.12)
+		if ( ! empty( $_GET['include'] ) ) {
+			$include_terms = (array) $_GET['include'];
+
+			foreach ( $include_terms as $term_string ) {
+				if ( ! array_key_exists( $term_string, $terms ) ) {
+					$term_parts = explode( '::', $term_string );
+					$taxonomy   = sanitize_key( $term_parts[0] );
+					$term_id    = sanitize_key( $term_parts[1] );
+
+					if ( $term_id !== 0 && taxonomy_exists( $taxonomy ) ) {
+						$term_name      = '';
+						$taxonomy_label = Helpers::generate_taxonomy_label( $taxonomy );
+
+						if ( $term_id === 'all' ) {
+							$term_name = esc_html__( 'All terms', 'bricks' );
+						} else {
+							$term = get_term( $term_id, $taxonomy );
+							if ( $term && ! is_wp_error( $term ) ) {
+								$term_name = $term->name;
+							}
+						}
+
+						$terms[ $term_string ] = "{$term_name} ({$taxonomy_label})";
+					}
+				}
+			}
+		}
+
+		// Apply filter to each term name (@since 1.11)
+		foreach ( $terms as $key => $value ) {
+			$term_parts = explode( '::', $key );
+
+			if ( count( $term_parts ) === 2 ) {
+				$taxonomy = sanitize_key( $term_parts[0] );
+				$term_id  = sanitize_key( $term_parts[1] );
+
+				if ( $term_id !== 0 && $term_id !== 'all' && taxonomy_exists( $taxonomy ) ) {
+					// NOTE: Undocumented (@since 1.11)
+					$filtered_name = apply_filters( 'bricks/builder/term_name', $value, $term_id, $taxonomy );
+					$terms[ $key ] = sanitize_text_field( $filtered_name );
+				}
+			}
 		}
 
 		wp_send_json_success( $terms );
@@ -675,6 +800,18 @@ class Ajax {
 		$elements = self::decode( $_POST['elements'], false );
 		$elements = array_map( 'Bricks\Helpers::set_is_frontend_to_false', $elements );
 
+		/**
+		 * Use real-time, possibly unsaved components data from builder to generate in-builder styles correctly
+		 *
+		 * Needed as components data in builder is unsaved and not yet in database.
+		 *
+		 * @since 1.12
+		 */
+		$components = isset( $_POST['components'] ) ? self::decode( $_POST['components'], false ) : false;
+		if ( $components ) {
+			Database::$global_data['components'] = $components;
+		}
+
 		// Set Theme Styles (for correct preview of query loop nodes)
 		Theme_Styles::load_set_styles( $post_id );
 
@@ -683,7 +820,7 @@ class Ajax {
 
 		if ( is_array( $global_elements ) && count( $global_elements ) ) {
 			foreach ( $elements as $index => $element ) {
-				$global_element_id = ! empty( $element['global'] ) ? $element['global'] : false;
+				$global_element_id = $element['global'] ?? false;
 
 				if ( $global_element_id ) {
 					foreach ( $global_elements as $global_element ) {
@@ -698,12 +835,21 @@ class Ajax {
 			}
 		}
 
-		// Generate query loop styles for dynamic data (@since 1.8)
+		// Generate query loop styles for dynamic data
 		$loop_name = "loop_{$post_id}";
 
 		// Use loop element ID as loop_name if possible
 		if ( isset( $elements[0]['id'] ) ) {
 			$loop_name = "loop_{$elements[0]['id']}";
+		}
+
+		// Run parent queries (@since 1.12.2)
+		$parent_loops = ! empty( $_POST['parentLoops'] ) ? self::decode( $_POST['parentLoops'], false ) : [];
+		if ( ! empty( $parent_loops ) ) {
+			foreach ( $parent_loops as $parent_loop ) {
+				// Run each parent query
+				self::simulate_bricks_query( $parent_loop );
+			}
 		}
 
 		// Generate Assets before Frontend render to add 'data-query-loop-index' attribute successfully in builder
@@ -728,7 +874,7 @@ class Ajax {
 
 		$data = [
 			'html'   => $html,
-			'styles' => $styles,
+			'styles' => isset( $_POST['staticArea'] ) ? $inline_css : $styles, // StaticArea.vue: inline CSS only, otherwise full styles with <style> tag (@since 1.12)
 		];
 
 		// Run query to get query results count in builder (@since 1.9.1)
@@ -761,9 +907,9 @@ class Ajax {
 	public function save_post() {
 		self::verify_request( 'bricks-nonce-builder' );
 
-		// Return: No post ID set
 		$post_id = ! empty( $_POST['postId'] ) ? intval( $_POST['postId'] ) : 0;
 
+		// Return: No post ID set
 		if ( ! $post_id ) {
 			wp_send_json_error( 'Error: No postId provided!' );
 		}
@@ -778,8 +924,12 @@ class Ajax {
 		 */
 		$revision_id = 0;
 
-		// Check: Bricks elements data changed. If not, don't save post & don't create revision
-		$bricks_data_changed = isset( $_POST['header'] ) || isset( $_POST['content'] ) || isset( $_POST['footer'] );
+		/**
+		 * Bricks elements data changed (header, content, footer, components)
+		 *
+		 * If not, don't save post & don't create revision
+		 */
+		$bricks_data_changed = isset( $_POST['header'] ) || isset( $_POST['content'] ) || isset( $_POST['footer'] ) || isset( $_POST['components'] );
 
 		// Page settings changed: Re-generate external CSS file
 		if ( ! $bricks_data_changed ) {
@@ -787,7 +937,18 @@ class Ajax {
 		}
 
 		/**
-		 * Collect on save conflicts
+		 * Save components in database
+		 *
+		 * @since 1.12
+		 */
+		$components = isset( $_POST['components'] ) ? self::decode( $_POST['components'], false ) : false;
+
+		if ( is_array( $components ) ) {
+			update_option( BRICKS_DB_COMPONENTS, $components );
+		}
+
+		/*
+		 * Collect notifications & conflicts (users modified the same global class at the same time)
 		 *
 		 * Global data in database differs from builder data
 		 *
@@ -795,7 +956,8 @@ class Ajax {
 		 *
 		 * @since 1.9.8
 		 */
-		$conflicts = [];
+		$notifications      = [];
+		$conflicing_classes = [];
 
 		/**
 		 * Create revision if data contains 'header', 'footer', or 'content'
@@ -845,48 +1007,355 @@ class Ajax {
 		 * Save global classes
 		 *
 		 * @since 1.4
+		 * @since 1.9.9: Added global classes conflict check and notifications (if enabled in Bricks settings)
 		 */
+		$global_changes      = isset( $_POST['globalChanges'] ) ? self::decode( $_POST['globalChanges'], false ) : [];
+		$global_ids_added    = $global_changes['added'] ?? [];
+		$global_ids_deleted  = $global_changes['deleted'] ?? [];
+		$global_ids_modified = $global_changes['modified'] ?? [];
+		$global_ids_trashed  = $global_changes['trashed'] ?? []; // Track trashed classes (@since 1.11)
+
 		if ( isset( $_POST['globalClasses'] ) && $has_full_access ) {
 			$global_classes = self::decode( $_POST['globalClasses'], false );
-			// $global_classes_db           = get_option( BRICKS_DB_GLOBAL_CLASSES, [] );
-			// $global_classes_db_timestamp = get_option( BRICKS_DB_GLOBAL_CLASSES_TIMESTAMP, 0 );
-			// $global_classes_db_user_id   = get_option( BRICKS_DB_GLOBAL_CLASSES_USER, 0 );
-			// $global_classes_timestamp    = $_POST['globalClassesTimestamp'] ?? 0;
 
-			// // Conflict: Another user from newer timestamp found in database (@since 1.9.8)
-			// if (
-			// $global_classes_db_user_id != get_current_user_id() &&
-			// $global_classes_timestamp && $global_classes_db_timestamp &&
-			// intval( $global_classes_db_timestamp ) > intval( $global_classes_timestamp )
-			// ) {
-			// $global_classes_db_user = get_user_by( 'ID', $global_classes_db_user_id );
+			// Remove in savePost if conflict has been discarded
+			$global_classes_timestamp = $_POST['globalClassesTimestamp'] ?? 0;
 
-			// $conflicts[] = [
-			// 'key'      => 'globalClasses',
-			// 'current'  => $global_classes,
-			// 'incoming' => $global_classes_db,
-			// 'desc'     => sprintf(
-			// esc_html__( 'Global classes have been modified %1$s ago by %2$s.', 'bricks' ),
-			// human_time_diff( $global_classes_db_timestamp, current_time( 'timestamp' ) - $timezone_offset ),
-			// '<strong>' . ( $global_classes_db_user->display_name ?? esc_html__( 'another user', 'bricks' ) ) . '</strong>'
-			// ),
-			// ];
-			// }
+			// Check: Global classes conflict check enabled
+			$global_classes_snyc = Database::get_setting( 'builderGlobalClassesSync', false );
+
+			$global_classes_db           = $global_classes_snyc ? get_option( BRICKS_DB_GLOBAL_CLASSES, [] ) : [];
+			$global_classes_db_timestamp = $global_classes_snyc ? get_option( BRICKS_DB_GLOBAL_CLASSES_TIMESTAMP, 0 ) : 0;
+			$global_classes_db_user_id   = $global_classes_snyc ? get_option( BRICKS_DB_GLOBAL_CLASSES_USER, 0 ) : 0;
+			$global_classes_trash        = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+
+			/**
+			 * STEP: Classes with newer timestamp found in database
+			 *
+			 * The same or a different user has modified global classes in the meantime.
+			 *
+			 * Collect new classes, deleted classes, and modified classes to show in builder to accept or discard.
+			 *
+			 * @since 1.9.9
+			 */
+			if (
+				$global_classes_snyc &&
+				$global_classes_timestamp && $global_classes_db_timestamp &&
+				intval( $global_classes_db_timestamp ) > intval( $global_classes_timestamp )
+			) {
+				$global_classes_db_user = get_user_by( 'ID', $global_classes_db_user_id );
+				$author                 = $global_classes_db_user->display_name ?? esc_html__( 'Another user', 'bricks' );
+				$avatar                 = get_avatar( $global_classes_db_user_id, 40 );
+
+				// Collect all added, deleted and modified classes from database
+				$classes_added    = [];
+				$classes_deleted  = [];
+				$classes_modified = [];
+				$classes_trashed  = [];
+
+				// STEP: Loop through classes in database to find newly added and modified classes
+				foreach ( $global_classes_db as $global_class_db ) {
+					$found    = false;
+					$modified = false;
+
+					foreach ( $global_classes as $global_class ) {
+						// Class found (i.e. not newly added)
+						if ( $global_class['id'] === $global_class_db['id'] ) {
+							$found                   = true;
+							$compare_global_class    = $global_class;
+							$compare_global_class_db = $global_class_db;
+
+							// Remove 'modified' timestamp and 'user' (ID) to compare
+							unset( $compare_global_class['modified'], $compare_global_class_db['modified'] );
+							unset( $compare_global_class['user'], $compare_global_class_db['user'] );
+
+							// Class modified (name, category, settings, etc.)
+							if ( wp_json_encode( $compare_global_class ) !== wp_json_encode( $compare_global_class_db ) ) {
+								// Database 'modified' timestamp newer than builder timestamp
+								if ( ! empty( $global_class_db['modified'] ) && intval( $global_class_db['modified'] ) > intval( $global_classes_timestamp ) ) {
+									$modified = true;
+								}
+							}
+							break;
+						}
+					}
+
+					// Class added in database, but not in builder, and not deleted or trashed in builder
+					if (
+						! $found &&
+						! in_array( $global_class_db['id'], $global_ids_added ) &&
+						! in_array( $global_class_db['id'], $global_ids_deleted ) &&
+						! in_array( $global_class_db['id'], $global_ids_trashed )
+					) {
+						$classes_added[] = $global_class_db;
+					}
+
+					// Class modified and not deleted or trashed in builder
+					if ( $found && $modified && ! in_array( $global_class_db['id'], $global_ids_deleted ) && ! in_array( $global_class_db['id'], $global_ids_trashed ) ) {
+						$classes_modified[] = $global_class_db;
+
+						// CONFLICT: Class modified in database and builder
+						if ( in_array( $global_class_db['id'], $global_ids_modified ) ) {
+							$conflicing_classes[] = $global_class_db;
+						}
+					}
+				}
+
+				// Check for trashed classes
+				foreach ( $global_ids_trashed as $trashed_id ) {
+					$trashed_class = array_filter(
+						$global_classes_db,
+						function( $class ) use ( $trashed_id ) {
+							return $class['id'] === $trashed_id;
+						}
+					);
+
+					if ( ! empty( $trashed_class ) ) {
+						$classes_trashed[] = reset( $trashed_class );
+					}
+				}
+
+				// Handle modified class in database, incoming class moved the same class to trash
+				foreach ( $classes_trashed as $trashed_class ) {
+					if ( in_array( $trashed_class['id'], $global_ids_modified ) ) {
+						// Keep the modifications by User A, but move to trash
+						$global_classes_trash[] = $trashed_class;
+						$notifications[]        = [
+							'key'    => 'globalClassesTrashed',
+							'action' => 'trashed',
+							'data'   => [ $trashed_class ],
+							'desc'   => sprintf( esc_html__( 'Class "%s" has been moved to trash but your modifications are kept.', 'bricks' ), $trashed_class['name'] ),
+						];
+					}
+				}
+
+				// Handle modified class in database, incoming class permanently deletes the same class
+				foreach ( $global_ids_deleted as $deleted_id ) {
+					if ( in_array( $deleted_id, $global_ids_modified ) || in_array( $deleted_id, $global_ids_added ) ) {
+						$conflicting_class = array_filter(
+							$global_classes,
+							function( $class ) use ( $deleted_id ) {
+								return $class['id'] === $deleted_id;
+							}
+						);
+
+						if ( ! empty( $conflicting_class ) ) {
+							$conflicting_class    = reset( $conflicting_class );
+							$conflicing_classes[] = $conflicting_class;
+							$notifications[]      = [
+								'key'    => 'globalClassesConflict',
+								'action' => 'conflict',
+								'data'   => [ $conflicting_class ],
+								'desc'   => sprintf( esc_html__( 'Conflict: Class "%s" has been permanently deleted by another user.', 'bricks' ), $conflicting_class['name'] ),
+							];
+						}
+					}
+				}
+
+				// Add notifications for modified, added, and deleted classes
+				if ( count( $classes_modified ) ) {
+					$notifications[] = [
+						'data'      => $classes_modified,
+						'key'       => 'globalClasses',
+						'action'    => 'modified',
+						'author'    => $author,
+						'avatar'    => $avatar,
+						'timestamp' => $global_classes_db_timestamp,
+						'desc'      => esc_html__( 'Modified', 'bricks' ) . ': ' . esc_html__( 'Classes', 'bricks' ) . ' (' . count( $classes_modified ) . ')',
+					];
+
+					// Add conflict: Classes modified in database and builder
+					if ( count( $conflicing_classes ) ) {
+						$notification['conflict'] = '<strong>' . esc_html( 'Conflict', 'bricks' ) . '</strong>: ' . esc_html__( 'The following classes have been modified by the user below since your last save. Accept or discard those changes to continue your save.', 'bricks' );
+						$notification['data']     = $conflicing_classes;
+					}
+
+					$notifications[] = $notification;
+				}
+
+				// Add notification: Classes added
+				if ( count( $classes_added ) ) {
+					$notifications[] = [
+						'data'      => $classes_added,
+						'key'       => 'globalClasses',
+						'action'    => 'added',
+						'author'    => $author,
+						'avatar'    => $avatar,
+						'timestamp' => $global_classes_db_timestamp,
+						'desc'      => esc_html__( 'Added', 'bricks' ) . ': ' . esc_html__( 'Classes', 'bricks' ) . ' (' . count( $classes_added ) . ')',
+					];
+				}
+
+				foreach ( $global_classes as $global_class ) {
+					$found = false;
+
+					// STEP: Loop through classes in builder to find deleted database classes
+					foreach ( $global_classes_db as $global_class_db ) {
+						if ( $global_class['id'] === $global_class_db['id'] ) {
+							$found = true;
+							break;
+						}
+					}
+
+					// Class deleted: Not found in builder, and not added in builder either
+					if ( ! $found && ! in_array( $global_class['id'], $global_ids_added ) ) {
+						$classes_deleted[] = $global_class;
+					}
+				}
+
+				// Add notification: Classes deleted
+				if ( count( $classes_deleted ) ) {
+					$notifications[] = [
+						'data'      => $classes_deleted,
+						'key'       => 'globalClasses',
+						'action'    => 'deleted',
+						'author'    => $author,
+						'avatar'    => $avatar,
+						'timestamp' => $global_classes_db_timestamp,
+						'desc'      => esc_html__( 'Deleted', 'bricks' ) . ': ' . esc_html__( 'Classes', 'bricks' ) . ' (' . count( $classes_deleted ) . ')',
+					];
+				}
+			}
+
+			// STEP: Return notifications without save if conflicts found
+			if ( count( $notifications ) && count( $conflicing_classes ) || ! empty( $conflicting_trash_classes ) ) {
+				wp_send_json_error(
+					[
+						'notifications'   => $notifications,
+						'globalClassesDb' => $global_classes_db,
+					]
+				);
+			}
+
+			/**
+			 * STEP: Handle global classes trash synchronization
+			 *
+			 * globalClassesTrash: Array of trashed global classes (always sent from builder, even if unchanged)
+			 *
+			 * @since 1.11
+			 */
+			$incoming_trash = isset( $_POST['globalClassesTrash'] ) ? self::decode( $_POST['globalClassesTrash'], false ) : [];
+			$existing_trash = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+
+			// Sanity check: Ensure $incoming_trash and $existing_trash are arrays
+			$incoming_trash = is_array( $incoming_trash ) ? $incoming_trash : [];
+			$existing_trash = is_array( $existing_trash ) ? $existing_trash : [];
+
+			// Remove restored classes from incoming trash
+			$incoming_trash = array_filter(
+				$incoming_trash,
+				function( $trash_item ) use ( $global_classes ) {
+					return ! in_array( $trash_item['id'], array_column( $global_classes, 'id' ) );
+				}
+			);
+
+			// If there's incoming trash, proceed with synchronization
+			if ( ! empty( $incoming_trash ) ) {
+				// Merge incoming and existing trash, prioritizing the most recent deletedAt
+				$merged_trash = array_merge( $existing_trash, $incoming_trash );
+				$unique_trash = [];
+				foreach ( $merged_trash as $trash_item ) {
+					if ( ! isset( $trash_item['id'] ) || ! isset( $trash_item['deletedAt'] ) ) {
+						continue; // Skip invalid items
+					}
+					$existing_index = array_search( $trash_item['id'], array_column( $unique_trash, 'id' ) );
+					if ( $existing_index === false ) {
+						$unique_trash[] = $trash_item;
+					} else {
+						if ( $trash_item['deletedAt'] > $unique_trash[ $existing_index ]['deletedAt'] ) {
+							$unique_trash[ $existing_index ] = $trash_item;
+						}
+					}
+				}
+
+				// Remove items from trash if they exist in global_classes
+				$final_trash = array_values( // Ensure we have a sequential array (@since 1.12)
+					array_filter(
+						$unique_trash,
+						function( $trash_item ) use ( $global_classes ) {
+							return ! in_array( $trash_item['id'], array_column( $global_classes, 'id' ) );
+						}
+					)
+				);
+
+				// Save updated trash
+				if ( empty( $final_trash ) ) {
+					delete_option( BRICKS_DB_GLOBAL_CLASSES_TRASH );
+				} else {
+					update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, $final_trash );
+				}
+
+				// Check for conflicts between final trash and active classes
+				$conflicting_trash_classes = array_intersect(
+					array_column( $final_trash, 'id' ),
+					array_column( $global_classes, 'id' )
+				);
+
+				if ( ! empty( $conflicting_trash_classes ) ) {
+					$notifications[] = [
+						'key'    => 'globalClassesTrashConflict',
+						'action' => 'conflict',
+						'data'   => $conflicting_trash_classes,
+						'desc'   => esc_html__( 'Conflict: Some classes exist in both trash and active classes', 'bricks' ),
+					];
+				}
+
+				// Return notifications if trash conflicts found
+				if ( count( $notifications ) ) {
+					wp_send_json_error(
+						[
+							'notifications'      => $notifications,
+							'globalClassesDb'    => $global_classes_db,
+							'globalClassesTrash' => $existing_trash,
+						]
+					);
+				}
+			} else {
+				// No incoming trash, but we need to check if previously trashed classes have been restored
+				$final_trash = array_filter(
+					$existing_trash,
+					function( $trash_item ) use ( $global_classes ) {
+						return ! in_array( $trash_item['id'], array_column( $global_classes, 'id' ), true );
+					}
+				);
+			}
+
+			// Always update the trash option, even if it's unchanged
+			update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, $final_trash );
+
+			// STEP: Add 'modified' timestamp and 'user' (ID) to modified global class (to compare on save)
+			if ( count( $global_ids_modified ) ) {
+				$current_timestamp = time();
+				$current_user_id   = get_current_user_id();
+
+				foreach ( $global_classes as $global_class_index => $global_class ) {
+					if ( in_array( $global_class['id'], $global_ids_modified ) ) {
+						$global_classes[ $global_class_index ]['modified'] = $current_timestamp;
+						$global_classes[ $global_class_index ]['user_id']  = $current_user_id;
+					}
+				}
+			}
 
 			$global_classes_response = Helpers::save_global_classes_in_db( $global_classes );
 
-			// if ( isset( $global_classes_response['timestamp'] ) ) {
-			// $_POST['globalClassesTimestamp'] = $global_classes_response['timestamp'];
-			// }
+			if ( isset( $global_classes_response['timestamp'] ) ) {
+				$_POST['globalClassesTimestamp'] = $global_classes_response['timestamp'];
+			}
 
-			// if ( isset( $global_classes_response['user_id'] ) ) {
-			// $_POST['globalClassesUser'] = get_userdata( $global_classes_response['user_id'] )->display_name ?? '';
-			// }
+			if ( isset( $global_classes_response['user_id'] ) ) {
+				$_POST['globalClassesUser'] = get_userdata( $global_classes_response['user_id'] )->display_name ?? '';
+			}
 
-			// // STEP: Return conflicts
-			// if ( count( $conflicts ) ) {
-			// wp_send_json_error( [ 'conflicts' => $conflicts ] );
-			// }
+			// STEP: Return notifications
+			if ( count( $notifications ) ) {
+				wp_send_json_error(
+					[
+						'notifications'        => $notifications,
+						'globalClassesDb'      => $global_classes_db,
+						'globalClassesTrashDb' => $existing_trash,
+					]
+				);
+			}
 		}
 
 		/**
@@ -1201,6 +1670,115 @@ class Ajax {
 	}
 
 	/**
+	 * Save generated template screenshot
+	 *
+	 * @since 1.10
+	 */
+	public function save_template_screenshot() {
+		// Verify nonce
+		self::verify_request( 'bricks-nonce-builder' );
+
+		// Check if the user can upload files
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'User does not have permission to upload files.' );
+		}
+
+		$post_id = ! empty( $_POST['screenshotPostId'] ) ? intval( $_POST['screenshotPostId'] ) : 0;
+
+		// Return: No post ID set
+		if ( ! $post_id ) {
+			wp_send_json_error( 'Error: No screenshotPostId provided!' );
+		}
+
+		if ( ! Capabilities::current_user_can_use_builder( $post_id ) ) {
+			wp_send_json_error( 'verify_request: User cannot use builder (' . get_current_user_id() . ')' );
+		}
+
+		if ( ! Database::get_setting( 'generateTemplateScreenshots' ) ) {
+			wp_send_json_error( esc_html__( 'Template screenshot generation is disabled.', 'bricks' ) );
+		}
+
+		if ( ! isset( $_FILES['screenshot'] ) || empty( $_FILES['screenshot'] ) ) {
+			wp_send_json_error( 'No screenshot file provided' );
+		}
+
+		$screenshot_file = $_FILES['screenshot'];
+
+		// Check for upload errors
+		if ( $screenshot_file['error'] !== UPLOAD_ERR_OK ) {
+			wp_send_json_error( 'File upload error: ' . $screenshot_file['error'] );
+		}
+
+		// Check file size (limit to 5MB for security purposes)
+		$max_size = 5 * 1024 * 1024; // 5MB
+		if ( $screenshot_file['size'] > $max_size ) {
+			wp_send_json_error( 'File size exceeds the maximum limit.' );
+		}
+
+		// Check MIME type using multiple methods
+		$finfo         = new \finfo( FILEINFO_MIME_TYPE );
+		$mime_type     = $finfo->file( $screenshot_file['tmp_name'] );
+		$allowed_types = [ 'image/webp', 'image/png' ];
+
+		if ( ! in_array( $mime_type, $allowed_types, true ) ) {
+			wp_send_json_error( 'Invalid file type. Expected WebP or PNG image.' );
+		}
+
+		// Double-check with exif_imagetype
+		$image_type = exif_imagetype( $screenshot_file['tmp_name'] );
+		if ( ! in_array( $image_type, [ IMAGETYPE_WEBP, IMAGETYPE_PNG ] ) ) {
+			wp_send_json_error( 'Invalid image type detected.' );
+		}
+
+		// Get WordPress upload directory
+		$wp_upload_dir = wp_upload_dir();
+		$custom_dir    = $wp_upload_dir['basedir'] . '/' . BRICKS_TEMPLATE_SCREENSHOTS_DIR . '/';
+
+		// Ensure the custom directory exists and is writable
+		if ( ! file_exists( $custom_dir ) ) {
+			if ( ! wp_mkdir_p( $custom_dir ) ) {
+				wp_send_json_error( 'Failed to create upload directory.' );
+			}
+		}
+
+		if ( ! is_writable( $custom_dir ) ) {
+			wp_send_json_error( 'Upload directory is not writable.' );
+		}
+
+		// Get and then Deleted all existing files in the custom directory starting with 'template-screenshot-$post_id-'
+		$existing_files = glob( $custom_dir . "template-screenshot-$post_id-*" );
+		foreach ( $existing_files as $file ) {
+			if ( file_exists( $file ) && ! unlink( $file ) ) {
+				error_log( "Failed to delete old screenshot file: $file" );
+			}
+		}
+
+		// Define the file path with timestamp to avoid caching issues
+		$timestamp = time();
+		$extension = ( $mime_type === 'image/webp' ) ? 'webp' : 'png';
+		$filename  = "template-screenshot-$post_id-$timestamp.$extension";
+		$filepath  = $custom_dir . $filename;
+
+		// Move the uploaded file
+		if ( ! move_uploaded_file( $screenshot_file['tmp_name'], $filepath ) ) {
+			wp_send_json_error( 'Error saving screenshot' );
+		}
+
+		// Verify that the file was actually uploaded and is readable
+		if ( ! file_exists( $filepath ) || ! is_readable( $filepath ) ) {
+			wp_send_json_error( 'Failed to save or read the uploaded file.' );
+		}
+
+		// Convert file path to URL
+		$fileurl = str_replace( $wp_upload_dir['basedir'], $wp_upload_dir['baseurl'], $filepath );
+
+		// Sanitize the URL before sending it back
+		$fileurl = esc_url( $fileurl );
+
+		wp_send_json_success( [ 'file_url' => $fileurl ] );
+	}
+
+	/**
 	 * Sanitize Bricks postmeta
 	 */
 	public function sanitize_bricks_postmeta( $meta_value, $meta_key, $object_type ) {
@@ -1228,13 +1806,78 @@ class Ajax {
 	}
 
 	/**
+	 * Sanitize Bricks postmeta page settings
+	 *
+	 * @since 1.9.9
+	 */
+	public function sanitize_bricks_postmeta_page_settings( $meta_value, $meta_key, $object_type ) {
+		$post_id = ! empty( $_POST['postId'] ) ? intval( $_POST['postId'] ) : get_the_ID();
+
+		// Return: No post ID set
+		if ( ! $post_id ) {
+			return $meta_value;
+		}
+
+		if ( $meta_key === BRICKS_DB_PAGE_SETTINGS ) {
+			// User has no 'unfiltered_html' cap: Remove page settings that could contain <script> tags
+			if ( ! current_user_can( 'unfiltered_html' ) && is_array( $meta_value ) ) {
+				// Remove script settings
+				foreach ( $meta_value as $key => $value ) {
+					if ( in_array( $key, [ 'customScriptsHeader', 'customScriptsBodyHeader', 'customScriptsBodyFooter' ] ) ) {
+						unset( $meta_value[ $key ] );
+					}
+				}
+
+				// Use existing script settings (added by user with 'unfiltered_html' cap)
+				$existing_page_settings = get_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, true );
+				if ( is_array( $existing_page_settings ) ) {
+					foreach ( $existing_page_settings as $key => $value ) {
+						if ( in_array( $key, [ 'customScriptsHeader', 'customScriptsBodyHeader', 'customScriptsBodyFooter' ] ) ) {
+							$meta_value[ $key ] = $existing_page_settings[ $key ];
+						}
+					}
+				}
+			}
+		}
+
+		return $meta_value;
+	}
+
+	/**
 	 * Update postmeta: Prevent user without builder access from updating Bricks postmeta
 	 */
 	public function update_bricks_postmeta( $check, $object_id, $meta_key, $meta_value, $prev_value ) {
 		// Return: Not Bricks postmeta
 		$is_bricks_postmeta = in_array( $meta_key, [ BRICKS_DB_PAGE_CONTENT, BRICKS_DB_PAGE_HEADER, BRICKS_DB_PAGE_FOOTER ], true );
-		if ( $is_bricks_postmeta && ! Capabilities::current_user_can_use_builder( $object_id ) ) {
-			return false;
+		if ( $is_bricks_postmeta ) {
+			// User doesn't have builder access, but WPML is processing a translation, allow the update (@since 1.11)
+			if ( ! Capabilities::current_user_can_use_builder( $object_id ) && \Bricks\Integrations\Wpml\Wpml::is_processing_wpml_translation() ) {
+				// Reset the processing flag after our check
+				\Bricks\Integrations\Wpml\Wpml::end_processing_wpml_translation();
+
+				return $check;
+			}
+
+			// If the user does not have builder access and WPML is not processing a translation, block the update
+			if ( ! Capabilities::current_user_can_use_builder( $object_id ) ) {
+				return false;
+			}
+		}
+
+		// STEP: Handle password protection template population
+		if ( $meta_key === BRICKS_DB_TEMPLATE_TYPE && $meta_value === 'password_protection' && get_post_type( $object_id ) === BRICKS_DB_TEMPLATE_SLUG ) {
+			// Check if template type was just set to password_protection
+			$template_type = get_post_meta( $object_id, BRICKS_DB_TEMPLATE_TYPE, true );
+
+			if ( $template_type === 'password_protection' && Capabilities::current_user_can_use_builder( $object_id ) && Capabilities::current_user_has_full_access() ) {
+				// Get current content
+				$current_content = get_post_meta( $object_id, BRICKS_DB_PAGE_CONTENT, true );
+
+				// If content is empty, populate the template
+				if ( empty( $current_content ) ) {
+					Password_Protection::populate_template( $object_id );
+				}
+			}
 		}
 
 		return $check;
@@ -1468,6 +2111,85 @@ class Ajax {
 	}
 
 	/**
+	 * Import paste element images (cross-site)
+	 *
+	 * @since 1.12.2
+	 */
+	public function import_images() {
+		self::verify_request( 'bricks-nonce-builder' );
+
+		$target_images  = $_POST['images'] ?? [];
+		$handled_images = [];
+
+		foreach ( $target_images as $target_image ) {
+			$element_id   = $target_image['elementId'] ?? false; // Will replace the new image settings to this element
+			$element_name = $target_image['elementName'] ?? false;
+			$setting_key  = $target_image['settingKey'] ?? false; // Will replace the new image settings to this setting key
+			$settings     = $target_image['settings'] ?? []; // Copied image settings
+
+			// STEP: Resue the logic in Templates::import_images()
+			if ( count( $settings ) ) {
+				// Handle image-gallery element
+				if ( $element_name === 'image-gallery' ) {
+					// The images are stored in the 'images' setting key
+					$images = $settings['images'] ?? [];
+					$size   = $settings['size'] ?? 'full';
+
+					if ( ! count( $images ) ) {
+						continue;
+					}
+
+					$new_images = [];
+
+					foreach ( $images as $image ) {
+						// import_image requires size to be set
+						$image['size'] = $size;
+						$new_image     = Templates::import_image( $image, true );
+
+						if ( ! $new_image || ( is_array( $new_image ) && isset( $new_image['error'] ) ) ) {
+							continue;
+						}
+
+						// Remove the 'size', 'filename' key (Not needed)
+						unset( $new_image['size'] );
+						unset( $new_image['filename'] );
+						$new_images[] = $new_image;
+					}
+
+					$handled_images[] = [
+						'elementId'   => $element_id,
+						'elementName' => $element_name,
+						'settingKey'  => $setting_key,
+						'settings'    => [
+							'images' => $new_images, // follow image-gallery format
+							'size'   => $size, // follow image-gallery format
+						]
+					];
+				}
+
+				// Handle Image and SVG element (single image)
+				else {
+					$new_image = Templates::import_image( $settings, true );
+
+					if ( ! $new_image || ( is_array( $new_image ) && isset( $new_image['error'] ) ) ) {
+						continue;
+					}
+
+					$handled_images[] = [
+						'elementId'   => $element_id,
+						'elementName' => $element_name,
+						'settingKey'  => $setting_key,
+						'settings'    => $new_image,
+					];
+				}
+
+			}
+		}
+
+		wp_send_json_success( $handled_images );
+	}
+
+	/**
 	 * Parse content through dynamic data logic
 	 *
 	 * @since 1.5.1
@@ -1516,7 +2238,17 @@ class Ajax {
 
 		wp_reset_postdata();
 
-		if ( 'link' === $context ) {
+		// If controlName is for video background, we handle it differently based on full url or video ID (@since 1.12.3)
+		$control_name = ! empty( $_POST['controlName'] ) ? sanitize_text_field( $_POST['controlName'] ) : false;
+		if ( $control_name === 'backgroundVideoUrl' ) {
+
+			// Only escape URL if it's valid one. If we have a video ID, we don't escape it (so that we don't add http:// as prefix to video ID).
+			if ( filter_var( trim( $content ), FILTER_VALIDATE_URL ) ) {
+				$content = esc_url( $content );
+			}
+		}
+
+		elseif ( 'link' === $context ) {
 			$content = esc_url( $content );
 		}
 
@@ -1628,5 +2360,155 @@ class Ajax {
 		$svg      = $svg_path ? Helpers::file_get_contents( $svg_path ) : false;
 
 		wp_send_json_success( $svg );
+	}
+
+	public function restore_global_class() {
+		self::verify_request( 'bricks-nonce-builder' );
+
+		if ( ! current_user_can( 'edit_posts' ) && ! Capabilities::current_user_has_full_access() ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+
+		$class_id = $_POST['class_id'] ?? null;
+
+		if ( ! $class_id ) {
+			wp_send_json_error( 'No class ID provided' );
+		}
+
+		$global_classes = get_option( BRICKS_DB_GLOBAL_CLASSES, [] );
+		$trash          = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+
+		foreach ( $trash as $index => $class ) {
+			if ( $class['id'] === $class_id ) {
+				// Check for name conflicts
+				$name = $class['name'];
+				foreach ( $global_classes as $existing_class ) {
+					if ( $existing_class['name'] === $name ) {
+						$name = $name . '-restored';
+						break;
+					}
+				}
+				$class['name'] = $name;
+
+				// Remove from trash and add to global classes
+				unset( $trash[ $index ] );
+				$global_classes[] = $class;
+				break;
+			}
+		}
+
+		update_option( BRICKS_DB_GLOBAL_CLASSES, $global_classes );
+		update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, array_values( $trash ) );
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * Delete global classes permanently
+	 *
+	 * @since 1.11
+	 */
+	public function delete_global_classes_permanently() {
+		// Verify nonce and user capabilities
+		self::verify_request( 'bricks-nonce-builder' );
+
+		if ( ! Capabilities::current_user_has_full_access() ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'Not allowed', 'bricks' ) ] );
+		}
+
+		// Get class IDs to delete
+		$class_ids = $_POST['classIds'] ?? [];
+
+		// If $class_ids is a string, try to decode it
+		if ( is_string( $class_ids ) ) {
+			$class_ids = self::decode( $class_ids, false );
+		}
+
+		if ( empty( $class_ids ) || ! is_array( $class_ids ) ) {
+			wp_send_json_error( [ 'message' => esc_html__( 'No classes specified for deletion', 'bricks' ) ] );
+		}
+
+		// Get current trashed classes and active global classes
+		$trashed_classes = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+		$active_classes  = get_option( BRICKS_DB_GLOBAL_CLASSES, [] );
+
+		// Initialize array to store deleted classes
+		$deleted_classes = [];
+
+		// Create associative arrays for faster lookup
+		$trashed_classes_assoc = array_column( $trashed_classes, null, 'id' );
+		$active_classes_assoc  = array_column( $active_classes, null, 'id' );
+
+		foreach ( $class_ids as $class_id ) {
+			if ( isset( $trashed_classes_assoc[ $class_id ] ) ) {
+				// Store the deleted class info from trash
+				$deleted_classes[] = $trashed_classes_assoc[ $class_id ];
+				// Remove the class from the trashed classes array
+				unset( $trashed_classes_assoc[ $class_id ] );
+			} elseif ( isset( $active_classes_assoc[ $class_id ] ) ) {
+				// Store the deleted class info from active classes
+				$deleted_classes[] = $active_classes_assoc[ $class_id ];
+				// Remove the class from the active classes array
+				unset( $active_classes_assoc[ $class_id ] );
+			}
+		}
+
+		// Convert associative arrays back to indexed arrays
+		$trashed_classes = array_values( $trashed_classes_assoc );
+		$active_classes  = array_values( $active_classes_assoc );
+
+		// Update both options in the database
+		$updated_trash  = update_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, $trashed_classes );
+		$updated_active = update_option( BRICKS_DB_GLOBAL_CLASSES, $active_classes );
+
+		if ( $updated_trash || $updated_active ) {
+			// Singular/plural message based on the number of classes deleted
+			$deleted_count = count( $deleted_classes );
+			// translators: %d: number of classes deleted
+			$message = _n(
+				'%d class permanently deleted',
+				'%d classes permanently deleted',
+				$deleted_count,
+				'bricks'
+			);
+			$message = sprintf( $message, $deleted_count );
+
+			wp_send_json_success(
+				[
+					'message'        => $message,
+					'deletedClasses' => $deleted_classes
+				]
+			);
+		} else {
+			wp_send_json_error( [ 'message' => esc_html__( 'Failed to delete classes', 'bricks' ) ] );
+		}
+	}
+
+	/**
+	 * Used in the builder only
+	 *
+	 * - Force Query is_looping to true
+	 * - Force Query loop_object
+	 * - If the loop_object is WP_Post, setup the post data and save in global $post (Mimic the loop)
+	 * - Caution: Never restore global $post in this function. Don't use this if unsure.
+	 *
+	 * @since 1.12.2
+	 */
+	public static function simulate_bricks_query( $loop_settings ) {
+		$query = new Query( $loop_settings );
+
+		if ( ! empty( $query->count ) ) {
+			$query->is_looping = true;
+
+			// NOTE: Use array_shift because not all the results are sequential arrays (e.g. JetEngine)
+			$query->loop_object = $query->object_type == 'post' ? $query->query_result->posts[0] : array_shift( $query->query_result );
+
+			// Set global $post for the loop object
+			if ( is_a( $query->loop_object, 'WP_Post' ) ) {
+				global $post;
+				$post = $query->loop_object;
+				setup_postdata( $post );
+			}
+		}
 	}
 }

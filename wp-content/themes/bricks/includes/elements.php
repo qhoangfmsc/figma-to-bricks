@@ -18,6 +18,17 @@ class Elements {
 		// Load abstract element base class
 		require_once BRICKS_PATH . 'includes/elements/base.php';
 
+		/**
+		 * Load custom render element base class
+		 *
+		 * Handle setting/resetting $bricks_query to render in-loop data correctly.
+		 *
+		 * Used for Carousel, Posts, Related Posts, Woo Products.
+		 *
+		 * @since 1.10.2
+		 */
+		require_once BRICKS_PATH . 'includes/elements/custom-render-element.php';
+
 		$element_names = [
 			// Layout (nestable elements)
 			'container',
@@ -66,6 +77,8 @@ class Elements {
 			'logo',
 			'facebook-page',
 			'breadcrumbs', // @since 1.8.1
+			'rating', // @since 1.11
+			'back-to-top', // @since 1.11
 
 			// Media
 			'image-gallery',
@@ -76,10 +89,13 @@ class Elements {
 			'svg',
 			'instagram-feed',
 
+			// Query
+			'pagination',
+			'query-results-summary', // @since 1.12.2
+
 			// WordPress
 			'wordpress',
 			'posts',
-			'pagination',
 			'nav-menu',
 			'sidebar',
 			'search',
@@ -113,6 +129,7 @@ class Elements {
 				'filter-search',
 				'filter-select',
 				'filter-submit',
+				'filter-active-filters', // @since 1.11
 			];
 
 			$element_names = array_merge( $element_names, $input_elements );
@@ -229,7 +246,9 @@ class Elements {
 			'nestable'         => $element_instance->nestable,
 			'nestableItem'     => $element_instance->nestable_item,
 			'nestableChildren' => $element_instance->nestable_children,
-			'nestableHide'     => $element_instance->nestable_hide,
+
+			// @since 1.11.1 (Masonry layout element)
+			'supportMasonry'   => $element_instance->support_masonry,
 		];
 
 		/**

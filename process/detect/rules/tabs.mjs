@@ -3,9 +3,13 @@
 //   E1 variants  the titles are one component and an Active / Selected / Current property is on for one title and off for the others
 //   E1 named     the container, the bar, the title component or a title is named "tab" / "tabs" / "tab menu" / "tab item"
 // Without one of them nothing is proposed (tabs are not guessed from shape).
+import { repeatedSet } from '../../bricks/components/tab-switch.mjs';
+
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const BOX = new Set(['FRAME', 'GROUP', 'INSTANCE', 'COMPONENT']);
 const NAME = /\btabs?\b|tab[ _-]?(menu|item|bar|title|list)/i;
+const PANEL = /tab\s*panel/i;
+const hasPanel = (n) => PANEL.test(n?.name ?? '') || visibleKids(n).some(hasPanel);
 const ACTIVE_KEY = /active|selected|current|state/i, ACTIVE_VAL = /^(true|active|selected|current|on|default)$/i;
 const hasText = (n) => n.type === 'TEXT' && !n.svg && n.text?.characters?.trim() || visibleKids(n).some(hasText);
 
@@ -28,7 +32,10 @@ export function detectTabs(tree) {
         const acts = titles.map(activeOf);
         const variants = new Set(titles.map((t) => t.componentSet ?? t.name)).size === 1 && acts.every(Boolean) && acts.some((a) => a.on) && acts.some((a) => !a.on);
         const named = NAME.test(n.name) || NAME.test(bar.name) || titles.some((t) => NAME.test(t.name) || NAME.test(t.componentSet ?? ''));
-        if (variants || named) {
+        // The next sibling is not the pane when a Tab Panel is drawn somewhere else (the price table period bar).
+        const data = repeatedSet(visibleKids(content));
+        const repeatedData = data.items.length >= 2 && data.items.length !== titles.length;
+        if ((variants || named) && !repeatedData && !(hasPanel(tree) && !hasPanel(content))) {
           const cite = [{ node: bar.id, field: 'layout.mode', equals: 'HORIZONTAL' }];
           if (named) {
             const byName = [n, bar, ...titles].find((x) => NAME.test(x.name)), bySet = titles.find((t) => NAME.test(t.componentSet ?? ''));

@@ -177,7 +177,8 @@ class Element_Logo extends Element {
 
 		// Logo text
 		elseif ( ! empty( $settings['logoText'] ) ) {
-			$logo = esc_html( $settings['logoText'] );
+			$logo = $this->render_dynamic_data( $settings['logoText'] );
+			$logo = esc_html( $logo );
 		}
 
 		// Default: Site name

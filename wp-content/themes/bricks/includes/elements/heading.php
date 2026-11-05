@@ -16,7 +16,7 @@ class Element_Heading extends Element {
 
 	public function set_control_groups() {
 		$this->control_groups['separator'] = [
-			'title'      => esc_html__( 'separator', 'bricks' ),
+			'title'      => esc_html__( 'Separator', 'bricks' ),
 			'tab'        => 'content',
 			'fullAccess' => true, // NOTE: Undocumented (show if user role has full_access capability)
 		];
@@ -29,6 +29,8 @@ class Element_Heading extends Element {
 			'default'     => esc_html__( 'I am a heading', 'bricks' ),
 			'placeholder' => esc_html__( 'Here goes my heading ..', 'bricks' ),
 		];
+
+		$default_tag = $this->theme_styles['tag'] ?? 'h3';
 
 		$this->controls['tag'] = [
 			'tab'         => 'content',
@@ -44,15 +46,16 @@ class Element_Heading extends Element {
 				'custom' => esc_html__( 'Custom', 'bricks' ),
 			],
 			'inline'      => true,
-			'placeholder' => ! empty( $this->theme_styles['tag'] ) ? $this->theme_styles['tag'] : 'h3',
+			'placeholder' => $default_tag,
 		];
 
 		$this->controls['customTag'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Custom tag', 'bricks' ),
+			'info'        => esc_html__( 'Without attributes', 'bricks' ),
 			'type'        => 'text',
 			'inline'      => true,
-			'placeholder' => 'div',
+			'placeholder' => $default_tag,
 			'required'    => [ 'tag', '=', 'custom' ],
 		];
 
@@ -243,7 +246,8 @@ class Element_Heading extends Element {
 		}
 
 		if ( isset( $settings['text'] ) ) {
-			$output .= isset( $settings['separator'] ) ? '<span class="text">' . $settings['text'] . '</span>' : $settings['text'];
+			$text    = $this->render_dynamic_data( $settings['text'] );
+			$output .= isset( $settings['separator'] ) ? '<span class="text">' . $text . '</span>' : $text;
 		}
 
 		if ( isset( $settings['link'] ) ) {
@@ -260,41 +264,22 @@ class Element_Heading extends Element {
 		echo $output;
 	}
 
+	// NOTE: Render separator in ContentEditable.js (@since 1.11)
 	public static function render_builder() { ?>
 		<script type="text/x-template" id="tmpl-bricks-element-heading">
-			<component
-				:is="tag"
+			<contenteditable
+				:tag="tag"
 				:name="name"
 				:lineBreak="'br'"
+				:settings="settings"
 				:class="[
-					settings.type ? `bricks-type-${settings.type}` : null,
-					settings.style ? `bricks-color-${settings.style}` : null,
-					(settings.separator && settings.separator !== 'none') || (!settings.separator && themeStyles.separator && themeStyles.separator !== 'none') ? 'has-separator' : null
-				]">
-				<span v-if="settings.separator && (settings.separator === 'left' || settings.separator === 'both')" class="separator left"></span>
-				<span v-else-if="!settings.separator && themeStyles.separator && (themeStyles.separator === 'left' || themeStyles.separator === 'both')" class="separator left"></span>
-
-				<contenteditable
-					v-if="settings.link"
-					tag="a"
-					:name="name"
-					:lineBreak="'br'"
-					controlKey="text"
-					toolbar="style align"
-					:settings="settings"/>
-
-				<contenteditable
-					v-else
-					tag="div"
-					:name="name"
-					:lineBreak="'br'"
-					controlKey="text"
-					toolbar="style align"
-					:settings="settings"/>
-
-					<span v-if="settings.separator && (settings.separator === 'right' || settings.separator === 'both')" class="separator right"></span>
-					<span v-else-if="!settings.separator && themeStyles.separator && (themeStyles.separator === 'right' || themeStyles.separator === 'both')" class="separator right"></span>
-			</component>
+				settings.type ? `bricks-type-${settings.type}` : null,
+				settings.style ? `bricks-color-${settings.style}` : null,
+				(settings.separator && settings.separator !== 'none') || (!settings.separator && themeStyles.separator && themeStyles.separator !== 'none') ? 'has-separator' : null
+				]"
+				controlKey="text"
+				toolbar="style align"
+				/>
 		</script>
 		<?php
 	}

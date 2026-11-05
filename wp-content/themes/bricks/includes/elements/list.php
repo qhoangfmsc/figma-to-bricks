@@ -89,11 +89,11 @@ class Element_List extends Element {
 			'default'       => [
 				[
 					'title' => esc_html__( 'List item #1', 'bricks' ),
-					'meta'  => esc_html__( '$10.00', 'bricks' ),
+					'meta'  => '$10.00',
 				],
 				[
 					'title' => esc_html__( 'List item #2', 'bricks' ),
-					'meta'  => esc_html__( '$25.00', 'bricks' ),
+					'meta'  => '$25.00',
 				],
 			],
 		];
@@ -502,6 +502,7 @@ class Element_List extends Element {
 			'type'           => 'text',
 			'hasDynamicData' => false,
 			'inline'         => true,
+			'validate'       => $this->get_in_builder_html_tag_validation_rules(),
 			'placeholder'    => 'span',
 		];
 
@@ -652,8 +653,9 @@ class Element_List extends Element {
 
 	public function render() {
 		$settings = $this->settings;
+		$items    = $settings['items'] ?? [];
 
-		if ( empty( $settings['items'] ) ) {
+		if ( empty( $items ) ) {
 			return $this->render_element_placeholder(
 				[
 					'title' => esc_html__( 'No list items defined.', 'bricks' ),
@@ -665,13 +667,13 @@ class Element_List extends Element {
 
 		$output = "<ul {$this->render_attributes( '_root' )}>";
 
-		foreach ( $settings['items'] as $index => $item ) {
-			$title       = ! empty( $item['title'] ) ? $this->render_dynamic_data( $item['title'] ) : false;
-			$meta        = ! empty( $item['meta'] ) ? $this->render_dynamic_data( $item['meta'] ) : false;
-			$description = ! empty( $item['description'] ) ? $this->render_dynamic_data( $item['description'] ) : false;
-			$highlight   = isset( $item['highlight'] ) && ! empty( $item['highlightLabel'] ) ? $this->render_dynamic_data( $item['highlightLabel'] ) : false;
+		foreach ( $items as $index => $item ) {
+			$title       = isset( $item['title'] ) ? $this->render_dynamic_data( $item['title'] ) : false;
+			$meta        = isset( $item['meta'] ) ? $this->render_dynamic_data( $item['meta'] ) : false;
+			$description = isset( $item['description'] ) ? $this->render_dynamic_data( $item['description'] ) : false;
+			$highlight   = isset( $item['highlight'] ) && isset( $item['highlightLabel'] ) ? $this->render_dynamic_data( $item['highlightLabel'] ) : false;
 
-			if ( $highlight ) {
+			if ( $highlight !== false ) {
 				$this->set_attribute( "item-$index", 'data-highlight', $highlight );
 			}
 
@@ -686,8 +688,12 @@ class Element_List extends Element {
 				$output .= '<span class="icon">' . $current_icon . '</span>';
 			}
 
-			if ( ! empty( $title ) ) {
-				$title_tag = ! empty( $settings['titleTag'] ) ? esc_attr( $settings['titleTag'] ) : 'span';
+			if ( $title !== false ) {
+				$title_tag = 'span';
+
+				if ( ! empty( $settings['titleTag'] ) ) {
+					$title_tag = Helpers::sanitize_html_tag( $settings['titleTag'], 'span' );
+				}
 
 				$this->set_attribute( "title-$index", $title_tag );
 				$this->set_attribute( "title-$index", 'class', [ 'title' ] );
@@ -712,7 +718,7 @@ class Element_List extends Element {
 				$output .= '<span class="separator"></span>';
 			}
 
-			if ( ! empty( $meta ) ) {
+			if ( $meta !== false ) {
 				$this->set_attribute( "meta-$index", 'class', [ 'meta' ] );
 
 				$output .= "<span {$this->render_attributes( "meta-$index" )}>{$meta}</span>";
@@ -720,7 +726,7 @@ class Element_List extends Element {
 
 			$output .= '</div>';
 
-			if ( ! empty( $description ) ) {
+			if ( $description !== false ) {
 				$this->set_attribute( "description-$index", 'class', [ 'description' ] );
 
 				$output .= "<div {$this->render_attributes( "description-$index" )}>{$description}</div>";

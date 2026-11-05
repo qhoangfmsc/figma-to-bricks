@@ -7,14 +7,6 @@
 function bricks_list_comments( $comment, $args, $depth ) {
 	$GLOBALS['comment'] = $comment; // phpcs:ignore
 
-	// Comment is unapproved & the user is not an admin
-	if ( $comment->comment_approved == '0' && ! current_user_can( 'manage_options' ) ) {
-		// Return: Not logged in OR logged-in, but not the comment author (@since 1.9.2)
-		if ( ! get_current_user_id() || get_current_user_id() != $comment->user_id ) {
-			return;
-		}
-	}
-
 	if ( $args['style'] === 'div' ) {
 		$tag       = 'div';
 		$add_below = 'comment';
@@ -54,21 +46,25 @@ function bricks_list_comments( $comment, $args, $depth ) {
 
 			<div class="comment-data">
 				<div class="comment-author vcard">
-					<h5 class="fn"><?php echo get_comment_author_link(); ?></h5>
+					<?php
+					// NOTE: Undocumented (@since 1.10)
+					$comment_author_tag = esc_html( apply_filters( 'bricks/comments/author_tag', 'h5' ) );
+					echo "<$comment_author_tag class=\"fn\">" . get_comment_author_link() . "</$comment_author_tag>";
+					?>
 
-					<?php if ( $comment->comment_approved == '0' ) { ?>
-						<?php
-						if ( get_current_user_id() == $comment->user_id ) {
-							?>
-							<em class="comment-awaiting-moderation"><?php esc_html_e( 'Your comment is awaiting moderation. This is a preview; your comment will be visible after it has been approved.', 'bricks' ); ?></em><br />
-							<?php
-						} elseif ( current_user_can( 'manage_options' ) || current_user_can( 'edit_posts' ) ) {
-							?>
-							<em class="comment-awaiting-moderation"><?php esc_html_e( 'This comment is awaiting moderation.', 'bricks' ); ?></em><br />
-							<?php
+					<?php
+					if ( $comment->comment_approved == '0' ) {
+						$commenter = wp_get_current_commenter();
+
+						if ( $commenter['comment_author_email'] ) {
+							$moderation_note = esc_html__( 'Your comment is awaiting moderation.', 'bricks' );
+						} else {
+							$moderation_note = esc_html__( 'Your comment is awaiting moderation. This is a preview; your comment will be visible after it has been approved.', 'bricks' );
 						}
-						?>
-					<?php } ?>
+
+						echo '<em class="comment-awaiting-moderation">' . $moderation_note . '</em>';
+					}
+					?>
 
 					<div class="comment-meta">
 						<?php

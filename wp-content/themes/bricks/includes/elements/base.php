@@ -30,6 +30,7 @@ abstract class Element {
 
 	// Frontend
 	public $id;
+	public $cid; // Component ID (@since 1.12)
 	public $tag        = 'div';
 	public $attributes = [];
 	public $settings;
@@ -55,29 +56,49 @@ abstract class Element {
 	public $nestable = false;      // true to allow to insert child elements (e.g. Container, Div)
 	public $nestable_item;         // First child of nestable element (Use as blueprint for nestable children & when adding repeater item)
 	public $nestable_children;     // Array of children elements that are added inside nestable element when it's added to the canvas.
-	public $nestable_hide = false; // Boolean to hide nestable in Structure & prevent dragging (true if no full access)
 	public $nestable_html = '';    // Nestable HTML with placeholder for element 'children'
 
 	public $vue_component;         // Set specific Vue component to render element in builder (e.g. 'bricks-nestable' for Section, Container, Div)
 
 	public $original_query = '';
 
+	public $support_masonry = false; // @since 1.11.1
+
 	public function __construct( $element = null ) {
-		$this->element           = $element;
-		$this->label             = $this->get_label();
-		$this->keywords          = $this->get_keywords();
-		$this->is_frontend       = isset( $element['is_frontend'] ) ? $element['is_frontend'] : bricks_is_frontend();
-		$this->id                = ! empty( $element['id'] ) ? $element['id'] : Helpers::generate_random_id( false );
-		$this->settings          = ! empty( $element['settings'] ) ? $element['settings'] : [];
-		$this->nestable_item     = $this->get_nestable_item();
-		$this->nestable_children = $this->get_nestable_children();
-		// No longer in use (@since 1.9.7) to show nestable for all users
-		// $this->nestable_hide     = Capabilities::current_user_has_full_access() === false;
+		$this->element     = $element;
+		$this->label       = $this->get_label();
+		$this->keywords    = $this->get_keywords();
+		$this->is_frontend = isset( $element['is_frontend'] ) ? $element['is_frontend'] : bricks_is_frontend();
+
+		// Ensure the ID is a string as it could be 6-digit number (@since 1.12)
+		$this->id       = ! empty( $element['id'] ) ? (string) $element['id'] : (string) Helpers::generate_random_id( false );
+		$this->cid      = ! empty( $element['cid'] ) ? $element['cid'] : '';
+		$this->settings = ! empty( $element['settings'] ) ? $element['settings'] : [];
+
+		/**
+		 * Is component instance
+		 *
+		 * Get the first 6 chacacters of the $this->id only.
+		 * Syntax: '{componentElement.id}:{element.id}' (6 characters)
+		 *
+		 * @since 1.12
+		 */
+		if ( ! empty( $element['instanceId'] ) ) {
+			$this->id = substr( $this->id, 0, 6 );
+		}
+
+		// Not a component: Get nestable item and children (@since 1.12)
+		if ( empty( $element['cid'] ) ) {
+			$this->nestable_item     = $this->get_nestable_item();
+			$this->nestable_children = $this->get_nestable_children();
+		}
 
 		// To distinguish non-layout nestables (slider-nested, etc.) in Vue render
 		if ( $this->nestable && ! $this->is_layout_element() ) {
 			$this->nestable_html = true;
 		}
+
+		$this->support_masonry = $this->support_masonry_element();
 
 		// Element-specific theme style settings
 		if ( ! empty( $element['themeStyles'] ) ) {
@@ -187,7 +208,7 @@ abstract class Element {
 	 * @since 1.4
 	 */
 	public function get_tag() {
-		$tag = $this->tag ? $this->tag : 'div';
+		$tag = $this->tag ?? 'div';
 
 		// Get 'tag' from theme styles (@see element-heading.php)
 		if ( ! empty( $this->theme_styles['tag'] ) ) {
@@ -197,21 +218,8 @@ abstract class Element {
 		$settings = $this->settings;
 
 		// Get 'tag' from element setting
-		if ( ! empty( $settings['tag'] ) ) {
-			if ( $settings['tag'] === 'custom' ) {
-				// Return custom tag
-				if ( ! empty( $settings['customTag'] ) ) {
-					return $settings['customTag'];
-				}
-			}
+		$tag = Helpers::get_html_tag_from_element_settings( $settings, $tag );
 
-			// Return settings tag
-			else {
-				return $settings['tag'];
-			}
-		}
-
-		// Return default element tag
 		return $tag;
 	}
 
@@ -298,7 +306,7 @@ abstract class Element {
 			'css'    => [
 				[
 					'property' => 'content',
-					'value'    => '"%s"', // Surround content value with double quotes
+					'value'    => '%s', // Wrap 'content' in double quotes if needed in CSS rule (@since 1.10)
 				]
 			],
 		];
@@ -406,7 +414,6 @@ abstract class Element {
 					'property' => 'height',
 				],
 			],
-			'info'  => __( 'Set to "100vh" for full height.', 'bricks' ),
 		];
 
 		$this->controls['_heightMin'] = [
@@ -437,15 +444,15 @@ abstract class Element {
 
 		// aspect-ratio control (@since 1.9)
 		$this->controls['_aspectRatio'] = [
-			'tab'         => 'style',
-			'group'       => '_layout',
-			'label'       => esc_html__( 'Aspect ratio', 'bricks' ),
-			'type'        => 'text',
-			'inline'      => true,
-			'small'       => true,
-			'dd'          => false,
-			'placeholder' => '',
-			'css'         => [
+			'tab'            => 'style',
+			'group'          => '_layout',
+			'label'          => esc_html__( 'Aspect ratio', 'bricks' ),
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => false,
+			'hasVariables'   => true,
+			'placeholder'    => '',
+			'css'            => [
 				[
 					'property' => 'aspect-ratio',
 				],
@@ -710,7 +717,6 @@ abstract class Element {
 			'step'        => '.01',
 			'min'         => '0',
 			'max'         => '1',
-			'large'       => true,
 			'placeholder' => 1,
 			'css'         => [
 				[
@@ -987,6 +993,101 @@ abstract class Element {
 			];
 		}
 
+		// MASONRY (@since 1.11.1)
+		if ( $this->support_masonry_element() ) {
+			$this->controls['_masonrySep'] = [
+				'tab'   => 'style',
+				'group' => '_layout',
+				'label' => 'Masonry',
+				'type'  => 'separator',
+			];
+
+			// Masonry active info (@since 1.11.1)
+			$this->controls['_useMasonryInfo2'] = [
+				'tab'      => 'style',
+				'group'    => '_layout',
+				'type'     => 'info',
+				// translators: %s: Masonry layout is active.
+				'content'  => sprintf(
+					'%s. %s',
+					sprintf( esc_html__( '%s layout is active' ), esc_html__( 'Masonry', 'bricks' ) ),
+					esc_html__( 'Ensure that no conflicting CSS styles are applied to this element.', 'bricks' )
+				),
+				'required' => [ '_useMasonry', '=', true ],
+			];
+
+			$this->controls['_useMasonry'] = [
+				'tab'   => 'style',
+				'group' => '_layout',
+				// translators: %s: Masonry
+				'label' => sprintf( esc_html__( '%s layout', 'bricks' ), 'Masonry' ),
+				'type'  => 'checkbox',
+			];
+
+			$this->controls['_masonryColumn'] = [
+				'tab'         => 'style',
+				'group'       => '_layout',
+				'label'       => esc_html__( 'Columns', 'bricks' ),
+				'type'        => 'number',
+				'min'         => 1,
+				'css'         => [
+					[
+						'property' => '--columns',
+						'selector' => '',
+					],
+				],
+				'placeholder' => 3,
+				'required'    => [ '_useMasonry', '=', true ],
+			];
+
+			$this->controls['_masonryGutter'] = [
+				'tab'         => 'style',
+				'group'       => '_layout',
+				'label'       => esc_html__( 'Spacing', 'bricks' ),
+				'type'        => 'number',
+				'units'       => true,
+				'css'         => [
+					[
+						'property' => '--gutter',
+						'selector' => '',
+					],
+				],
+				'placeholder' => '10px',
+				'required'    => [ '_useMasonry', '=', true ],
+			];
+
+			$this->controls['_masonryTransitionDuration'] = [
+				'tab'         => 'style',
+				'group'       => '_layout',
+				'label'       => esc_html__( 'Transition', 'bricks' ) . ': ' . esc_html__( 'Duration', 'bricks' ),
+				'type'        => 'number',
+				'units'       => true,
+				'placeholder' => '0.4s',
+				'description' => esc_html__( 'Set to "0" to disable default animations.', 'bricks' ),
+				'required'    => [ '_useMasonry', '=', true ],
+			];
+
+			$this->controls['_masonryTransitionMode'] = [
+				'tab'         => 'style',
+				'group'       => '_layout',
+				'label'       => esc_html__( 'Reveal animation', 'bricks' ),
+				'type'        => 'select',
+				'options'     => [
+					'scale'      => esc_html__( 'Scale', 'bricks' ),
+					'fade'       => esc_html__( 'Fade', 'bricks' ),
+					'slideLeft'  => esc_html__( 'Slide from left', 'bricks' ),
+					'slideRight' => esc_html__( 'Slide from right', 'bricks' ),
+					'skew'       => esc_html__( 'Skew', 'bricks' ),
+				],
+				'placeholder' => esc_html__( 'Scale', 'bricks' ),
+				'description' => esc_html__( 'Only applies to new items added to the DOM.', 'bricks' ),
+				'required'    => [
+					[ '_useMasonry', '=', true ],
+					[ '_masonryTransitionDuration', '!=', [ '0', '0s' ] ],
+				],
+			];
+		}
+
 		// TYPOGRAPHY
 
 		$this->controls['_typography'] = [
@@ -1115,24 +1216,27 @@ abstract class Element {
 					],
 
 					'height'          => [
-						'label'    => esc_html__( 'Height', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Height', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'width'           => [
-						'label'    => esc_html__( 'Width', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Width', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'rotate'          => [
-						'label'    => esc_html__( 'Rotate', 'bricks' ) . ' °',
-						'type'     => 'number',
-						'unit'     => 'deg',
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Rotate', 'bricks' ) . ' °',
+						'type'         => 'number',
+						'unit'         => 'deg',
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'horizontalAlign' => [
@@ -1154,31 +1258,35 @@ abstract class Element {
 					],
 
 					'top'             => [
-						'label'    => esc_html__( 'Top', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Top', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'right'           => [
-						'label'    => esc_html__( 'Right', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Right', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'bottom'          => [
-						'label'    => esc_html__( 'Bottom', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Bottom', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 					'left'            => [
-						'label'    => esc_html__( 'Left', 'bricks' ),
-						'type'     => 'number',
-						'units'    => true,
-						'required' => [ 'shape', '!=', '' ],
+						'label'        => esc_html__( 'Left', 'bricks' ),
+						'type'         => 'number',
+						'units'        => true,
+						'hasVariables' => true,
+						'required'     => [ 'shape', '!=', '' ],
 					],
 
 				],
@@ -1301,6 +1409,7 @@ abstract class Element {
 				],
 			],
 			'type'           => 'text',
+			'hasVariables'   => true,
 			'hasDynamicData' => false,
 			'description'    => sprintf(
 				'<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank">%s</a>',
@@ -1322,26 +1431,32 @@ abstract class Element {
 		];
 
 		$this->controls['_cssClasses'] = [
-			'tab'            => 'style',
-			'group'          => '_css',
-			'label'          => esc_html__( 'CSS classes', 'bricks' ),
-			'class'          => 'ltr',
-			'type'           => 'text',
-			'hasDynamicData' => false,
-			'description'    => esc_html__( 'Separated by space. Without class dot.', 'bricks' ),
+			'tab'         => 'style',
+			'group'       => '_css',
+			'label'       => esc_html__( 'CSS classes', 'bricks' ),
+			'class'       => 'ltr',
+			'type'        => 'text',
+			'description' => esc_html__( 'Separated by space. Without class dot.', 'bricks' ),
 		];
 
 		$this->controls['_cssId'] = [
-			'tab'            => 'style',
-			'group'          => '_css',
-			'label'          => esc_html__( 'CSS ID', 'bricks' ),
-			'class'          => 'ltr',
-			'type'           => 'text',
-			'hasDynamicData' => true, // NOTE: True @since 1.7.1
-			'description'    => esc_html__( 'No spaces. No pound (#) sign.', 'bricks' ),
+			'tab'         => 'style',
+			'group'       => '_css',
+			'label'       => esc_html__( 'CSS ID', 'bricks' ),
+			'class'       => 'ltr',
+			'type'        => 'text',
+			'description' => esc_html__( 'No spaces. No pound (#) sign.', 'bricks' ),
 		];
 
 		// ATTRIBUTES
+
+		$this->controls['infoAttributes'] = [
+			'tab'     => 'style',
+			'group'   => '_attributes',
+			// translators: %s: link to article
+			'content' => sprintf( esc_html__( '%s will be added to the most relevant HTML node.', 'bricks' ), Helpers::article_link( 'custom-attributes', esc_html__( 'Custom attributes', 'bricks' ) ) ),
+			'type'    => 'info',
+		];
 
 		$this->controls['_attributes'] = [
 			'tab'           => 'style',
@@ -1362,14 +1477,6 @@ abstract class Element {
 				],
 			],
 		];
-
-		$this->controls['infoAttributes'] = [
-			'tab'     => 'style',
-			'group'   => '_attributes',
-			// translators: %s: link to article
-			'content' => sprintf( esc_html__( '%s will be added to the most relevant HTML node.', 'bricks' ), Helpers::article_link( 'custom-attributes', esc_html__( 'Custom attributes', 'bricks' ) ) ),
-			'type'    => 'info',
-		];
 	}
 
 	/**
@@ -1378,6 +1485,11 @@ abstract class Element {
 	 * @since 1.0
 	 */
 	public function set_controls_after() {
+		// Custom HTML tag validation: To show error message in builder (@since 1.10.3)
+		if ( ! empty( $this->controls['customTag'] ) ) {
+			$this->controls['customTag']['validate'] = $this->get_in_builder_html_tag_validation_rules();
+		}
+
 		// NOTE: Entry animations are deprecated @since 1.6 in favor of element interactions: Run new converter option!
 		$this->controls['_animationSeparator'] = [
 			'tab'        => 'style',
@@ -1454,6 +1566,23 @@ abstract class Element {
 	}
 
 	/**
+	 * Builder: Helper function to get HTML tag validation rules
+	 *
+	 * @since 1.10.3
+	 */
+	public function get_in_builder_html_tag_validation_rules() {
+		// Builder: Get allowed HTML tags
+		if ( bricks_is_builder() ) {
+			return [
+				'allowed' => Helpers::get_allowed_html_tags(),
+				'error'   => esc_html__( 'HTML tag not allowed', 'bricks' ) . '. ' . esc_html__( 'Extend allowed tags through filter', 'bricks' ) . ' ' . Helpers::article_link( 'filter-bricks-allowed_html_tags', 'bricks/allowed_html_tags' ),
+			];
+		}
+
+		return [];
+	}
+
+	/**
 	 * Get default data
 	 *
 	 * @since 1.0
@@ -1508,23 +1637,22 @@ abstract class Element {
 		$nestable     = $this->nestable;
 		$element_id   = $this->id;
 		$element_name = $this->name;
-		$settings     = ! empty( $element['settings'] ) && is_array( $element['settings'] ) ? $element['settings'] : [];
+		$settings     = $this->settings;
 		$attributes   = [];
 
 		$has_css_settings = self::has_css_settings( $settings );
 
 		// Parent element is 'slider-nested' & 'pagination' is enabled: Ensure slide 'id' is added (needed for 'aria-controls' a11y)
 		if ( $nestable ) {
-			$parent_id = ! empty( $element['parent'] ) ? $element['parent'] : false;
+			$parent_id = $element['parent'] ?? false;
 
 			if ( $parent_id ) {
-				$parent_element = ! empty( Frontend::$elements[ $parent_id ] ) ? Frontend::$elements[ $parent_id ] : false;
-
+				$parent_element = Frontend::$elements[ $parent_id ] ?? false;
 				if ( $parent_element ) {
 					if (
-						isset( $parent_element['name'] ) &&
-						$parent_element['name'] === 'slider-nested' &&
-						isset( $parent_element['settings']['pagination'] )
+					isset( $parent_element['name'] ) &&
+					$parent_element['name'] === 'slider-nested' &&
+					isset( $parent_element['settings']['pagination'] )
 					) {
 						$has_css_settings = true;
 					}
@@ -1537,17 +1665,17 @@ abstract class Element {
 		 *
 		 * IF:
 		 * - Custom 'id' set
+		 * - Is Offcanvas element (to ensure it works with 'Selector' setting of the Toggle element)
 		 *
 		 * OR:
-		 * - Not inside query loop
-		 * - Has CSS setting
-		 * - Not a global element
+		 * - Not inside query loop && has CSS setting && not a global element && not a component (@since 1.12)
 		 */
 		$global_element_id = Helpers::get_global_element( $element, 'global' );
+		$component_id      = $element['cid'] ?? $element['parentComponent'] ?? false;
 
 		if (
 			! empty( $settings['_cssId'] ) ||
-			( ! Query::is_looping() && $has_css_settings && ! $global_element_id ) ||
+			( ! Query::is_looping() && $has_css_settings && ! $global_element_id && ! $component_id ) ||
 			$element_name === 'offcanvas' // Offcanvas: Always add 'id' attribute to ensure it works with 'Selector' setting of the Toggle element
 		) {
 			$attributes['id'] = $this->get_element_attribute_id();
@@ -1556,9 +1684,36 @@ abstract class Element {
 		// STEP: Add element classes
 		$classes = [];
 
-		// Query loop item: Use class name instead of ID as main selector (every item uses same styling rules)
-		// Always add element class as loop item element can contain CSS settings.
-		if ( Query::is_looping() ) {
+		/**
+		 * Use component ID as class name instead of ID as main selector (every component needs to have the same CSS and non-repeating IDs)
+		 *
+		 * @since 1.12
+		 */
+		if ( $component_id ) {
+			// Get element 'name' from component (could have been converted in builder context-menu)
+			$component_id   = $element['cid'] ?? false;
+			$component_root = $component_id ? Helpers::get_component_element_by_id( $component_id ) : false;
+			if ( ! empty( $component_root['name'] ) ) {
+				$this->name = $component_root['name'];
+			}
+
+			// Is component root element: Use component ID as class name
+			if ( ! empty( $element['cid'] ) && $element['cid'] === $component_id ) {
+				$classes[] = "brxe-{$component_id}";
+			}
+
+			// Is component child element: Use element ID as class name
+			else {
+				$classes[] = "brxe-{$element_id}";
+			}
+		}
+
+		/**
+		 * Set main element selector brxe-{element.id} as class name instead of ID
+		 *
+		 * Query loop item: Use class name instead of ID as main selector (every item uses same styling rules)
+		 */
+		elseif ( Query::is_looping() ) {
 			$classes[] = "brxe-{$element_id}";
 		}
 
@@ -1631,8 +1786,26 @@ abstract class Element {
 		 *
 		 * @since 1.4
 		 */
-		if ( ! empty( $this->scripts ) ) {
+		if ( ! empty( $this->scripts ) || $this->enabled_masonry() ) {
 			$attributes['data-script-id'] = Query::is_any_looping() ? Helpers::generate_random_id( false ) : $this->id;
+		}
+
+		/**
+		 * Masonry layout: Add classes & data attributes
+		 *
+		 * @since 1.11.1
+		 */
+		if ( $this->enabled_masonry() ) {
+			$classes[]                           = 'isotope';
+			$classes[]                           = 'bricks-layout-wrapper';
+			$classes[]                           = 'isotope-before-init'; // Avoid unstyled content visible (@since 1.12)
+			$classes[]                           = 'bricks-masonry';
+			$attributes['data-brx-masonry-json'] = wp_json_encode(
+				[
+					'transitionMode'     => isset( $settings['_masonryTransitionMode'] ) ? $settings['_masonryTransitionMode'] : 'scale',
+					'transitionDuration' => isset( $settings['_masonryTransitionDuration'] ) ? $settings['_masonryTransitionDuration'] : '0.4s',
+				]
+			);
 		}
 
 		// Frontend: Lazy load nestable background images (section, container, block, div, etc.)
@@ -1658,12 +1831,26 @@ abstract class Element {
 
 			if ( is_array( $custom_attributes ) ) {
 				foreach ( $custom_attributes as $att_key => $att_val ) {
-					$attributes[ $att_key ] = $att_val;
+					// Trim key
+					$att_key = $att_key ? trim( $att_key ) : '';
+
+					// Replace white space with dash
+					$att_key = str_replace( ' ', '-', $att_key );
+
+					if ( $att_key ) {
+						// Ensure custom classes are added to existing attribute as an array value (@since 1.11.1)
+						if ( isset( $attributes[ $att_key ] ) && is_array( $attributes[ $att_key ] ) ) {
+							$att_val                = is_string( $att_val ) ? [ $att_val ] : $att_val;
+							$attributes[ $att_key ] = array_merge( $attributes[ $att_key ], $att_val );
+						} else {
+							$attributes[ $att_key ] = $att_val;
+						}
+					}
 				}
 			}
 		}
 
-		// NOTE: Undocumented
+		// @see https://academy.bricksbuilder.io/article/filter-bricks-set_root_attributes/
 		$attributes = apply_filters( 'bricks/element/set_root_attributes', $attributes, $this );
 
 		$this->attributes['_root'] = $attributes;
@@ -1745,8 +1932,15 @@ abstract class Element {
 							foreach ( $repeater_item as $repeater_key => $repeater_value ) {
 								$repeater_control = ! empty( $this->controls[ $key ]['fields'][ $repeater_key ] ) ? $this->controls[ $key ]['fields'][ $repeater_key ] : false;
 
+								// Return true: Property besides 'library' and 'svg' set (e.g. height, width, etc.)
+								if ( ! empty( $repeater_value['svg'] ) && count( $repeater_value['svg'] ) > 2 ) {
+									$has_css_settings = true;
+									break;
+								}
+
 								if ( isset( $repeater_control['css'] ) ) {
 									$has_css_settings = true;
+									break;
 								}
 							}
 						}
@@ -1883,16 +2077,57 @@ abstract class Element {
 			return;
 		}
 
+		// Use correct post_id when parsing dynamic tag on blog posts page (@since 1.10)
+		$post_id = is_home() || ( Woocommerce::is_woocommerce_active() && is_shop() ) ? $this->post_id : get_the_ID();
+
 		// Internal link
 		if ( $link_type === 'internal' && isset( $link_settings['postId'] ) ) {
 			$permalink = get_the_permalink( $link_settings['postId'] );
 
+			// Add URL parameters (@since 1.10.2)
+			if ( ! empty( $link_settings['urlParams'] ) ) {
+				$url_params = $this->render_dynamic_data( $link_settings['urlParams'] );
+				$permalink  = esc_url( $permalink . $url_params ); // Escape after adding URL parameters
+			}
+
 			$this->set_attribute( $attribute_key, 'href', $permalink );
 		}
 
-		// External link
+		// Taxonomy term link (@since 1.10.2)
+		elseif ( $link_type === 'taxonomy' && isset( $link_settings['term'] ) ) {
+			// Split termData into array (format: "taxonomy::termId")
+			$term_id_parts = explode( '::', $link_settings['term'] );
+
+			if ( count( $term_id_parts ) === 2 ) {
+				$term_id  = $term_id_parts[1];
+				$taxonomy = $term_id_parts[0];
+
+				$term = get_term( $term_id, $taxonomy );
+
+				if ( $term && ! is_wp_error( $term ) ) {
+					$this->set_attribute( $attribute_key, 'href', get_term_link( $term ) );
+				}
+			}
+		}
+
+		// External link: Use same logic as dynamic data link (@since 1.12)
 		elseif ( $link_type === 'external' && isset( $link_settings['url'] ) ) {
-			$this->set_attribute( $attribute_key, 'href', bricks_render_dynamic_data( $link_settings['url'], get_the_ID(), 'link' ) );
+			// Check for the old dynamic data format
+			$raw_href = (string) $link_settings['url'] ?? '';
+
+			// It is a composed link e.g. "https://my-domain.com/?p={post_id}"
+			if ( strpos( $raw_href, '{' ) !== 0 || substr_count( $raw_href, '}' ) > 1 ) {
+				$context = 'text';
+			}
+
+			// It is a dynamic data tag only e.g. "{post_url}"
+			else {
+				$context = 'link';
+			}
+
+			$href = bricks_render_dynamic_data( $raw_href, $post_id, $context );
+
+			$this->set_attribute( $attribute_key, 'href', $href );
 		}
 
 		// Lightbox image or video: Set lightbox ID through 'data-pswp-id' attribute
@@ -1921,7 +2156,7 @@ abstract class Element {
 
 			// Dynamic data lightbox image
 			if ( ! empty( $lightbox_image['useDynamicData'] ) ) {
-				$image = Integrations\Dynamic_Data\Providers::render_tag( $lightbox_image['useDynamicData'], get_the_ID(), 'image', [ 'size' => $image_size ] );
+				$image = Integrations\Dynamic_Data\Providers::render_tag( $lightbox_image['useDynamicData'], $post_id, 'image', [ 'size' => $image_size ] );
 
 				if ( ! empty( $image[0] ) ) {
 					$image_url = $image[0];
@@ -1948,13 +2183,18 @@ abstract class Element {
 
 		// Lightbox video
 		if ( $link_type === 'lightboxVideo' && isset( $link_settings['lightboxVideo'] ) ) {
-			$video_url = bricks_render_dynamic_data( $link_settings['lightboxVideo'] );
+			$video_url = bricks_render_dynamic_data( $link_settings['lightboxVideo'], $this->post_id );
 
 			$this->set_attribute( $attribute_key, 'href', $video_url );
 			$this->set_attribute( $attribute_key, 'class', 'bricks-lightbox' );
 			$this->set_attribute( $attribute_key, 'data-pswp-width', $lightbox_width );
 			$this->set_attribute( $attribute_key, 'data-pswp-height', $lightbox_height );
 			$this->set_attribute( $attribute_key, 'data-pswp-video-url', $video_url );
+
+			// Disable controls (@since 1.10.3)
+			if ( isset( $link_settings['lightboxVideoNoControls'] ) ) {
+				$this->set_attribute( $attribute_key, 'data-no-controls', 1 );
+			}
 		}
 
 		// Dynamic data link
@@ -1972,7 +2212,7 @@ abstract class Element {
 				$context = 'link';
 			}
 
-			$href = bricks_render_dynamic_data( $link_dd_tag, get_the_ID(), $context );
+			$href = bricks_render_dynamic_data( $link_dd_tag, $post_id, $context );
 
 			$this->set_attribute( $attribute_key, 'href', $href );
 		}
@@ -1983,7 +2223,8 @@ abstract class Element {
 		}
 
 		if ( isset( $link_settings['rel'] ) ) {
-			$this->set_attribute( $attribute_key, 'rel', $link_settings['rel'] );
+			$rel = bricks_render_dynamic_data( $link_settings['rel'], $post_id ); // Dynamic data (@since 1.12.3)
+			$this->set_attribute( $attribute_key, 'rel', $rel );
 		}
 
 		if ( isset( $link_settings['newTab'] ) ) {
@@ -1991,11 +2232,13 @@ abstract class Element {
 		}
 
 		if ( isset( $link_settings['title'] ) ) {
-			$this->set_attribute( $attribute_key, 'title', $link_settings['title'] );
+			$title = bricks_render_dynamic_data( $link_settings['title'], $post_id ); // Dynamic data (@since 1.12.3)
+			$this->set_attribute( $attribute_key, 'title', $title );
 		}
 
 		if ( isset( $link_settings['ariaLabel'] ) ) {
-			$this->set_attribute( $attribute_key, 'aria-label', $link_settings['ariaLabel'] );
+			$aria_label = bricks_render_dynamic_data( $link_settings['ariaLabel'], $post_id ); // Dynamic data (@since 1.12.3)
+			$this->set_attribute( $attribute_key, 'aria-label', $aria_label );
 		}
 
 		// Set aria-current="page" attribute to the link if it points to the current page. (@since 1.8)
@@ -2010,6 +2253,7 @@ abstract class Element {
 	 * NOTE: url_to_postid() returns 0 if URL contains the port like https://bricks.local:49581/blog/
 	 *
 	 * @since 1.8
+	 * @since 1.11: Add 'taxonomy' link type.
 	 */
 	public function maybe_set_aria_current( $link_settings, $attribute_key ) {
 		$link_type = $link_settings['type'] ?? false;
@@ -2027,9 +2271,22 @@ abstract class Element {
 			case 'meta':
 				$link_url = $link_settings['useDynamicData'] ?? false;
 				break;
+
+			case 'taxonomy':
+				if ( isset( $link_settings ['term'] ) ) {
+					$term_id_parts = explode( '::', $link_settings ['term'] );
+					$taxonomy      = $term_id_parts[0];
+					$term_id       = $term_id_parts[1];
+					$term          = get_term( $term_id, $taxonomy );
+
+					if ( isset( $term ) && ! is_wp_error( $term ) ) {
+						$link_url = get_term_link( $term );
+					}
+				}
+				break;
 		}
 
-		// Return: Link URL is "#"
+			// Return: Link URL is "#"
 		if ( $link_url === '#' ) {
 			return;
 		}
@@ -2038,8 +2295,17 @@ abstract class Element {
 			$link_url = bricks_render_dynamic_data( $link_url );
 		}
 
-		// Set aria-current="page" attribute to the link if it points to the current page
-		if ( $link_url && Helpers::maybe_set_aria_current_page( $link_url ) ) {
+			/**
+			 * Is anchor link: Add 'data-brx-anchor' attribute to anchor link for frontend JS
+			 *
+			 * @since 1.11
+			 */
+		if ( strpos( $link_url, '#' ) !== false ) {
+			$this->set_attribute( $attribute_key, 'data-brx-anchor', 'true' );
+		}
+
+			// Not an anchor link: Set aria-current="page" attribute to the link if it points to the current page
+		elseif ( $link_url && Helpers::maybe_set_aria_current_page( $link_url ) ) {
 			$this->set_attribute( $attribute_key, 'aria-current', 'page' );
 		}
 	}
@@ -2078,12 +2344,17 @@ abstract class Element {
 	 * @since 1.0
 	 */
 	public function render_attributes( $key, $add_custom_attributes = false ) {
-		// @see: https://academy.bricksbuilder.io/article/filter-bricks-element-render_attributes/ (@since 1.3.7)
+		// @see: https://academy.bricksbuilder.io/article/filter-bricks-element-render_attributes/
 		$attributes = apply_filters( 'bricks/element/render_attributes', $this->attributes, $key, $this );
 
 		// Return: No attributes set for this element
 		if ( ! isset( $attributes[ $key ] ) ) {
 			return;
+		}
+
+		// Builder: Custom attributes (@since 1.10)
+		if ( is_array( $attributes ) && count( $attributes ) ) {
+			Builder::$html_attributes[ $this->id ] = $attributes;
 		}
 
 		$attribute_strings = [];
@@ -2094,12 +2365,19 @@ abstract class Element {
 
 			if ( is_array( $custom_attributes ) ) {
 				foreach ( $custom_attributes as $att_key => $att_val ) {
-					$attributes[ $key ][ $att_key ] = $att_val;
+					if ( Helpers::is_valid_html_attribute_name( $att_key ) ) {
+						$attributes[ $key ][ $att_key ] = $att_val;
+					}
 				}
 			}
 		}
 
 		foreach ( $attributes[ $key ] as $key => $value ) {
+			// Skip invalid HTML attribute name
+			if ( ! Helpers::is_valid_html_attribute_name( $key ) ) {
+				continue;
+			}
+
 			// Empty, non-numeric value
 			if ( empty( $value ) && ! is_numeric( $value ) ) {
 				$attribute_strings[] = $key;
@@ -2149,22 +2427,34 @@ abstract class Element {
 	 * @since 1.3
 	 */
 	public function get_custom_attributes( $settings = [] ) {
-		if ( empty( $settings['_attributes'] ) || ! is_array( $settings['_attributes'] ) ) {
+		$attributes = ! empty( $settings['_attributes'] ) && is_array( $settings['_attributes'] ) ? $settings['_attributes'] : [];
+
+		// Return: No attributes set
+		if ( empty( $attributes ) ) {
 			return [];
 		}
 
-		$attributes = [];
+		$custom_attributes = [];
 
-		foreach ( $settings['_attributes'] as $index => $field ) {
+		foreach ( $attributes as $field ) {
 			if ( ! empty( $field['name'] ) ) {
-				// Use 'esc_attr' instead of 'sanitize_title' to avoid removing ':' (e.g. AlpineJS)
-				$key = esc_attr( $field['name'] );
+				$attribute_id = $field['id'] ?? '';
 
-				$attributes[ $key ] = isset( $field['value'] ) ? bricks_render_dynamic_data( $field['value'], $this->post_id ) : '';
+				// Use 'esc_attr' instead of 'sanitize_title' to avoid removing ':' (e.g. AlpineJS)
+				$attribute_name = esc_attr( $field['name'] );
+
+				$attribute_value = isset( $field['value'] ) ? bricks_render_dynamic_data( $field['value'], $this->post_id ) : '';
+
+				// Get attribute value from setting "_attributes|{property.id}|value"
+				if ( $attribute_value === '' ) {
+					$attribute_value = isset( $settings[ "_attributes|$attribute_id|value" ] ) ? $settings[ "_attributes|$attribute_id|value" ] : '';
+				}
+
+				$custom_attributes[ $attribute_name ] = $attribute_value;
 			}
 		}
 
-		return $attributes;
+		return $custom_attributes;
 	}
 
 	public static function stringify_attributes( $attributes = [] ) {
@@ -2262,14 +2552,15 @@ abstract class Element {
 		// Enqueue scripts & styles
 		$this->enqueue_scripts();
 
+		// Enqueue Masonry scripts (@since 1.11.1)
+		$this->maybe_enqueue_masonry_scripts();
+
 		// Set global $post with builder AJAX/REST API submitted postId to retrieve correct post object (unless it is looping)
 		if ( Query::is_looping() && Query::get_loop_object_type() == 'post' ) {
 			$post_id = Query::get_loop_object_id();
 		} else {
 			/**
 			 * Changed from Database::$page_data['preview_or_post_id'] to Database::$page_data['original_post_id'] to ensure setup_query runs inside of a template
-			 *
-			 * @since 1.5.7
 			 *
 			 * NOTE: Undocumented
 			 */
@@ -2278,15 +2569,39 @@ abstract class Element {
 
 		$this->set_post_id( $post_id );
 
-		// Set root attributes
+		/**
+		 * Populate repeater items with component property settings
+		 *
+		 * Run before 'set_root_attributes' as _attributes can contain connected properties.
+		 *
+		 * @since 1.12
+		 */
+		if ( ! empty( $this->settings ) && is_array( $this->settings ) ) {
+			foreach ( $this->settings as $key => $repeater_items ) {
+				$control_type = $this->controls[ $key ]['type'] ?? false;
+				if ( $control_type === 'repeater' && $key !== '_children' ) {
+					foreach ( $repeater_items as $repeater_item_index => $repeater_item_value ) {
+						$this->settings[ $key ][ $repeater_item_index ] = $this->get_component_repeater_item_settings( $repeater_item_value, $key );
+					}
+				}
+			}
+		}
+
+		/**
+		 * Set root attributes
+		 *
+		 * Need to run before we apply the 'bricks/element/render' filter.
+		 * NOTE TODO: 'bricks/element/settings' filter should be applied before 'set_root_attributes'
+		 * as you could programmatically set the '_attributes' setting using the 'bricks/element/settings' filter.
+		 *
+		 * @since 1.10.1
+		 */
 		$this->set_root_attributes();
 
 		/**
 		 * Setup query if post or page direct edit with Bricks (#861m48kv4)
 		 *
 		 * If bricks_is_builder_call(), shouldn't setup query if looping.
-		 *
-		 * @since 1.8
 		 */
 		$setup_preview_query = Helpers::is_bricks_template( $post_id ) || ( bricks_is_builder_call() && ! Query::is_looping() );
 
@@ -2296,27 +2611,29 @@ abstract class Element {
 
 		$render_element = true;
 
-		// Check element conditions (@since 1.5.4)
+		// Check element conditions. Use _conditions before changes via bricks/element/settings hook
 		if ( ! empty( $this->settings['_conditions'] ) ) {
 			$render_element = Conditions::check( $this->settings['_conditions'], $this );
 		}
 
-		// NOTE: Undocumented (@since 1.5 to interject element render)
+		// https://academy.bricksbuilder.io/article/filter-bricks-element-render/ (@since 1.5 to interject element render)
 		$render_element = apply_filters( 'bricks/element/render', $render_element, $this );
 
 		if ( $render_element ) {
-			/** To interject element settings for translation plugins, etc.
+			/**
+			 * Interject element settings for translation plugins, etc.
 			 *
 			 * https://academy.bricksbuilder.io/article/filter-bricks-element-settings/
-			 *
-			 * @since 1.5
 			 */
 			$this->settings = apply_filters( 'bricks/element/settings', $this->settings, $this );
+
+			// Update $this->element['settings'] as some function such as Helpers::populate_query_vars_for_element() use $element['settings'] (@since 1.10)
+			$this->element['settings'] = $this->settings;
 
 			$this->render();
 		}
 
-		// @since 1.8 - Restore query if post or page direct edit with Bricks (#861m48kv4)
+		// Restore query if post or page direct edit with Bricks
 		if ( $setup_preview_query ) {
 			$this->restore_query();
 		}
@@ -2977,18 +3294,19 @@ abstract class Element {
 		];
 
 		$controls['prevArrowTop'] = [
-			'tab'      => 'content',
-			'group'    => 'arrows',
-			'label'    => esc_html__( 'Top', 'bricks' ),
-			'type'     => 'number',
-			'units'    => true,
-			'css'      => [
+			'tab'         => 'content',
+			'group'       => 'arrows',
+			'label'       => esc_html__( 'Top', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'css'         => [
 				[
 					'property' => 'top',
 					'selector' => '.bricks-swiper-button-prev',
 				],
 			],
-			'required' => [ 'arrows', '!=', '' ],
+			'placeholder' => '50%',
+			'required'    => [ 'arrows', '!=', '' ],
 		];
 
 		$controls['prevArrowRight'] = [
@@ -3438,7 +3756,7 @@ abstract class Element {
 
 		$controls['hasLoop'] = [
 			'tab'   => 'content',
-			'label' => esc_html__( 'Use query loop', 'bricks' ),
+			'label' => esc_html__( 'Query loop', 'bricks' ),
 			'type'  => 'checkbox',
 		];
 
@@ -3473,21 +3791,19 @@ abstract class Element {
 	 * @return string
 	 */
 	public function render_query_loop_trail( $query, $node_key = '' ) {
-		$settings = ! empty( $this->element['settings'] ) ? $this->element['settings'] : [];
+		$render = $this->is_frontend && ! bricks_is_rest_call();
 
-		if ( ! $this->is_frontend || bricks_is_rest_call() ) {
+		// @see https://academy.bricksbuilder.io/article/filter-bricks-render_query_loop_trail/ (@since 1.11.1)
+		$render = apply_filters( 'bricks/render_query_loop_trail', $render, $this, $query );
+
+		if ( ! $render ) {
 			return '';
 		}
 
+		$settings = $this->element['settings'] ?? [];
 		$render   = empty( $node_key );
 		$node_key = empty( $node_key ) ? 'trail' : $node_key;
-
-		$page = isset( $query->query_vars['paged'] ) ? $query->query_vars['paged'] : 1;
-
-		// This will cause no results got no queryLoopInstances generated in frontend (@since 1.9.6)
-		// if ( $page == 1 && $query->max_num_pages == 1 ) {
-		// return;
-		// }
+		$page     = isset( $query->query_vars['paged'] ) ? $query->query_vars['paged'] : 1;
 
 		// Query trail class (load more or infinite scroll)
 		$this->set_attribute( $node_key, 'class', 'brx-query-trail' );
@@ -3514,19 +3830,35 @@ abstract class Element {
 			$this->set_attribute( $node_key, 'data-brx-ajax-loader', wp_json_encode( $ajax_loader_data ) );
 		}
 
-		// Element ID
-		$this->set_attribute( $node_key, 'data-query-element-id', $this->id );
+		// Set target Query ID. If it is inside a component instance (not root), combine with instanceId (@since 1.12.2)
+		$query_id = isset( $this->element['instanceId'] ) && ! empty( $this->element['instanceId'] ) ? "{$this->id}-{$this->element['instanceId']}" : $this->id;
+		$this->set_attribute( $node_key, 'data-query-element-id', $query_id );
 
-		// Unset 'queryEditor' value as not needed in the frontend (@since 1.9.1)
+		// Component ID (@since 1.12)
+		if ( $this->cid ) {
+			$this->set_attribute( $node_key, 'data-query-component-id', $this->cid );
+		}
+
+		// Unset 'queryEditor' value as not needed in the frontend
 		if ( isset( $query->query_vars['queryEditor'] ) ) {
 			unset( $query->query_vars['queryEditor'] );
 		}
-		// Query vars: needed to make sure the context is the same if the query was merged with the global query (@since 1.5.1)
+		// Query vars: needed to make sure the context is the same if the query was merged with the global query
 		$this->set_attribute( $node_key, 'data-query-vars', wp_json_encode( $query->query_vars ) );
+
+		// Original query vars before merge with filter query vars (@since 1.11.1)
+		if ( Helpers::enabled_query_filters() ) {
+			$original_query = isset( Query_Filters::$query_vars_before_merge[ $this->id ] ) ? Query_Filters::$query_vars_before_merge[ $this->id ] : [];
+			$this->set_attribute( $node_key, 'data-original-query-vars', wp_json_encode( $original_query ) );
+		}
 
 		// Pagination
 		$this->set_attribute( $node_key, 'data-page', $page );
 		$this->set_attribute( $node_key, 'data-max-pages', $query->max_num_pages );
+
+		// Query Results summary, to register in queryLoopInstances (@since 1.12.2)
+		$this->set_attribute( $node_key, 'data-start', $query->start );
+		$this->set_attribute( $node_key, 'data-end', $query->end );
 
 		// Observer margin (only px or %)
 		if ( ! empty( $settings['query']['infinite_scroll_margin'] ) ) {
@@ -3539,9 +3871,21 @@ abstract class Element {
 			$this->set_attribute( $node_key, 'data-observer-margin', $offset );
 		}
 
+		// Infinite scroll delay (@since 1.12)
+		if ( ! empty( $settings['query']['infinite_scroll_delay'] ) && ! empty( $settings['query']['infinite_scroll'] ) ) {
+			$this->set_attribute( $node_key, 'data-observer-delay', $settings['query']['infinite_scroll_delay'] );
+		}
+
 		if ( $render ) {
-			// Use the tag of the element instead of a hardcoded div (@since 1.9.8)
+			// Use the tag of the element instead of a hardcoded div
 			$tag = $this->get_tag();
+
+			// Is 'a' tag: Add attributes for SEO (@since 1.11)
+			if ( $tag === 'a' ) {
+				$this->set_attribute( $node_key, 'role', 'presentation' );
+				$this->set_attribute( $node_key, 'href', '#' );
+				$this->set_attribute( $node_key, 'onclick', 'return false;' );
+			}
 
 			echo "<$tag {$this->render_attributes( 'trail' )}></$tag>";
 		}
@@ -3687,11 +4031,31 @@ abstract class Element {
 		$classes = [];
 
 		// STEP: Render SVG
-		$svg_id = ! empty( $icon['svg']['id'] ) ? $icon['svg']['id'] : false;
+		$svg_data = $icon['svg'] ?? []; // @since 1.12.2
+		$svg_id   = $svg_data['id'] ?? false;
 
 		if ( $svg_id ) {
+			// Check if SVG is from remote/different website (@since 1.12.2)
+			$remote_svg_url = $svg_data['url'] ?? '';
+			$current_host   = parse_url( home_url(), PHP_URL_HOST );
+			$remote_host    = parse_url( $remote_svg_url, PHP_URL_HOST );
+			$compare_remote = $remote_host && $remote_host !== $current_host;
+
+			// If it's SVG from remote, we need to compare the filenames with local one,
+			// to avoid fetching wrong file from local media library
 			$svg_path = get_attached_file( $svg_id );
-			$svg      = Helpers::file_get_contents( $svg_path );
+
+			if ( $compare_remote && $svg_path !== false ) {
+				$svg_filename       = $svg_data['filename'] ?? basename( $remote_svg_url );
+				$svg_filename_local = basename( $svg_path );
+
+				// Return unrendered: SVG name is different, we expect that it's a different SVG file
+				if ( $svg_filename !== $svg_filename_local ) {
+					return;
+				}
+			}
+
+			$svg = Helpers::file_get_contents( $svg_path );
 
 			if ( ! $svg ) {
 				return;
@@ -3705,7 +4069,7 @@ abstract class Element {
 				$classes[] = 'stroke';
 			}
 
-			$attributes['class'] = empty( $attributes['class'] ) ? $classes : array_merge( $attributes['class'], $classes );
+			$attributes['class'] = empty( $attributes['class'] ) ? $classes : array_merge( $classes, $attributes['class'] );
 
 			// Add attributes to SVG HTML string
 			return self::render_svg( $svg, $attributes );
@@ -3715,7 +4079,7 @@ abstract class Element {
 		elseif ( ! empty( $icon['icon'] ) ) {
 			$classes[] = $icon['icon'];
 
-			$attributes['class'] = empty( $attributes['class'] ) ? $classes : array_merge( $attributes['class'], $classes );
+			$attributes['class'] = empty( $attributes['class'] ) ? $classes : array_merge( $classes, $attributes['class'] );
 
 			$attributes = self::stringify_attributes( $attributes );
 
@@ -3744,7 +4108,7 @@ abstract class Element {
 			$svg = str_replace( $svg_tag, $svg_without_id, $svg );
 		}
 
-		// STEP: add the new attributes
+		// STEP: Add the new attributes
 		foreach ( $attributes as $key => $values ) {
 			$start = strpos( $svg, $key . '="' );
 			$end   = strpos( $svg, '>' );
@@ -3840,20 +4204,30 @@ abstract class Element {
 
 			$element_id = $this->get_element_attribute_id();
 
+			// Is component: Use .brxe- class instead of ID (@since 1.12)
+			$components = Database::$global_data['components'];
+
+			// Stringify components array
+			$components_string = wp_json_encode( $components );
+
+			// Check if element 'id' is in components string
+			$is_component = strpos( $components_string, $this->id ) !== false;
+
+			$nav_menu_selector = $is_component ? ".brxe-{$this->id}" : "#{$element_id}";
+
 			// Nav menu
 			if ( $this->name === 'nav-menu' ) {
-				$nav_menu_inline_css .= "#{$element_id} .bricks-nav-menu-wrapper { display: none; }\n";
-				$nav_menu_inline_css .= "#{$element_id} .bricks-mobile-menu-toggle { display: block; }\n";
+				$nav_menu_inline_css .= "$nav_menu_selector .bricks-nav-menu-wrapper { display: none; }\n";
+				$nav_menu_inline_css .= "$nav_menu_selector .bricks-mobile-menu-toggle { display: block; }\n";
 			}
 
 			// Nav nested
 			elseif ( $this->name === 'nav-nested' ) {
-				$nav_menu_inline_css .= "#{$element_id} .brx-toggle-div { display: inline-flex; }\n";
-				$nav_menu_inline_css .= "#{$element_id} .brxe-toggle { display: inline-flex; }\n";
+				$nav_menu_inline_css .= "$nav_menu_selector .brx-toggle-div { display: inline-flex; }\n";
+				$nav_menu_inline_css .= "$nav_menu_selector .brxe-toggle { display: inline-flex; }\n";
 
 				// NOTE: Using element ID doesn't allow "Nav items" settings to overwrite it
-				// $nav_menu_inline_css .= "#{$element_id} .brx-nav-nested-items {
-				$nav_menu_inline_css .= "[data-script-id={$this->id}] .brx-nav-nested-items {
+				$nav_menu_inline_css .= "[data-script-id=\"{$this->id}\"] .brx-nav-nested-items {
 					opacity: 0;
 					visibility: hidden;
 					gap: 0;
@@ -3925,5 +4299,90 @@ abstract class Element {
 		}
 
 		return $class_has;
+	}
+
+	/**
+	 * Enqueue Masonry scripts
+	 *
+	 * @since 1.11.1
+	 */
+	public function maybe_enqueue_masonry_scripts() {
+		if ( $this->enabled_masonry() ) {
+			wp_enqueue_script( 'bricks-isotope' );
+			wp_enqueue_style( 'bricks-isotope' );
+		}
+	}
+
+	/**
+	 * Support masonry layout
+	 *
+	 * @since 1.11.1
+	 */
+	public function support_masonry_element() {
+		$element_names = [ 'section', 'container', 'block', 'div' ];
+
+		// NOTE: Undocumented
+		$element_names = apply_filters( 'bricks/support_masonry_element', $element_names );
+
+		return in_array( $this->name, $element_names );
+	}
+
+	public function enabled_masonry() {
+		return isset( $this->settings['_useMasonry'] ) && $this->support_masonry_element();
+	}
+
+	public function maybe_masonry_trail_nodes() {
+		$nodes = '';
+		if ( $this->enabled_masonry() ) {
+			$nodes .= "<li class='bricks-isotope-sizer'></li>";
+			$nodes .= "<li class='bricks-gutter-sizer'></li>";
+		}
+		return $nodes;
+	}
+
+	/**
+	 * Get component repeater item settings (by repeater item.id)
+	 *
+	 * Merge settings of repeater item with component settings.
+	 *
+	 * @since 1.12
+	 */
+	public function get_component_repeater_item_settings( $settings = [], $control_key = '' ) {
+		// Return settings: Element is not a component instance
+		if ( empty( $this->element['instanceId'] ) ) {
+			return $settings;
+		}
+
+		// Get repeater item ID
+		$repeater_item_id = $settings['id'] ?? false;
+
+		if ( ! $repeater_item_id ) {
+			return $settings;
+		}
+
+		$component_instance_settings = Helpers::get_component_instance( $this->element, 'settings' );
+
+		// Get in-builder repeater item real-time/un-saved settings from element settings
+		foreach ( $this->settings as $key => $value ) {
+			// Setting key belongs to the current repeater item
+			if ( strpos( $key, "$control_key|$repeater_item_id|" ) !== -1 ) {
+				$component_instance_settings[ $key ] = $value;
+			}
+		}
+
+		if ( is_array( $component_instance_settings ) && ! empty( $component_instance_settings ) ) {
+			// Get property defaults or custom value for current repeater item (use repeater item 'id')
+			foreach ( $component_instance_settings as $key => $value ) {
+				// Setting key belongs to the current repeater item
+				if ( strpos( $key, "$control_key|$repeater_item_id|" ) !== -1 ) {
+					// Remove repeater control key && repeater item ID from the key to match the settings key of the repeater item
+					$setting_key = str_replace( "$control_key|$repeater_item_id|", '', $key );
+
+					$settings[ $setting_key ] = $value;
+				}
+			}
+		}
+
+		return $settings;
 	}
 }

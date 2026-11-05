@@ -66,7 +66,8 @@ if ( $code_review ) {
 
 						if ( ! empty( $element_settings['signature'] ) ) {
 							// Valid signature
-							if ( Helpers::verify_code_signature( $element_settings['signature'], $element_settings['code'] ) ) {
+							$element_settings_code = isset( $element_settings['code'] ) ? $element_settings['code'] : '';
+							if ( Helpers::verify_code_signature( $element_settings['signature'], $element_settings_code ) ) {
 								$element['signature']['label'] = esc_html__( 'Valid signature', 'bricks' );
 								$element['signature']['type']  = 'valid';
 							}
@@ -396,13 +397,80 @@ if ( $code_review ) {
 							<input type="checkbox" name="searchResultsQueryBricksData" id="searchResultsQueryBricksData" <?php checked( isset( $settings['searchResultsQueryBricksData'] ) ); ?>>
 							<label for="searchResultsQueryBricksData"><?php esc_html_e( 'Query Bricks data in search results', 'bricks' ); ?></label>
 						</div>
+					</td>
+				</tr>
 
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Duplicate content', 'bricks' ); ?></label>
+					</th>
+
+					<td>
+						<div class="setting-wrapper">
+							<?php $duplicate_content = $settings['duplicateContent'] ?? ''; ?>
+							<select name="duplicateContent" id="duplicate_content">
+								<option value=""><?php esc_html_e( 'Enable', 'bricks' ); ?></option>
+								<option value="disable_all" <?php selected( 'disable_all', $duplicate_content ); ?>><?php esc_html_e( 'Disable globally', 'bricks' ); ?></option>
+								<option value="disable_wp" <?php selected( 'disable_wp', $duplicate_content ); ?>><?php esc_html_e( 'Disable for WordPress data', 'bricks' ); ?></option>
+							</select>
+							<p class="description"><?php echo sprintf( esc_html__( 'Duplicate content is available to all users with the %s capability. Use this feature for any post or page to ensure that all relevant WordPress and/or Bricks data is duplicated accurately.', 'bricks' ), '"edit_post"' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'Filter for more advanced duplicate content rules', 'bricks' ) . ': ' . Helpers::article_link( 'filter-bricks-use_duplicate_content/', 'bricks/use_duplicate_content' ); ?></p><br>
+						</div>
+					</td>
+				</tr>
+
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Form submissions', 'bricks' ); ?></label>
+					</th>
+					<td>
 						<div class="setting-wrapper">
 							<input type="checkbox" name="saveFormSubmissions" id="saveFormSubmissions" <?php checked( isset( $settings['saveFormSubmissions'] ) ); ?>>
 							<label for="saveFormSubmissions"><?php esc_html_e( 'Save form submissions in database', 'bricks' ); ?></label>
 						</div>
 
+						<div class="separator"></div>
+
+						<?php
+							$form_submission_access_roles = Database::get_setting( 'formSubmissionAccessCapabilities' );
+						?>
+						<div class="setting-wrapper">
+							<label for="form_submission_access"><?php esc_html_e( 'Form submission access', 'bricks' ); ?>:</label>
+							<ul id="read-form-submissions-capabilities">
+								<?php
+								$roles = wp_roles()->get_names();
+
+								foreach ( $roles as $key => $label ) {
+									$role     = get_role( $key );
+									$is_admin = $role->name === 'administrator';
+									?>
+
+									<li>
+										<input
+											type="checkbox"
+											name="formSubmissionAccessCapabilities[]"
+											id="form_submission_access_<?php echo esc_attr( $key ); ?>"
+											value="<?php echo esc_attr( $key ); ?>"
+											<?php checked( $is_admin || $role->has_cap( Capabilities::FORM_SUBMISSION_ACCESS ) ); ?>
+											<?php disabled( $is_admin ); ?>>
+											<label for="form_submission_access_<?php echo esc_attr( $key ); ?>">
+												<?php echo esc_html( $label ); ?>
+											</label>
+									</li>
+								<?php } ?>
+							</ul>
+							<p class="description"><?php echo esc_html__( 'Enable form submission access for specific user roles. Edit the user\'s profile directly to grant access to a specific user.', 'bricks' ); ?></p>
+						</div>
+
+						<?php
+						// Hidden input to ensure administrator is always included
+						?>
+						<input type="hidden" name="formSubmissionAccessCapabilities[]" value="administrator">
+
 						<?php if ( isset( $settings['saveFormSubmissions'] ) ) { ?>
+
+							<div class="separator"></div>
+
 							<div class="setting-wrapper gap">
 								<button type="button" id="bricks-reset-form-db" class="ajax button button-secondary">
 									<span class="text"><?php esc_html_e( 'Reset database table', 'bricks' ); ?></span>
@@ -421,23 +489,89 @@ if ( $code_review ) {
 
 				<tr>
 					<th>
-						<label for="misc_group"><?php esc_html_e( 'Query filters', 'bricks' ); ?></label> <span class="badge"><?php esc_html_e( 'experimental', 'bricks' ); ?></span>
+						<label for="misc_group"><?php esc_html_e( 'Query filters', 'bricks' ); ?></label>
 					</th>
-					<td>
+					<td id="bricks-query-filter-td">
 						<div class="setting-wrapper">
 							<input type="checkbox" name="enableQueryFilters" id="enableQueryFilters" <?php checked( isset( $settings['enableQueryFilters'] ) ); ?>>
 							<label for="enableQueryFilters"><?php esc_html_e( 'Enable query sort / filter / live search' ); ?></label>
-							<p class="description"><?php echo esc_html__( 'Only queries of type "Post" are supported at this initial stage of development.', 'bricks' ) . ' ' . esc_html__( 'Avoid using in combination with third-party filter plugins.', 'bricks' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'Queries of the types "Post", "Term", and "User" are supported.', 'bricks' ) . ' ' . esc_html__( 'Avoid using in combination with third-party filter plugins.', 'bricks' ); ?></p>
 						</div>
 
-						<?php if ( isset( $settings['enableQueryFilters'] ) ) { ?>
+						<?php
+						if ( isset( $settings['enableQueryFilters'] ) ) {
+							$indexer            = Query_Filters_Indexer::get_instance();
+							$running            = $indexer->indexer_is_running();
+							$index_btn_class    = 'ajax button button-secondary';
+							$index_btn_disabled = '';
+							$db_updated         = Query_Filters::all_db_updated();
+							$db_fix_needed      = Query_Filters::has_corrupted_db() || isset( $_GET['fix-db'] ); // &fix-db to force show the fix button when debugging (@since 1.12.2)
+
+							if ( $running ) {
+								$index_btn_class   .= ' wait';
+								$index_btn_disabled = ' disabled';
+							}
+							?>
+							<?php if ( ! $db_updated ) { ?>
+								<div class="setting-wrapper gap">
+									<p class="message error"><?php esc_html_e( 'The query filter database is outdated. Please click "Regenerate filter index" button to update it.', 'bricks' ); ?></p>
+								</div>
+							<?php } ?>
+
+							<div class="setting-wrapper">
+								<input type="checkbox" name="enableQueryFiltersIntegration" id="enableQueryFiltersIntegration" <?php checked( isset( $settings['enableQueryFiltersIntegration'] ) ); ?>>
+								<label for="enableQueryFiltersIntegration"><?php esc_html_e( 'Custom fields integration', 'bricks' ); ?></label>
+								<p class="description">
+								<?php
+								echo esc_html__( 'Provider', 'bricks' ) . ': ACF, Meta Box (' . Helpers::article_link( 'query-filters/#custom-fields-integration', esc_html__( 'Learn more', 'bricks' ) ) . ')';
+								?>
+								</p>
+							</div>
+
+							<label class="sub" for="queryFilterRegenerateIndex"><?php esc_html_e( 'Regenerate filter index', 'bricks' ); ?></label>
+							<p class="description"><?php echo esc_html__( 'Click "Regenerate filter index" to regenerate the query filter index for your entire website.', 'bricks' ) . ' ' . esc_html__( 'Click "Continue filter index" to immediately run any remaining/queued filter index jobs instead of waiting for the next WP cronjob.', 'bricks' ); ?></p><br>
+
 							<div class="setting-wrapper gap">
+								<?php if ( $db_fix_needed ) { ?>
+								<button type="button" id="bricks-fix-filter-element-db" class="ajax button button-secondary">
+									<span class="text"><?php esc_html_e( 'Fix corrupted database', 'bricks' ); ?></span>
+									<span class="spinner is-active"></span>
+									<i class="dashicons dashicons-yes hide"></i>
+								</button>
+								<?php } ?>
 								<button type="button" id="bricks-reindex-filters" class="ajax button button-secondary">
 									<span class="text"><?php esc_html_e( 'Regenerate filter index', 'bricks' ); ?></span>
 									<span class="spinner is-active"></span>
 									<i class="dashicons dashicons-yes hide"></i>
 								</button>
+								<button type="button" id="bricks-run-index-job" class="<?php echo $index_btn_class; ?>" <?php echo $index_btn_disabled; ?>>
+									<span class="text"><?php esc_html_e( 'Continue index job', 'bricks' ); ?></span>
+									<span class="spinner is-active"></span>
+									<i class="dashicons dashicons-yes hide"></i>
+								</button>
 							</div>
+							<div class="setting-wrapper gap">
+								<p class="indexer-progress"><?php echo $indexer->get_overall_progress(); ?></p>
+							</div>
+							<?php
+								/**
+								 * This button is only shown if there are jobs in the queue but the indexer is not running (stuck job or unknown issue)
+								 *
+								 * @since 1.11
+								 */
+								$all_jobs  = count( $indexer->get_jobs() );
+								$div_class = $all_jobs > 0 && ! $running ? 'setting-wrapper' : 'setting-wrapper hide';
+							?>
+							<div id="bricks-remove-jobs-wrapper" class="<?php echo esc_attr( $div_class ); ?>">
+								<button type="button" id="bricks-remove-index-jobs" class="ajax button button-secondary">
+									<span class="text"><?php esc_html_e( 'Remove all index jobs', 'bricks' ); ?></span>
+									<span class="spinner is-active"></span>
+									<i class="dashicons dashicons-yes hide"></i>
+								</button>
+								<p class="description"><?php echo esc_html__( 'Click this button to remove all index jobs. Useful if your index jobs are stuck due to unknown reasons. You should regenerate the filter index afterwards.', 'bricks' ); ?></p>
+							</div>
+
+							<p class="message info"><?php echo Helpers::article_link( 'known-issues#query-filter-indexer-no-progress', esc_html__( 'Indexing job is stuck?', 'bricks' ) ); ?></p>
 						<?php } ?>
 					</td>
 				</tr>
@@ -554,6 +688,10 @@ if ( $code_review ) {
 								$registration_selected_id   = $settings['registration_page'] ?? '';
 								$lost_password_selected_id  = $settings['lost_password_page'] ?? '';
 								$reset_password_selected_id = $settings['reset_password_page'] ?? '';
+
+								// WordPress auth URL behavior (@since 1.11)
+								$wp_auth_url_behavior      = $settings['wp_auth_url_behavior'] ?? 'default';
+								$wp_auth_url_redirect_page = $settings['wp_auth_url_redirect_page'] ?? '';
 								?>
 
 							<!-- Login Page -->
@@ -569,13 +707,6 @@ if ( $code_review ) {
 										}
 										?>
 									</select>
-								</div>
-								<div class="setting-wrapper">
-									<label for="disable_brx_use_wp_login"><?php esc_html_e( 'Disable login bypass', 'bricks' ); ?></label>
-									<input type="checkbox" id="disable_brx_use_wp_login" name="disable_brx_use_wp_login" <?php checked( $settings['disable_brx_use_wp_login'] ?? false ); ?> />
-									<p class="description">
-										<?php echo sprintf( esc_html__( 'By default you can access the default WordPress login page by adding %s as a URL parameter. Check this setting to force the use of your custom authentication pages.', 'bricks' ), '<code>brx_use_wp_login</code>' ); ?>
-									</p>
 								</div>
 							</section>
 
@@ -621,7 +752,60 @@ if ( $code_review ) {
 								</select>
 							</section>
 
+							<!-- WordPress Auth URL behavior -->
+							<section>
+								<div class="setting-wrapper">
+									<label class="sub" for="wp_auth_url_behavior"><?php esc_html_e( 'WordPress authentication page access', 'bricks' ); ?></label>
+									<select name="wp_auth_url_behavior" id="wp_auth_url_behavior" style="width: auto">
+										<option value="default" <?php selected( $wp_auth_url_behavior, 'default' ); ?>><?php esc_html_e( 'Redirect to custom authentication page', 'bricks' ); ?></option>
+										<option value="404" <?php selected( $wp_auth_url_behavior, '404' ); ?>><?php esc_html_e( 'Error page', 'bricks' ); ?></option>
+										<option value="home" <?php selected( $wp_auth_url_behavior, 'home' ); ?>><?php esc_html_e( 'Home URL', 'bricks' ); ?></option>
+										<option value="custom" <?php selected( $wp_auth_url_behavior, 'custom' ); ?>><?php esc_html_e( 'Redirect to specific page', 'bricks' ); ?></option>
+									</select>
+
+									<p class="description">
+										<?php printf( esc_html__( 'Determines what happens when someone visits a default WordPress authentication URL (%s). Only applies when custom pages above have been set. Caution: If hiding default paths, remember your custom page URLs to avoid lockout.', 'bricks' ), 'wp-login.php' ); ?>
+									</p>
+								</div>
+								<div class="setting-wrapper" id="wp_auth_url_redirect_page_wrapper" style="display: <?php echo $wp_auth_url_behavior === 'custom' ? 'block' : 'none'; ?>;">
+									<label class="sub" for="wp_auth_url_redirect_page"><?php esc_html_e( 'Redirect to', 'bricks' ); ?></label>
+									<select name="wp_auth_url_redirect_page" id="wp_auth_url_redirect_page">
+										<option value=""><?php esc_html_e( 'Select', 'bricks' ); ?></option>
+										<?php
+										foreach ( $page_titles as $page_id => $page_title ) {
+											$selected = selected( $page_id == $wp_auth_url_redirect_page, true, false );
+											echo '<option value="' . esc_attr( $page_id ) . '" ' . $selected . '>' . esc_html( $page_title ) . '</option>';
+										}
+										?>
+									</select>
+									<p class="description">
+										<?php printf( esc_html__( 'When someone visits a default WordPress authentication URL (%s), they are redirected to this selected page.', 'bricks' ), 'wp-login.php' ); ?>
+									</p>
+								</div>
+								<div class="setting-wrapper">
+									<input type="checkbox" id="disable_brx_use_wp_login" name="disable_brx_use_wp_login" <?php checked( $settings['disable_brx_use_wp_login'] ?? false ); ?> />
+									<label for="disable_brx_use_wp_login"><?php esc_html_e( 'Disable custom authentication page bypass', 'bricks' ); ?></label>
+
+									<p class="description">
+										<?php echo sprintf( esc_html__( 'By default, users can access the default WordPress auth pages by adding %1$s to the URL, bypassing custom authentication pages. Enable this setting to remove this bypass option and always use your custom authentication pages and behavior as set above.', 'bricks' ), '<code>?brx_use_wp_login</code>' ); ?>
+									</p>
+								</div>
+							</section>
+
+
 						</div>
+					</td>
+				</tr>
+
+				<!-- Password protection @since 1.11.1 -->
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Password protection', 'bricks' ); ?></label> <span class="badge"><?php esc_html_e( 'experimental', 'bricks' ); ?></span>
+					</th>
+					<td>
+						<input type="checkbox" name="passwordProtectionEnabled" id="passwordProtectionEnabled" <?php checked( isset( $settings['passwordProtectionEnabled'] ) ); ?>>
+						<label for="passwordProtectionEnabled"><?php esc_html_e( 'Password protection', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Enable to use the experimental password protection feature, including the new template type and form action.', 'bricks' ); ?></p>
 					</td>
 				</tr>
 			</tbody>
@@ -671,33 +855,63 @@ if ( $code_review ) {
 								?>
 							</select>
 							<?php
+							// Non-admin with manage_options capability: Show has full builder access message
+							if ( $role->name !== 'administrator' && $role->has_cap( 'manage_options' ) ) {
+								echo '<p class="message info" style="margin: 12px 0 0">' . sprintf( esc_html__( 'This user role has %s capability, and therefore full builder access. Effectively overriding this setting.', 'bricks' ), '<strong>manage_options</strong>' ) . '</p>';
+							}
+
 							echo '</section>';
 						}
 						?>
 					</td>
 				</tr>
-
-				<tr>
-					<th>
-						<label><?php esc_html_e( 'Code execution', 'bricks' ); ?></label>
-					</th>
-					<td>
-						<p class="message info">
-							<?php
-							// translators: %s = #custom-code tab
-							printf( esc_html__( 'Code execution settings have moved to the %s tab.', 'bricks' ), '"' . esc_html__( 'Custom code', 'bricks' ) . '"' );
-							?>
-						</p>
-					</td>
-				</tr>
 			</tbody>
 		</table>
-
 		<table id="tab-templates">
 			<tbody>
 				<tr>
 					<th><label><?php esc_html_e( 'My templates', 'bricks' ); ?></label></th>
 					<td>
+						<input type="checkbox" name="generateTemplateScreenshots" id="generateTemplateScreenshots" <?php checked( isset( $settings['generateTemplateScreenshots'] ) ); ?>>
+						<label for="generateTemplateScreenshots"><?php esc_html_e( 'Template screenshots', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Enable to automatically generate template screenshots on every builder save, view them, and use the bulk generate button in the template manager.', 'bricks' ); ?></p>
+
+						<?php
+						// Get WordPress upload directory
+						$wp_upload_dir = wp_upload_dir();
+						$custom_dir    = $wp_upload_dir['basedir'] . '/' . BRICKS_TEMPLATE_SCREENSHOTS_DIR . '/';
+
+						if ( is_dir( $custom_dir ) ) {
+							?>
+						<br><button type="button" id="delete-template-screenshots-button" class="button button-secondary"><?php esc_html_e( 'Delete screenshots', 'bricks' ); ?></button>
+						<?php } ?>
+
+						<div class="separator"></div>
+
+						<label for"templateManagerThumbnailHeight" class="sub"><?php echo esc_html__( 'Template manager thumbnail height', 'bricks' ) . ' (px)'; ?></label>
+						<input type="number" name="templateManagerThumbnailHeight" id="templateManagerThumbnailHeight" value="<?php echo isset( $settings['templateManagerThumbnailHeight'] ) ? esc_attr( $settings['templateManagerThumbnailHeight'] ) : ''; ?>" min="0">
+						<p class="description"><?php esc_html_e( 'Set a specific height for your template manager thumbnails in the builder. Thumbnails exceeding this height auto-scroll on mouseover.', 'bricks' ); ?></p>
+
+						<div class="separator"></div>
+
+						<div class="setting-wrapper">
+							<input type="checkbox" name="templateScreenshotsAdminColumn" id="templateScreenshotsAdminColumn" <?php checked( isset( $settings['templateScreenshotsAdminColumn'] ) ); ?>>
+							<label for="templateScreenshotsAdminColumn"><?php esc_html_e( 'Template thumbnail column', 'bricks' ); ?></label>
+							<p class="description"><?php echo sprintf( esc_html__( 'Enable to show the template thumbnail column under %s, displaying the featured image or screenshot.', 'bricks' ), 'Bricks > ' . esc_html__( 'Templates', 'bricks' ) ); ?></p>
+						</div>
+
+						<div class="setting-wrapper">
+							<label for="templateAdminColumnThumbnailWidth" class="sub"><?php echo esc_html__( 'Template thumbnail column', 'bricks' ) . ': ' . esc_html__( 'Width', 'bricks' ); ?> (px)</label>
+							<input type="number" name="templateAdminColumnThumbnailWidth" id="templateAdminColumnThumbnailWidth" value="<?php echo isset( $settings['templateAdminColumnThumbnailWidth'] ) ? esc_attr( $settings['templateAdminColumnThumbnailWidth'] ) : ''; ?>"  placeholder="60" min="0" max="2000">
+						</div>
+
+						<div class="setting-wrapper">
+							<label for="templateAdminColumnThumbnailHeight" class="sub"><?php echo esc_html__( 'Template thumbnail column', 'bricks' ) . ': ' . esc_html__( 'Height', 'bricks' ); ?> (px)</label>
+							<input type="number" name="templateAdminColumnThumbnailHeight" id="templateAdminColumnThumbnailHeight" value="<?php echo isset( $settings['templateAdminColumnThumbnailHeight'] ) ? esc_attr( $settings['templateAdminColumnThumbnailHeight'] ) : ''; ?>" placeholder="60" min="0" max="2000">
+						</div>
+
+						<div class="separator"></div>
+
 						<input type="checkbox" name="defaultTemplatesDisabled" id="defaultTemplatesDisabled" <?php checked( isset( $settings['defaultTemplatesDisabled'] ) ); ?>>
 						<label for="defaultTemplatesDisabled"><?php esc_html_e( 'Disable default templates', 'bricks' ); ?></label>
 						<p class="description"><?php esc_html_e( 'If no template conditions are set Bricks shows published templates (header, footer, etc.) on the frontend of your site. Select this setting to disable this behavior. Make sure to set template conditions instead.', 'bricks' ); ?></p>
@@ -710,9 +924,8 @@ if ( $code_review ) {
 
 						<div class="separator"></div>
 
-						<!-- <label for="myTemplatesAccess" class="sub"><?php esc_html_e( 'My Templates Access', 'bricks' ); ?></label><br> -->
 						<input type="checkbox" name="myTemplatesAccess" id="myTemplatesAccess" <?php checked( isset( $settings['myTemplatesAccess'] ) ); ?>>
-						<label for="myTemplatesAccess"><?php esc_html_e( 'My Templates Access', 'bricks' ); ?></label>
+						<label for="myTemplatesAccess"><?php esc_html_e( 'My templates access', 'bricks' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Allow other sites to browse and insert your templates from their template library. Restrict template access via "Whitelist URLs" and "Password Protection" settings below.', 'bricks' ); ?></p>
 
 						<div class="separator"></div>
@@ -723,9 +936,35 @@ if ( $code_review ) {
 
 						<div class="separator"></div>
 
-						<label for="myTemplatesPassword" class="sub"><?php esc_html_e( 'Password Protection', 'bricks' ); ?></label>
+						<label for="myTemplatesPassword" class="sub"><?php esc_html_e( 'Password protection', 'bricks' ); ?></label>
 						<input type="text" name="myTemplatesPassword" id="myTemplatesPassword" value="<?php echo isset( $settings['myTemplatesPassword'] ) ? $settings['myTemplatesPassword'] : ''; ?>" spellcheck="false">
 						<p class="description"><?php esc_html_e( 'Password protect your templates.', 'bricks' ); ?></p>
+
+						<div class="separator"></div>
+
+						<label for="excludedTemplates" class="sub"><?php esc_html_e( 'Exclude templates', 'bricks' ); ?></label>
+						<select name="excludedTemplates[]" id="excludedTemplates" multiple="multiple" class="regular-text">
+							<?php
+							$templates = get_posts(
+								[
+									'post_type'      => BRICKS_DB_TEMPLATE_SLUG,
+									'posts_per_page' => -1,
+									'orderby'        => 'title',
+									'order'          => 'ASC',
+								]
+							);
+
+							$excluded_templates = Database::get_setting( 'excludedTemplates', [] );
+
+							foreach ( $templates as $template ) {
+								$value    = esc_attr( $template->ID );
+								$selected = in_array( $template->ID, $excluded_templates ) ? 'selected' : '';
+								$title    = esc_html( $template->post_title );
+								echo "<option value=\"$value\" $selected>$title</option>";
+							}
+							?>
+						</select>
+						<p class="description"><?php esc_html_e( 'Select templates to exclude from remote template access.', 'bricks' ); ?></p>
 					</td>
 				</tr>
 
@@ -818,21 +1057,20 @@ if ( $code_review ) {
 		<table id="tab-builder">
 			<tbody>
 				<tr>
-					<th><label><?php esc_html_e( 'Disable autosave', 'bricks' ); ?></label></th>
+					<th><label><?php esc_html_e( 'Autosave', 'bricks' ); ?></label></th>
 					<td>
 						<input type="checkbox" name="builderAutosaveDisabled" id="builderAutosaveDisabled" <?php checked( isset( $settings['builderAutosaveDisabled'] ) ); ?>>
 						<label for="builderAutosaveDisabled"><?php esc_html_e( 'Disable autosave', 'bricks' ); ?></label>
-				</tr>
 
-				<?php if ( ! isset( $settings['builderAutosaveDisabled'] ) ) { ?>
-				<tr>
-					<th><label for="builderAutosaveInterval"><?php esc_html_e( 'Autosave interval (seconds)', 'bricks' ); ?></label></th>
-					<td>
+					<?php if ( ! isset( $settings['builderAutosaveDisabled'] ) ) { ?>
+						<div class="separator"></div>
+
+						<div class="title"><?php esc_html_e( 'Autosave interval (seconds)', 'bricks' ); ?></div>
 						<input type="number" name="builderAutosaveInterval" id="builderAutosaveInterval" value="<?php echo isset( $settings['builderAutosaveInterval'] ) ? esc_attr( $settings['builderAutosaveInterval'] ) : ''; ?>" min="15" placeholder="60">
 						<p class="description"><?php esc_html_e( 'Default: 60 seconds. Minimum autosave interval is 15 seconds.', 'bricks' ); ?></p>
+					<?php } ?>
 					</td>
 				</tr>
-				<?php } ?>
 
 				<?php
 				$builder_mode = empty( $settings['builderMode'] ) ? '' : $settings['builderMode'];
@@ -936,10 +1174,13 @@ if ( $code_review ) {
 
 				$toolbar_link_current_value = isset( $settings['builderToolbarLogoLink'] ) ? $settings['builderToolbarLogoLink'] : false;
 
-				$builder_wrap_element    = ! empty( $settings['builderWrapElement'] ) ? $settings['builderWrapElement'] : '';
-				$builder_insert_element  = ! empty( $settings['builderInsertElement'] ) ? $settings['builderInsertElement'] : '';
-				$builder_insert_layout   = ! empty( $settings['builderInsertLayout'] ) ? $settings['builderInsertLayout'] : '';
-				$canvas_scroll_into_view = ! empty( $settings['canvasScrollIntoView'] ) ? $settings['canvasScrollIntoView'] : '';
+				$builder_element_breadcrumbs = ! empty( $settings['builderElementBreadcrumbs'] ) ? $settings['builderElementBreadcrumbs'] : '';
+				$builder_wrap_element        = ! empty( $settings['builderWrapElement'] ) ? $settings['builderWrapElement'] : '';
+				$builder_wrap_element        = ! empty( $settings['builderWrapElement'] ) ? $settings['builderWrapElement'] : '';
+				$builder_insert_element      = ! empty( $settings['builderInsertElement'] ) ? $settings['builderInsertElement'] : '';
+				$builder_insert_layout       = ! empty( $settings['builderInsertLayout'] ) ? $settings['builderInsertLayout'] : '';
+				$canvas_scroll_into_view     = ! empty( $settings['canvasScrollIntoView'] ) ? $settings['canvasScrollIntoView'] : '';
+				$import_image_on_paste       = ! empty( $settings['importImageOnPaste'] ) ? $settings['importImageOnPaste'] : '';
 				?>
 				<tr>
 					<th><label><?php esc_html_e( 'Toolbar logo link', 'bricks' ); ?></label></th>
@@ -983,6 +1224,51 @@ if ( $code_review ) {
 
 						<input type="checkbox" name="builderDisableGlobalClassesInterface" id="builderDisableGlobalClassesInterface" <?php checked( isset( $settings['builderDisableGlobalClassesInterface'] ) ); ?>>
 						<label for="builderDisableGlobalClassesInterface"><?php echo esc_html__( 'Disable global classes', 'bricks' ) . ' (' . esc_html__( 'Interface', 'bricks' ) . ')'; ?></label>
+
+						<br>
+
+						<input type="checkbox" name="builderVariablePickerHideValue" id="builderVariablePickerHideValue" <?php checked( isset( $settings['builderVariablePickerHideValue'] ) ); ?>>
+						<label for="builderVariablePickerHideValue"><?php echo esc_html__( 'Variable dropdown: Hide value', 'bricks' ); ?></label>
+
+						<br>
+
+						<input type="checkbox" name="builderCodeVim" id="builderCodeVim" <?php checked( isset( $settings['builderCodeVim'] ) ); ?>>
+						<label for="builderCodeVim"><?php echo esc_html__( 'Code control', 'bricks' ) . ': Vim (' . esc_html__( 'Toggle', 'bricks' ) . ')'; ?></label>
+
+						<div class="separator"></div>
+
+						<div class="title"><?php esc_html_e( 'Element breadcrumbs', 'bricks' ); ?>:</div>
+
+						<select name="builderElementBreadcrumbs" id="builderElementBreadcrumbs">
+							<option value=""><?php esc_html_e( 'Disabled', 'bricks' ); ?></option>
+							<option value="defaultElementNames" <?php selected( 'defaultElementNames', $builder_element_breadcrumbs ); ?>><?php esc_html_e( 'Show default element names', 'bricks' ); ?></option>
+							<option value="customElementNames" <?php selected( 'customElementNames', $builder_element_breadcrumbs ); ?>><?php esc_html_e( 'Show custom element names', 'bricks' ); ?></option>
+						</select>
+
+						<div class="separator"></div>
+
+						<div class="title"><?php esc_html_e( 'Responsive control indicator', 'bricks' ); ?>:</div>
+
+						<select name="builderResponsiveControlIndicator" id="builderResponsiveControlIndicator" style="width: 100%">
+							<?php
+							$responsive_indicator_options = [
+								'any'      => esc_html__( 'Show if any value exists', 'bricks' ) . ' (' . esc_html__( 'Default', 'bricks' ) . ')',
+								'non-base' => esc_html__( 'Show if non-base breakpoint value exists', 'bricks' ),
+								'always'   => esc_html__( 'Show on all responsive controls', 'bricks' ),
+								'disable'  => esc_html__( 'Disable', 'bricks' ),
+							];
+
+							$responsive_indicator_value = $settings['builderResponsiveControlIndicator'] ?? 'any';
+
+							foreach ( $responsive_indicator_options as $key => $label ) {
+								echo '<option value="' . $key . '" ' . selected( $key, $responsive_indicator_value, false ) . '>' . $label . '</option>';
+							}
+							?>
+						</select>
+
+						<p class="description">
+							<?php esc_html_e( 'Set to show the responsive indicator next to controls that can have different values at each breakpoint.', 'bricks' ); ?>
+						</p>
 					</td>
 				</tr>
 
@@ -1063,6 +1349,13 @@ if ( $code_review ) {
 						</select>
 
 						<div class="description"><?php esc_html_e( 'Available via "Layout" action icon.', 'bricks' ); ?></div>
+
+						<div class="separator"></div>
+
+						<input type="checkbox" name="importImageOnPaste" id="importImageOnPaste" <?php checked( $import_image_on_paste ); ?>>
+						<label for="importImageOnPaste"><?php esc_html_e( 'Import pasted images/SVGs', 'bricks' ); ?></label>
+
+						<div class="description"><?php esc_html_e( 'When pasting elements from another site that contain image or SVG files, placeholders are used by default. Enable to download the image from the source site. If the current user lacks SVG upload permissions, a placeholder SVG is used.', 'bricks' ); ?></div>
 					</td>
 				</tr>
 
@@ -1090,6 +1383,18 @@ if ( $code_review ) {
 						<input type="checkbox" name="builderWpPolyfill" id="builderWpPolyfill" <?php checked( isset( $settings['builderWpPolyfill'] ) ); ?>>
 						<label for="builderWpPolyfill"><?php echo 'WP polyfill'; ?></label>
 						<p class="description"><?php echo sprintf( esc_html__( 'Set to load %s in the builder to improve compatibility in older browsers. Not recommended to enable for modern browsers due to potential performance impact.', 'bricks' ), 'wp-polyfill.min.js' ); ?></p>
+					</td>
+				</tr>
+
+				<tr>
+					<th>
+						<label><?php echo esc_html__( 'Query loop', 'bricks' ); ?></label>
+					</th>
+					<td>
+						<label class="sub" for="builderQueryMaxResults"><?php esc_html_e( 'Max results', 'bricks' ); ?>:</label>
+						<input type="number" name="builderQueryMaxResults" id="builderQueryMaxResults" value="<?php echo isset( $settings['builderQueryMaxResults'] ) ? esc_attr( $settings['builderQueryMaxResults'] ) : ''; ?>" min="2">
+						<p class="description"><?php esc_html_e( 'Maximum number of results to display for each query loop in the builder. Applies only to Bricks-native queries. Leave blank to use the default value.', 'bricks' ); ?></p>
+						<p class="description"><?php echo esc_html_e( 'Minimum', 'bricks' ); ?>: 2</p>
 					</td>
 				</tr>
 
@@ -1129,6 +1434,33 @@ if ( $code_review ) {
 								<label for="builderDynamicDropdownExpand"><?php esc_html_e( 'Expand panel when dropdown is visible', 'bricks' ); ?></label>
 							</li>
 						</ul>
+					</td>
+				</tr>
+
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Global data sync', 'bricks' ); ?></label> <span class="badge"><?php esc_html_e( 'experimental', 'bricks' ); ?></span>
+					</th>
+					<td>
+						<input type="checkbox" name="builderGlobalClassesSync" id="builderGlobalClassesSync" <?php checked( isset( $settings['builderGlobalClassesSync'] ) ); ?>>
+						<label for="builderGlobalClassesSync"><?php esc_html_e( 'Sync global classes', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Enable to sync global classes on every builder save between all open builder instances. Useful to avoid overwriting each others changes when multiple people work on the same dataset (e.g. adding, deleting, modifying global classes).', 'bricks' ); ?></p>
+					</td>
+				</tr>
+
+				<tr>
+					<th>
+						<label><?php esc_html_e( 'Global class import manager', 'bricks' ); ?></label>
+					</th>
+					<td>
+						<?php $global_classes_import = $settings['builderGlobalClassesImport'] ?? 'conflicts'; ?>
+						<select name="builderGlobalClassesImport" id="builderGlobalClassesImport" style="width: auto">
+							<option value="conflicts" <?php selected( $global_classes_import, 'conflicts' ); ?>><?php esc_html_e( 'Show for class conflicts', 'bricks' ); ?></option>
+							<option value="new" <?php selected( $global_classes_import, 'new' ); ?>><?php esc_html_e( 'Show for new classes', 'bricks' ); ?></option>
+							<option value="always" <?php selected( $global_classes_import, 'always' ); ?>><?php esc_html_e( 'Show for new & conflicting classes', 'bricks' ); ?></option>
+							<option value="never" <?php selected( $global_classes_import, 'never' ); ?>><?php esc_html_e( 'Never', 'bricks' ); ?></option>
+						</select>
+						<p class="description"><?php esc_html_e( 'Control when to show the global classes import manager when pasting elements, importing classes or templates.', 'bricks' ); ?></p>
 					</td>
 				</tr>
 			</tbody>
@@ -1210,6 +1542,7 @@ if ( $code_review ) {
 					<td>
 						<input type="checkbox" name="cacheQueryLoops" id="cacheQueryLoops" <?php checked( isset( $settings['cacheQueryLoops'] ) ); ?>>
 						<label for="cacheQueryLoops"><?php esc_html_e( 'Cache query loops', 'bricks' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Set to improve performance by caching query loops. This is particularly useful when your query loop arguments remain relatively unchanged. For optimal functionality, ensure that server object caching is enabled for persistent caching. Disable this setting if you experience any unexpected query results.', 'bricks' ); ?></p>
 					</td>
 				</tr>
 
@@ -1309,6 +1642,21 @@ if ( $code_review ) {
 					</td>
 				</tr>
 				<?php } ?>
+
+				<tr>
+					<th>
+						<label for="bricksCascadeLayer">
+							<?php esc_html_e( 'Cascade layer', 'bricks' ); ?>
+						</label> <span class="badge"><?php esc_html_e( 'experimental', 'bricks' ); ?></span>
+					</th>
+					<td>
+						<input type="checkbox" name="bricksCascadeLayer" id="bricksCascadeLayer" <?php checked( isset( $settings['bricksCascadeLayer'] ) ); ?>>
+						<label for="bricksCascadeLayer"><?php esc_html_e( 'Wrap Bricks default styles in @layer', 'bricks' ); ?></label>
+						<p class="description">
+							<?php echo esc_html__( 'Enable to wrap all Bricks default styles in a cascade layer to prevent them from taking precedence over custom styles.', 'bricks' ) . ' ' . Helpers::article_link( 'cascade-layer', esc_html__( 'Learn more', 'bricks' ) ); ?>
+						</p>
+					</td>
+				</tr>
 			</tbody>
 		</table>
 
@@ -1359,8 +1707,8 @@ if ( $code_review ) {
 						$maintenance_mode_template_id = $settings['maintenanceTemplate'] ?? '';
 						?>
 
-						<section>
-							<select name="maintenanceTemplate" id="maintenanceTemplate">
+						<section id="maintenance-template-section">
+							<select name="maintenanceTemplate" id="maintenance-template">
 								<option value=""><?php esc_html_e( 'Default', 'bricks' ); ?></option>
 								<?php
 								foreach ( $templates as $template ) {
@@ -1372,6 +1720,23 @@ if ( $code_review ) {
 								}
 								?>
 							</select>
+						</section>
+
+						<section id="maintenance-render-section">
+							<div class="setting-wrapper">
+								<input type="checkbox" name="maintenanceRenderHeader" id="maintenanceRenderHeader" <?php checked( Database::get_setting( 'maintenanceRenderHeader' ), '1' ); ?>>
+								<label for="maintenanceRenderHeader"><?php esc_html_e( 'Render header', 'bricks' ); ?></label>
+							</div>
+
+							<div class="setting-wrapper">
+								<input type="checkbox" name="maintenanceRenderFooter" id="maintenanceRenderFooter" <?php checked( Database::get_setting( 'maintenanceRenderFooter' ), '1' ); ?>>
+								<label for="maintenanceRenderFooter"><?php esc_html_e( 'Render footer', 'bricks' ); ?></label>
+							</div>
+
+							<div class="setting-wrapper">
+								<input type="checkbox" name="maintenanceRenderPopups" id="maintenanceRenderPopups" <?php checked( Database::get_setting( 'maintenanceRenderPopups' ), '1' ); ?>>
+								<label for="maintenanceRenderPopups"><?php esc_html_e( 'Render popups', 'bricks' ); ?></label>
+							</div>
 						</section>
 					</td>
 				</tr>
@@ -1631,7 +1996,7 @@ if ( $code_review ) {
 				<tr class="code-review sep">
 					<th>
 						<label for="codeOverview"><?php esc_html_e( 'Code review', 'bricks' ); ?></label>
-						<p class="description"><?php esc_html_e( 'Review all Code element, SVG element (code), Query editor, and "echo" tag instances.', 'bricks' ); ?></p>
+						<p class="description"><?php esc_html_e( 'Review all Code element (PHP & HTML), SVG element (code), Query editor, and "echo" tag instances.', 'bricks' ); ?></p>
 					</th>
 
 					<td>
@@ -2022,6 +2387,8 @@ if ( $code_review ) {
 
 						<p class="message info"><?php esc_html_e( 'Exercise great caution with granting code execution privileges. Enable them sparingly and only for trusted roles or ideally only specific users. Grant the least permissions necessary to maintain tight security.', 'bricks' ); ?></p>
 
+						<p class="message info"><?php echo sprintf( esc_html__( 'Function names called through the "echo" tag must be whitelisted via the %s filter.', 'bricks' ), Helpers::article_link( 'filter-bricks-code-echo_function_names', 'bricks/code/echo_function_names' ) ); ?></p>
+
 						<p><?php esc_html_e( 'User roles with code execution capability', 'bricks' ); ?>:</p>
 
 						<?php
@@ -2228,6 +2595,20 @@ if ( $code_review ) {
 						</section>
 						<section>
 							<div class="setting-wrapper">
+								<input type="checkbox" name="woocommerceUseBricksWooCheckoutCoupon" id="woocommerceUseBricksWooCheckoutCoupon" <?php checked( isset( $settings['woocommerceUseBricksWooCheckoutCoupon'] ) ); ?>>
+								<label for="woocommerceUseBricksWooCheckoutCoupon"><?php esc_html_e( 'Enable Bricks WooCommerce "Checkout coupon" element', 'bricks' ); ?></label>
+								<p class="description"><?php esc_html_e( 'You have to add the "Checkout coupon" element yourself on the Checkout page as the native WooCommerce checkout coupon is removed when this setting is enabled. The "Enable the use of coupon codes" WooCommerce setting under "General" must be active.', 'bricks' ); ?></p>
+							</div>
+						</section>
+						<section>
+							<div class="setting-wrapper">
+								<input type="checkbox" name="woocommerceUseBricksWooCheckoutLogin" id="woocommerceUseBricksWooCheckoutLogin" <?php checked( isset( $settings['woocommerceUseBricksWooCheckoutLogin'] ) ); ?>>
+								<label for="woocommerceUseBricksWooCheckoutLogin"><?php esc_html_e( 'Enable Bricks WooCommerce "Checkout login" element', 'bricks' ); ?></label>
+								<p class="description"><?php esc_html_e( 'You have to add the "Checkout login" element yourself on the Checkout page as the native WooCommerce checkout login is removed when this setting is enabled. The "Enable log-in during checkout" WooCommerce setting under "Accounts & Privacy" must be active.', 'bricks' ); ?></p>
+							</div>
+						</section>
+						<section>
+							<div class="setting-wrapper">
 								<input type="checkbox" name="woocommerceUseQtyInLoop" id="woocommerceUseQtyInLoop" <?php checked( isset( $settings['woocommerceUseQtyInLoop'] ) ); ?>>
 								<label for="woocommerceUseQtyInLoop"><?php esc_html_e( 'Show quantity input field in product loop', 'bricks' ); ?></label>
 								<p class="description"><?php esc_html_e( 'Only applicable for purchasable simple products with in stock status.', 'bricks' ); ?></p>
@@ -2280,9 +2661,11 @@ if ( $code_review ) {
 				</tr>
 
 				<?php
-					$woo_ajax_adding_text      = ! empty( $settings['woocommerceAjaxAddingText'] ) ? $settings['woocommerceAjaxAddingText'] : '';
-					$woo_ajax_added_text       = ! empty( $settings['woocommerceAjaxAddedText'] ) ? $settings['woocommerceAjaxAddedText'] : '';
-					$woo_ajax_reset_text_after = ! empty( $settings['woocommerceAjaxResetTextAfter'] ) ? $settings['woocommerceAjaxResetTextAfter'] : '';
+					$woo_ajax_adding_text      = $settings['woocommerceAjaxAddingText'] ?? '';
+					$woo_ajax_added_text       = $settings['woocommerceAjaxAddedText'] ?? '';
+					$woo_ajax_reset_text_after = $settings['woocommerceAjaxResetTextAfter'] ?? '';
+					$woo_ajax_error_action     = $settings['woocommerceAjaxErrorAction'] ?? 'redirect';
+					$error_scroll_class        = $woo_ajax_error_action === 'notice' ? '' : 'hide';
 				?>
 				<tr>
 					<th>
@@ -2295,7 +2678,10 @@ if ( $code_review ) {
 								<label for="woocommerceEnableAjaxAddToCart"><?php esc_html_e( 'Enable AJAX add to cart', 'bricks' ); ?></label>
 								<p class="description"><?php esc_html_e( 'This will overwrite the native WooCommerce AJAX add to cart feature on archives as well. Please note that only simple products within the product loop will be able to utilize the AJAX add to cart functionality.' ); ?>
 								</p>
-								<p class="description"><?php esc_html_e( 'Make sure ticked "Enable AJAX add to cart buttons on archives" in WooCommerce > Settings > Products', 'bricks' ); ?>
+								<p class="description">
+									<a href="<?php echo admin_url( 'admin.php?page=wc-settings&tab=products' ); ?>" target="_blank">
+									<?php esc_html_e( 'The "Enable AJAX add to cart buttons on archives" WooCommerce setting must also be active.', 'bricks' ); ?>
+									</a>
 							</div>
 						</section>
 
@@ -2332,6 +2718,22 @@ if ( $code_review ) {
 							<div class="setting-wrapper">
 								<input type="checkbox" name="woocommerceAjaxScrollToNotice" id="woocommerceAjaxScrollToNotice" <?php checked( isset( $settings['woocommerceAjaxScrollToNotice'] ) ); ?>>
 								<label for="woocommerceAjaxScrollToNotice"><?php esc_html_e( 'Scroll to notice', 'bricks' ); ?></label>
+							</div>
+						</section>
+
+						<section>
+							<div class="title"><?php esc_html_e( 'Error', 'bricks' ); ?></div>
+							<div class="setting-wrapper">
+								<label for="woocommerceAjaxErrorAction" class="large"><?php esc_html_e( 'Action', 'bricks' ); ?></label>
+								<select name="woocommerceAjaxErrorAction" id="woocommerceAjaxErrorAction">
+									<option value=""><?php esc_html_e( 'Redirect to product page', 'bricks' ); ?></option>
+									<option value="notice" <?php selected( 'notice', $woo_ajax_error_action, true ); ?>><?php esc_html_e( 'Show notice', 'bricks' ); ?></option>
+								</select>
+							</div>
+
+							<div id="wooAjaxErrorScrollToNotice" class="setting-wrapper <?php echo $error_scroll_class; ?>">
+								<input type="checkbox" name="woocommerceAjaxErrorScrollToNotice" id="woocommerceAjaxErrorScrollToNotice" <?php checked( isset( $settings['woocommerceAjaxErrorScrollToNotice'] ) ); ?>>
+								<label for="woocommerceAjaxErrorScrollToNotice"><?php esc_html_e( 'Scroll to notice', 'bricks' ); ?></label>
 							</div>
 						</section>
 					</td>

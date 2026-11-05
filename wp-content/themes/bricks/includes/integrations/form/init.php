@@ -1,6 +1,8 @@
 <?php
 namespace Bricks\Integrations\Form;
 
+use Bricks\Helpers;
+
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Init {
@@ -8,6 +10,7 @@ class Init {
 	protected $form_settings;
 	protected $form_fields;
 	protected $results;
+	protected static $submission_url_params = [];
 
 	public function __construct() {
 		add_action( 'wp_ajax_bricks_form_submit', [ $this, 'form_submit' ] );
@@ -32,10 +35,19 @@ class Init {
 			);
 		}
 
-		$post_id         = isset( $_POST['postId'] ) ? intval( $_POST['postId'] ) : 0;
 		$form_element_id = isset( $_POST['formId'] ) ? sanitize_text_field( $_POST['formId'] ) : '';
+		$post_id         = isset( $_POST['postId'] ) ? absint( $_POST['postId'] ) : 0;
+		$loop_post_id    = isset( $submitted_data['loopId'] ) ? absint( $submitted_data['loopId'] ) : 0; // Get query loop post ID to parse dynamic data (@since 1.11.1)
 
 		$this->form_settings = \Bricks\Helpers::get_element_settings( $post_id, $form_element_id );
+
+		// No form settings found: Try to get from component element (@since 1.12.2)
+		if ( empty( $this->form_settings ) ) {
+			$component_element = \Bricks\Helpers::get_component_element_by_id( $form_element_id );
+			if ( ! empty( $component_element['settings'] ) ) {
+				$this->form_settings = $component_element['settings'];
+			}
+		}
 
 		// Return: No form action set
 		if ( empty( $this->form_settings['actions'] ) ) {
@@ -47,6 +59,20 @@ class Init {
 					'message' => esc_html__( 'No action has been set for this form.', 'bricks' ),
 				]
 			);
+		}
+
+		// Form submission: Support DD tag 'url_parameter' (@since 1.11)
+		self::$submission_url_params = []; // Clear on each form submission
+		$url_params                  = ! empty( $_POST['urlParams'] ) ? JSON_decode( stripslashes( $_POST['urlParams'] ), true ) : [];
+
+		if ( ! empty( $url_params ) ) {
+			// Sanitize url parameters
+			$esc_url_or_text = function( $value ) {
+				return filter_var( $value, FILTER_VALIDATE_URL ) ? esc_url_raw( $value ) : sanitize_text_field( $value );
+			};
+
+			// Sanitize url parameters
+			self::$submission_url_params = array_map( $esc_url_or_text, $url_params );
 		}
 
 		/**
@@ -222,7 +248,7 @@ class Init {
 			if ( ! empty( $field['id'] ) ) {
 				// Get & set 'id' from custom 'name' (e.g.: 'post-{post_id} to 'form-field-{{field_id}}')
 				if ( ! empty( $field['name'] ) ) {
-					$field_name = bricks_render_dynamic_data( $field['name'], isset( $_POST['postId'] ) ? intval( $_POST['postId'] ) : 0 );
+					$field_name = bricks_render_dynamic_data( $field['name'], $loop_post_id );
 
 					// Update the parsed name back to the form_fields array so no need to render dynamic data again (@since 1.9.5)
 					$this->form_settings['fields'][ $key ]['name'] = $field_name;
@@ -234,6 +260,40 @@ class Init {
 				}
 
 				$valid_ids[] = $field['id'];
+			}
+
+			// If field is Honeypot, ensure that value is not set (@since 1.12.2)
+			if ( isset( $field['isHoneypot'] ) ) {
+				$field_id = $field['id'] ?? '';
+
+				if ( isset( $this->form_fields[ "form-field-$field_id" ] ) && ! empty( $this->form_fields[ "form-field-$field_id" ] ) ) {
+
+					// Log the error
+					Helpers::maybe_log(
+						"[Honeypot] Possible spam submission:
+- Form Bricks Id: $form_element_id
+- Field ID: $field_id
+- Field Value: {$this->form_fields[ "form-field-$field_id" ]}
+"
+					);
+
+					// Set honeypot result
+					$honeypot_result = [
+						'type'    => 'error',
+						'message' => esc_html__( 'An error occurred, please try again later.', 'bricks' ),
+					];
+
+					// Allow users to customize the honeypot error message using filter
+					$honeypot_result = apply_filters( 'bricks/element/form/honeypot/result', $honeypot_result, $field_id, $this );
+
+					$this->set_result( $honeypot_result );
+
+					// Finish the form submission
+					$this->maybe_stop_processing(); // If error status is set...
+					$this->finish(); // else...
+
+					break;
+				}
 			}
 		}
 
@@ -254,6 +314,11 @@ class Init {
 		// Check if 'login' is among the set actions for the form
 		if ( in_array( 'login', $this->form_settings['actions'], true ) ) {
 			array_push( $skip_check_for_field_ids, 'redirect_to' );
+		}
+
+		// Check if 'brx_pp_temp_id' is set and is a numeric value
+		if ( isset( $_POST['brx_pp_temp_id'] ) && is_numeric( $_POST['brx_pp_temp_id'] ) ) {
+			array_push( $skip_check_for_field_ids, 'brx_pp_temp_id' );
 		}
 
 		foreach ( array_keys( $this->form_fields ) as $key ) {
@@ -279,6 +344,9 @@ class Init {
 			}
 		}
 
+		// STEP: Check field max-length, and stop processing if any field value exceeds the max-length (@since 1.11.1)
+		$this->check_max_length();
+
 		// STEP: Handle files
 		$this->uploaded_files = $this->handle_files();
 
@@ -303,19 +371,34 @@ class Init {
 		$available_actions = self::get_available_actions();
 
 		foreach ( $this->form_settings['actions'] as $form_action ) {
-			if ( ! array_key_exists( $form_action, $available_actions ) ) {
+			// Skip if not a valid built-in action and no custom action handler exists (@since 1.12.2)
+			if ( ! array_key_exists( $form_action, $available_actions ) && ! has_action( "bricks/form/action/{$form_action}" ) ) {
 				continue;
 			}
 
 			$action_class = 'Bricks\Integrations\Form\Actions\\' . str_replace( ' ', '_', ucwords( str_replace( '-', ' ', $form_action ) ) );
 
-			$action = new $action_class( $form_action );
+			// If class exists, run the action
+			if ( class_exists( $action_class ) ) {
+				$action = new $action_class( $form_action );
 
-			if ( ! method_exists( $action_class, 'run' ) ) {
-				continue;
+				if ( ! method_exists( $action_class, 'run' ) ) {
+					continue;
+				}
+
+				$action->run( $this );
 			}
-
-			$action->run( $this );
+			// Handle custom actions registered via controls filter (@since 1.12.2)
+			else {
+				/**
+				 * Fire custom form action
+				 *
+				 * @param \Bricks\Integrations\Form\Init $form Current form instance
+				 *
+				 * @since 1.12.2
+				 */
+				do_action( "bricks/form/action/{$form_action}", $this );
+			}
 
 			// Halts execution if an action reported an error
 			$this->maybe_stop_processing();
@@ -371,7 +454,7 @@ class Init {
 		// Check for redirects
 		if ( ! empty( $this->results['redirect'] ) ) {
 			$redirect                    = array_pop( $this->results['redirect'] );
-			$post_id                     = ! empty( $_POST['postId'] ) ? intval( $_POST['postId'] ) : get_the_ID();
+			$post_id                     = ! empty( $_POST['loopId'] ) ? absint( $_POST['loopId'] ) : get_the_ID(); // Get query loop post ID to parse dynamic data (@since 1.11.1)
 			$response['redirectTo']      = ! empty( $redirect['redirectTo'] ) ? bricks_render_dynamic_data( $redirect['redirectTo'], $post_id ) : '';
 			$response['redirectTimeout'] = $redirect['redirectTimeout'] ?? 0;
 		}
@@ -390,6 +473,11 @@ class Init {
 			foreach ( $this->results['success'] as $success ) {
 				if ( ! empty( $success['message'] ) ) {
 					$response['message'] = $success['message'];
+				}
+
+				// Check for 'refreshPage' flag (@since 1.11.1)
+				if ( isset( $success['refreshPage'] ) ) {
+					$response['refreshPage'] = $success['refreshPage'];
 				}
 			}
 		}
@@ -434,6 +522,49 @@ class Init {
 	}
 
 	/**
+	 * Helper function to check for max-length of form fields
+	 *
+	 * @since 1.11.1
+	 */
+	private function check_max_length() {
+		$form_settings = $this->form_settings;
+		$form_fields   = $this->form_fields;
+
+		// Check for max-length of fields
+		foreach ( $form_settings['fields'] as $field ) {
+			$field_id = $field['id'] ?? '';
+
+			// Skip if field ID is empty (should not happen)
+			if ( empty( $field_id ) ) {
+				continue;
+			}
+
+			$field_value = $form_fields[ "form-field-{$field_id}" ] ?? '';
+
+			// Get max length: Empty if not defined, or the value from the field settings
+			$max_length = isset( $field['maxLength'] ) ? $field['maxLength'] : false;
+
+			// Ensure max_length is an positive integer
+			if ( ! is_numeric( $max_length ) || $max_length < 0 ) {
+				$max_length = false;
+			}
+
+			if ( $max_length === false && $field['type'] === 'email' ) {
+				// If no value is set for email, enforce 320 (RCF 3696 - https://datatracker.ietf.org/doc/html/rfc3696.html)
+				$max_length = 320;
+			}
+
+			// Check for max-length
+			if ( $max_length !== false && strlen( $field_value ) > $max_length ) {
+				// If field label is not set, use the field ID
+				$field_label = $field['label'] ?? $field_id;
+				$this->set_error_messages( sprintf( esc_html__( 'The field "%s" exceeds the allowed maximum length of %2$d characters.', 'bricks' ), $field_label, $max_length ) );
+				$this->maybe_stop_processing();
+			}
+		}
+	}
+
+	/**
 	 * Helper function to convert a comma-separated list of file extensions to an array of MIME types
 	 *
 	 * @param string $extensions Comma-separated list of file extensions.
@@ -459,6 +590,25 @@ class Init {
 		return $allowed_mime_types;
 	}
 
+	/**
+	 * Helper function to convert unsupported MIME types to supported MIME types (e.g. 'audio/x-wav' to 'audio/wav')
+	 *
+	 * @param string $mime_type MIME type to convert
+	 * @return string Converted MIME type
+	 *
+	 * @since 1.10
+	 */
+	private function convert_to_supported_mime_type( $mime_type ) {
+		// List of unsupported MIME types
+		$unsupported_mime_types = [
+			'audio/x-wav' => 'audio/wav',
+			'audio/x-m4a' => 'audio/mpeg',
+			'image/x-eps' => 'application/postscript',
+		];
+
+		// Convert unsupported MIME types to supported MIME types
+		return $unsupported_mime_types[ $mime_type ] ?? $mime_type;
+	}
 
 	/**
 	 * Handle with any files uploaded with form
@@ -508,6 +658,9 @@ class Init {
 
 				finfo_close( $finfo );
 
+				// Convert unsupported MIME types to supported MIME types
+				$real_mime_type = $this->convert_to_supported_mime_type( $real_mime_type );
+
 				// Check mime type (@since 1.9.3)
 				if ( ! in_array( $real_mime_type, $allowed_mime_types_for_field, true ) ) {
 					$this->set_error_messages( esc_html__( 'Uploaded file type is not allowed.', 'bricks' ) );
@@ -551,7 +704,7 @@ class Init {
 							$save_file = $field['fileUploadStorage'] ?? false;
 
 							if ( $save_file === 'directory' && ! empty( $field['fileUploadStorageDirectory'] ) ) {
-								$directory_name = $field['fileUploadStorageDirectory'];
+								$directory_name = $this->render_data( $field['fileUploadStorageDirectory'] );
 							}
 						}
 					}
@@ -714,11 +867,13 @@ class Init {
 			}
 		}
 
-		$fields  = $this->get_fields();
-		$post_id = isset( $fields['postId'] ) ? $fields['postId'] : 0;
+		$fields = $this->get_fields();
+
+		// Get query loop post ID to parse dynamic data (@since 1.11.1)
+		$loop_post_id = isset( $fields['loopId'] ) ? absint( $fields['loopId'] ) : 0;
 
 		// Render dynamic data
-		$content = bricks_render_dynamic_data( $content, $post_id );
+		$content = bricks_render_dynamic_data( $content, $loop_post_id );
 
 		return $content;
 	}
@@ -760,6 +915,10 @@ class Init {
 			'lost-password'  => esc_html__( 'Lost password', 'bricks' ),
 			'reset-password' => esc_html__( 'Reset password', 'bricks' ),
 		];
+
+		if ( \Bricks\Database::get_setting( 'passwordProtectionEnabled', false ) ) {
+			$actions['unlock-password-protection'] = esc_html__( 'Unlock password protection', 'bricks' );
+		}
 
 		// Save form submission (@since 1.9.2)
 		if ( \Bricks\Database::get_setting( 'saveFormSubmissions', false ) ) {
@@ -838,6 +997,16 @@ class Init {
 				continue;
 			}
 
+			// Skip if field type is 'html' or 'hidden' (@since 1.12)
+			if ( in_array( $form_settings_field['type'], [ 'html', 'hidden' ], true ) ) {
+				continue;
+			}
+
+			// Skip if field is Honeypot (@since 1.12.2)
+			if ( isset( $form_settings_field['isHoneypot'] ) ) {
+				continue;
+			}
+
 			$error = false;
 
 			// File field: Check if file is uploaded
@@ -886,5 +1055,16 @@ class Init {
 
 		// Return: Array of validation errors (each error as a string, representing a single error message)
 		return $errors;
+	}
+
+	/**
+	 * Get a specific frontend URL parameter
+	 * - Used by {url_parameter} DD
+	 *
+	 * @param string $parameter
+	 * @since 1.11
+	 */
+	public static function get_submission_url_param( $parameter ) {
+		return self::$submission_url_params[ $parameter ] ?? '';
 	}
 }

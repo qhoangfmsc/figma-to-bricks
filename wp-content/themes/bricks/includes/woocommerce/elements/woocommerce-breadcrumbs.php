@@ -7,6 +7,7 @@ class Woocommerce_Breadcrumbs extends Element {
 	public $category = 'woocommerce';
 	public $name     = 'woocommerce-breadcrumbs';
 	public $icon     = 'ti-line-dashed';
+	private $custom_home_url;
 
 	public function get_label() {
 		return esc_html__( 'Breadcrumbs', 'bricks' ) . ' (WooCommerce)';
@@ -33,6 +34,14 @@ class Woocommerce_Breadcrumbs extends Element {
 			'type'        => 'text',
 			'inline'      => true,
 			'placeholder' => esc_html__( 'Home', 'bricks' ),
+		];
+
+		$this->controls['homeURL'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'URL', 'bricks' ) . ': ' . esc_html__( 'Home', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => home_url(), // = WooCommerce default
 		];
 
 		// SEPARATOR
@@ -154,10 +163,30 @@ class Woocommerce_Breadcrumbs extends Element {
 			'home'        => ! empty( $settings['homeLabel'] ) ? $settings['homeLabel'] : esc_html__( 'Home', 'bricks' ),
 		];
 
+		$this->custom_home_url = ! empty( $settings['homeURL'] ) ? $this->render_dynamic_data( $settings['homeURL'], $this->post_id ) : false;
+
 		echo "<div {$this->render_attributes( '_root' )}>";
+
+		if ( ! empty( $this->custom_home_url ) ) {
+			add_action( 'woocommerce_breadcrumb_home_url', [ $this, 'custom_home_url' ] );
+		}
 
 		woocommerce_breadcrumb( $args );
 
+		if ( ! empty( $this->custom_home_url ) ) {
+			remove_action( 'woocommerce_breadcrumb_home_url', [ $this, 'custom_home_url' ] );
+		}
+
 		echo '</div>';
+	}
+
+	/**
+	 * Custom home URL: 'woocommerce_breadcrumb_home_url' filter callback
+	 *
+	 * @since 1.10.1
+	 */
+	public function custom_home_url( $url ) {
+		$custom_home_url = esc_url( $this->custom_home_url );
+		return $custom_home_url ?? $url;
 	}
 }

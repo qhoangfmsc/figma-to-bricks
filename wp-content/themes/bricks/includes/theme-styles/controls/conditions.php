@@ -4,8 +4,6 @@ namespace Bricks;
 $controls = [];
 
 // PERFORMANCE: Run WP query to populate control options in builder only
-$all_terms             = bricks_is_builder() ? Helpers::get_terms_options( null, null, true ) : [];
-$terms                 = bricks_is_builder() ? Helpers::get_terms_options() : [];
 $registered_post_types = bricks_is_builder() ? Helpers::get_registered_post_types() : [];
 
 $controls['conditions'] = [
@@ -46,9 +44,14 @@ $controls['conditions'] = [
 		'archiveTerms'                => [
 			'type'        => 'select',
 			'label'       => esc_html__( 'Archive terms', 'bricks' ),
-			'options'     => $all_terms,
 			'multiple'    => true,
 			'searchable'  => true,
+			'optionsAjax' => [
+				'action'                => 'bricks_get_terms_options',
+				'postTypes'             => [ 'any' ],
+				'addLanguageToTermName' => true,
+				'includeAll'            => true,
+			], // (@since 1.12)
 			'placeholder' => esc_html__( 'Select archive term', 'bricks' ),
 			'description' => esc_html__( 'Leave empty to apply template to all archive terms.', 'bricks' ),
 			'required'    => [ 'archiveType', '=', 'term' ],
@@ -72,9 +75,13 @@ $controls['conditions'] = [
 		'terms'                       => [
 			'type'        => 'select',
 			'label'       => esc_html__( 'Terms', 'bricks' ),
-			'options'     => $terms,
 			'multiple'    => true,
 			'searchable'  => true,
+			'optionsAjax' => [
+				'action'                => 'bricks_get_terms_options',
+				'postTypes'             => [ 'any' ],
+				'addLanguageToTermName' => true,
+			], // (@since 1.12)
 			'placeholder' => esc_html__( 'Select terms', 'bricks' ),
 			'required'    => [ 'main', '=', 'terms' ],
 		],

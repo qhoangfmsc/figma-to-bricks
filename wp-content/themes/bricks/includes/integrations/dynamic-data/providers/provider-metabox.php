@@ -21,7 +21,7 @@ class Provider_Metabox extends Base {
 		$this->register_relationships();
 	}
 
-	public function register_tag( $field, $parent_field = [] ) {
+	public function register_tag( $field = [], $parent_field = [], $parent_dd_tag = '' ) {
 		$contexts = self::get_fields_by_context();
 
 		$type = $field['type'];
@@ -50,6 +50,16 @@ class Provider_Metabox extends Base {
 				$label = 'MB ' . ucfirst( $type ) . ': ' . $label;
 			}
 
+			// Enhance the label for relationship fields for text context (Not for loop context) (@since 1.11.1)
+			if ( isset( $field['relationship'] ) && $field['relationship'] ) {
+				$label = 'MB Relationship: ' . $field['id'];
+			}
+
+			// Avoid empty label in the builder {mb_user_remember} (created by Meta Box)
+			if ( $label === '' ) {
+				$label = $name;
+			}
+
 			$tag = [
 				'name'     => '{' . $name . '}',
 				'label'    => $label,
@@ -61,7 +71,8 @@ class Provider_Metabox extends Base {
 			if ( ! empty( $parent_field ) ) {
 				// Add the parent field attributes to the child tag
 				$tag['parent'] = [
-					'id' => $parent_field['id'],
+					'id'     => $parent_field['id'],
+					'dd_tag' => $parent_dd_tag, // Add the parent dd tag for Query Filters integration (@since 1.11.1)
 				];
 			}
 
@@ -78,7 +89,7 @@ class Provider_Metabox extends Base {
 
 						$sub_field['_brx_group_label'] = $field['_brx_group_label'];
 
-						$this->register_tag( $sub_field, $field ); // Recursive
+						$this->register_tag( $sub_field, $field, $tag['name'] ); // Recursive
 					}
 				}
 			}
@@ -193,15 +204,14 @@ class Provider_Metabox extends Base {
 
 		// Process field type logic
 		else {
-			// Legacy from previous code (@pre 1.3.5)
-			if ( $context == 'text' ) {
-				$filters['separator'] = '<br>';
-			}
 
 			switch ( $field['type'] ) {
 				case 'file_input':
-					$filters['object_type'] = 'media';
-					$filters['link']        = true;
+					// Support :value filter to return IDs only
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'media';
+						$filters['link']        = true;
+					}
 
 					$value = empty( $field['clone'] ) ? [ $value ] : $value;
 
@@ -213,8 +223,11 @@ class Provider_Metabox extends Base {
 				case 'file_upload':
 				case 'file_advanced':
 				case 'video':
-					$filters['object_type'] = 'media';
-					$filters['link']        = true;
+					// Support :value filter to return IDs only
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'media';
+						$filters['link']        = true;
+					}
 
 					$value = ! empty( $value ) ? array_values( $value ) : [];
 
@@ -225,7 +238,10 @@ class Provider_Metabox extends Base {
 				case 'image_advanced':
 				case 'image_upload':
 				case 'single_image':
-					$filters['object_type'] = 'media';
+					// Support :value filter to return IDs only
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'media';
+					}
 
 					// Empty field value should return empty array to avoid default post title in text context. @see $this->format_value_for_context()
 					$value = empty( $value ) ? [] : $value;
@@ -240,19 +256,23 @@ class Provider_Metabox extends Base {
 
 				case 'taxonomy_advanced':
 				case 'taxonomy':
-					$filters['object_type'] = 'term';
-					$filters['taxonomy']    = isset( $field['taxonomy'][0] ) ? $field['taxonomy'][0] : '';
+					// Support :value filter to return IDs only
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'term';
+						$filters['taxonomy']    = $field['taxonomy'][0] ?? '';
 
-					// NOTE: Undocumented
-					$show_as_link = apply_filters( 'bricks/metabox/taxonomy/show_as_link', true, $value, $field );
+						// NOTE: Undocumented
+						$show_as_link = apply_filters( 'bricks/metabox/taxonomy/show_as_link', true, $value, $field );
 
-					if ( $show_as_link ) {
-						$filters['link'] = true;
+						if ( $show_as_link ) {
+							$filters['link'] = true;
+						}
 					}
 
 					$value = is_a( $value, 'WP_Term' ) || ! is_array( $value ) ? [ $value ] : $value;
 
-					$value = is_a( $value[0], 'WP_Term' ) ? wp_list_pluck( $value, 'term_id' ) : $value;
+					// Must check if $value is empty or not, maybe the $value is an empty array (@since 1.12)
+					$value = ! empty( $value ) && is_a( $value[0], 'WP_Term' ) ? wp_list_pluck( $value, 'term_id' ) : $value;
 					break;
 
 				case 'radio':
@@ -260,7 +280,8 @@ class Provider_Metabox extends Base {
 				case 'checkbox_list':
 				case 'select_advanced':
 				case 'autocomplete':
-					// STEP: Return raw value for element conditions (@since 1.5.7)
+				case 'button_group': // (@since 1.12)
+					// STEP: Return raw value for element conditions
 					if ( isset( $filters['value'] ) ) {
 						return is_array( $value ) ? implode( ', ', $value ) : $value;
 					}
@@ -500,8 +521,11 @@ class Provider_Metabox extends Base {
 					break;
 
 				case 'user':
-					$filters['object_type'] = 'user';
-					$filters['link']        = true;
+					// Support :value filter to return the IDs only
+					if ( ! isset( $filters['value'] ) ) {
+						$filters['object_type'] = 'user';
+						$filters['link']        = true;
+					}
 
 					break;
 			}
@@ -518,9 +542,10 @@ class Provider_Metabox extends Base {
 		$tag_object = $this->tags[ $tag ];
 		$field      = $tag_object['field'];
 
-		// STEP: Check if in a Repeater loop
-		if ( \Bricks\Query::is_looping() ) {
-			$query_type = \Bricks\Query::get_query_object_type();
+		// STEP: Check if in a Repeater loop, use is_any_looping (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$query_type = \Bricks\Query::get_query_object_type( $any_loop_id );
 
 			// Check if this loop belongs to this provider
 			if ( array_key_exists( $query_type, $this->loop_tags ) ) {
@@ -534,7 +559,7 @@ class Provider_Metabox extends Base {
 					$parent_tag['field']['id'] == $tag_object['parent']['id']
 				) {
 
-					$query_loop_object = \Bricks\Query::get_loop_object();
+					$query_loop_object = \Bricks\Query::get_loop_object( $any_loop_id );
 
 					// Sub-field not found in the loop object (array)
 					if ( ! is_array( $query_loop_object ) || ! array_key_exists( $field['id'], $query_loop_object ) ) {
@@ -580,9 +605,11 @@ class Provider_Metabox extends Base {
 			return $field['_brx_group'];
 		}
 
-		if ( \Bricks\Query::is_looping() ) {
-			$loop_type = \Bricks\Query::get_loop_object_type();
-			$object_id = \Bricks\Query::get_loop_object_id();
+		// If any looping (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$loop_type = \Bricks\Query::get_loop_object_type( $any_loop_id );
+			$object_id = \Bricks\Query::get_loop_object_id( $any_loop_id );
 
 			// loop type is the same as the field object type (term, user, post)
 			if ( $loop_type == $object_type ) {
@@ -667,38 +694,65 @@ class Provider_Metabox extends Base {
 
 		// Relationship
 		if ( $field['_brx_object_type'] == 'relationship' ) {
-			$api_args = [
-				'id' => $field['id'],
-				// 'from' or 'to' to be set
-			];
-
 			$queried_object = \Bricks\Helpers::get_queried_object( $post_id );
 
-			// STEP: Calculate the "from" or "to" argument according to the context and the field object type
-			foreach ( [
-				'post' => 'WP_Post',
-				'term' => 'WP_Term',
-				'user' => 'WP_User'
-			] as $object_type => $object_class ) {
+			/**
+			 * Currently in a loop which is not a post, term or user loop (Maybe Group Loop)
+			 * Use the current queried object to set the "from" or "to" argument
+			 *
+			 * @since 1.11.1
+			 */
+			if ( \Bricks\Query::is_any_looping() && ! is_a( $queried_object, 'WP_Post' ) && ! is_a( $queried_object, 'WP_Term' ) && ! is_a( $queried_object, 'WP_User' ) ) {
+				$queried_object = get_queried_object();
+			}
 
-				foreach ( [ 'from', 'to' ] as $direction ) {
-					// Queried object type is the same as the field direction object type
-					if ( is_a( $queried_object, $object_class ) && $field[ $direction ]['object_type'] == $object_type ) {
+			// Function to set the relationship arguments
+			$set_relationship_args = function( $current_object ) use ( $field ) {
+				$api_args = [
+					'id' => $field['id'],
+					// 'from' or 'to' to be set
+				];
 
-						if ( $object_type == 'post' && in_array( $queried_object->post_type, $field[ $direction ]['meta_box']['post_types'] ) ) {
-							$api_args[ $direction ] = $queried_object->ID;
-						} elseif ( $object_type == 'term' && in_array( $queried_object->taxonomy, $field[ $direction ]['meta_box']['taxonomies'] ) ) {
-							$api_args[ $direction ] = $queried_object->term_id;
-						} elseif ( $object_type == 'user' ) {
-							$api_args[ $direction ] = $queried_object->ID;
+				foreach ( [
+					'post' => 'WP_Post',
+					'term' => 'WP_Term',
+					'user' => 'WP_User'
+				] as $object_type => $object_class ) {
+
+					foreach ( [ 'from', 'to' ] as $direction ) {
+						// Queried object type is the same as the field direction object type
+						if ( is_a( $current_object, $object_class ) && $field[ $direction ]['object_type'] == $object_type ) {
+
+							if ( $object_type == 'post' && in_array( $current_object->post_type, $field[ $direction ]['meta_box']['post_types'] ) ) {
+								$api_args[ $direction ] = $current_object->ID;
+							} elseif ( $object_type == 'term' && in_array( $current_object->taxonomy, $field[ $direction ]['meta_box']['taxonomies'] ) ) {
+								$api_args[ $direction ] = $current_object->term_id;
+							} elseif ( $object_type == 'user' ) {
+								$api_args[ $direction ] = $current_object->ID;
+							}
+
 						}
 
-					}
-
-					if ( isset( $api_args[ $direction ] ) ) {
-						break( 2 );
+						if ( isset( $api_args[ $direction ] ) ) {
+							break( 2 );
+						}
 					}
 				}
+
+				return $api_args;
+			};
+
+			// STEP: Calculate the "from" or "to" argument according to the context and the field object type
+			$api_args = $set_relationship_args( $queried_object );
+
+			/**
+			 * In Builder, the queried_object could be wrong or retrieve incorrectly when located in nested query, especially in different context loops
+			 * Helpers::get_queried_object will use the get_post() if bricks_is_ajax()
+			 *
+			 * @since 1.12.2
+			 */
+			if ( count( $api_args ) != 2 && \Bricks\Helpers::is_bricks_preview() && $looping_query_id ) {
+				$api_args = $set_relationship_args( \Bricks\Query::get_loop_object( $looping_query_id ) );
 			}
 
 			// STEP: Query
@@ -789,6 +843,7 @@ class Provider_Metabox extends Base {
 			'oembed'            => [ self::CONTEXT_TEXT, self::CONTEXT_LINK, self::CONTEXT_VIDEO, self::CONTEXT_MEDIA ],
 			'text_list'         => [ self::CONTEXT_TEXT ],
 			'wysiwyg'           => [ self::CONTEXT_TEXT ],
+			'button_group'      => [ self::CONTEXT_TEXT ], // (@since 1.12)
 
 			// WordPress
 			'post'              => [ self::CONTEXT_TEXT, self::CONTEXT_LINK ],
@@ -836,5 +891,57 @@ class Provider_Metabox extends Base {
 		$data['post'] = $post_object;
 
 		return $data;
+	}
+
+	/**
+	 * Retrieve all registered tags which are supported in WP_Query post__in parameter
+	 *
+	 * @since 1.12
+	 */
+	public function get_query_supported_tags() {
+		// NOTE: There is no field type named 'relationship' in Meta Box
+		// Meta Box will create 'post' field type for the related post type.
+		$field_types = [
+			'post',
+			'image_advanced',
+			'image',
+			'image_upload',
+			'single_image',
+			'relationship',
+		];
+
+		$supported_tags = [];
+
+		foreach ( $this->tags as $tag ) {
+			if ( ! isset( $tag['field'] ) ) {
+				continue;
+			}
+
+			if ( isset( $tag['deprecated'] ) ) {
+				continue;
+			}
+
+			$field           = $tag['field'] ?? [];
+			$field_type      = $field['type'] ?? '';
+			$is_relationship = isset( $field['relationship'] ) && $field['relationship'] === true;
+
+			if ( $is_relationship ) {
+				$field_type = 'relationship';
+			}
+
+			if ( in_array( $field_type, $field_types, true ) ) {
+				$supported_tags[] = [
+					'name'     => $tag['name'],
+					'type'     => $field_type,
+					'label'    => $tag['label'],
+					'params'   => [
+						'post__in',
+					],
+					'provider' => $tag['provider'],
+				];
+			}
+		}
+
+		return $supported_tags;
 	}
 }

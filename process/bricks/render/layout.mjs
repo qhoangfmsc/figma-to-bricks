@@ -9,6 +9,7 @@ import { isGradientRing, strokeMode, strokeWidths } from './utils/stroke.mjs';
 // column sits at x=-231.5, a 93px row in an 88px content box sits at y=5.5 of 104), which is what CSS `center` does.
 const JUSTIFY = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' };
 const ALIGN = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' };
+const CONTENT = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between', SPACE_AROUND: 'space-around', SPACE_EVENLY: 'space-evenly' };
 
 export function applyLayout({ node, s, css, warn }, kind) {
   const l = node.layout;
@@ -17,10 +18,17 @@ export function applyLayout({ node, s, css, warn }, kind) {
     return;
   }
   if (l.mode === 'GRID') {
-    // Figma GRID -> CSS grid: Bricks 1.9.8 has `_display: grid` but no track controls, so tracks and gaps are custom css. Items are start-aligned
-    // (a HUG-height card must not stretch to the tallest card of its row); cells come from each child's grid anchor (size.mjs).
+    // Bricks 1.12 writes the tracks, the gap and the alignment as controls. `display: grid` also writes
+    // `align-items: initial`, which would stretch a HUG card, so the Figma alignment is repeated with !important.
+    const align = ALIGN[l.counterAlign] ?? 'flex-start';
+    const justify = JUSTIFY[l.primaryAlign] ?? 'flex-start';
     s._display = 'grid';
-    addCustomCss(s, `grid-template-columns: ${l.columns}; grid-template-rows: ${l.rows}; column-gap: ${px(l.columnGap)}; row-gap: ${px(l.rowGap)}; align-items: start !important;`); // !important: Bricks writes `align-items: initial` for every `_display: grid`
+    if (l.columns) s._gridTemplateColumns = l.columns;
+    if (l.rows) s._gridTemplateRows = l.rows;
+    if (l.columnGap != null && l.rowGap != null) s._gridGap = l.columnGap === l.rowGap ? px(l.columnGap) : `${px(l.columnGap)} ${px(l.rowGap)}`;
+    s._alignItemsGrid = align;
+    s._justifyContentGrid = justify;
+    addCustomCss(s, `grid-template-columns: ${l.columns}; grid-template-rows: ${l.rows}; column-gap: ${px(l.columnGap)}; row-gap: ${px(l.rowGap)}; align-items: ${align} !important; justify-content: ${justify} !important;`);
     Object.assign(css, { 'column-gap': px(l.columnGap), 'row-gap': px(l.rowGap) });
   } else {
     s._display = 'flex';
@@ -35,7 +43,9 @@ export function applyLayout({ node, s, css, warn }, kind) {
       css[l.mode === 'HORIZONTAL' ? 'column-gap' : 'row-gap'] = px(l.gap);
     }
     if (l.wrap && l.counterGap != null) s[crossGapKey] = px(l.counterGap);
+    if (l.counterAlignContent && CONTENT[l.counterAlignContent]) addCustomCss(s, `align-content: ${CONTENT[l.counterAlignContent]};`);
   }
+  if (l.mode === 'GRID' && l.counterAlignContent && CONTENT[l.counterAlignContent]) s._alignContentGrid = CONTENT[l.counterAlignContent];
   // Figma measures padding from the outer edge (an INSIDE stroke is drawn over it unless "strokes included in layout");
   // a CSS border sits inside the box, so it must be taken out of the padding to land on the same content area.
   let p = l.padding;

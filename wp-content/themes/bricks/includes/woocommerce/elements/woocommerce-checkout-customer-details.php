@@ -104,7 +104,7 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 			'type'     => 'checkbox',
 			'css'      => [
 				[
-					'selector' => 'label',
+					'selector' => '.woocommerce-billing-fields__field-wrapper label, .woocommerce-shipping-fields__field-wrapper label', // Target billing/shipping labels only
 					'property' => 'display',
 					'value'    => 'none',
 				],
@@ -119,7 +119,7 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 			'css'      => [
 				[
 					'property' => 'font',
-					'selector' => 'label',
+					'selector' => '.woocommerce-billing-fields__field-wrapper label, .woocommerce-shipping-fields__field-wrapper label', // Target billing/shipping labels only
 				],
 			],
 			'required' => [ 'hideLabels', '=', '' ],
@@ -132,7 +132,7 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 			'css'         => [
 				[
 					'property' => 'margin',
-					'selector' => 'label',
+					'selector' => '.woocommerce-billing-fields__field-wrapper label, .woocommerce-shipping-fields__field-wrapper label', // Target billing/shipping labels only
 				],
 			],
 			'placeholder' => [
@@ -231,6 +231,7 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 			<div class="col2-set" id="customer_details">
 				<div class="col-1">
 					<?php
+					// This hook just for visually remove fields in builder, actual fields are removed in woocommerce_checkout_fields hook (includes/woocommerce.php)
 					add_filter( 'woocommerce_form_field', [ $this, 'remove_checkout_billing_fields' ], 10, 2 );
 					do_action( 'woocommerce_checkout_billing' );
 					remove_filter( 'woocommerce_form_field', [ $this, 'remove_checkout_billing_fields' ], 10, 2 );
@@ -239,9 +240,13 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 
 				<div class="col-2">
 					<?php
+					// STEP: Force to show shipping fields in the builder
+					add_filter( 'woocommerce_cart_needs_shipping_address', [ $this, 'builder_needs_shipping' ] );
+					// STEP: This hook just for visually remove fields in builder, actual fields are removed in woocommerce_checkout_fields hook (includes/woocommerce.php)
 					add_filter( 'woocommerce_form_field', [ $this, 'remove_checkout_shipping_fields' ], 10, 2 );
 					do_action( 'woocommerce_checkout_shipping' );
 					remove_filter( 'woocommerce_form_field', [ $this, 'remove_checkout_shipping_fields' ], 10, 2 );
+					remove_filter( 'woocommerce_cart_needs_shipping_address', [ $this, 'builder_needs_shipping' ] );
 					?>
 				</div>
 			</div>
@@ -276,5 +281,18 @@ class Woocommerce_Checkout_Customer_Details extends Element {
 		}
 
 		return $args;
+	}
+
+	/**
+	 * Builder API call (render_element ), get cart content is always empty, we need to force to show shipping fields
+	 *
+	 * @since 1.12
+	 */
+	public function builder_needs_shipping( $needs ) {
+		if ( bricks_is_builder_call() ) {
+			return true;
+		}
+
+		return $needs;
 	}
 }

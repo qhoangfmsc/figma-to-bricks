@@ -108,7 +108,7 @@ ob_start();
 		</div>
 
 		<?php
-		echo '<h3>' . esc_html__( 'Related posts', 'bricks' ) . '</h3>';
+		echo '<h2>' . esc_html__( 'Related posts', 'bricks' ) . '</h2>';
 
 		$related_posts = new Element_Related_Posts(
 			[
@@ -136,6 +136,11 @@ ob_start();
 					'title'             => true,
 					'avatar'            => true,
 					'submitButtonStyle' => 'primary',
+					'titleTag'          => 'h2',
+					'cookies'           => get_option( 'show_comments_cookies_opt_in' ), // Settings > Discussion > Show comments cookies opt-in checkbox
+					'label'             => true, // Ensure labels are shown
+					'formTitle'         => true, // Ensure the form title (reply title) is shown
+					'formTitleTag'      => 'h2', // Set the appropriate heading tag
 				],
 			]
 		);

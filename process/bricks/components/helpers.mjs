@@ -14,6 +14,19 @@ export function firstText(n) {
   return null;
 }
 
+// The words a frame actually draws, short enough to show next to a form field.
+export function textSnippet(n, limit = 120) {
+  if (!n) return '';
+  const bits = [];
+  (function walk(x) {
+    if (!x || x.visible === false || bits.length >= 3) return;
+    if (x.type === 'TEXT' && !x.svg && x.text?.characters?.trim()) bits.push(x.text.characters.trim().replace(/\s+/g, ' '));
+    for (const c of x.children ?? []) walk(c);
+  })(n);
+  const s = bits.join(' · ');
+  return s.length > limit ? `${s.slice(0, limit - 1)}…` : s;
+}
+
 // a params value can arrive as JSON text from the review console
 export function jsonParam(v) {
   if (typeof v !== 'string') return v;
@@ -26,11 +39,15 @@ export const rowId = (...parts) => createHash('sha1').update(parts.join('|')).di
 // `_direction`, `_rowGap` and `_columnGap` are controls of container / block / div / section only (container.php): the root of accordion-nested / tabs-nested ignores
 // them, so a flex root would lay its items in a row (the FAQ items came out side by side) and drop the gap. They are written as the one custom css Bricks 1.9.8
 // has no control for.
+const JUSTIFY = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' };
+const ALIGN = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' };
 export const flexDirectionCss = (node) => {
   const l = node.layout ?? {};
   const horizontal = l.mode === 'HORIZONTAL';
   const gap = l.primaryAlign !== 'SPACE_BETWEEN' && l.gap != null ? ` ${horizontal ? 'column' : 'row'}-gap: ${l.gap}px;` : '';
-  return [{ decl: `flex-direction: ${horizontal ? 'row' : 'column'};${gap}`, suffix: '' }];
+  const justify = JUSTIFY[l.primaryAlign] ?? 'flex-start';
+  const align = ALIGN[l.counterAlign] ?? 'flex-start';
+  return [{ decl: `flex-direction: ${horizontal ? 'row' : 'column'}; justify-content: ${justify}; align-items: ${align};${gap}`, suffix: '' }];
 };
 
 export const hidden = (cssClass) => ({ _hidden: { _cssClasses: cssClass } });

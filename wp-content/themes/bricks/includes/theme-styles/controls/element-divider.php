@@ -20,7 +20,11 @@ $controls['color'] = [
 	'css'   => [
 		[
 			'property' => 'border-top-color',
-			'selector' => '.line',
+			'selector' => '&.horizontal .line',
+		],
+		[
+			'property' => 'border-right-color',
+			'selector' => '&.vertical .line',
 		],
 		[
 			'property' => 'color',

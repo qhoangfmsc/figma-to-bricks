@@ -159,7 +159,7 @@ class Woocommerce_Account_Form_Register extends Woo_Element {
 
 			<?php
 				echo sprintf(
-					'<input type="email" class="woocommerce-Input woocommerce-Input--text input-text" name="email" id="reg_email" autocomplete="email" value="%s" />',
+					'<input type="email" class="woocommerce-Input woocommerce-Input--text input-text" name="email" id="reg_email" autocomplete="email" value="%s" required aria-required="true" />',
 					( ! empty( $_POST['email'] ) ) ? esc_attr( wp_unslash( $_POST['email'] ) ) : ''
 				);
 			?>

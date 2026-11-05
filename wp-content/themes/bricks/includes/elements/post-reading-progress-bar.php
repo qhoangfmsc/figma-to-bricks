@@ -38,7 +38,6 @@ class Element_Post_Reading_Progress_Bar extends Element {
 			'type'        => 'number',
 			'min'         => 0,
 			'units'       => true,
-			'large'       => true,
 			'placeholder' => '12px',
 			'css'         => [
 				[

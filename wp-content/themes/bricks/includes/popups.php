@@ -107,7 +107,6 @@ class Popups {
 			'group'       => 'popup',
 			'label'       => 'Z-index',
 			'type'        => 'number',
-			'large'       => true,
 			'css'         => [
 				[
 					'property' => 'z-index',
@@ -160,6 +159,17 @@ class Popups {
 			'type'        => 'checkbox',
 			'description' => esc_html__( 'Only supports Post, Term, and User context. More context are available inside the "Interaction" settings that open this popup.', 'bricks' ),
 		];
+
+		// WooCommerce Quick View (@since 1.10.2)
+		if ( Woocommerce::is_woocommerce_active() ) {
+			self::$controls['popupIsWoo'] = [
+				'group'       => 'popup',
+				'label'       => 'WooCommerce ' . esc_html__( 'Quick View', 'bricks' ),
+				'type'        => 'checkbox',
+				'description' => esc_html__( 'Tick if this popup is for WooCommerce Quick View.', 'bricks' ),
+				'required'    => [ 'popupAjax', '=', true ],
+			];
+		}
 
 		// Popup AJAX loader
 		self::$controls['popupAjaxLoaderSep'] = [
@@ -272,6 +282,18 @@ class Popups {
 			'group'      => 'popup',
 			'label'      => esc_html__( 'Disable backdrop', 'bricks' ),
 			'type'       => 'checkbox',
+			// Allow interaction with page content when popup is open
+			'css'        => [
+				[
+					'property' => 'pointer-events',
+					'value'    => 'none',
+				],
+				[
+					'selector' => '.brx-popup-content',
+					'property' => 'pointer-events',
+					'value'    => 'auto',
+				],
+			],
 			'themeStyle' => true,
 		];
 
@@ -431,6 +453,13 @@ class Popups {
 				'content'  => 'localStorage.brx_popup_{id}_total',
 				'position' => 'top-left',
 			],
+		];
+
+		// @since 1.9.9
+		self::$controls['popupLimitTimeStorage'] = [
+			'group' => 'popup',
+			'type'  => 'number',
+			'label' => esc_html__( 'Show again after .. hours', 'bricks' ),
 		];
 	}
 
@@ -665,18 +694,12 @@ class Popups {
 		$looping_query_id = Query::is_any_looping();
 
 		if ( $looping_query_id ) {
-			// Unique identifier for popup inside query loop (@since 1.8.4)
-			$unique_loop_id = [
-				Query::get_query_element_id( $looping_query_id ),
-				Query::get_loop_index(),
-				Query::get_loop_object_type( $looping_query_id ),
-				Query::get_loop_object_id( $looping_query_id ),
-			];
+			$attributes['data-popup-loop']       = Query::get_query_element_id( $looping_query_id ); // Needed for AJAX pagination
+			$attributes['data-popup-loop-index'] = Query::get_loop_index( $looping_query_id ); // Not in use but mentioned in Academy
 
-			$attributes['data-popup-loop']       = Query::get_query_element_id( $looping_query_id ); // Needed when AJAX pagination
-			$attributes['data-popup-loop-index'] = Query::get_loop_index(); // Not in use but in academy
-			$attributes['data-popup-loop-id']    = implode( ':', $unique_loop_id );
-			$ajax_popup_key                      = implode( ':', $unique_loop_id ); // For AJAX popup content array key @since 1.9.4
+			// Unique identifier for popup inside query loop (@since 1.8.4)
+			// $ajax_popup_key For AJAX popup content array key (@since 1.9.4)
+			$attributes['data-popup-loop-id'] = $ajax_popup_key = Query::get_looping_unique_identifier( 'popup' );
 
 			// Add loop element ID as popup class (e.g. brxe-{loop_container_element_id}) to target correct popup selectors (@since 1.7.1)
 			$attributes['class'][] = "brxe-{$attributes['data-popup-loop']}";
@@ -701,8 +724,10 @@ class Popups {
 			$attributes['data-popup-scroll-to-top'] = 1;
 		}
 
-		// Ajax popup (@since 1.9.4)
-		if ( isset( $popup_template_settings['popupAjax'] ) ) {
+		// AJAX popup (@since 1.9.4)
+		$is_ajax_popup = isset( $popup_template_settings['popupAjax'] );
+
+		if ( $is_ajax_popup ) {
 			$attributes['data-popup-ajax'] = 1;
 
 			// Add to array of popup contents that are fetched via AJAX
@@ -717,7 +742,7 @@ class Popups {
 			}
 		}
 
-		// Ajax popup loader (@since 1.9.4)
+		// AJAX popup loader (@since 1.9.4)
 		if ( ! empty( $popup_template_settings['popupAjaxLoaderAnimation'] ) ) {
 			$ajax_loader_data = [
 				'animation' => $popup_template_settings['popupAjaxLoaderAnimation'],
@@ -743,6 +768,7 @@ class Popups {
 				'popupLimitWindow'         => 'windowStorage',
 				'popupLimitSessionStorage' => 'sessionStorage',
 				'popupLimitLocalStorage'   => 'localStorage',
+				'popupLimitTimeStorage'    => 'timeStorageInHours',
 			];
 
 			foreach ( $limit_options as $limit => $storage ) {
@@ -750,7 +776,12 @@ class Popups {
 					continue;
 				}
 
-				$limits[ $storage ] = intval( $popup_template_settings[ $limit ] );
+				if ( $limit === 'popupLimitTimeStorage' ) {
+					// Apply floatval only to the time-based setting
+					$limits[ $storage ] = floatval( $popup_template_settings[ $limit ] );
+				} else {
+					$limits[ $storage ] = intval( $popup_template_settings[ $limit ] );
+				}
 			}
 
 			if ( ! empty( $limits ) ) {
@@ -793,16 +824,24 @@ class Popups {
 			$popup_content_classes .= ' brxe-container';
 		}
 
+		// WooCommerce Quick View (@since 1.10.2)
+		if ( isset( $popup_template_settings['popupIsWoo'] ) && Woocommerce::is_woocommerce_active() && $is_ajax_popup ) {
+			$popup_content_classes .= ' brx-woo-quick-view';
+		}
+
 		// Return empty html if AJAX popup in loop and not Api load_popup_content (@since 1.9.4)
-		if ( isset( $popup_template_settings['popupAjax'] ) && ! Api::is_current_endpoint( 'load_popup_content' ) && $looping_query_id ) {
+		if ( $is_ajax_popup && ! Api::is_current_endpoint( 'load_popup_content' ) && $looping_query_id ) {
 			return '';
 		}
 
 		$html  = "<div {$attributes}>";
 		$html .= "<div class=\"$popup_content_classes\">";
 
-		// Render popup content only if not popupAjax (@since 1.9.4)
-		if ( ! isset( $popup_template_settings['popupAjax'] ) ) {
+		/**
+		 * Render popup content only if not popupAjax (@since 1.9.4)
+		 * Template preview should always render the popup (@since 1.10)
+		 */
+		if ( ! $is_ajax_popup || $is_popup_preview ) {
 			$html .= $popup_content;
 		}
 
@@ -810,7 +849,18 @@ class Popups {
 
 		// Popup backdrop, if not disabled (@since 1.9.8)
 		if ( ! isset( Theme_Styles::$active_settings['popup']['popupDisableBackdrop'] ) && ! isset( $popup_template_settings['popupDisableBackdrop'] ) ) {
-			$html .= '<div class="brx-popup-backdrop"></div>';
+			if ( Query::is_looping() ) {
+				/**
+				 * Support dynamic style in Popup settings (looping popup)
+				 * This is for non-AJAX popup in loop. AJAX popup in loop is handled by frontend.js
+				 *
+				 * @since 1.12
+				 */
+				$unique_loop_index = Query::get_looping_unique_identifier();
+				$html             .= '<div class="brx-popup-backdrop" data-query-loop-index="' . $unique_loop_index . '"></div>';
+			} else {
+				$html .= '<div class="brx-popup-backdrop"></div>';
+			}
 		}
 
 		$html .= '</div>';

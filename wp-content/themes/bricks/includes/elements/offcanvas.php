@@ -36,11 +36,22 @@ class Element_Offcanvas extends Element {
 			'type'  => 'checkbox',
 		];
 
+		$this->controls['noAutoFocus'] = [
+			'label'       => esc_html__( 'Disable auto focus', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => esc_html__( 'Don\'t auto focus on first focusable element when offcanvas opens.', 'bricks' ),
+		];
+
+		$this->controls['scrollToTop'] = [
+			'label'       => esc_html__( 'Scroll to top', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => esc_html__( 'Scroll to top when offcanvas opens.', 'bricks' ),
+		];
+
 		$this->controls['width'] = [
 			'label' => esc_html__( 'Width', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'width',
@@ -53,7 +64,6 @@ class Element_Offcanvas extends Element {
 			'label' => esc_html__( 'Height', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'height',
@@ -157,6 +167,16 @@ class Element_Offcanvas extends Element {
 
 		if ( ! empty( $settings['noScrollBody'] ) ) {
 			$this->set_attribute( '_root', 'data-no-scroll', 'true' );
+		}
+
+		// No auto focus (@since 1.10.2)
+		if ( isset( $settings['noAutoFocus'] ) ) {
+			$this->set_attribute( '_root', 'data-no-auto-focus', 'true' );
+		}
+
+		// Scroll to top (@since 1.10.2)
+		if ( isset( $settings['scrollToTop'] ) ) {
+			$this->set_attribute( '_root', 'data-scroll-to-top', 'true' );
 		}
 
 		// Close on (backdrop, esc)

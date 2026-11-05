@@ -39,8 +39,14 @@ class Login extends Base {
 			return;
 		}
 
-		// Check for the 'redirect_to' URL parameter
-		$redirect_to = esc_url_raw( $form_fields['form-field-redirect_to'] ?? '' );
+		$redirect_to = '';
+
+		// Check for the 'redirect_to' URL parameter if 'redirect' action is not set (@since 1.11)
+		if ( ! in_array( 'redirect', $form_settings['actions'], true ) ||
+			( ! isset( $form_settings['redirect'] ) && ! isset( $form_settings['redirectAdminUrl'] ) )
+		) {
+			$redirect_to = esc_url_raw( $form_fields['form-field-redirect_to'] ?? '' );
+		}
 
 		// Validate and redirect if 'redirect_to' is present (@since 1.9.4)
 		if ( $redirect_to && wp_http_validate_url( $redirect_to ) ) {

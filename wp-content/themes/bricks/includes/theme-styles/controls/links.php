@@ -6,7 +6,7 @@ $link_css_selectors = [
 	':where(.brxe-accordion .accordion-content-wrapper) a',
 	':where(.brxe-icon-box .content) a',
 	':where(.brxe-list) a',
-	':where(.brxe-post-content) a:not(.bricks-button)', // @since 1.5 (see: #2hjn8md)
+	':where(.brxe-post-content):not([data-source="bricks"]) a', // Apply to WordPress content only (@since 1.10; @see #86bxevpxq)
 	':where(.brxe-posts .dynamic p) a',
 	':where(.brxe-shortcode) a',
 	':where(.brxe-tabs .tab-content) a',
@@ -25,7 +25,32 @@ $link_css_selectors = [
 // https://academy.bricksbuilder.io/article/filter-bricks-link_css_selectors/
 $link_css_selectors = apply_filters( 'bricks/link_css_selectors', $link_css_selectors );
 
-$link_css_selectors = join( ', ', $link_css_selectors );
+if ( is_array( $link_css_selectors ) ) {
+	$link_css_selectors = join( ', ', $link_css_selectors );
+}
+
+// @since 1.10
+$controls['cssSelectorInfo'] = [
+	'type'    => 'info',
+	'content' => sprintf(
+		esc_html__( 'Link styles apply only to specific elements. Overwrite them via the %s filter or extend them via the CSS selectors setting below.', 'bricks' ),
+		\Bricks\Helpers::article_link( 'filter-bricks-link_css_selectors', 'bricks/link_css_selectors' )
+	),
+];
+
+// @since 1.10
+$controls['cssSelectors'] = [
+	'label'       => esc_html__( 'Link', 'bricks' ) . ': ' . esc_html__( 'CSS selectors', 'bricks' ),
+	'type'        => 'textarea',
+	'placeholder' => $link_css_selectors,
+];
+
+// @since 1.10
+$controls['cssSelectorsApply'] = [
+	'type'   => 'apply',
+	'reload' => true,
+	'label'  => esc_html__( 'Apply', 'bricks' ) . ' (' . esc_html__( 'CSS selectors', 'bricks' ) . ')',
+];
 
 $controls['typography'] = [
 	'type'    => 'typography',
@@ -89,15 +114,17 @@ $controls['textDecoration'] = [
 ];
 
 $controls['transition'] = [
-	'label'       => esc_html__( 'Transition', 'bricks' ),
-	'css'         => [
+	'label'          => esc_html__( 'Transition', 'bricks' ),
+	'css'            => [
 		[
 			'property' => 'transition',
 			'selector' => $link_css_selectors,
 		],
 	],
-	'type'        => 'text',
-	'description' => sprintf( '<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank">%s</a>', esc_html__( 'Learn more about CSS transitions', 'bricks' ) ),
+	'hasDynamicData' => false,
+	'hasVariables'   => true,
+	'type'           => 'text',
+	'description'    => sprintf( '<a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank">%s</a>', esc_html__( 'Learn more about CSS transitions', 'bricks' ) ),
 ];
 
 return [

@@ -38,7 +38,6 @@ class Element_Animated_Typing extends Element {
 				'h5'  => 'h5',
 				'h6'  => 'h6',
 			],
-			'clearable'   => false,
 			'inline'      => true,
 			'rerender'    => true,
 			'placeholder' => 'div',
@@ -155,7 +154,7 @@ class Element_Animated_Typing extends Element {
 		$settings = $this->settings;
 		$strings  = [];
 
-		if ( isset( $settings['strings'] ) && is_array( $settings['strings'] ) && count( $settings['strings'] ) ) {
+		if ( ! empty( $settings['strings'] ) && is_array( $settings['strings'] ) ) {
 			foreach ( $settings['strings'] as $string ) {
 				if ( isset( $string['text'] ) && $string['text'] != '' ) {
 					$strings[] = $string['text'];
@@ -197,32 +196,5 @@ class Element_Animated_Typing extends Element {
 		}
 
 		echo "</{$this->tag}>";
-	}
-
-	public static function render_builder() { ?>
-		<script type="text/x-template" id="tmpl-bricks-element-animated-typing">
-			<component
-				v-if="settings.strings && settings.strings.length"
-				:is="tag"
-				:data-script-args="JSON.stringify({
-					strings: settings.strings && settings.strings.length ? settings.strings.map(string => string.text) : false,
-					typeSpeed: settings.hasOwnProperty('typeSpeed') ? parseInt(settings.typeSpeed) : 55,
-					backSpeed: settings.hasOwnProperty('backSpeed') ? parseInt(settings.backSpeed) : 30,
-					startDelay: settings.hasOwnProperty('startDelay') ? parseInt(settings.startDelay) : 500,
-					backDelay: settings.hasOwnProperty('backDelay') ? parseInt(settings.backDelay) : 500,
-					cursorChar: settings.hasOwnProperty('cursorChar') ? settings.cursorChar : '',
-					loop: settings.hasOwnProperty('loop'),
-					shuffle: settings.hasOwnProperty('shuffle')
-				})"
-			>
-				<span v-if="settings.prefix" class="prefix" v-html="settings.prefix"></span>
-				<span class="typed"></span>
-				<span v-if="settings.suffix" class="suffix" v-html="settings.suffix"></span>
-
-				<slot></slot>
-			</component>
-			<div v-else v-html="renderElementPlaceholder()"></div>
-		</script>
-		<?php
 	}
 }

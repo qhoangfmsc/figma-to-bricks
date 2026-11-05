@@ -4,7 +4,8 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Frontend {
-	public static $area = 'content';
+	public static $area                    = 'content'; // header/content/footer
+	public static $template_ids_to_enqueue = []; // IDs of templates to enqueue early (@since 1.12)
 
 	/**
 	 * Elements requested for rendering
@@ -54,6 +55,8 @@ class Frontend {
 
 		add_action( 'render_header', [ $this, 'render_header' ] );
 		add_action( 'render_footer', [ $this, 'render_footer' ] );
+
+		add_filter( 'wp_nav_menu_objects', [ $this, 'adjust_menu_item_classes' ], 10, 2 );
 	}
 
 	/**
@@ -173,6 +176,11 @@ class Frontend {
 	 * @since 1.0
 	 */
 	public function add_open_graph_meta_tags() {
+		// Return: Don't add Open Graph tag when maintenance mode is enabled (@since 1.10)
+		if ( \Bricks\Maintenance::get_mode() ) {
+			return;
+		}
+
 		// NOTE: Undocumented
 		$disable_og = apply_filters( 'bricks/frontend/disable_opengraph', ! empty( Database::$global_settings['disableOpenGraph'] ) );
 
@@ -214,7 +222,17 @@ class Frontend {
 			$open_graph_meta_tags[] = '<meta property="fb:app_id" content="' . $facebook_app_id . '" />';
 		}
 
-		$open_graph_meta_tags[] = '<meta property="og:url" content="' . get_permalink() . '" />';
+		/**
+		 * Get current page URL
+		 *
+		 * Has to work for all pages, including custom post types, archives, search, etc.
+		 *
+		 * @since 1.11
+		 */
+		global $wp;
+		$og_url = home_url( add_query_arg( [], $wp->request ? trailingslashit( $wp->request ) : '' ) );
+
+		$open_graph_meta_tags[] = '<meta property="og:url" content="' . $og_url . '" />';
 
 		// Site Name
 		$open_graph_meta_tags[] = '<meta property="og:site_name" content="' . get_bloginfo( 'name' ) . '" />';
@@ -353,6 +371,23 @@ class Frontend {
 
 		$base_url = trailingslashit( $base_url );
 
+		$current_language = '';
+		$wpml_url_format  = '';
+		$multilang_plugin = '';
+
+		// Check if WPML is active and get the current language code (@since 1.9.9)
+		if ( \Bricks\Integrations\Wpml\Wpml::is_wpml_active() ) {
+			$current_language = \Bricks\Integrations\Wpml\Wpml::get_current_language();
+			$wpml_url_format  = \Bricks\Integrations\Wpml\Wpml::get_url_format();
+			$multilang_plugin = 'wpml';
+		}
+
+		// Check if Polylang is active and get the current language code (@since 1.9.9)
+		elseif ( \Bricks\Integrations\Polylang\Polylang::$is_active ) {
+			$current_language = \Bricks\Integrations\Polylang\Polylang::get_current_language();
+			$multilang_plugin = 'polylang';
+		}
+
 		wp_localize_script(
 			'bricks-scripts',
 			'bricksData',
@@ -385,6 +420,13 @@ class Frontend {
 				'facebookAppId'           => Database::$global_settings['facebookAppId'] ?? false,
 				'offsetLazyLoad'          => Database::$global_settings['offsetLazyLoad'] ?? 300,
 				'headerPosition'          => Database::$header_position,
+				'language'                => $current_language,
+				'wpmlUrlFormat'           => $wpml_url_format ?? '',
+				'multilangPlugin'         => $multilang_plugin,
+				'i18n'                    => I18n::get_frontend_i18n(),
+				'selectedFilters'         => Query_Filters::$selected_filters, // @since 1.11
+				'selectedFilters'         => Query_Filters::$selected_filters, // @since 1.11
+				'filterNiceNames'         => [], // @since 1.11
 			]
 		);
 	}
@@ -399,25 +441,34 @@ class Frontend {
 		wp_register_style( 'bricks-frontend-inline', false ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion
 		wp_enqueue_style( 'bricks-frontend-inline' );
 
-		// Bricks settings: Smooth scroll (CSS) (@since 1.7.1)
-		if ( Database::get_setting( 'smoothScroll' ) ) {
-			wp_add_inline_style( 'bricks-frontend-inline', 'html {scroll-behavior: smooth}' );
-		}
-
 		// Bricks settings: AJAX Hide View Cart Button (@since 1.9)
 		if ( WooCommerce::is_woocommerce_active() && Database::get_setting( 'woocommerceAjaxHideViewCart' ) ) {
 			wp_add_inline_style( 'bricks-frontend-inline', '.added_to_cart.wc-forward {display: none}' );
 		}
 
-		// CSS loading method: Inline styles (= default)
-		if ( Database::get_setting( 'cssLoading' ) !== 'file' ) {
-			wp_add_inline_style( 'bricks-frontend-inline', Assets::generate_inline_css() );
-		}
+		$inline_css = '';
 
 		// CSS loading method: External files
-		else {
+		// TODO NEXT: Generate external CSS file for global classes (#861mcc28z)
+		if ( Database::get_setting( 'cssLoading' ) === 'file' ) {
 			// Global classes need to be loaded inline
-			wp_add_inline_style( 'bricks-frontend-inline', Assets::$inline_css['global_classes'] );
+			$inline_css = Assets::$inline_css['global_classes'];
+		}
+
+		// CSS loading method: Inline styles (= default)
+		else {
+			$inline_css = Assets::generate_inline_css();
+		}
+
+		// Bricks settings: Smooth scroll CSS
+		if ( Database::get_setting( 'smoothScroll' ) ) {
+			$inline_css = "html {scroll-behavior: smooth}\n" . $inline_css;
+		}
+
+		if ( $inline_css ) {
+			// Minify inline CSS (@since 1.9.9)
+			$inline_css = Assets::minify_css( $inline_css );
+			wp_add_inline_style( 'bricks-frontend-inline', $inline_css );
 		}
 
 		// Clear global classes inline CSS to avoid adding duplicate classes in enqueue_footer_inline_css function below
@@ -469,8 +520,10 @@ class Frontend {
 		$output = '';
 
 		foreach ( $fields as $index => $field ) {
+			$post_id = $post->ID;
+
 			if ( ! empty( $field['dynamicData'] ) ) {
-				$content = bricks_render_dynamic_data( $field['dynamicData'], $post->ID );
+				$content = bricks_render_dynamic_data( $field['dynamicData'], $post_id );
 
 				$content = do_shortcode( $content );
 
@@ -478,8 +531,22 @@ class Frontend {
 					continue;
 				}
 
-				$tag      = ! empty( $field['tag'] ) ? esc_attr( $field['tag'] ) : 'div';
+				$tag = 'div';
+
+				if ( ! empty( $field['tag'] ) ) {
+					$tag = Helpers::sanitize_html_tag( $field['tag'], 'div' );
+				}
+
 				$field_id = isset( $field['id'] ) ? $field['id'] : $index;
+
+				/**
+				 * Posts element: $settings['imagLink'] set: add aria-hidden="true" & tabindex="-1" to <a> tag in $content to prevent screen readers for redundatn links
+				 *
+				 * @since 1.11
+				 */
+				if ( isset( $settings['imageLink'] ) && strpos( $content, '<a' ) === 0 && strpos( $content, get_the_permalink( $post_id ) ) !== -1 ) {
+					$content = preg_replace( '/<a(.*?)>/', '<a$1 aria-hidden="true" tabindex="-1">', $content );
+				}
 
 				$output .= "<{$tag} class=\"dynamic\" data-field-id=\"{$field_id}\">{$content}</{$tag}>";
 			}
@@ -500,9 +567,42 @@ class Frontend {
 			return;
 		}
 
-		$output = '';
+		/**
+		 * STEP: Get component 'children' and instance 'settings'
+		 *
+		 * @since 1.12
+		 */
+		$component_id       = $element['cid'] ?? false;
+		$component_instance = $component_id ? Helpers::get_component_instance( $element ) : false;
+		$component_elements = $component_instance['elements'] ?? [];
 
-		// Check: Get global element settings (skip if AJAX call is coming from builder via 'global_settings_checked')
+		// Add component children to Frontend::$elements to render them
+		foreach ( $component_elements as $component_element ) {
+			// Set 'parentComponent' on component child to get use .brxe-{} class name on component child
+			$component_element['parentComponent'] = $component_id;
+			$component_element['instanceId']      = $element['id'];
+
+			self::$elements[ $component_element['id'] ] = $component_element;
+
+			// Popupate element with component instance settings and children
+			if ( $element['cid'] === $component_element['id'] ) {
+				// Get component instance settings
+				if ( ! empty( $component_element['settings'] ) ) {
+					$element['settings'] = $component_element['settings'];
+				}
+
+				// Get children from component
+				if ( ! empty( $component_element['children'] ) ) {
+					$element['children'] = $component_element['children'];
+				}
+			}
+		}
+
+		/**
+		 * STEP: Get global element settings
+		 *
+		 * Skip if AJAX call is coming from builder via 'global_settings_checked'.
+		 */
 		$global_settings = ! isset( $element['global_settings_checked'] ) ? Helpers::get_global_element( $element, 'settings' ) : false;
 
 		if ( is_array( $global_settings ) ) {
@@ -510,7 +610,7 @@ class Frontend {
 		}
 
 		// Init element class (e.g.: new Bricks\Element_Alert( $element ))
-		$element_class_name = isset( Elements::$elements[ $element_name ]['class'] ) ? Elements::$elements[ $element_name ]['class'] : $element_name;
+		$element_class_name = Elements::$elements[ $element_name ]['class'] ?? $element_name;
 
 		if ( class_exists( $element_class_name ) ) {
 			$element['themeStyleSettings'] = Theme_Styles::$active_settings;
@@ -533,12 +633,17 @@ class Frontend {
 	/**
 	 * Render element 'children' (= nestable element)
 	 *
-	 * @param array $element_instance Instance of the element.
+	 * @param array  $element_instance Instance of the element.
+	 * @param string $tag Tag name.
+	 * @param array  $extra_attributes Extra attributes.
 	 *
 	 * @since 1.5
 	 */
-	public static function render_children( $element_instance ) {
+	public static function render_children( $element_instance = null, $tag = 'div', $extra_attributes = [] ) {
 		$element = $element_instance->element;
+
+		// Get componentInstance (builder) OR from database (frontend)
+		$component_instance = $element['componentInstance'] ?? Helpers::get_component_instance( $element );
 
 		/**
 		 * BUILDER: Replace children placeholder node with Vue components (in BricksElementPHP.vue)
@@ -555,10 +660,32 @@ class Frontend {
 		$children = ! empty( $element['children'] ) && is_array( $element['children'] ) ? $element['children'] : [];
 		$output   = '';
 
+		// Get component 'children' (ids) and add components to Frontend::$elements array (@since 1.12)
+		$component_children = ! empty( $component_instance['children'] ) && is_array( $component_instance['children'] ) ? $component_instance['children'] : [];
+		if ( $component_children ) {
+			$children           = $component_children;
+			$component_elements = $component_instance['elements'] ?? [];
+			foreach ( $component_elements as $component_child ) {
+				// Set 'parentComponent' on component child to get use .brxe-{} class name on component child (see: set_root_attributes)
+				$component_child['parentComponent']       = $component_instance['id'];
+				self::$elements[ $component_child['id'] ] = $component_child;
+			}
+		}
+
 		foreach ( $children as $child_id ) {
-			$child = ! empty( self::$elements[ $child_id ] ) ? self::$elements[ $child_id ] : false;
+			$child = self::$elements[ $child_id ] ?? false;
 
 			if ( $child ) {
+				// Add the extra attributes to child '_attributes'
+				if ( is_array( $extra_attributes ) && ! empty( $extra_attributes ) ) {
+					foreach ( $extra_attributes as $attr_name => $attr_value ) {
+						$child['settings']['_attributes'][] = [
+							'name'  => $attr_name,
+							'value' => $attr_value,
+						];
+					}
+				}
+
 				$output .= self::render_element( $child ); // Recursive
 			}
 		}
@@ -615,6 +742,15 @@ class Frontend {
 		$content = '';
 
 		foreach ( $elements as $element ) {
+			/**
+			 * Skip element: Component with this 'cid' doesn't exist in database
+			 *
+			 * @since 1.12
+			 */
+			if ( ! empty( $element['cid'] ) && ! Helpers::get_component_by_cid( $element['cid'] ) ) {
+				continue;
+			}
+
 			if ( ! empty( $element['parent'] ) ) {
 				continue;
 			}
@@ -625,11 +761,7 @@ class Frontend {
 		// NOTE: Undocumented. Useful to re-add plugin actions/filters (@since 1.5.4)
 		do_action( 'bricks/frontend/after_render_data', $elements, $area );
 
-		/**
-		 * Check: Are we looping a template element
-		 *
-		 * @since 1.7: Use Query::get_loop_object_type() if check for a looping post, so user custom queries are also supported (@see #862j64bkn)
-		 */
+		// Check: Are we looping a template element
 		$looping_query_id = Query::is_any_looping();
 		$loop_object_type = Query::get_loop_object_type( $looping_query_id );
 
@@ -637,13 +769,8 @@ class Frontend {
 
 		$post = get_post( $post_id );
 
-		/**
-		 * Filter Bricks content (incl. parsing of dynamic data)
-		 *
-		 * https://academy.bricksbuilder.io/article/filter-bricks-frontend-render_data/
-		 *
-		 * @since 1.5.4 ($area argument)
-		 */
+		// Filter Bricks content (incl. parsing of dynamic data)
+		// https://academy.bricksbuilder.io/article/filter-bricks-frontend-render_data/
 		$content = apply_filters( 'bricks/frontend/render_data', $content, $post, $area );
 
 		self::$elements = [];
@@ -762,10 +889,10 @@ class Frontend {
 
 		$template_footer_id = Database::$active_templates['footer'];
 		?>
-		<a class="skip-link" href="#brx-content" aria-label="<?php esc_html_e( 'Skip to main content', 'bricks' ); ?>"><?php esc_html_e( 'Skip to main content', 'bricks' ); ?></a>
+		<a class="skip-link" href="#brx-content"><?php esc_html_e( 'Skip to main content', 'bricks' ); ?></a>
 
-		<?php if ( ! empty( $template_footer_id ) ) { ?>
-			<a class="skip-link" href="#brx-footer" aria-label="<?php esc_html_e( 'Skip to footer', 'bricks' ); ?>"><?php esc_html_e( 'Skip to footer', 'bricks' ); ?></a>
+		<?php if ( ! empty( $template_footer_id ) && ! Database::is_template_disabled( 'footer' ) ) { ?>
+			<a class="skip-link" href="#brx-footer"><?php esc_html_e( 'Skip to footer', 'bricks' ); ?></a>
 			<?php
 		}
 	}
@@ -857,6 +984,12 @@ class Frontend {
 
 		$attributes = Helpers::stringify_html_attributes( $attributes );
 
+		// https://academy.bricksbuilder.io/article/filter-bricks-content-tag/ (@since 1.11.1)
+		$content_tag = apply_filters( 'bricks/content/tag', $tag );
+
+		// Sanitize custom HTML tag
+		$tag = Helpers::sanitize_html_tag( $content_tag, $tag );
+
 		if ( $tag ) {
 			echo "<{$tag} {$attributes}>";
 		}
@@ -912,5 +1045,60 @@ class Frontend {
 
 		// NOTE: Undocumented
 		echo apply_filters( 'bricks/render_footer', $footer_html );
+	}
+
+	/**
+	 * Remove current menu item classes from anchor links
+	 *
+	 * @since 1.11
+	 */
+	public function adjust_menu_item_classes( $items, $args ) {
+		$ancestor_ids = [];
+
+		// Function to get ancestor IDs
+		$get_ancestor = function( $item ) {
+			$looped_ids = [];
+			$parent_ids = [];
+			$current_id = absint( $item->db_id );
+
+			while ( ! in_array( $current_id, $looped_ids ) ) {
+				$looped_ids[] = $current_id;
+				$parent_id    = get_post_meta( $current_id, '_menu_item_menu_item_parent', true );
+
+				// skip if no parent
+				if ( empty( $parent_id ) ) {
+					break;
+				}
+
+				$current_id   = $parent_id;
+				$parent_ids[] = absint( $parent_id );
+			}
+
+			return $parent_ids;
+		};
+
+		// Detect anchor links with current-menu-item class
+		foreach ( $items as $item ) {
+			// If the item link contains an anchor and contains current-menu-item class or current-menu-ancestor class
+			if ( strpos( $item->url, '#' ) !== false && in_array( 'current-menu-item', $item->classes ) ) {
+				// Remove the current-menu-item class
+				$item->classes = array_diff( $item->classes, [ 'current-menu-item' ] );
+				// Add the ancestor IDs to the array
+				$ancestor_ids = array_merge( $ancestor_ids, $get_ancestor( $item ) );
+			}
+		}
+
+		// Loop through the items again to remove the current-menu-ancestor class from the parent items
+		if ( ! empty( $ancestor_ids ) ) {
+			foreach ( $items as $item ) {
+				// If the item is a parent of an anchor link with current-menu-item class
+				if ( in_array( absint( $item->db_id ), $ancestor_ids ) ) {
+					// Remove the current-menu-ancestor, current-menu-parent classes
+					$item->classes = array_diff( $item->classes, [ 'current-menu-ancestor', 'current-menu-parent' ] );
+				}
+			}
+		}
+
+		return $items;
 	}
 }

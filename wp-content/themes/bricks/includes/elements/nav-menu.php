@@ -67,7 +67,11 @@ class Element_Nav_Menu extends Element {
 			'type'        => 'select',
 			'options'     => $nav_menus,
 			'placeholder' => esc_html__( 'Select nav menu', 'bricks' ),
-			'description' => sprintf( '<a href="' . admin_url( 'nav-menus.php' ) . '" target="_blank">' . esc_html__( 'Manage my menus in WordPress.', 'bricks' ) . '</a>' ),
+			'description' => sprintf(
+				'<a href="%s" target="_blank">%s</a>',
+				esc_url( admin_url( 'nav-menus.php' ) ),
+				esc_html__( 'Manage my menus in WordPress.', 'bricks' )
+			),
 		];
 
 		$this->controls['menuAlignment'] = [
@@ -150,11 +154,11 @@ class Element_Nav_Menu extends Element {
 			'css'   => [
 				[
 					'property' => 'background',
-					'selector' => '.bricks-nav-menu > li > a',
+					'selector' => '.bricks-nav-menu > li{pseudo} > a',
 				],
 				[
 					'property' => 'background',
-					'selector' => '.bricks-nav-menu > li > .brx-submenu-toggle',
+					'selector' => '.bricks-nav-menu > li{pseudo} > .brx-submenu-toggle',
 				],
 			],
 		];
@@ -166,11 +170,11 @@ class Element_Nav_Menu extends Element {
 			'css'   => [
 				[
 					'property' => 'border',
-					'selector' => '.bricks-nav-menu > li > a',
+					'selector' => '.bricks-nav-menu > li{pseudo} > a',
 				],
 				[
 					'property' => 'border',
-					'selector' => '.bricks-nav-menu > li > .brx-submenu-toggle',
+					'selector' => '.bricks-nav-menu > li{pseudo} > .brx-submenu-toggle',
 				],
 			],
 		];
@@ -314,7 +318,7 @@ class Element_Nav_Menu extends Element {
 			'rerender' => true,
 			'css'      => [
 				[
-					'selector' => 'button',
+					'selector' => '.bricks-nav-menu > li.menu-item > .brx-submenu-toggle svg',
 				],
 			],
 		];
@@ -724,7 +728,7 @@ class Element_Nav_Menu extends Element {
 			'rerender' => true,
 			'css'      => [
 				[
-					'selector' => '.bricks-nav-menu .sub-menu .brx-submenu-toggle{pseudo} button',
+					'selector' => '.bricks-nav-menu .sub-menu .brx-submenu-toggle{pseudo} svg',
 				],
 			],
 		];
@@ -870,7 +874,6 @@ class Element_Nav_Menu extends Element {
 			'label' => esc_html__( 'Top', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'selector' => '.bricks-mobile-menu-wrapper',
@@ -884,7 +887,6 @@ class Element_Nav_Menu extends Element {
 			'label'       => esc_html__( 'Width', 'bricks' ),
 			'type'        => 'number',
 			'units'       => true,
-			'large'       => true,
 			'css'         => [
 				[
 					'property' => 'width',
@@ -899,7 +901,6 @@ class Element_Nav_Menu extends Element {
 			'label' => esc_html__( 'Height', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'height',
@@ -1096,6 +1097,30 @@ class Element_Nav_Menu extends Element {
 			],
 		];
 
+		// @since 1.11
+		$this->controls['mobileMenuActiveBorder'] = [
+			'group' => 'mobile-menu',
+			'label' => esc_html__( 'Border', 'bricks' ) . ' (' . esc_html__( 'Active', 'bricks' ) . ')',
+			'type'  => 'border',
+			'css'   => [
+				[
+					'property' => 'border',
+					// Select page link, if it's active, but not inside submenu toggle
+					'selector' => '.bricks-mobile-menu > .current-menu-item > a',
+				],
+				[
+					'property' => 'border',
+					// Select submenu toggle, if it's active
+					'selector' => '.bricks-mobile-menu > .current-menu-item > .brx-submenu-toggle',
+				],
+				[
+					'property' => 'border',
+					// Select submenu toggle, if any of childs are active
+					'selector' => '.bricks-mobile-menu > .current-menu-ancestor > .brx-submenu-toggle',
+				]
+			],
+		];
+
 		$this->controls['mobileMenuTypography'] = [
 			'group'   => 'mobile-menu',
 			'type'    => 'typography',
@@ -1284,6 +1309,30 @@ class Element_Nav_Menu extends Element {
 					'property' => 'border',
 					'selector' => '.bricks-mobile-menu .sub-menu > .menu-item',
 				],
+			],
+		];
+
+		// @since 1.11
+		$this->controls['mobileSubMenuBorderActive'] = [
+			'group' => 'mobile-menu',
+			'label' => esc_html__( 'Border', 'bricks' ) . ' (' . esc_html__( 'Active', 'bricks' ) . ')',
+			'type'  => 'border',
+			'css'   => [
+				[
+					'property' => 'border',
+					// Select sub menu page link, if it's active, but not inside submenu toggle
+					'selector' => '.bricks-mobile-menu .sub-menu > .current-menu-item > a',
+				],
+				[
+					'property' => 'border',
+					// Select sub menu submenu toggle, if it's active
+					'selector' => '.bricks-mobile-menu .sub-menu > .current-menu-item > .brx-submenu-toggle',
+				],
+				[
+					'property' => 'border',
+					// Select sub menu submenu toggle, if any of childs are active
+					'selector' => '.bricks-mobile-menu .sub-menu > .current-menu-ancestor > .brx-submenu-toggle',
+				]
 			],
 		];
 
@@ -1814,7 +1863,7 @@ class Element_Nav_Menu extends Element {
 
 		if ( $show_menu_toggle_at !== 'never' ) {
 			?>
-			<button class="<?php echo join( ' ', $mobile_menu_toggle_classes ); ?>" aria-haspopup="true" aria-label="<?php esc_attr_e( 'Mobile menu', 'bricks' ); ?>" aria-expanded="false">
+			<button class="<?php echo join( ' ', $mobile_menu_toggle_classes ); ?>" aria-haspopup="true" aria-label="<?php esc_attr_e( 'Open mobile menu', 'bricks' ); ?>" aria-expanded="false">
 				<span class="bar-top"></span>
 				<span class="bar-center"></span>
 				<span class="bar-bottom"></span>
@@ -1890,7 +1939,7 @@ class Element_Nav_Menu extends Element {
 					$icon = self::render_icon( $settings['menuIcon'], [ 'menu-item-icon' ] );
 				}
 
-				$icon_position = ! empty( $settings['menuIconPosition'] ) ? $settings['menuIconPosition'] : 'right';
+				$icon_position = $settings['menuIconPosition'] ?? 'right';
 			}
 
 			// Submenu
@@ -1899,7 +1948,7 @@ class Element_Nav_Menu extends Element {
 					$icon = self::render_icon( $settings['subMenuIcon'], [ 'menu-item-icon' ] );
 				}
 
-				$icon_position = ! empty( $settings['subMenuIconPosition'] ) ? $settings['subMenuIconPosition'] : 'right';
+				$icon_position = $settings['subMenuIconPosition'] ?? 'right';
 			}
 		}
 
@@ -1914,12 +1963,12 @@ class Element_Nav_Menu extends Element {
 				$icon .= self::render_icon( $settings['mobileMenuCloseIcon'], [ 'close' ] );
 			}
 
-			$icon_position = ! empty( $settings['mobileMenuIconPosition'] ) ? $settings['mobileMenuIconPosition'] : 'right';
+			$icon_position = $settings['mobileMenuIconPosition'] ?? 'right';
 		}
 
-		// Default toggle SVG (@since 1.8)
+		// Default toggle SVG
 		if ( ! $icon ) {
-			$icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none" class="menu-item-icon"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5"></path></svg>';
+			$icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="none" class="menu-item-icon"><path d="M1.50002 4L6.00002 8L10.5 4" stroke-width="1.5" stroke="currentcolor"></path></svg>';
 		}
 
 		if ( $output && strpos( $output, 'brx-submenu-toggle' ) === false ) {
@@ -1933,7 +1982,7 @@ class Element_Nav_Menu extends Element {
 		// STEP: Append mega menu template HTML to menu item (@since 1.8)
 		if ( $mega_menu_template_id ) {
 			$output .= '<div class="brx-megamenu" data-menu-id="' . $item->ID . '">';
-			// TODO NEXT (1.8.1): Global class styles missing (https://app.clickup.com/t/863gy6rjb)
+			// TODO: Global class styles missing (https://app.clickup.com/t/863gy6rjb)
 			$output .= do_shortcode( "[bricks_template id=\"$mega_menu_template_id\"]" );
 			$output .= '</div>';
 		}

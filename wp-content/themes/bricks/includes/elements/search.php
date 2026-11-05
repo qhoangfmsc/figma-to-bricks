@@ -95,7 +95,11 @@ class Element_Search extends Element {
 			'css'   => [
 				[
 					'property' => 'width',
-					'selector' => 'input[type=search]',
+					'selector' => 'input[type=search]', // Type: Input
+				],
+				[
+					'property' => 'max-width',
+					'selector' => '.bricks-search-overlay .bricks-search-form', // Type: Overlay
 				],
 			],
 		];
@@ -156,14 +160,48 @@ class Element_Search extends Element {
 			],
 		];
 
-		// BUTTON
-
-		$this->controls['buttonAriaLabel'] = [
-			'group'  => 'button',
-			'label'  => 'aria-label',
-			'type'   => 'text',
-			'inline' => true,
+		$this->controls['inputTypography'] = [
+			'group' => 'input',
+			'label' => esc_html__( 'Typography', 'bricks' ),
+			'type'  => 'typography',
+			'css'   => [
+				[
+					'property' => 'font',
+					'selector' => 'input[type=search]',
+				],
+			],
 		];
+
+		$this->controls['showLabel'] = [
+			'group'   => 'input',
+			'label'   => esc_html__( 'Show label', 'bricks' ),
+			'type'    => 'checkbox',
+			'default' => false,
+		];
+
+		$this->controls['labelText'] = [
+			'group'       => 'input',
+			'label'       => esc_html__( 'Label text', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_html__( 'Search', 'bricks' ),
+			'required'    => [ 'showLabel', '=', true ],
+		];
+
+		$this->controls['labelTypography'] = [
+			'group'    => 'input',
+			'label'    => esc_html__( 'Label typography', 'bricks' ),
+			'type'     => 'typography',
+			'css'      => [
+				[
+					'property' => 'typography',
+					'selector' => 'label',
+				],
+			],
+			'required' => [ 'showLabel', '=', true ],
+		];
+
+		// BUTTON
 
 		$this->controls['buttonAriaLabelInfo'] = [
 			'group'    => 'button',
@@ -174,6 +212,13 @@ class Element_Search extends Element {
 				[ 'buttonText', '=', '' ],
 				[ 'icon', '!=', '' ],
 			],
+		];
+
+		$this->controls['buttonAriaLabel'] = [
+			'group'  => 'button',
+			'label'  => 'aria-label',
+			'type'   => 'text',
+			'inline' => true,
 		];
 
 		$this->controls['buttonText'] = [
@@ -239,6 +284,30 @@ class Element_Search extends Element {
 			],
 		];
 
+		$this->controls['iconBorder'] = [
+			'group' => 'button',
+			'label' => esc_html__( 'Border', 'bricks' ),
+			'type'  => 'border',
+			'css'   => [
+				[
+					'property' => 'border',
+					'selector' => 'button',
+				],
+			],
+		];
+
+		$this->controls['iconBoxShadow'] = [
+			'group' => 'button',
+			'label' => esc_html__( 'Box shadow', 'bricks' ),
+			'type'  => 'box-shadow',
+			'css'   => [
+				[
+					'property' => 'box-shadow',
+					'selector' => 'button',
+				],
+			],
+		];
+
 		$this->controls['iconTypography'] = [
 			'group'   => 'button',
 			'label'   => esc_html__( 'Typography', 'bricks' ),
@@ -283,7 +352,7 @@ class Element_Search extends Element {
 		];
 
 		$this->controls['searchOverlayBackground'] = [
-			'group' => 'contoverlaynt',
+			'group' => 'overlay',
 			'label' => esc_html__( 'Background', 'bricks' ),
 			'type'  => 'background',
 			'css'   => [
@@ -296,7 +365,7 @@ class Element_Search extends Element {
 
 		$this->controls['searchOverlayBackgroundOverlay'] = [
 			'group' => 'overlay',
-			'label' => esc_html__( 'Background', 'bricks' ),
+			'label' => esc_html__( 'Background', 'bricks' ) . ': ' . esc_html__( 'Overlay', 'bricks' ),
 			'type'  => 'color',
 			'css'   => [
 				[

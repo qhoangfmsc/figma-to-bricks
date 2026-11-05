@@ -10,7 +10,7 @@ class Filter_Submit extends Filter_Element {
 	public $button_type = 'button';
 
 	public function get_label() {
-		return esc_html__( 'Filter', 'bricks' ) . ' - ' . esc_html__( 'Submit', 'bricks' );
+		return esc_html__( 'Filter', 'bricks' ) . ' - ' . esc_html__( 'Submit', 'bricks' ) . ' / ' . esc_html__( 'Reset', 'bricks' );
 	}
 
 	public function get_keywords() {
@@ -31,6 +31,7 @@ class Filter_Submit extends Filter_Element {
 
 		if ( ! empty( $filter_controls ) ) {
 			unset( $filter_controls['filterApplyOn'] );
+			unset( $filter_controls['filterNiceName'] );
 
 			$filter_controls['filterButtonType'] = [
 				'type'        => 'select',
@@ -42,6 +43,43 @@ class Filter_Submit extends Filter_Element {
 				],
 				'placeholder' => esc_html__( 'Submit', 'bricks' ),
 				'required'    => [ 'filterQueryId', '!=', '' ],
+			];
+
+			// Redirect to a URL with parameters (@since 1.11)
+			$filter_controls['redirectTo'] = [
+				'type'           => 'text',
+				'inline'         => true,
+				'label'          => esc_html__( 'Redirect to', 'bricks' ),
+				'description'    => esc_html__( 'URL redirect to after applying the filter. Leave it empty if not intended to.', 'bricks' ),
+				'hasDynamicData' => false,
+				'required'       => [
+					[ 'filterQueryId', '!=', '' ],
+					[ 'filterButtonType', '!=', 'reset' ],
+				],
+			];
+
+			// Open in new tab (@since 1.11)
+			$filter_controls['newTab'] = [
+				'type'     => 'checkbox',
+				'inline'   => true,
+				'label'    => esc_html__( 'Open in new tab', 'bricks' ),
+				'required' => [
+					[ 'filterQueryId', '!=', '' ],
+					[ 'filterButtonType', '!=', 'reset' ],
+					[ 'redirectTo', '!=', '' ],
+				],
+			];
+
+			// Hide if no active filter (@since 1.11)
+			$filter_controls['hideOnNoFilter'] = [
+				'type'        => 'checkbox',
+				'inline'      => true,
+				'label'       => esc_html__( 'Hide if no active filter', 'bricks' ),
+				'required'    => [
+					[ 'filterQueryId', '!=', '' ],
+					[ 'filterButtonType', '=', 'reset' ],
+				],
+				'description' => sprintf( esc_html__( '%s added to this button if there is no active filter.', 'bricks' ), '.brx-no-active-filter' ),
 			];
 
 			$this->controls = array_merge( $this->controls, $filter_controls );
@@ -154,15 +192,25 @@ class Filter_Submit extends Filter_Element {
 	private function set_as_filter() {
 		$this->input_name  = $this->settings['name'] ?? "form-field-{$this->id}";
 		$this->filter_type = $this->settings['filterButtonType'] ?? 'apply';
+		$redirect_to       = $this->settings['redirectTo'] ?? '';
+		$new_tab           = $this->settings['newTab'] ?? false;
+		$filter_settings   = $this->get_common_filter_settings();
+
+		if ( $this->filter_type === 'apply' && ! empty( $redirect_to ) ) {
+			$filter_settings['redirectTo'] = esc_url( $redirect_to );
+			$filter_settings['newTab']     = $new_tab;
+		}
 
 		// Insert filter settings as 'data-brx-filter' attribute
-		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $this->get_common_filter_settings() ) );
+		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 	}
 
 	public function render() {
-		$settings = $this->settings;
-		$text     = ! empty( $settings['text'] ) ? $settings['text'] : '';
-		$icon     = ! empty( $settings['icon'] ) ? self::render_icon( $settings['icon'], [ 'icon' ] ) : '';
+		$settings          = $this->settings;
+		$text              = ! empty( $settings['text'] ) ? $this->render_dynamic_data( $settings['text'] ) : '';
+		$icon              = ! empty( $settings['icon'] ) ? self::render_icon( $settings['icon'], [ 'icon' ] ) : '';
+		$query_id          = $settings['filterQueryId'] ?? false;
+		$hide_on_no_filter = $settings['hideOnNoFilter'] ?? false;
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
@@ -176,6 +224,14 @@ class Filter_Submit extends Filter_Element {
 		}
 
 		$this->set_attribute( '_root', 'class', 'bricks-button' );
+
+		if ( $this->filter_type === 'reset' && $hide_on_no_filter && ! bricks_is_builder() && ! bricks_is_builder_call() ) {
+			$active_filters = Query_Filters::$active_filters[ $query_id ] ?? [];
+			if ( empty( $active_filters ) ) {
+				$this->set_attribute( '_root', 'class', 'brx-no-active-filter' ); // Default: style="display: none"
+				$this->set_attribute( '_root', 'disabled', 'disabled' ); // Disable the button, user might overwrite brx-no-active-filter style in CSS
+			}
+		}
 
 		if ( ! empty( $settings['size'] ) ) {
 			$this->set_attribute( '_root', 'class', $settings['size'] );

@@ -6,7 +6,7 @@
 //   boxes      every mapped node: position / size relative to the root and the CSS values the tree demands (tolerance 1px, never loosened)
 //   look       the screenshot against Figma's own render of that frame, region by region (a missing text, a wrong crop or a covered layer fails here)
 //   covered    every text / button / image must be the element on top at its own center
-//   overflow   no horizontal scroll at the frame's width
+//   overflow   no horizontal scroll at the frame's width, and at 991 / 767 / 320 when that band had no pasted frame (text stays inside too)
 //   weight     images the page really downloads stay inside the budget (qa/budgets.json); an image hidden by CSS must not be downloaded
 //   engines    the base frame again in WebKit and Firefox, compared with Chromium
 // Writes verify.md / verify.png / verify.diff.png / verify.json (base) and verify.<key>.* (variants). Exit 1 on any mismatch.
@@ -17,8 +17,10 @@ import { requireSignOff } from '../review/index.mjs';
 import { bridge } from '../bricks/bridge.mjs';
 import { runQa } from '../shared/qa.mjs';
 import { tierOf, TIER_NAME, verdictOf } from '../shared/severity.mjs';
+import { settleMeasuredRows } from '../qa/settle.mjs';
 import { computeStates, fingerprintOf, frameDone, summarize } from '../shared/node-state.mjs';
 import { download, getRenders } from '../figma/api.mjs';
+import { screensToProve } from '../responsive/solo.mjs';
 
 const BUDGETS = JSON.parse(readFileSync(new URL('../qa/budgets.json', import.meta.url), 'utf8'));
 const FREEZE = '2026-10-27T03:00:00Z'; // fixed "now": the live countdown renders the same numbers on every run
@@ -87,6 +89,10 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     frames.push({ key: v.key, suffix: `.${v.key}`, tree: resolveWorkspace(join(dirname(ws.dir), v.workspace)).readJson('tree.json'), mapping: ws.readJson(`mapping.${v.key}.json`) });
   }
   const rootId = `brxe-${frames[0].mapping[baseTree.id].bricksId}`;
+  const rootOf = (f) => {
+    const id = f.mapping[f.tree.id]?.bricksId;
+    return id ? `brxe-${id}` : rootId;
+  };
   const { url } = await bridge('POST', `/preview/${state.templateId}`);
 
   // Figma's own render of every frame = what the eye should see
@@ -121,7 +127,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
       const items = entries.map(([fid, m]) => ({ f: fid, b: m.bricksId, a: Object.keys(m.expect.attrs ?? {}) }));
       f.nClipped = entries.filter(([fid, m]) => isContent(m, elements.get(m.bricksId)) && clipped(f).has(fid)).length;
       return {
-        key: f.key, width: Math.round(f.tree.box.w), items,
+        key: f.key, width: Math.round(f.tree.box.w), rootId: rootOf(f), items,
         props: [...new Set(entries.flatMap(([, m]) => Object.keys(m.expect.css)))],
         hit: (() => { const hits = entries.filter(([fid, m]) => isContent(m, elements.get(m.bricksId)) && !clipped(f).has(fid)); const above = paintedAbove(f.tree, f.mapping, hits.map(([fid]) => fid)); return hits.map(([fid, m]) => ({ f: fid, b: m.bricksId, name: m.element, over: above.get(fid) ?? [] })); })(),
         maskIds: entries.filter(([, m]) => m.element === 'countdown').map(([fid]) => fid),
@@ -131,6 +137,11 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
       };
     }),
   };
+  // A band with no pasted frame is still a screen the page can be opened at. Text and the page stay inside it.
+  const prove = screensToProve(responsive.variants ?? []);
+  for (const s of prove) {
+    job.frames.push({ key: `fit-${s.width}`, width: s.width, rootId, items: [], props: [], hit: [], maskIds: [], figmaPng: null, fitOnly: true });
+  }
   const { result, outDir } = runQa(ws, job);
 
   const summary = [];
@@ -199,6 +210,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     if (m.h1 > 1) rows.push({ label: `page @${f.tree.box.w}px`, check: 'visible h1 (at most one per section; the page has exactly one, in the Hero)', want: '≤ 1', got: String(m.h1), ok: m.h1 <= 1 });
     for (const msg of r.log.failed) rows.push({ label: 'request', check: 'failed', want: 'ok', got: msg, ok: false });
 
+    settleMeasuredRows(rows, r.visual?.mean ?? null);
     for (const x of rows) if (!x.ok) { x.tier = tierOf(x); if (x.tier === 4) x.soft = true; } // tier 4 = negligible: listed, not counted as a failure
     const soft = rows.filter((x) => !x.ok && x.soft);
     const bad = rows.filter((x) => !x.ok && !x.soft);
@@ -247,6 +259,29 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     summary.push({ key: f.key, total: rows.length, bad: bad.length, tiers });
   }
   for (const [k, e] of Object.entries(result.engines)) console.log(`  [${k}] ${e.error ? `error ${e.error.slice(0, 80)}` : `vs chromium ${Math.round(e.mean * 100) / 100}/255 · scroll ${e.overflow.over ? 'YES' : 'no'} · covered ${e.covered}`}`);
+  const fitBad = [];
+  for (const s of prove) {
+    const r = result.frames[`fit-${s.width}`];
+    if (!r || r.error) throw new Error(`QA fit @${s.width}px: ${r?.error ?? 'no result'}`);
+    const m = r.measured;
+    if (m.overflow.over) fitBad.push({ label: `page @${s.width}px`, check: 'horizontal scroll', want: 'none', got: `scrollWidth ${m.overflow.scrollWidth}`, ok: false, tier: 1 });
+    if (m.outsideCount) {
+      const first = m.outside[0];
+      fitBad.push({ label: `text @${s.width}px`, check: 'inside the frame', want: 'inside', got: `${m.outsideCount} outside${first ? `, first “${first.t}” ends at ${first.r}px` : ''}`, ok: false, tier: 1 });
+    }
+    console.log(`  [fit @${s.width}px] ${m.overflow.over || m.outsideCount ? 'FAIL' : 'inside'} scroll ${m.overflow.scrollWidth}${m.outsideCount ? ` · text outside ${m.outsideCount}` : ''}`);
+  }
+  if (fitBad.length) {
+    anyBad = true;
+    const base = ws.readJson('verify.json', { bad: [], tiers: { 1: 0, 2: 0, 3: 0, 4: 0 } });
+    base.bad = [...(base.bad ?? []), ...fitBad];
+    base.tiers ??= { 1: 0, 2: 0, 3: 0, 4: 0 };
+    base.tiers[1] = (base.tiers[1] ?? 0) + fitBad.length;
+    base.verdict = 'FAIL';
+    ws.writeJson('verify.json', base);
+    const note = ['', '## Responsive frame', '', 'A width with no pasted Figma frame. Text and the page have to stay inside it.', '', '| tier | where | check | want | rendered |', '|---|---|---|---|---|', ...fitBad.map((x) => `| 1 blocker | ${x.label} | ${x.check} | ${x.want} | ${x.got} |`), ''].join('\n');
+    writeFileSync(ws.file('verify.md'), readFileSync(ws.file('verify.md'), 'utf8') + note);
+  }
   if (anyBad) process.exitCode = 1;
   return summary;
 }

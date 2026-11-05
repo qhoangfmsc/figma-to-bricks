@@ -4,18 +4,8 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Database {
-	public static $posts_per_page   = 0;
-	public static $active_templates = [
-		'header'  => 0,
-		'footer'  => 0,
-		'content' => 0,
-		'section' => 0, // Use in "Template" element
-		'archive' => 0,
-		'error'   => 0,
-		'search'  => 0,
-		'popup'   => [], // Array with popup template ids
-	];
-
+	public static $posts_per_page         = 0;
+	public static $active_templates       = [];
 	public static $default_template_types = [
 		'header',
 		'footer',
@@ -48,12 +38,19 @@ class Database {
 	public static $global_data     = [];
 	public static $page_data       = [
 		'preview_or_post_id' => 0,
+		'language'           => '', // For WPML/Polylang (@since 1.9.9)
 	];
 	public static $global_settings = [];
 	public static $page_settings   = [];
 	public static $adobe_fonts     = [];
+	public static $main_query_id   = ''; // Holds the element ID of the main query element set in set_main_archive_query() @since 1.12.2
 
 	public function __construct() {
+		// Initialize active templates through helper function (@since 1.12)
+		if ( is_array( self::$active_templates ) && empty( self::$active_templates ) ) {
+			self::init_active_templates();
+		}
+
 		self::get_global_data();
 
 		add_action( 'pre_get_posts', [ $this, 'set_main_archive_query' ] );
@@ -73,6 +70,25 @@ class Database {
 		add_action( 'update_option_' . BRICKS_DB_GLOBAL_CLASSES, [ $this, 'update_option_bricks_global_classes' ], 10, 3 );
 
 		add_filter( 'wp_prepare_themes_for_js', [ $this, 'wp_prepare_themes_for_js' ] );
+	}
+
+	/**
+	 * Initialize active templates
+	 *
+	 * @since 1.12
+	 */
+	public static function init_active_templates() {
+		self::$active_templates = [
+			'header'              => 0,
+			'footer'              => 0,
+			'content'             => 0,
+			'archive'             => 0,
+			'error'               => 0,
+			'search'              => 0,
+			'section'             => 0, // Use in "Template"
+			'password_protection' => 0, // @since 1.11.1
+			'popup'               => [], // Array with popup template IDs
+		];
 	}
 
 	/**
@@ -108,19 +124,23 @@ class Database {
 			$old_count = is_array( $old_value ) ? count( $old_value ) : 0;
 			$new_count = is_array( $new_value ) ? count( $new_value ) : 0;
 
+			$trash       = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+			$trash_count = count( $trash );
+
 			// Record only global class saves where total number of global classes changed
-			if ( $old_count !== $new_count ) {
+			if ( $old_count !== $new_count || $trash_count > 0 ) {
 				$current_user = wp_get_current_user();
 
 				// Possible AJAX calls: Save post in builder, import templates, run converter
 				$new_entry = [
-					'timestamp' => time(),
-					'referer'   => wp_get_referer(),
-					'action'    => isset( $_POST['action'] ) ? sanitize_text_field( $_POST['action'] ) : '',
-					'post_id'   => isset( $_POST['postId'] ) ? intval( $_POST['postId'] ) : '',
-					'user_id'   => $current_user ? $current_user->ID : 0,
-					'old_count' => $old_count,
-					'new_count' => $new_count,
+					'timestamp'   => time(),
+					'referer'     => wp_get_referer(),
+					'action'      => isset( $_POST['action'] ) ? sanitize_text_field( $_POST['action'] ) : '',
+					'post_id'     => isset( $_POST['postId'] ) ? intval( $_POST['postId'] ) : '',
+					'user_id'     => $current_user ? $current_user->ID : 0,
+					'old_count'   => $old_count,
+					'new_count'   => $new_count,
+					'trash_count' => $trash_count,
 				];
 
 				$saves = get_option( 'bricks_global_classes_changes', [] );
@@ -168,6 +188,15 @@ class Database {
 			// Check if any Bricks data is set
 			$bricks_data = self::get_data( $post_id );
 
+			// Is home page (posts page): Retrieve the Bricks data too (non-standard template setup) (@since 1.10)
+			if ( $query->is_home && $query->get_queried_object_id() ) {
+				$bricks_posts_page_data = self::get_data( $query->get_queried_object_id() );
+				// Merge the data
+				if ( is_array( $bricks_posts_page_data ) ) {
+					$bricks_data = array_merge( $bricks_data, $bricks_posts_page_data );
+				}
+			}
+
 			// Start to scan through if any query element is set, main objective is get the query settings for the main archive query
 			if ( is_array( $bricks_data ) ) {
 				/**
@@ -192,41 +221,60 @@ class Database {
 				$archive_query_set = false;
 
 				foreach ( $structured_element_ids as $element_id ) {
-					// Find element
 					$element = self::get_element_by_id( $element_id, $bricks_data );
 
 					if ( ! $element ) {
 						continue;
 					}
 
-					// Certain elements 'is_archive_main_query' is not set inside query key.
+					// Certain elements 'is_archive_main_query' is not set inside query key
 					if ( isset( $element['settings']['is_archive_main_query'] ) ) {
 						// WooCommerce Products element
 						if ( $element['name'] === 'woocommerce-products' ) {
+							$element['settings']['hasLoop']                        = 1; // #86c01086t; @since 1.10.2
 							$element['settings']['query']['is_archive_main_query'] = 1;
+							$element['settings']['query']['post_type']             = [ 'product' ]; // #86byx62xu
 						}
 					}
 
-					// Exit if not a query element
+					// Posts element has no 'hasLoop' key, but it's a main query
+					if ( $element['name'] === 'posts' && isset( $element['settings']['query']['is_archive_main_query'] ) ) {
+						$element['settings']['hasLoop'] = 1; // #86c03k1ut; @since 1.10.2
+					}
+
+					// Exit: Not a query element
 					if ( empty( $element['settings']['query'] ) ) {
 						continue;
 					}
-					// Exit foreach if main query is already set once
+					// Exit: foreach main query is already set once
 					if ( $archive_query_set ) {
 						break;
 					}
 
-					$object_type = isset( $element['settings']['query']['objectType'] ) ? $element['settings']['query']['objectType'] : 'post';
+					$object_type = $element['settings']['query']['objectType'] ?? 'post';
 
-					// Set if 'is_archive_main_query' set (still check 'posts_per_page' for backwards-compatibility)
-					// We cannot check posts_per_page, any query element can set it, not bullet proof. (@since 1.9.1)
+					/**
+					 * Set main archive query
+					 * - If hasLoop is set (active query) (@since 1.9.9)
+					 * - If is_archive_main_query is set
+					 * - If objectType is one of the archive_query_supported_object_types
+					 */
 					if (
-						in_array( $object_type, Query::archive_query_supported_object_types() ) &&
-						isset( $element['settings']['query']['is_archive_main_query'] )
+						isset( $element['settings']['hasLoop'] ) &&
+						isset( $element['settings']['query']['is_archive_main_query'] ) &&
+						in_array( $object_type, Query::archive_query_supported_object_types() )
 					) {
-						// NOTE: If it's dynamic data, unable to parse the value, as inside this hook, the dynamic tags are not registered yet
+						// Unique flag to identify main archive query (@since 1.10.2)
+						$query->set( 'brx_main_query', true );
+
+						// Set element ID to identify main query element (@since 1.12.2)
+						self::$main_query_id = $element_id;
+
 						// Use the prepared query vars instead of raw element settings (@since 1.8)
-						$query_vars = Query::prepare_query_vars_from_settings( $element['settings'], $element_id );
+						$query_vars = Query::prepare_query_vars_from_settings( $element['settings'], $element_id, $element['name'] );
+
+						// Check if user set offset (@since 1.10.2)
+						$has_offset = isset( $query_vars['offset'] ) && $query_vars['offset'] > 0;
 
 						foreach ( $query_vars as $key => $value ) {
 							if ( in_array( $key, Query::archive_query_arguments() ) ) {
@@ -237,8 +285,41 @@ class Database {
 										$value = Query::merge_tax_or_meta_query_vars( $current_tax_query, $value, 'tax' );
 									}
 								}
+
+								// Skip user offset, calculate later
+								if ( $has_offset && $key === 'offset' ) {
+									continue;
+								}
+
 								$query->set( $key, $value );
 							}
+						}
+
+						/**
+						 * Handle offset
+						 *
+						 * - Calculate offset based on user offset and current page
+						 * - Fix found_posts for main query's pagination
+						 *
+						 * @since 1.10.2
+						 */
+						if ( $has_offset ) {
+							$user_offset = $query_vars['offset'];
+							$new_offset  = $user_offset + ( $query->get( 'paged', 1 ) - 1 ) * $query->get( 'posts_per_page' );
+
+							$query->set( 'offset', $new_offset );
+
+							add_filter(
+								'found_posts',
+								function( $found_posts, $query ) use ( $user_offset ) {
+									if ( bricks_is_builder() || is_admin() || ! $query->get( 'brx_main_query' ) ) {
+										return $found_posts;
+									}
+									return $found_posts - $user_offset;
+								},
+								10,
+								2
+							);
 						}
 
 						/**
@@ -256,7 +337,7 @@ class Database {
 									'posts_orderby',
 									function( $orderby, $query ) use ( $random_seed_statement ) {
 										// Exit if it's not main query
-										if ( bricks_is_builder() || is_admin() || ! $query->is_main_query() ) {
+										if ( bricks_is_builder() || is_admin() || ! $query->get( 'brx_main_query' ) ) {
 											return $orderby;
 										}
 
@@ -276,22 +357,13 @@ class Database {
 		}
 
 		/**
-		 * Reset active templates
+		 * Re-init active templates
 		 *
 		 * @see #86bw4pmd0
 		 * @since 1.9.2
 		 */
 		if ( $set_active_templates ) {
-			self::$active_templates = [
-				'header'  => 0,
-				'footer'  => 0,
-				'content' => 0,
-				'section' => 0,
-				'archive' => 0,
-				'error'   => 0,
-				'search'  => 0,
-				'popup'   => [],
-			];
+			self::init_active_templates();
 		}
 	}
 
@@ -404,17 +476,55 @@ class Database {
 		// Preview id is only set if template is using populate content as single (with templatePreviewPostId)
 		$preview_id = isset( $preview_id ) ? $preview_id : $post_id;
 
+		$password_protection_template_id = 0;
+		$excluded_ids                    = [];
+
 		// For each template part, try to find the best template available
 		foreach ( [ 'header', 'footer', 'content' ] as $template_part ) {
 			if ( ! empty( self::$active_templates[ $template_part ] ) ) {
 				continue;
 			}
 
-			self::$active_templates[ $template_part ] = self::find_template_id( $template_ids, $template_part, $content_type, $preview_id, $preview_type );
+			$template_id = self::find_template_id( $template_ids, $template_part, $content_type, $preview_id, $preview_type );
+
+			// Check if this is a password protection template (@since 1.11.1)
+			if ( Templates::get_template_type( $template_id ) === 'password_protection' && $template_part === 'content' ) {
+				// Allow Password_Protection class to decide if the template should be rendered
+				if ( Password_Protection::is_active( $template_id ) ) {
+					$password_protection_template_id               = $template_id;
+					self::$active_templates[ $template_part ]      = $template_id; // Set 'content' to password protection template ID
+					self::$active_templates['password_protection'] = $template_id; // Set 'password_protection' to password protection template ID (used in form element to check if the form is in a password protected template)
+				} else {
+					// If password protection is not active, exclude it and find another template
+					$excluded_ids[]                           = $template_id;
+					$template_id                              = self::find_template_id( $template_ids, $template_part, $content_type, $preview_id, $preview_type, $excluded_ids );
+					self::$active_templates[ $template_part ] = $template_id;
+				}
+			} else {
+				self::$active_templates[ $template_part ] = $template_id;
+			}
 		}
 
-		// Get all popups
-		self::$active_templates['popup'] = self::find_templates( $template_ids, 'popup', $preview_id, $preview_type );
+		// If a password protection template is active, apply exclusions
+		if ( $password_protection_template_id ) {
+			if ( Password_Protection::should_exclude_template_part( 'header', $password_protection_template_id ) ) {
+				self::$active_templates['header'] = 0;
+			}
+			if ( Password_Protection::should_exclude_template_part( 'footer', $password_protection_template_id ) ) {
+				self::$active_templates['footer'] = 0;
+			}
+		}
+
+		/**
+		 * Get all popups
+		 *
+		 * @since 1.10.2: If maintenance mode is disabled OR popups are explicitly enabled in maintenance mode OR user can bypass maintenance mode.
+		 */
+		if ( ! Maintenance::get_mode() || self::get_setting( 'maintenanceRenderPopups' ) || Capabilities::current_user_can_bypass_maintenance_mode() ) {
+			if ( ! $password_protection_template_id || ! Password_Protection::should_exclude_template_part( 'popup', $password_protection_template_id ) ) {
+				self::$active_templates['popup'] = self::find_templates( $template_ids, 'popup', $preview_id, $preview_type );
+			}
+		}
 
 		// Ensure popup being previewed is included
 		if ( Templates::get_template_type( $post_id ) === 'popup' && ! in_array( $post_id, self::$active_templates['popup'] ) ) {
@@ -455,13 +565,38 @@ class Database {
 	 * @param string $content_type What type of content is expected: content, archive, search, error.
 	 * @param string $post_id Current post_id or preview_id.
 	 * @param string $preview_type If template, and populate content is set.
+	 * @param array  $excluded_ids Array of template IDs to exclude from consideration. (@since 1.11.1)
 	 */
-	public static function find_template_id( $template_ids, $template_part, $content_type, $post_id, $preview_type ) {
-		$found_templates = []; // Hold all the found template ids for the context, with score 0.low XX.high [score=>template id]
-
+	public static function find_template_id( $template_ids, $template_part, $content_type, $post_id, $preview_type, $excluded_ids = [] ) {
+		$found_templates           = []; // Hold all the found template ids for the context, with score 0.low XX.high [score=>template id]
 		$disable_default_templates = self::get_setting( 'defaultTemplatesDisabled', false );
 
-		$post_type = get_post_type( $post_id );
+		/**
+		 * STEP: Check for password protection templates first to ensure highest priority
+		 * Password protection templates should override any other matching template
+		 *
+		 * @since 1.12
+		 */
+		if ( ! empty( $template_ids['body'] ) ) {
+			foreach ( $template_ids['body'] as $template_id ) {
+				// Skip excluded template IDs
+				if ( in_array( $template_id, $excluded_ids, true ) ) {
+					continue;
+				}
+
+				// Check if this is a password protection template
+				if ( $template_part === 'content' && Templates::get_template_type( $template_id ) === 'password_protection' ) {
+					$template_conditions = Helpers::get_template_setting( 'templateConditions', $template_id );
+
+					// Return immediately if conditions match
+					if ( ! empty( self::screen_conditions( [], $template_id, $template_conditions, $post_id, $preview_type ) ) ) {
+						return $template_id;
+					}
+				}
+			}
+		}
+
+		// STEP: Continue with regular template evaluation if no password protection template matched
 
 		// Loop for all the templates and template conditions and assign scores
 		// 0 - Default (no condition set)
@@ -480,6 +615,11 @@ class Database {
 
 		// Check template conditions
 		foreach ( $template_ids[ $template_loop_type ] as $template_id ) {
+			// Skip excluded template IDs (@since 1.11.1)
+			if ( in_array( $template_id, $excluded_ids ) ) {
+				continue;
+			}
+
 			$template_conditions = Helpers::get_template_setting( 'templateConditions', $template_id );
 
 			if ( ! $template_conditions ) {
@@ -547,11 +687,9 @@ class Database {
 	public static function get_all_templates_by_type() {
 		// Last changed timestamp is set on Templates::flush_templates_cache()
 		$last_changed = wp_cache_get_last_changed( 'bricks_' . BRICKS_DB_TEMPLATE_SLUG );
-
-		// @since 1.7.1 - Prefix cache key with get_locale() to ensure correct templates are loaded for different languages (@see #862jdhqgr)
-		$cache_key = get_locale() . '_all_templates_' . $last_changed;
-
-		$output = wp_cache_get( $cache_key, 'bricks' );
+		// Undocumented
+		$cache_key = apply_filters( 'bricks/database/get_all_templates_cache_key', 'all_templates_' . $last_changed );
+		$output    = wp_cache_get( $cache_key, 'bricks' );
 
 		if ( $output === false ) {
 			$args = [
@@ -662,6 +800,12 @@ class Database {
 		$is_valid = true; // Used to exclude this object if an excluding condition applies
 
 		$scores = []; // Holds scores of this object_id
+
+		$template_settings = Helpers::get_template_settings( $object_id );
+
+		// Check if this is a password protection template
+		$pp_template_location = $template_settings['passwordProtectionSource'] ?? 'both';
+		$is_pp_template       = $pp_template_location !== 'wordpress' ? Templates::get_template_type( $object_id ) === 'password_protection' : false;
 
 		foreach ( $conditions as $condition ) {
 			if ( ! $is_valid ) {
@@ -845,9 +989,9 @@ class Database {
 			// Check for front page (it might compete with single post rules)
 			if ( $condition['main'] === 'frontpage' ) {
 
-				// @since 1.7 - Only use 'page_on_front' option if we are in an AJAX calls (@see #862j4ay8x)
+				// Only use 'page_on_front' option if we are in an AJAX calls
 				if ( bricks_is_ajax_call() || bricks_is_rest_call() ) {
-					// Use 'page_on_front' option as is_front_page() is not reliable in AJAX calls (@see #861m42jdb)
+					// Use 'page_on_front' option as is_front_page() is not reliable in AJAX calls
 					$front_page_id = get_option( 'page_on_front' );
 					$is_front_page = absint( $post_id ) == absint( $front_page_id );
 				} else {
@@ -865,6 +1009,16 @@ class Database {
 			if ( $condition['main'] === 'any' ) {
 				$is_valid = ! $exclude;
 				$scores[] = 2;
+			}
+
+			// Is password protection template: For each valid score increase priority by 100
+			if ( $is_pp_template ) {
+				$scores = array_map(
+					function( $score ) {
+						return $score + 100; // Add to existing score
+					},
+					$scores
+				);
 			}
 
 			/**
@@ -907,9 +1061,14 @@ class Database {
 
 		$template_id = self::$active_templates['content'] ?? 0;
 
-		// Post rendered through template and post has Bricks data: Get page settings from post instead of template
-		if ( $template_id && $template_id !== $original_post_id ) {
+		/**
+		 * Post rendered through template and post has Bricks data: Get page settings from post instead of template
+		 *
+		 * @since 1.10.2: Exclude archive pages as they can't by edited directly with Bricks
+		 */
+		if ( $template_id && $template_id !== $original_post_id && ! is_archive() ) {
 			$page_settings = get_post_meta( $original_post_id, BRICKS_DB_PAGE_SETTINGS, true );
+
 			if ( isset( $page_settings[ $setting_key ] ) ) {
 				return true;
 			}
@@ -922,8 +1081,11 @@ class Database {
 	 * Get template elements
 	 *
 	 * @since 1.0
+	 *
+	 * @param string  $content_type Type of content (header, content, footer).
+	 * @param boolean $force_post_data Force checking only the specific post data without considering templates.
 	 */
-	public static function get_template_data( $content_type ) {
+	public static function get_template_data( $content_type, $force_post_data = false ) {
 		switch ( $content_type ) {
 			case 'header':
 				if ( self::is_template_disabled( 'header' ) ) {
@@ -948,6 +1110,11 @@ class Database {
 
 		$template_id = self::$active_templates[ $content_type ] ?? false;
 
+		// Only check active templates if force_post_data is false (@since 1.12.2)
+		if ( $force_post_data ) {
+			$template_id = false;
+		}
+
 		// No template found: Return Bricks content data
 		if (
 			! is_archive() &&
@@ -956,14 +1123,12 @@ class Database {
 			$content_type !== 'header' &&
 			$content_type !== 'footer'
 		) {
-			$data = get_post_meta( get_the_ID(), BRICKS_DB_PAGE_CONTENT, true );
-
-			return $data;
+			$elements = get_post_meta( get_the_ID(), BRICKS_DB_PAGE_CONTENT, true );
+		} else {
+			$elements = get_post_meta( $template_id, $meta_key, true );
 		}
 
-		$data = get_post_meta( $template_id, $meta_key, true );
-
-		return $data;
+		return $elements;
 	}
 
 	/**
@@ -1024,6 +1189,13 @@ class Database {
 	 * @since 1.0
 	 */
 	public static function get_global_data() {
+		// Components
+		if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_COMPONENTS ) {
+			self::$global_data['components'] = get_blog_option( get_main_site_id(), BRICKS_DB_COMPONENTS, [] );
+		} else {
+			self::$global_data['components'] = get_option( BRICKS_DB_COMPONENTS, [] );
+		}
+
 		// Color palette
 		if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_COLOR_PALETTE ) {
 			self::$global_data['colorPalette'] = get_blog_option( get_main_site_id(), BRICKS_DB_COLOR_PALETTE, [] );
@@ -1036,6 +1208,13 @@ class Database {
 			self::$global_data['globalClasses'] = get_blog_option( get_main_site_id(), BRICKS_DB_GLOBAL_CLASSES, [] );
 		} else {
 			self::$global_data['globalClasses'] = get_option( BRICKS_DB_GLOBAL_CLASSES, [] );
+		}
+
+		// Global classes trash
+		if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_CLASSES ) {
+			self::$global_data['globalClassesTrash'] = get_blog_option( get_main_site_id(), BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
+		} else {
+			self::$global_data['globalClassesTrash'] = get_option( BRICKS_DB_GLOBAL_CLASSES_TRASH, [] );
 		}
 
 		// Global classes categories
@@ -1054,7 +1233,7 @@ class Database {
 			}
 		}
 
-		// Builder: Global classes timestamp (@since 1.x)
+		// Builder: Global classes timestamp (@since 1.9.9)
 		if ( bricks_is_builder() ) {
 			if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_CLASSES ) {
 				self::$global_data['globalClassesTimestamp'] = get_blog_option( get_main_site_id(), BRICKS_DB_GLOBAL_CLASSES_TIMESTAMP, [] );
@@ -1063,7 +1242,7 @@ class Database {
 			}
 		}
 
-		// Builder: Global classes user_id (@since 1.x)
+		// Builder: Global classes user_id (@since 1.9.9)
 		if ( bricks_is_builder() ) {
 			if ( is_multisite() && BRICKS_MULTISITE_USE_MAIN_SITE_CLASSES ) {
 				self::$global_data['globalClassesUser'] = get_blog_option( get_main_site_id(), BRICKS_DB_GLOBAL_CLASSES_USER, [] );
@@ -1105,6 +1284,17 @@ class Database {
 
 		// Set global gettings
 		self::$global_settings = self::$global_data['settings'];
+
+		/**
+		 * Disable lazy load in builder
+		 *
+		 * To generate template screenshots in builder.
+		 *
+		 * @since 1.10
+		 */
+		if ( bricks_is_builder_call() ) {
+			self::$global_settings['disableLazyLoad'] = true;
+		}
 
 		// Global variables, if not disable in Bricks settings (since 1.9.8)
 		if ( ! isset( self::$global_settings['disableVariablesManager'] ) ) {
@@ -1252,10 +1442,15 @@ class Database {
 		 * Remove slashes from custom JS
 		 *
 		 * @since 1.9.5: Skip page settings custom CSS as its not auto-escaped as the global settings, which are stored in the options table
+		 * @since 1.10: Skip page settings custom JavaScript as well
 		 */
 		if ( is_array( self::$page_data['settings'] ) ) {
 			foreach ( self::$page_data['settings'] as $key => $value ) {
-				if ( $key === 'customCss' ) {
+				if ( $key === 'customCss' ||
+					$key === 'customScriptsHeader' ||
+					$key === 'customScriptsBodyHeader' ||
+					$key === 'customScriptsBodyFooter'
+				) {
 					continue;
 				}
 

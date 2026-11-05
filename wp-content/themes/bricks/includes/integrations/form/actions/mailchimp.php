@@ -69,20 +69,37 @@ class Mailchimp extends Base {
 			return [];
 		}
 
-		$response_body = self::get_response_body( 'lists' );
+		/**
+		 * Default 10, Max 1000 lists per page
+		 *
+		 * https://mailchimp.com/developer/marketing/api/lists/get-lists-info/
+		 *
+		 * @since 1.12
+		 */
+		$lists  = [];
+		$offset = 0;
+		$count  = 50; // Fetch up to 50 items per request to reduce API calls
 
-		$lists = [];
+		do {
+			$response_body = self::get_response_body( "lists?count=$count&offset=$offset" );
 
-		if ( ! empty( $response_body['lists'] ) ) {
-			foreach ( $response_body['lists'] as $list ) {
-				$list_id = $list['id'];
+			if ( ! empty( $response_body['lists'] ) ) {
+				foreach ( $response_body['lists'] as $list ) {
+					$list_id = $list['id'];
 
-				$lists[ $list_id ] = [
-					'name'   => $list['name'],
-					'groups' => self::sync_groups( $list_id ),
-				];
+					$lists[ $list_id ] = [
+						'name'   => $list['name'],
+						'groups' => self::sync_groups( $list_id ),
+					];
+				}
+
+				// Update offset maybe for next request
+				$offset += $count;
 			}
-		}
+
+			// Check if there are more items to fetch. If same amount of items as $count, there could be more items.
+			$more_items = isset( $response_body['lists'] ) && count( $response_body['lists'] ) === $count;
+		} while ( $more_items );
 
 		update_option( self::DB_OPTIONS_KEY, $lists );
 

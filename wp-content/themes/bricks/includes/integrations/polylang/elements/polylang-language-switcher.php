@@ -30,7 +30,6 @@ class Polylang_Language_Switcher extends \Bricks\Element {
 			'label'    => esc_html__( 'Gap', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'css'      => [
 				[
 					'property' => 'gap',
@@ -50,7 +49,6 @@ class Polylang_Language_Switcher extends \Bricks\Element {
 			'label'    => esc_html__( 'Flag size', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'css'      => [
 				[
 					'property'  => 'width',

@@ -45,10 +45,10 @@ Generated from the Figma REST spec 0.46.0 (`figma-openapi-0.46.0.yaml`) and `han
 
 | value | status | why |
 |---|---|---|
-| `textCase` = SMALL_CAPS | gap | small capitals for lower-case letters (OpenType smcp): reproducible with font-variant-caps: small-caps, not mapped yet |
-| `textCase` = SMALL_CAPS_FORCED | gap | small capitals for every letter: reproducible with font-variant-caps: all-small-caps, not mapped yet |
 | `textAutoResize` = TRUNCATE | gap | deprecated Figma value for a text box that truncates with an ellipsis (the same as textTruncation ENDING): not mapped to the line clamp yet |
-| `textAlignVertical` = BOTTOM | limit | text pinned to the bottom of a fixed-height box: text.mjs reports it, flex alignment of the text inside its own box is not written |
+| `textCase` = SMALL_CAPS | read | written as font-variant-caps: small-caps |
+| `textCase` = SMALL_CAPS_FORCED | read | written as font-variant-caps: all-small-caps |
+| `textAlignVertical` = BOTTOM | read | a fixed-height text box is a column flex and justify-content pins the line to the bottom |
 | `maskType` = ALPHA | limit | alpha mask: masked groups are only reproduced as the flat picture Figma exports |
 | `maskType` = LUMINANCE | limit | luminance mask: masked groups are only reproduced as the flat picture Figma exports |
 

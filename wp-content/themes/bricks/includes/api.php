@@ -145,6 +145,21 @@ class Api {
 				'permission_callback' => [ $this, 'render_query_result_permissions_check' ],
 			]
 		);
+
+		/**
+		 * Get global classes categorized by their usage across the site
+		 *
+		 * @since 1.12
+		 */
+		register_rest_route(
+			self::API_NAMESPACE,
+			'/get-global-classes-site-usage',
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'get_global_classes_site_usage' ],
+				'permission_callback' => [ $this, 'get_global_classes_site_usage_permissions_check' ],
+			]
+		);
 	}
 
 	/**
@@ -161,6 +176,28 @@ class Api {
 
 		if ( $post_id ) {
 			Database::set_page_data( $post_id );
+
+			// Set context in API endpoint (@since 1.12.2)
+			global $wp_query;
+			global $post;
+			$post = get_post( $post_id );
+			setup_postdata( $post );
+
+			/**
+			 * Set necessary global variables so we can use get_queried_object(), get_the_ID() etc.
+			 */
+			if ( $post && ! is_wp_error( $post ) ) {
+				$wp_query->queried_object    = $post;
+				$wp_query->queried_object_id = $post->ID;
+				$wp_query->is_singular       = true;
+				$wp_query->post_type         = $post->post_type;
+
+				if ( is_page( $post->ID ) ) {
+					$wp_query->is_page = true;
+				} else {
+					$wp_query->is_single = true;
+				}
+			}
 		}
 
 		// Include WooCommerce frontend classes and hooks to enable the WooCommerce element preview inside the builder (since 1.5)
@@ -230,6 +267,7 @@ class Api {
 		$theme_styles     = get_option( BRICKS_DB_THEME_STYLES, false );
 		$global_classes   = get_option( BRICKS_DB_GLOBAL_CLASSES, [] );
 		$global_variables = get_option( BRICKS_DB_GLOBAL_VARIABLES, [] );
+		$color_palette    = get_option( BRICKS_DB_COLOR_PALETTE, [] ); // @since 1.12
 
 		// STEP: Add theme style to template data to import when inserting a template (@since 1.3.2)
 		foreach ( $templates as $index => $template ) {
@@ -277,6 +315,8 @@ class Api {
 					foreach ( $template_classes as $template_class ) {
 						foreach ( $global_classes as $global_class ) {
 							if ( $global_class['id'] === $template_class ) {
+								// Add category metadata to individual class before adding to template (@since 1.12.2)
+								$global_class                            = Helpers::add_category_metadata_to_classes( [ $global_class ] )[0];
 								$templates[ $index ]['global_classes'][] = $global_class;
 							}
 						}
@@ -294,6 +334,7 @@ class Api {
 			'bundles'         => Templates::get_template_bundles(),
 			'tags'            => Templates::get_template_tags(),
 			'globalVariables' => $global_variables, // @since 1.9.8
+			'colorPalette'    => $color_palette, // To allowing importing all color palettes found in the inserted template (@since 1.12)
 			'get'             => $_GET, // Pass URL params to perform additional checks (e.g. 'password' as license key, etc.)
 		];
 
@@ -324,6 +365,9 @@ class Api {
 		}
 
 		$templates_args = $data['args'] ?? [];
+
+		// Add remote_request flag (@since 1.12.2)
+		$templates_args['remote_request'] = true;
 
 		// Merge $parameters with $templates_response args
 		$templates_args = array_merge( $templates_args, $templates_response );
@@ -468,21 +512,140 @@ class Api {
 
 	/**
 	 * Query loop: Infinite scroll callback
+	 * Or AJAX pagination (@since 1.12.2)
 	 *
 	 * @since 1.5
 	 */
 	public function render_query_page( $request ) {
 		$request_data = $request->get_json_params();
 
-		$query_element_id = $request_data['queryElementId'];
+		$query_element_id = $ori_query_element_id = $request_data['queryElementId'];
 		$post_id          = $request_data['postId'];
 		$page             = $request_data['page'];
 		$query_vars       = json_decode( $request_data['queryVars'], true );
+		$language         = isset( $request_data['lang'] ) ? sanitize_key( $request_data['lang'] ) : false;
+		$pagination_id    = isset( $request_data['paginationId'] ) ? sanitize_key( $request_data['paginationId'] ) : false;
+		$base_url         = $request_data['baseUrl'] ?? '';
+
+		// Allow addtional actions for custom code. WPML (@since 1.12.2)
+		do_action( 'bricks/render_query_page/start', $request_data );
+
+		// Set current language (@since 1.9.9)
+		if ( $language ) {
+			Database::$page_data['language'] = $language;
+		}
 
 		// Set post_id for use in prepare_query_vars_from_settings
 		Database::$page_data['preview_or_post_id'] = $post_id;
 
-		$data = Helpers::get_element_data( $post_id, $query_element_id );
+		/**
+		 * Handle Query ID with dash
+		 * This query is located inside a component instance (not root)
+		 * hedzyv-flzcwg, hedzyv-hdcwtt
+		 * - hedzyv is the query element ID that holds the structure
+		 * - flzwg, hdcwtt is the element ID outside the component (unique), holds the actual properties
+		 *
+		 * @since 1.12.2
+		 */
+		$data = [];
+		if ( strpos( $query_element_id, '-' ) !== false ) {
+			// The query is located in a component instance
+			$part              = explode( '-', $query_element_id );
+			$query_instance_id = '';
+			$element_id        = '';
+
+			if ( count( $part ) === 2 ) {
+				// The query element actual ID is the first part
+				if ( ! empty( $part[0] ) ) {
+					$query_instance_id = (string) $part[0];
+				}
+
+				// Element Instance ID is the second part
+				if ( ! empty( $part[1] ) ) {
+					$element_id = (string) $part[1];
+				}
+			}
+
+			if ( empty( $query_instance_id ) || empty( $element_id ) ) {
+				return rest_ensure_response(
+					[
+						'html'   => '',
+						'styles' => '',
+						'error'  => 'Query element in component not found',
+					]
+				);
+			}
+
+			// Get the element data (data for flzwg), this will contains the cid (physical element in bricks data)
+			$element_data = Helpers::get_element_data( $post_id, $element_id );
+
+			if ( empty( $element_data['element'] ) ) {
+				return rest_ensure_response(
+					[
+						'html'   => '',
+						'styles' => '',
+						'error'  => 'Element not found: ' . $element_id,
+					]
+				);
+			}
+
+			// Ensure element has cid
+			if ( empty( $element_data['element']['cid'] ) ) {
+				return rest_ensure_response(
+					[
+						'html'   => '',
+						'styles' => '',
+						'error'  => 'Element is not a proper component: ' . $element_id,
+					]
+				);
+			}
+
+			// STEP: Get the component instance data (data for hedzyv) filled with properties
+			$component_data_elements = Helpers::get_component_instance( $element_data['element'], 'elements' );
+
+			// STEP: Add parentComponent and instanceId for each element
+			foreach ( $component_data_elements as $key => $component_data_element ) {
+				$component_data_elements[ $key ]['parentComponent'] = $element_data['element']['cid'];
+				$component_data_elements[ $key ]['instanceId']      = $element_id;
+			}
+
+			// Find the query element via query_instance_id from the component data
+			$query_element = array_values(
+				array_filter(
+					$component_data_elements,
+					function( $element ) use ( $query_instance_id ) {
+						return (string) $element['id'] === $query_instance_id;
+					}
+				)
+			);
+
+			// Get the first element if it exists
+			$query_element = ! empty( $query_element ) ? $query_element[0] : null;
+
+			if ( empty( $query_element ) ) {
+				return rest_ensure_response(
+					[
+						'html'   => '',
+						'styles' => '',
+						'error'  => 'Query element not found: ' . $query_instance_id,
+					]
+				);
+			}
+
+			// Now build the data
+			$data = [
+				'element'   => $query_element,
+				'elements'  => $component_data_elements,
+				'source_id' => 'component',
+			];
+
+			// Set query element id
+			$query_element_id = $query_instance_id;
+
+		} else {
+			// Normal query element ID
+			$data = Helpers::get_element_data( $post_id, $query_element_id );
+		}
 
 		if ( empty( $data['elements'] ) ) {
 			return rest_ensure_response(
@@ -514,6 +677,17 @@ class Api {
 		// STEP: Set the query element pagination
 		$query_element = $indexed_elements[ $query_element_id ];
 
+		// STEP: Replace query element with component data (@since 1.12.2)
+		if ( isset( $query_element['cid'] ) ) {
+			// Replace query element with component data
+			$query_element = self::replace_query_element_with_component_data( $query_element, $query_element_id );
+
+			// Update indexed elements
+			foreach ( $query_element['elements'] as $element ) {
+				$indexed_elements[ $element['id'] ] = $element;
+			}
+		}
+
 		/**
 		 * STEP: Use hook to merge query_vars from the request instead of '_merge_vars' (@pre 1.9.5)
 		 *
@@ -533,13 +707,34 @@ class Api {
 		// Set the page number which comes from the request
 		$query_vars['paged'] = $page;
 
-		// Set the page number - This is needed for term query
-		$query_element['settings']['query']['paged'] = $page;
+		// NOTE: $ori_query_element_id could be a query element ID with dash (query inside a component instance). This type of query is supported in AJAX pagination only. Not Query filters. Must use this ID in hooks or we will get the wrong query.
+
+		/**
+		 * Set the page number
+		 *
+		 * Needed for term query to calculate pagination correctly.
+		 *
+		 * @since 1.12.2
+		 */
+		add_filter(
+			'bricks/query/prepare_query_vars_from_settings',
+			function( $settings, $element_id ) use ( $page, $ori_query_element_id, $object_type ) {
+				if ( $element_id !== $ori_query_element_id || $object_type !== 'term' ) {
+					return $settings;
+				}
+
+				$settings['query']['paged'] = $page;
+
+				return $settings;
+			},
+			999,
+			2
+		);
 
 		add_filter(
 			"bricks/{$object_type}s/query_vars",
-			function( $vars, $settings, $element_id ) use ( $query_element_id, $query_vars ) {
-				if ( $element_id !== $query_element_id ) {
+			function( $vars, $settings, $element_id ) use ( $ori_query_element_id, $query_vars ) {
+				if ( $element_id !== $ori_query_element_id ) {
 					return $vars;
 				}
 
@@ -596,11 +791,66 @@ class Api {
 
 		$styles = ! empty( $inline_css ) ? "\n<style>/* INFINITE SCROLL CSS */\n{$inline_css}</style>\n" : '';
 
+		// STEP: Set the base URL for pagination or the pagination links will be using API endpoint
+		if ( ! empty( $base_url ) ) {
+			add_filter(
+				'bricks/paginate_links_args',
+				function( $args ) use ( $base_url ) {
+					$args['base'] = $base_url . '%_%';
+					return $args;
+				}
+			);
+		}
+
+		$pagination = false;
+		if ( $pagination_id ) {
+			$element_data = Helpers::get_element_data( $post_id, $pagination_id );
+			if ( ! empty( $element_data['element'] ) ) {
+				$pagination_element = $element_data['element'] ?? false;
+				$pagination         = Frontend::render_element( $pagination_element );
+			} else {
+				// Maybe the pagination element is inside a component
+				$pagination_component = array_filter(
+					$data['elements'],
+					function( $element ) use ( $pagination_id ) {
+						return (string) $element['id'] === (string) $pagination_id;
+					}
+				);
+
+				$pagination_component = reset( $pagination_component );
+
+				if ( ! empty( $pagination_component ) ) {
+					$pagination = Frontend::render_element( $pagination_component );
+				}
+			}
+		}
+
+		// STEP: Query data, use original query ID (If any third party code disable history, wouldn't work)
+		$query_data = Query::get_query_by_element_id( $ori_query_element_id );
+
+		// Remove unnecessary properties
+		unset( $query_data->settings );
+		unset( $query_data->query_result );
+		unset( $query_data->loop_index );
+		unset( $query_data->loop_object );
+		unset( $query_data->is_looping );
+		unset( $query_data->fake_result );
+
+		if ( isset( $query_data->query_vars['queryEditor'] ) ) {
+			unset( $query_data->query_vars['queryEditor'] );
+		}
+
+		if ( isset( $query_data->query_vars['signature'] ) ) {
+			unset( $query_data->query_vars['signature'] );
+		}
+
 		return rest_ensure_response(
 			[
-				'html'   => $html,
-				'styles' => $styles,
-				'popups' => $popups,
+				'html'          => $html,
+				'styles'        => $styles,
+				'popups'        => $popups,
+				'pagination'    => $pagination,
+				'updated_query' => $query_data,
 			]
 		);
 	}
@@ -618,8 +868,82 @@ class Api {
 		$popup_loop_id      = $request_data['popupLoopId'] ?? false;
 		$popup_context_id   = $request_data['popupContextId'] ?? false;
 		$popup_context_type = $request_data['popupContextType'] ?? false;
-		$poup_is_looping    = $request_data['isLooping'] ?? false;
-		$query_element_id   = $request_data['queryElementId'] ?? false;
+		// $poup_is_looping    = $request_data['isLooping'] ?? false; // Not in use
+		$query_element_id = $request_data['queryElementId'] ?? false;
+
+		// Get Popup template settings and add classes to the popup content (@since 1.10.2)
+		$popup_settings    = Helpers::get_template_settings( $popup_id );
+		$is_woo_quick_view = isset( $popup_settings['popupIsWoo'] ) && Woocommerce::is_woocommerce_active();
+
+		// Handle WooCommerce Quick View in case no popupContextId has been defined (@since 1.10.2)
+		if ( $is_woo_quick_view && ! $popup_context_id && $popup_loop_id ) {
+			// Retrieve the context from popupLoopId
+			$popup_loop_id_parts = explode( ':', $popup_loop_id );
+			if ( count( $popup_loop_id_parts ) === 4 ) {
+				$popup_context_id = $popup_loop_id_parts[3];
+				$popup_loop_id    = false;
+				$query_element_id = false;
+			}
+		}
+
+		// Set context in AJAX popup (post, term, user), $post_id might be zero on pages like 404, search, etc.
+		if ( $post_id || $is_woo_quick_view || $popup_context_id ) {
+			global $wp_query;
+			global $post;
+			$post = get_post( $post_id );
+			setup_postdata( $post );
+
+			/**
+			 * Set necessary global variables so we can use get_queried_object(), get_the_ID() etc.
+			 */
+			switch ( $popup_context_type ) {
+				case 'post':
+					if ( $popup_context_id ) {
+						// Override the global post
+						$post = get_post( $popup_context_id );
+						setup_postdata( $post );
+					}
+
+					if ( ! $post || is_wp_error( $post ) ) {
+						break;
+					}
+
+					$wp_query->queried_object    = $post;
+					$wp_query->queried_object_id = $post->ID;
+					$wp_query->is_singular       = true;
+					$wp_query->post_type         = $post->post_type;
+
+					// Set is_single / is_page, otherwise comments_template wouldn't work (@since 1.10.2)
+					if ( is_page( $post->ID ) ) {
+						$wp_query->is_page = true;
+					} else {
+						$wp_query->is_single = true;
+					}
+					break;
+
+				case 'term':
+					$term = get_term( $popup_context_id ? $popup_context_id : $post_id );
+					if ( ! $term || is_wp_error( $term ) ) {
+						break;
+					}
+
+					$wp_query->queried_object    = $term;
+					$wp_query->queried_object_id = $term->term_id;
+					$wp_query->is_tax            = true;
+					break;
+
+				case 'user':
+					$user = get_user_by( 'id', $popup_context_id ? $popup_context_id : $post_id );
+					if ( ! $user || is_wp_error( $user ) ) {
+						break;
+					}
+
+					$wp_query->queried_object    = $user;
+					$wp_query->queried_object_id = $user->ID;
+					$wp_query->is_author         = true;
+					break;
+			}
+		}
 
 		/**
 		 * Default: Current context (query element ID)
@@ -638,8 +962,116 @@ class Api {
 			// Preview ID or post ID is very important in popup as it's a template, so we need to set separately
 			Database::$page_data['preview_or_post_id'] = $post_id;
 
-			// This popup inside a loop
-			$data = Helpers::get_element_data( $post_id, $query_element_id );
+			$data = [];
+
+			/**
+			 * Handle Query ID with dash
+			 * This query is located inside a component instance (not root)
+			 * hedzyv-flzcwg, hedzyv-hdcwtt
+			 * - hedzyv is the query element ID that holds the structure
+			 * - flzwg, hdcwtt is the element ID outside the component (unique), holds the actual properties
+			 *
+			 * @since 1.12.2
+			 */
+			if ( strpos( $query_element_id, '-' ) !== false ) {
+				// The query is located in a component instance
+				$part              = explode( '-', $query_element_id );
+				$query_instance_id = '';
+				$element_id        = '';
+
+				if ( count( $part ) === 2 ) {
+					// The query element actual ID is the first part
+					if ( ! empty( $part[0] ) ) {
+						$query_instance_id = (string) $part[0];
+					}
+
+					// Element Instance ID is the second part
+					if ( ! empty( $part[1] ) ) {
+						$element_id = (string) $part[1];
+					}
+				}
+
+				if ( empty( $query_instance_id ) || empty( $element_id ) ) {
+					return rest_ensure_response(
+						[
+							'html'   => '',
+							'styles' => '',
+							'error'  => 'Query element in component not found',
+						]
+					);
+				}
+
+				// Get the element data (data for flzwg), this will contains the cid (physical element in bricks data)
+				$element_data = Helpers::get_element_data( $post_id, $element_id );
+
+				if ( empty( $element_data['element'] ) ) {
+					return rest_ensure_response(
+						[
+							'html'   => '',
+							'styles' => '',
+							'error'  => 'Element not found: ' . $element_id,
+						]
+					);
+				}
+
+				// Ensure element has cid
+				if ( empty( $element_data['element']['cid'] ) ) {
+					return rest_ensure_response(
+						[
+							'html'   => '',
+							'styles' => '',
+							'error'  => 'Element is not a proper component: ' . $element_id,
+						]
+					);
+				}
+
+				// STEP: Get the component instance data (data for hedzyv) filled with properties
+				$component_data_elements = Helpers::get_component_instance( $element_data['element'], 'elements' );
+
+				// STEP: Add parentComponent and instanceId for each element
+				foreach ( $component_data_elements as $key => $component_data_element ) {
+					$component_data_elements[ $key ]['parentComponent'] = $element_data['element']['cid'];
+					$component_data_elements[ $key ]['instanceId']      = $element_id;
+				}
+
+				// Find the query element via query_instance_id from the component data
+				$query_element = array_values(
+					array_filter(
+						$component_data_elements,
+						function( $element ) use ( $query_instance_id ) {
+							return (string) $element['id'] === $query_instance_id;
+						}
+					)
+				);
+
+				// Get the first element if it exists
+				$query_element = ! empty( $query_element ) ? $query_element[0] : null;
+
+				if ( empty( $query_element ) ) {
+					return rest_ensure_response(
+						[
+							'html'   => '',
+							'styles' => '',
+							'error'  => 'Query element not found: ' . $query_instance_id,
+						]
+					);
+				}
+
+				// Now build the data
+				$data = [
+					'element'   => $query_element,
+					'elements'  => $component_data_elements,
+					'source_id' => 'component',
+				];
+
+				// Set query element id
+				$query_element_id = $query_instance_id;
+
+			} else {
+				// Normal query element ID
+				// This popup inside a loop
+				$data = Helpers::get_element_data( $post_id, $query_element_id );
+			}
 
 			if ( empty( $data['elements'] ) ) {
 				return rest_ensure_response(
@@ -673,27 +1105,43 @@ class Api {
 			// STEP: Set the query element pagination
 			$query_element = $indexed_elements[ $query_element_id ];
 
+			// To solve looping popup without context issue (@since 1.12.2)
+			if ( isset( $query_element['cid'] ) ) {
+				// Replace query element with component data
+				$query_element = self::replace_query_element_with_component_data( $query_element, $query_element_id );
+
+				// Update indexed elements
+				foreach ( $query_element['elements'] as $element ) {
+					$indexed_elements[ $element['id'] ] = $element;
+				}
+
+				// Must unset or the final query_vars is not using post_id (unknown reason)
+				unset( $query_element['cid'] );
+			}
+
 			// Get the target object ID from popupId string, separated by ':'
 			if ( $popup_loop_id ) {
 				$popup_id_parts = explode( ':', $popup_loop_id );
 
-				if ( count( $popup_id_parts ) === 4 ) {
+				// $popup_id_parts at least 4 parts (@since 1.12)
+				if ( count( $popup_id_parts ) >= 4 ) {
 					$query_object_type = $popup_id_parts[2];
 					$query_object_id   = $popup_id_parts[3];
+					$actual_query_id   = $popup_id_parts[0];
 					$new_popup_loop_id = $popup_loop_id;
 
 					switch ( $query_object_type ) {
 						case 'post':
 							$query_element['settings']['query']['p'] = $query_object_id;
-							$new_popup_loop_id                       = "{$query_element_id}:0:{$query_object_type}:{$query_object_id}";
+							$new_popup_loop_id                       = "{$actual_query_id}:0:{$query_object_type}:{$query_object_id}";
 							break;
 						case 'term':
 							$query_element['settings']['query']['include'] = $query_object_id;
-							$new_popup_loop_id                             = "{$query_element_id}:0:{$query_object_type}:{$query_object_id}";
+							$new_popup_loop_id                             = "{$actual_query_id}:0:{$query_object_type}:{$query_object_id}";
 							break;
 						case 'user':
 							$query_element['settings']['query']['include'] = $query_object_id;
-							$new_popup_loop_id                             = "{$query_element_id}:0:{$query_object_type}:{$query_object_id}";
+							$new_popup_loop_id                             = "{$actual_query_id}:0:{$query_object_type}:{$query_object_id}";
 							break;
 						default:
 						case 'unknown':
@@ -747,7 +1195,7 @@ class Api {
 
 			$inline_css = ! empty( Assets::$inline_css[ $looping_popup_id ] ) ? Assets::$inline_css[ $looping_popup_id ] : '';
 
-			Frontend::render_data( $loop_elements );
+			Frontend::render_data( $loop_elements, 'popup' );
 
 			$popups = Popups::$ajax_popup_contents;
 
@@ -777,56 +1225,19 @@ class Api {
 			// Preview or post id is very important in popup as it's a template, so we need to set separately
 			Database::$page_data['preview_or_post_id'] = $popup_context_id ? $popup_context_id : $post_id;
 
-			if ( $post_id ) {
-				global $wp_query;
-				global $post;
-				$post = get_post( $post_id );
-				setup_postdata( $post );
+			// This logic causing dynamic css not generated correctly (@since 1.12.2)
+			// if ( $poup_is_looping ) {
+			// Simulate Query::is_looping() as we skipped the query loop
+			// add_filter( 'bricks/query/force_is_looping', '__return_true' );
 
-				/**
-				 * Set necessary global variables so we can use get_queried_object(), get_the_ID() etc.
-				 */
-				switch ( $popup_context_type ) {
-					case 'post':
-						if ( $popup_context_id ) {
-							// Override the global post
-							$post = get_post( $popup_context_id );
-							setup_postdata( $post );
-						}
-
-						$wp_query->queried_object    = $post;
-						$wp_query->queried_object_id = $post->ID;
-						$wp_query->is_singular       = true;
-						break;
-
-					case 'term':
-						$term                        = get_term( $popup_context_id ? $popup_context_id : $post_id );
-						$wp_query->queried_object    = get_term( $popup_context_id ? $popup_context_id : $post_id );
-						$wp_query->queried_object_id = $term->term_id;
-						$wp_query->is_tax            = true;
-						break;
-
-					case 'user':
-						$user                        = get_user_by( 'id', $popup_context_id ? $popup_context_id : $post_id );
-						$wp_query->queried_object    = $user;
-						$wp_query->queried_object_id = $user->ID;
-						$wp_query->is_author         = true;
-						break;
-				}
-			}
-
-			if ( $poup_is_looping ) {
-				// Simulate Query::is_looping() as we skipped the query loop
-				add_filter( 'bricks/query/force_is_looping', '__return_true' );
-
-				// Simulate Query::get_loop_index() as we skipped the query loop
-				add_filter(
-					'bricks/query/force_loop_index',
-					function( $index ) {
-						return 0;
-					}
-				);
-			}
+			// Simulate Query::get_loop_index() as we skipped the query loop
+			// add_filter(
+			// 'bricks/query/force_loop_index',
+			// function( $index ) {
+			// return 0;
+			// }
+			// );
+			// }
 
 			// Get popup via popup ID
 			$elements = Database::get_data( $popup_id );
@@ -875,13 +1286,19 @@ class Api {
 			}
 		}
 
-		return rest_ensure_response(
-			[
-				'html'   => $popup_content,
-				'styles' => $styles,
-				'popups' => $looping_popup_html,
-			]
-		);
+		$response = [
+			'html'   => $popup_content,
+			'styles' => $styles,
+			'popups' => $looping_popup_html,
+		];
+
+		// Add Woo quick view classes so JS can insert into popup content node (@since 1.10.2)
+		if ( $is_woo_quick_view ) {
+			global $product;
+			$response['contentClasses'] = (array) wc_get_product_class( '', $product );
+		}
+
+		return rest_ensure_response( $response );
 	}
 
 	/**
@@ -915,13 +1332,23 @@ class Api {
 	public function render_query_result( $request ) {
 		$request_data = $request->get_json_params();
 
-		$query_element_id = $request_data['queryElementId'];
-		$post_id          = $request_data['postId'];
-		$filters          = $request_data['filters'] ?? [];
-		$query_vars       = $request_data['queryArgs'] ?? [];
-		$page_filters     = $request_data['pageFilters'] ?? [];
-		$base_url         = $request_data['baseUrl'] ?? '';
-		$page             = isset( $query_vars['paged'] ) ? sanitize_text_field( $query_vars['paged'] ) : 1;
+		$query_element_id    = $request_data['queryElementId'];
+		$post_id             = $request_data['postId'];
+		$filters             = $request_data['filters'] ?? [];
+		$selected_filters    = $request_data['selectedFilters'] ?? [];
+		$page_filters        = $request_data['pageFilters'] ?? [];
+		$base_url            = $request_data['baseUrl'] ?? '';
+		$language            = isset( $request_data['lang'] ) ? sanitize_key( $request_data['lang'] ) : false;
+		$infinite_page       = isset( $request_data['infinitePage'] ) ? sanitize_text_field( $request_data['infinitePage'] ) : 1;
+		$original_query_vars = isset( $request_data['originalQueryVars'] ) ? json_decode( $request_data['originalQueryVars'], true ) : [];
+
+		// Allow addtional actions for custom code. WPML (@since 1.12.2)
+		do_action( 'bricks/render_query_result/start', $request_data );
+
+		// Set current language (@since 1.9.9)
+		if ( $language ) {
+			Database::$page_data['language'] = $language;
+		}
 
 		// Set post_id for use in prepare_query_vars_from_settings
 		Database::$page_data['preview_or_post_id'] = $post_id;
@@ -958,13 +1385,21 @@ class Api {
 		// STEP: Set the query element pagination
 		$query_element = $indexed_elements[ $query_element_id ];
 
-		// TODO: Check if the query_vars are valid, sanitize and validate
+		// STEP: Replace query element with component data (@since 1.12.2)
+		if ( isset( $query_element['cid'] ) ) {
+			// Replace query element with component data
+			$query_element = self::replace_query_element_with_component_data( $query_element, $query_element_id );
 
-		// Check if the $query_element objectType is 'post' or '' (empty)
-		// Beta only support post query
+			// Update indexed elements
+			foreach ( $query_element['elements'] as $element ) {
+				$indexed_elements[ $element['id'] ] = $element;
+			}
+		}
+
 		$query_object_type = isset( $query_element['settings']['query']['objectType'] ) ? sanitize_text_field( $query_element['settings']['query']['objectType'] ) : 'post';
 
-		if ( ! in_array( $query_object_type, [ 'post' ] ) ) {
+		// Return error: Not a post, term or user query
+		if ( ! in_array( $query_object_type, [ 'post', 'term', 'user' ] ) ) {
 			return rest_ensure_response(
 				[
 					'html'   => '',
@@ -974,29 +1409,103 @@ class Api {
 			);
 		}
 
-		// STEP: set page filters
-		Query_Filters::$page_filters = $page_filters;
+		// STEP: Set page filters
+		Query_Filters::set_page_filters( $page_filters );
 
-		// STEP: set paged query var if exists
-		$query_element['settings']['query']['paged'] = $page;
+		// STEP: Set active filters
+		Query_Filters::set_active_filters( $selected_filters, $post_id, $query_element_id );
+
+		// STEP: Set flag for query_vars (@since 1.12)
+		Query_Filters::set_generating_type( $query_object_type );
+
+		// STEP: generate query vars from active filters
+		$filter_query_vars = Query_Filters::generate_query_vars_from_active_filters( $query_element_id );
+
+		// STEP: Check if query merge is disabled
+		$disable_query_merge = $query_element['settings']['query']['disable_query_merge'] ?? false;
+
+		// STEP: Use infinite page number
+		if ( $infinite_page > 1 ) {
+			$filter_query_vars['paged'] = $infinite_page;
+		}
+
+		// Set the paged & number - This is needed for term query to calculate pagination correctly (@since 1.12)
+		if ( $query_object_type === 'term' ) {
+			if (
+				( isset( $filter_query_vars['paged'] ) && $filter_query_vars['paged'] > 1 ) ||
+				( isset( $filter_query_vars['number'] ) && $filter_query_vars['number'] > 0 )
+			) {
+				add_filter(
+					'bricks/query/prepare_query_vars_from_settings',
+					function( $settings, $element_id ) use ( $filter_query_vars, $query_element_id, $query_object_type ) {
+						if ( $element_id !== $query_element_id || $query_object_type !== 'term' ) {
+							return $settings;
+						}
+
+						// Set paged value
+						if ( isset( $filter_query_vars['paged'] ) ) {
+							$settings['query']['paged'] = $filter_query_vars['paged'];
+						}
+
+						// Set number value
+						if ( isset( $filter_query_vars['number'] ) ) {
+							// Backup the user original number value
+							if ( isset( $settings['query']['number'] ) ) {
+								$settings['query']['brx_user_number'] = $settings['query']['number'];
+							}
+							// Set the new number value
+							$settings['query']['number'] = $filter_query_vars['number'];
+						}
+
+						return $settings;
+					},
+					10,
+					2
+				);
+			}
+		}
 
 		// STEP: Merge the query vars via filter, so we can override WooCommerce query vars, queryEditor query vars, etc.
 		add_filter(
 			"bricks/{$query_object_type}s/query_vars",
-			function( $vars, $settings, $element_id ) use ( $query_vars, $query_element_id, &$query_vars_before_merge ) {
+			function( $vars, $settings, $element_id ) use ( $filter_query_vars, $query_element_id, $disable_query_merge, $original_query_vars, $query_object_type ) {
 				if ( $element_id !== $query_element_id ) {
 					return $vars;
 				}
 
-				// STEP: save the query vars before merge
-				Query_Filters::$query_vars_before_merge[ $query_element_id ] = $vars;
+				// STEP: Restore original query vars from the frontend (dynamic data parsed) (@since 1.12)
+				$vars = Query::restore_original_query_vars_from_frontend( $original_query_vars, $vars, $query_object_type );
 
-				// STEP: merge the query vars
-				return Query::merge_query_vars( $vars, $query_vars );
+				// STEP: Original query vars should include page filters (if it's not disabled) (@since 1.11)
+				if ( ! $disable_query_merge && Query_Filters::should_apply_page_filters( $vars ) ) {
+					$vars = Query::merge_query_vars( $vars, Query_Filters::generate_query_vars_from_page_filters() );
+				}
+
+				// STEP: Save the query vars before merge only once (@since 1.11.1)
+				if ( ! isset( Query_Filters::$query_vars_before_merge[ $query_element_id ] ) ) {
+					Query_Filters::$query_vars_before_merge[ $query_element_id ] = $vars;
+
+					// For term and user query, must save the user original number value or it will be overwritten by url parameter value after page reload
+					if ( in_array( $query_object_type, [ 'term', 'user' ], true ) && isset( $vars['brx_user_number'] ) ) {
+						Query_Filters::$query_vars_before_merge[ $query_element_id ]['number'] = $vars['brx_user_number'];
+
+						// Cleanup
+						unset( $vars['brx_user_number'] );
+						unset( Query_Filters::$query_vars_before_merge[ $query_element_id ]['brx_user_number'] );
+					}
+				}
+
+				// STEP: Merge the query vars from filters
+				$final = Query::merge_query_vars( $vars, $filter_query_vars );
+
+				return $final;
 			},
-			11,
+			999, // As long as using Query Filters, the filter's query var should be the last (@since 1.11.1)
 			3
 		);
+
+		// STEP: Reset flasg (@since 1.12)
+		Query_Filters::reset_generating_type();
 
 		// Remove the parent
 		if ( ! empty( $query_element['parent'] ) ) {
@@ -1046,9 +1555,8 @@ class Api {
 		if ( ! empty( $base_url ) ) {
 			add_filter(
 				'bricks/paginate_links_args',
-				function( $args ) use ( $base_url, $page ) {
-					$args['base']    = $base_url . '%_%';
-					$args['current'] = $page;
+				function( $args ) use ( $base_url ) {
+					$args['base'] = $base_url . '%_%';
 					return $args;
 				}
 			);
@@ -1066,6 +1574,7 @@ class Api {
 		unset( $query_data->loop_index );
 		unset( $query_data->loop_object );
 		unset( $query_data->is_looping );
+		unset( $query_data->fake_result );
 
 		if ( isset( $query_data->query_vars['queryEditor'] ) ) {
 			unset( $query_data->query_vars['queryEditor'] );
@@ -1082,7 +1591,6 @@ class Api {
 				'popups'          => $popups,
 				'updated_filters' => $updated_filters,
 				'updated_query'   => $query_data,
-				// 'pagination'      => $pagination_html, (#86bxet3c3)
 				// 'page_filters'    => Query_Filters::$page_filters,
 				// 'filter_object_ids' => Query_Filters::$filter_object_ids,
 				// 'active_filters'  => Query_Filters::$active_filters,
@@ -1109,5 +1617,64 @@ class Api {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Get global classes categorized by their usage across the site
+	 *
+	 * @since 1.12
+	 */
+	public function get_global_classes_site_usage() {
+		return rest_ensure_response(
+			[
+				'data' => Helpers::scan_global_classes_site_usage()
+			]
+		);
+	}
+
+	/**
+	 * Permission check for get_global_classes_site_usage endpoint
+	 */
+	public function get_global_classes_site_usage_permissions_check( $request ) {
+		$nonce = $request->get_header( 'X-Bricks-Nonce' );
+
+		$result = wp_verify_nonce( $nonce, 'bricks-nonce-builder' );
+
+		if ( $result === false ) {
+			return new \WP_Error( 'rest_cookie_invalid_nonce', __( 'Bricks cookie check failed' ), [ 'status' => 403 ] );
+		}
+
+		// Return: Current user does not have full access
+		if ( ! Capabilities::current_user_has_full_access() ) {
+			return new \WP_Error( 'rest_current_user_does_not_have_full_access', __( 'Current user does not have full access' ), [ 'status' => 403 ] );
+		}
+
+		return true;
+	}
+
+	public static function replace_query_element_with_component_data( $query_element, $query_element_id ) {
+		$component_settings = Helpers::get_component_instance( $query_element, 'settings' );
+
+		// Update settings
+		$query_element['settings'] = $component_settings ?? $query_element['settings'];
+
+		$component_chidren = Helpers::get_component_instance( $query_element, 'children' );
+
+		// Update children
+		$query_element['children'] = $component_chidren ?? $query_element['children'];
+
+		$component_elements = Helpers::get_component_instance( $query_element, 'elements' );
+
+		// Update elements
+		$query_element['elements'] = $component_elements ?? $query_element['elements'];
+
+		// Replace all cid with query_element_id
+		$query_element_elements_string = json_encode( $query_element['elements'] );
+
+		$query_element_elements_string = str_replace( $query_element['cid'], $query_element_id, $query_element_elements_string );
+
+		$query_element['elements'] = json_decode( $query_element_elements_string, true );
+
+		return $query_element;
 	}
 }

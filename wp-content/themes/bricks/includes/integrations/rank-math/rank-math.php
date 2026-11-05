@@ -4,20 +4,15 @@ namespace Bricks\Integrations\Rank_Math;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Rank_Math {
-	public function __construct() {}
-
-	public static function register() {
+	public function __construct() {
 		if ( ! class_exists( 'RankMath' ) ) {
 			return;
 		}
 
-		$instance = new self();
+		add_action( 'wp_enqueue_scripts', [ $this, 'wp_enqueue_scripts' ], 10 );
+		add_action( 'admin_enqueue_scripts', [ $this, 'wp_enqueue_scripts' ], 10 );
 
-		add_action( 'wp_enqueue_scripts', [ $instance, 'wp_enqueue_scripts' ], 10 );
-		add_action( 'admin_enqueue_scripts', [ $instance, 'wp_enqueue_scripts' ], 10 );
-
-		add_filter( 'rank_math/sitemap/content_before_parse_html_images', [ $instance, 'add_bricks_content_for_parse_html_images' ], 10, 2 );
-
+		add_filter( 'rank_math/sitemap/content_before_parse_html_images', [ $this, 'add_bricks_content_for_parse_html_images' ], 10, 2 );
 		/**
 		 * Add Bricks data to the Rank Math description
 		 *
@@ -25,7 +20,7 @@ class Rank_Math {
 		 *
 		 * @since 1.9.6
 		 */
-		// add_filter( 'rank_math/frontend/description', [ $instance, 'modify_rank_math_description' ], 10, 1 );
+		// add_filter( 'rank_math/frontend/description', [ $this, 'modify_rank_math_description' ], 10, 1 );
 	}
 
 	/**
@@ -76,7 +71,9 @@ class Rank_Math {
 					'postId'           => get_the_ID(),
 					'nonce'            => $nonce,
 					'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
-					'renderWithBricks' => \Bricks\Helpers::is_post_type_supported() && \Bricks\Helpers::render_with_bricks()
+					'renderWithBricks' => \Bricks\Helpers::render_with_bricks(),
+					'contentData'      => '',
+					'postIsUpdated'    => false,
 				]
 			);
 		}

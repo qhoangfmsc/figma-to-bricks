@@ -20,7 +20,15 @@ test('desktop is required and the optional frames keep their breakpoint keys', (
   assert.equal(parsed.frames.tablet.maxWidth, 991);
   assert.equal(parsed.frames.mobile.key, 'mobile_portrait');
   assert.equal(parsed.frames.mobile.maxWidth, 478);
-  assert.equal(parsed.frames.widescreen.merge, false);
+  assert.equal(parsed.frames.widescreen.key, 'widescreen');
+  assert.equal(parsed.frames.widescreen.wide, true);
+  assert.equal(parsed.frames.widescreen.maxWidth, undefined);
+
+  const landscape = 'https://www.figma.com/design/AbC/x?node-id=400-2';
+  const withLandscape = parseFrameInput({ desktop, landscape });
+  assert.equal(withLandscape.ok, true);
+  assert.equal(withLandscape.frames.landscape.key, 'mobile_landscape');
+  assert.equal(withLandscape.frames.landscape.maxWidth, 767);
 });
 
 test('frames must be one Figma file and different nodes', () => {
@@ -33,7 +41,7 @@ test('frames must be one Figma file and different nodes', () => {
   assert.match(same.errors.join(' '), /cùng một node/);
 });
 
-test('timing follows the measured per-frame medians and ignores widescreen', () => {
+test('timing follows the measured per-frame medians and counts every filled slot', () => {
   assert.equal(formatDuration(5_000), '5 giây');
   assert.equal(formatDuration(48_000), '48 giây');
   assert.equal(formatDuration(120_000), '2 phút');
@@ -45,9 +53,11 @@ test('timing follows the measured per-frame medians and ignores widescreen', () 
   assert.equal(one.buildMs, 48_000);
   assert.match(one.plan, /5 giây – 2 phút/);
   assert.match(one.build, /48 giây/);
-  const three = describeTiming({ desktop: 'a', tablet: 'b', mobile: 'c', widescreen: 'd' });
-  assert.equal(three.frames, 3);
-  assert.equal(three.buildMs, 144_000);
+  const four = describeTiming({ desktop: 'a', tablet: 'b', mobile: 'c', widescreen: 'd' });
+  assert.equal(four.frames, 4);
+  assert.equal(four.buildMs, 192_000);
+  const five = describeTiming({ desktop: 'a', widescreen: 'b', tablet: 'c', landscape: 'd', mobile: 'e' });
+  assert.equal(five.frames, 5);
   assert.match(describeTiming({}).plan, /Desktop/);
 });
 

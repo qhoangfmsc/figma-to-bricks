@@ -15,13 +15,21 @@ class Filter_DatePicker extends Filter_Element {
 	}
 
 	public function enqueue_scripts() {
+		wp_enqueue_script( 'bricks-filters' );
 		wp_enqueue_script( 'bricks-flatpickr' );
 		wp_enqueue_style( 'bricks-flatpickr' );
 
 		// Load datepicker localisation
 		$l10n = $this->settings['l10n'] ?? '';
 		if ( $l10n ) {
-			wp_enqueue_script( 'bricks-flatpickr-l10n', "https://npmcdn.com/flatpickr@4.6.13/dist/l10n/$l10n.js", [ 'bricks-flatpickr' ], '4.6.13' );
+			/**
+			 * Set "version" (4.6.13) to null
+			 *
+			 * If version is present, we get a 302 redirect
+			 *
+			 * @since 1.12
+			 */
+			wp_enqueue_script( 'bricks-flatpickr-l10n', "https://npmcdn.com/flatpickr@4.6.13/dist/l10n/$l10n.js", [ 'bricks-flatpickr' ], null );
 		}
 	}
 
@@ -36,9 +44,17 @@ class Filter_DatePicker extends Filter_Element {
 		$filter_controls = $this->get_filter_controls();
 
 		if ( ! empty( $filter_controls ) ) {
-			if ( ! empty( $filter_controls['wpPostField']['options'] ) ) {
-				$filter_controls['wpPostField']['options']['post_date']     = esc_html__( 'Post date', 'bricks' );
-				$filter_controls['wpPostField']['options']['post_modified'] = esc_html__( 'Post modified date', 'bricks' );
+			if ( ! empty( $filter_controls['wpPostField'] ) ) {
+				// Rebuild options: Post date and post modified date only (@since 1.11)
+				$filter_controls['wpPostField']['options'] = [
+					'post_date'     => esc_html__( 'Post date', 'bricks' ),
+					'post_modified' => esc_html__( 'Post modified date', 'bricks' ),
+				];
+			}
+
+			if ( ! empty( $filter_controls['wpUserField'] ) ) {
+				// Add user_registered date (@since 1.12)
+				$filter_controls['wpUserField']['options']['user_registered'] = esc_html__( 'User registered date', 'bricks' );
 			}
 
 			unset( $filter_controls['filterSource']['options']['taxonomy'] );
@@ -82,8 +98,14 @@ class Filter_DatePicker extends Filter_Element {
 				'description'    => esc_html__( 'Must match with the format saved in database.', 'bricks' ) . ' ' . esc_html__( 'ACF Date picker, for example, uses Ymd.', 'bricks' ),
 				'required'       => [
 					[ 'filterSource', '!=', '' ],
+					[ 'filter_source', '=', 'wpField' ],
 				]
 			];
+
+			if ( Helpers::enabled_query_filters_integration() ) {
+				// Hide dateFormat when using fieldProvider format (@since 1.11.1)
+				$filter_controls['dateFormat']['required'][] = [ 'fieldProvider', '=', [ 'none', '' ] ];
+			}
 
 			$filter_controls['useMinMax'] = [
 				'label'       => esc_html__( 'Min/max date', 'bricks' ),
@@ -132,11 +154,12 @@ class Filter_DatePicker extends Filter_Element {
 		];
 
 		$this->controls['l10n'] = [
-			'group'       => 'input',
-			'label'       => esc_html__( 'Language', 'bricks' ),
-			'type'        => 'text',
-			'inline'      => true,
-			'description' => '<a href="https://github.com/flatpickr/flatpickr/tree/master/src/l10n" target="_blank">' . esc_html__( 'Language codes', 'bricks' ) . '</a> (de, es, fr, etc.)',
+			'group'          => 'input',
+			'label'          => esc_html__( 'Language', 'bricks' ),
+			'type'           => 'text',
+			'inline'         => true,
+			'hasDynamicData' => false,
+			'description'    => '<a href="https://github.com/flatpickr/flatpickr/tree/master/src/l10n" target="_blank">' . esc_html__( 'Language codes', 'bricks' ) . '</a> (de, es, fr, etc.)',
 		];
 	}
 
@@ -193,9 +216,6 @@ class Filter_DatePicker extends Filter_Element {
 		}
 
 		$field_type = $settings['sourceFieldType'] ?? 'post';
-		$mode       = isset( $settings['isDateRange'] ) ? 'range' : 'single';
-		$operator   = $settings['fieldCompareOperator'] ?? 'is';
-		$field_info = false;
 		$field_key  = false;
 
 		// Build $field_info to be used by the JS filter in frontend
@@ -205,23 +225,16 @@ class Filter_DatePicker extends Filter_Element {
 					$field_key = $settings['wpPostField'] ?? false;
 					break;
 
-				// case 'user':
-				// $field_key = $settings['wpUserField'] ?? false;
-				// break;
+				case 'user':
+					$field_key = $settings['wpUserField'] ?? false;
+					break;
 
 				// case 'term':
 				// $field_key = $settings['wpTermField'] ?? false;
 				// break;
 			}
 
-			if ( $field_key ) {
-				$field_info = [
-					'field_type' => $field_type,
-					'field_key'  => $field_key,
-					'mode'       => $mode,
-					'operator'   => $operator,
-				];
-			} else {
+			if ( ! $field_key ) {
 				return $this->render_element_placeholder(
 					[
 						'title' => esc_html__( 'Required', 'bricks' ) . ': ' . esc_html__( 'Field', 'bricks' )
@@ -233,14 +246,7 @@ class Filter_DatePicker extends Filter_Element {
 		elseif ( $settings['filterSource'] === 'customField' ) {
 			$meta_key = $settings['customFieldKey'] ?? false;
 
-			if ( $meta_key ) {
-				$field_info = [
-					'field_type' => $field_type,
-					'field_key'  => $meta_key,
-					'mode'       => $mode,
-					'operator'   => $operator,
-				];
-			} else {
+			if ( ! $meta_key ) {
 				return $this->render_element_placeholder(
 					[
 						'title' => esc_html__( 'Required', 'bricks' ) . ': ' . esc_html__( 'Meta key', 'bricks' )
@@ -249,14 +255,9 @@ class Filter_DatePicker extends Filter_Element {
 			}
 		}
 
-		if ( empty( $field_info ) ) {
-			return;
-		}
-
 		// Insert filter settings as data-brx-filter attribute
 		$filter_settings                 = $this->get_common_filter_settings();
 		$filter_settings['filterSource'] = $settings['filterSource'];
-		$filter_settings['fieldInfo']    = $field_info;
 
 		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 	}
@@ -265,9 +266,19 @@ class Filter_DatePicker extends Filter_Element {
 		$settings         = $this->settings;
 		$placeholder      = ! empty( $settings['placeholder'] ) ? $this->render_dynamic_data( $settings['placeholder'] ) : esc_html__( 'Date', 'bricks' );
 		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
+		$query_id         = $settings['filterQueryId'] ?? false;
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
+
+			// Return: Indexing in progress (@since 1.10)
+			if ( $this->is_indexing() ) {
+				return $this->render_element_placeholder(
+					[
+						'title' => esc_html__( 'Indexing in progress.', 'bricks' ),
+					]
+				);
+			}
 		}
 
 		// Return: No filter source selected
@@ -283,12 +294,7 @@ class Filter_DatePicker extends Filter_Element {
 		$time_24h = get_option( 'time_format' );
 		$time_24h = strpos( $time_24h, 'H' ) !== false || strpos( $time_24h, 'G' ) !== false;
 
-		// User defined date format (@since 1.9.8)
-		$date_format = $settings['dateFormat'] ?? get_option( 'date_format' );
-
-		if ( isset( $settings['enableTime'] ) ) {
-			$date_format .= ' H:i';
-		}
+		$date_format = $this->get_date_format();
 
 		$mode = isset( $settings['isDateRange'] ) ? 'range' : 'single';
 
@@ -300,7 +306,7 @@ class Filter_DatePicker extends Filter_Element {
 			'altFormat'  => $date_format,
 			'dateFormat' => $date_format,
 			'time_24hr'  => $time_24h,
-			'mode'       => $mode, // single, multiple, range
+			'mode'       => $mode, // single, range
 		];
 
 		if ( isset( $settings['useMinMax'] ) ) {
@@ -312,7 +318,11 @@ class Filter_DatePicker extends Filter_Element {
 
 			if ( $this->max_date ) {
 				// convert to date string following date format
-				$max_date                      = date( $date_format, $this->max_date );
+				$max_date = date( $date_format, $this->max_date );
+				// if time is enabled, remove the time part or user unable to select the time freely
+				if ( isset( $settings['enableTime'] ) ) {
+					$max_date = explode( ' ', $max_date )[0];
+				}
 				$datepicker_options['maxDate'] = $max_date;
 			}
 		}
@@ -322,19 +332,63 @@ class Filter_DatePicker extends Filter_Element {
 			$datepicker_options['locale'] = $settings['l10n'];
 		}
 
-		$this->set_attribute( '_root', 'data-bricks-datepicker-options', wp_json_encode( $datepicker_options ) );
+		// In filter AJAX call, filterValue is the current filter value, previously use 'value' attribute, now use flatpickr defaultDate
+		if ( isset( $settings['filterValue'] ) && $query_id ) {
+			// Get active filter for this element
+			$active_filter = Query_Filters::get_active_filter_by_element_id( $this->id, $query_id );
 
+			if ( $active_filter && is_array( $active_filter ) && isset( $active_filter['parsed_dates'] ) && ! empty( $active_filter['parsed_dates'] ) ) {
+				$default_date = [];
+				foreach ( $active_filter['parsed_dates'] as $parsed_date ) {
+					// Use the object if it's a valid DateTime object
+					$date_object = $parsed_date['object'] ?? false;
+					if ( $date_object && is_a( $date_object, 'DateTime' ) ) {
+						$default_date[] = $date_object->format( $date_format );
+					}
+				}
+				if ( ! empty( $default_date ) ) {
+					$datepicker_options['defaultDate'] = $default_date;
+				}
+			}
+		}
+
+		// Undocumented filter
+		$datepicker_options = apply_filters( 'bricks/filter-element/datepicker_options', $datepicker_options, $this );
+
+		$this->set_attribute( '_root', 'data-bricks-datepicker-options', wp_json_encode( $datepicker_options ) );
 		$this->set_attribute( '_root', 'name', $this->input_name );
 		$this->set_attribute( '_root', 'placeholder', $placeholder );
 		$this->set_attribute( '_root', 'type', 'text' );
 		$this->set_attribute( '_root', 'autocomplete', 'off' );
 		$this->set_attribute( '_root', 'aria-label', $placeholder );
 
-		// In filter AJAX call, filterValue is the current filter value
-		if ( isset( $settings['filterValue'] ) ) {
-			$this->set_attribute( '_root', 'value', sanitize_text_field( $settings['filterValue'] ) );
+		echo "<input {$this->render_attributes('_root')}>";
+	}
+
+	private function get_date_format() {
+		$settings = $this->settings;
+
+		// User defined date format (@since 1.9.8)
+		$date_format   = $settings['dateFormat'] ?? get_option( 'date_format' );
+		$provider      = $settings['fieldProvider'] ?? 'none';
+		$filter_source = $settings['filterSource'] ?? false;
+
+		// Date format for WP field (@since 1.12)
+		if ( $filter_source === 'wpField' ) {
+			$field_type = $settings['sourceFieldType'] ?? 'post';
+			switch ( $field_type ) {
+				case 'post':
+				case 'user':
+					$date_format = 'Y-m-d';
+					break;
+			}
 		}
 
-		echo "<input {$this->render_attributes('_root')}></input>";
+		if ( isset( $settings['enableTime'] ) ) {
+			$date_format .= ' H:i';
+		}
+
+		// @since 1.11.1
+		return apply_filters( 'bricks/filter_element/datepicker_date_format', $date_format, $provider, $this );
 	}
 }

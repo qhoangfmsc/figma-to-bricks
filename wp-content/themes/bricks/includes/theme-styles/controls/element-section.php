@@ -1,15 +1,6 @@
 <?php
 $controls = [];
 
-// $controls['tag'] = [
-// 'label'          => esc_html__( 'HTML tag', 'bricks' ),
-// 'type'           => 'text',
-// 'lowercase'      => true,
-// 'inline'         => true,
-// 'placeholder'    => 'section',
-// 'hasDynamicData' => false,
-// ];
-
 $controls['_display'] = [
 	'label'       => esc_html__( 'Display', 'bricks' ),
 	'type'        => 'select',

@@ -103,9 +103,23 @@ abstract class Base implements Provider_Interface {
 			return $filters;
 		}
 
-		foreach ( $args as $arg ) {
-			// Trim number of words or avatar size (in px)
-			if ( is_numeric( $arg ) ) {
+		foreach ( $args as $key => $arg ) {
+			/**
+			 * Handle fallback
+			 *
+			 * TEXT: @fallback:'Just some text'
+			 * IMAGE: @fallback-image:123 (Image ID or URL)
+			 * SANITIZE: @sanitize:false (@since 1.11.1)
+			 *
+			 * @since 1.10
+			 */
+			if ( in_array( $key, [ 'fallback', 'fallback-image', 'sanitize' ], true ) ) {
+				$filters[ $key ] = $arg;
+				continue;
+			}
+
+			// Trim number of words or avatar size (in px) && don't accept scientific notation, which include "e" (@since 1.12)
+			if ( is_numeric( $arg ) && strpos( strtolower( $arg ), 'e' ) === false ) {
 				$filters['num_words'] = $arg;
 			}
 
@@ -253,18 +267,49 @@ abstract class Base implements Provider_Interface {
 				// NOTE: Undocumented.
 				$sep = apply_filters( 'bricks/dynamic_data/text_separator', $sep, $tag, $post_id, $filters );
 
-				$value = implode( $sep, $value );
+				$value = Helpers::safe_implode( $sep, $value ); // @since 1.10
 
-				// Skip sanitize if set in filters or if object_type is 'media' (@see #31wetpu)
-				$skip_sanitize = isset( $filters['skip_sanitize'] ) || in_array( $object_type, [ 'media' ] );
+				// Skip sanitize if set in filters or if object_type is 'media' (@see #31wetpu) or if sanitize key-value pair is set to false
+				$skip_sanitize = isset( $filters['skip_sanitize'] ) || in_array( $object_type, [ 'media' ] ) || ( isset( $filters['sanitize'] ) && $filters['sanitize'] === 'false' );
 
 				// Sanitize
 				if ( ! $skip_sanitize ) {
-					add_filter( 'wp_kses_allowed_html', [ $this, 'expand_allowed_html' ], 10, 2 );
+					// @see https://developer.wordpress.org/apis/security/sanitizing/ (@since 1.11.1)
+					$allowed_sanitize = [
+						'sanitize_email',
+						'sanitize_file_name',
+						'sanitize_hex_color',
+						'sanitize_hex_color_no_hash',
+						'sanitize_html_class',
+						'sanitize_key',
+						'sanitize_meta',
+						'sanitize_mime_type',
+						'sanitize_option',
+						'sanitize_sql_orderby',
+						'sanitize_term',
+						'sanitize_term_field',
+						'sanitize_text_field',
+						'sanitize_textarea_field',
+						'sanitize_title',
+						'sanitize_title_for_query',
+						'sanitize_title_with_dashes',
+						'sanitize_user',
+						'sanitize_url',
+						'wp_kses',
+					];
 
-					$value = wp_kses_post( $value );
+					$custom_sanitize = isset( $filters['sanitize'] ) && in_array( $filters['sanitize'], $allowed_sanitize, true ) ? $filters['sanitize'] : false;
 
-					remove_filter( 'wp_kses_allowed_html', [ $this, 'expand_allowed_html' ], 10, 2 );
+					if ( $custom_sanitize ) {
+						$value = call_user_func( $custom_sanitize, $value );
+					} else {
+						add_filter( 'wp_kses_allowed_html', [ $this, 'expand_allowed_html' ], 10, 2 );
+
+						$value = wp_kses_post( $value );
+
+						remove_filter( 'wp_kses_allowed_html', [ $this, 'expand_allowed_html' ], 10, 2 );
+					}
+
 				}
 				break;
 
@@ -273,6 +318,9 @@ abstract class Base implements Provider_Interface {
 				if ( is_array( $value ) ) {
 					$value = current( $value );
 				}
+
+				// Convert null to empty string to avoid PHP errors (@since 1.11.1)
+				$value = is_null( $value ) ? '' : $value;
 
 				$filter_meta_key = isset( $filters['meta_key'] ) ? $filters['meta_key'] : '';
 
@@ -285,9 +333,9 @@ abstract class Base implements Provider_Interface {
 					$value = wp_get_attachment_url( $value );
 				}
 
-				// Link to email (mailto: prefix if 'text' filter not provided)
+				// Link to email via "mailto:" if "text filter not provided and DD tag is not "url_parameter"
 				elseif ( is_email( $value ) ) {
-					$value = $filter_meta_key === 'text' ? trim( $value ) : 'mailto:' . trim( $value );
+					$value = ( $filter_meta_key === 'text' || $tag === 'url_parameter' ) ? trim( $value ) : 'mailto:' . trim( $value );
 				}
 
 				// Create a callable link

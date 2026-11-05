@@ -10,6 +10,7 @@ import carousel from './carousel.mjs';
 import form from './form.mjs';
 import accordion from './accordion.mjs';
 import tabs from './tabs.mjs';
+import tabSwitch from './tab-switch.mjs';
 import link from './link.mjs';
 import semantic from './semantic.mjs';
 import iconList from './icon-list.mjs';
@@ -18,6 +19,7 @@ import counter from './counter.mjs';
 import countdown from './countdown.mjs';
 import tooltipStyle from './tooltip-style.mjs';
 import menu from './menu.mjs';
+import menuSlider from './menu-slider.mjs';
 import readmore from './readmore.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, readmore].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore].map((c) => [c.id, c]));

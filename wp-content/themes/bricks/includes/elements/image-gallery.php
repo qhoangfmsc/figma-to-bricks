@@ -19,7 +19,6 @@ class Element_Image_Gallery extends Element {
 
 		if ( $layout === 'masonry' ) {
 			wp_enqueue_script( 'bricks-isotope' );
-			wp_enqueue_script( 'bricks-imagesloaded' );
 			wp_enqueue_style( 'bricks-isotope' );
 		}
 
@@ -29,6 +28,11 @@ class Element_Image_Gallery extends Element {
 			wp_enqueue_script( 'bricks-photoswipe' );
 			wp_enqueue_script( 'bricks-photoswipe-lightbox' );
 			wp_enqueue_style( 'bricks-photoswipe' );
+
+			// Lightbox caption (@since 1.10)
+			if ( isset( $this->settings['lightboxCaption'] ) ) {
+				wp_enqueue_script( 'bricks-photoswipe-caption' );
+			}
 		}
 	}
 
@@ -37,16 +41,16 @@ class Element_Image_Gallery extends Element {
 		$this->controls['_boxShadow']['css'][0]['selector'] = '.image';
 
 		$this->controls['items'] = [
-			'tab'  => 'content',
-			'type' => 'image-gallery',
+			'tab'   => 'content',
+			'type'  => 'image-gallery',
+			'label' => esc_html__( 'Images', 'bricks' ),
 		];
 
 		// Settings
 
-		$this->controls['settingsSeparator'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Settings', 'bricks' ),
-			'type'  => 'separator',
+		$this->controls['settingsSep'] = [
+			'tab'  => 'content',
+			'type' => 'separator',
 		];
 
 		$this->controls['layout'] = [
@@ -55,12 +59,58 @@ class Element_Image_Gallery extends Element {
 			'type'        => 'select',
 			'options'     => [
 				'grid'    => esc_html__( 'Grid', 'bricks' ),
-				'masonry' => esc_html__( 'Masonry', 'bricks' ),
-				'metro'   => esc_html__( 'Metro', 'bricks' ),
+				'masonry' => 'Masonry',
+				'metro'   => 'Metro',
 			],
 			'placeholder' => esc_html__( 'Grid', 'bricks' ),
 			'inline'      => true,
 			'rerender'    => true,
+		];
+
+		$this->controls['columns'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Columns', 'bricks' ),
+			'type'        => 'number',
+			'min'         => 2,
+			'css'         => [
+				[
+					'property' => '--columns',
+					'selector' => '',
+				],
+			],
+			'rerender'    => true,
+			'placeholder' => 3,
+			'required'    => [ 'layout', '!=', [ 'metro' ] ],
+		];
+
+		$this->controls['gutter'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Spacing', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'css'         => [
+				[
+					'property' => '--gutter',
+					'selector' => '',
+				],
+			],
+			'placeholder' => 0,
+		];
+
+		$this->controls['imageHeight'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Image height', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'css'         => [
+				[
+					'property'  => 'height',
+					'selector'  => '.image',
+					'important' => true,
+				],
+			],
+			'placeholder' => '',
+			'required'    => [ 'layout', '!=', [ 'masonry', 'metro' ] ],
 		];
 
 		$this->control_options['imageRatio']['custom'] = esc_html__( 'Custom', 'bricks' );
@@ -96,50 +146,10 @@ class Element_Image_Gallery extends Element {
 			'required' => [ 'imageRatio', '=', 'custom' ],
 		];
 
-		$this->controls['imageHeight'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Image height', 'bricks' ),
-			'type'        => 'number',
-			'units'       => true,
-			'css'         => [
-				[
-					'property'  => 'height',
-					'selector'  => '.image',
-					'important' => true,
-				],
-			],
-			'placeholder' => '',
-			'required'    => [ 'layout', '!=', [ 'masonry', 'metro' ] ],
-		];
-
-		$this->controls['columns'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Columns', 'bricks' ),
-			'type'        => 'number',
-			'min'         => 2,
-			'css'         => [
-				[
-					'property' => '--columns',
-					'selector' => '',
-				],
-			],
-			'rerender'    => true,
-			'placeholder' => 3,
-			'required'    => [ 'layout', '!=', [ 'metro' ] ],
-		];
-
-		$this->controls['gutter'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Spacing', 'bricks' ),
-			'type'        => 'number',
-			'units'       => true,
-			'css'         => [
-				[
-					'property' => '--gutter',
-					'selector' => '',
-				],
-			],
-			'placeholder' => 0,
+		$this->controls['caption'] = [
+			'tab'   => 'content',
+			'label' => esc_html__( 'Image caption', 'bricks' ),
+			'type'  => 'checkbox',
 		];
 
 		$this->controls['link'] = [
@@ -154,25 +164,6 @@ class Element_Image_Gallery extends Element {
 			],
 			'inline'      => true,
 			'placeholder' => esc_html__( 'None', 'bricks' ),
-		];
-
-		$this->controls['lightboxImageSize'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Lightbox image size', 'bricks' ),
-			'type'        => 'select',
-			'options'     => $this->control_options['imageSizes'],
-			'placeholder' => esc_html__( 'Full', 'bricks' ),
-			'required'    => [ 'link', '=', 'lightbox' ],
-		];
-
-		// @since 1.8.4
-		$this->controls['lightboxAnimationType'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Lightbox animation type', 'bricks' ),
-			'type'        => 'select',
-			'options'     => $this->control_options['lightboxAnimationTypes'],
-			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
-			'required'    => [ 'link', '=', 'lightbox' ],
 		];
 
 		$this->controls['linkCustom'] = [
@@ -193,10 +184,101 @@ class Element_Image_Gallery extends Element {
 			'required'    => [ 'link', '=', 'custom' ],
 		];
 
-		$this->controls['caption'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Caption', 'bricks' ),
-			'type'  => 'checkbox',
+		// LIGHTBOX
+
+		$this->controls['lightboxSep'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Lightbox', 'bricks' ),
+			'type'     => 'separator',
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxImageSize'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Image size', 'bricks' ),
+			'type'        => 'select',
+			'options'     => $this->control_options['imageSizes'],
+			'placeholder' => esc_html__( 'Full', 'bricks' ),
+			'required'    => [ 'link', '=', 'lightbox' ],
+		];
+
+		// https://photoswipe.com/click-and-tap-actions/#supported-action-values
+		$this->controls['lightboxImageClick'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Image click action', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'zoom'            => esc_html__( 'Zoom', 'bricks' ),
+				'zoom-or-close'   => esc_html__( 'Zoom or close', 'bricks' ),
+				'toogle-controls' => esc_html__( 'Toggle controls', 'bricks' ),
+				'next'            => esc_html__( 'Next', 'bricks' ),
+				'close'           => esc_html__( 'Close', 'bricks' ),
+			],
+			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
+			'required'    => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxAnimationType'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Animation', 'bricks' ),
+			'type'        => 'select',
+			'options'     => $this->control_options['lightboxAnimationTypes'],
+			'placeholder' => esc_html__( 'Zoom', 'bricks' ),
+			'required'    => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxCaption'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Caption', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxThumbnails'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Thumbnail navigation', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
+		$this->controls['lightboxThumbnailSize'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Thumbnail size', 'bricks' ),
+			'type'        => 'number',
+			'units'       => true,
+			'placeholder' => 60,
+			'required'    => [
+				[ 'link', '=', 'lightbox' ],
+				[ 'lightboxThumbnails', '=', true ],
+			],
+		];
+
+		$this->controls['lightboxThumbnailInfo'] = [
+			'tab'      => 'content',
+			'content'  => esc_html__( 'We recommend setting a padding for your lightbox to accommodate the thumbnail navigation.', 'bricks' ),
+			'type'     => 'info',
+			'required' => [
+				[ 'link', '=', 'lightbox', ],
+				[ 'lightboxThumbnails', '=', true ],
+				[ 'lightboxPadding', '=', '' ],
+			],
+		];
+
+		$this->controls['lightboxPadding'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Padding', 'bricks' ) . ' (px)',
+			'type'     => 'dimensions',
+			'required' => [ 'link', '=', 'lightbox' ],
+		];
+
+		// Lightbox ID (@since 1.12)
+		$this->controls['lightboxId'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Lightbox', 'bricks' ) . ': ID',
+			'type'        => 'text',
+			'inline'      => true,
+			'required'    => [ 'link', '=', 'lightbox' ],
+			'description' => esc_html__( 'Images of the same lightbox ID are grouped together.', 'bricks' ),
 		];
 	}
 
@@ -279,6 +361,7 @@ class Element_Image_Gallery extends Element {
 		// Set isotopeJS CSS class
 		if ( $layout === 'masonry' ) {
 			$root_classes[] = 'isotope';
+			$root_classes[] = 'isotope-before-init'; // Avoid unstyled content visible (@since 1.12)
 		}
 
 		$this->set_attribute( '_root', 'class', $root_classes );
@@ -288,8 +371,33 @@ class Element_Image_Gallery extends Element {
 		if ( $link_to === 'lightbox' ) {
 			$this->set_attribute( '_root', 'class', 'bricks-lightbox' );
 
+			if ( isset( $settings['lightboxCaption'] ) ) {
+				$this->set_attribute( '_root', 'class', 'has-lightbox-caption' );
+			}
+
+			if ( isset( $settings['lightboxImageClick'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-image-click', esc_attr( $settings['lightboxImageClick'] ) );
+			}
+
 			if ( ! empty( $settings['lightboxAnimationType'] ) ) {
 				$this->set_attribute( '_root', 'data-animation-type', esc_attr( $settings['lightboxAnimationType'] ) );
+			}
+
+			if ( ! empty( $settings['lightboxPadding'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-padding', wp_json_encode( $settings['lightboxPadding'] ) );
+			}
+
+			if ( ! empty( $settings['lightboxThumbnails'] ) ) {
+				$this->set_attribute( '_root', 'class', 'has-lightbox-thumbnails' );
+			}
+
+			if ( ! empty( $settings['lightboxThumbnailSize'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-thumbnail-size', esc_attr( $settings['lightboxThumbnailSize'] ) );
+			}
+
+			// Lightbox ID (@since 1.12)
+			if ( ! empty( $settings['lightboxId'] ) ) {
+				$this->set_attribute( '_root', 'data-lightbox-id', esc_attr( $settings['lightboxId'] ) );
 			}
 		}
 
@@ -365,6 +473,20 @@ class Element_Image_Gallery extends Element {
 				$this->set_attribute( "a-$index", 'data-pswp-src', $lightbox_image[0] );
 				$this->set_attribute( "a-$index", 'data-pswp-width', $lightbox_image[1] );
 				$this->set_attribute( "a-$index", 'data-pswp-height', $lightbox_image[2] );
+				// Commented out to support same lightbox ID for multiple galleries on the same page (@since 1.12)
+				// $this->set_attribute( "a-$index", 'data-pswp-index', $index );
+
+				// Lightbox ID (@since 1.12)
+				if ( ! empty( $settings['lightboxId'] ) ) {
+					$this->set_attribute( "a-$index", 'data-pswp-id', esc_attr( $settings['lightboxId'] ) );
+				}
+
+				// Lightbox caption (@since 1.10)
+				$lightbox_caption = isset( $settings['lightboxCaption'] ) && $image_id ? wp_get_attachment_caption( $image_id ) : false;
+
+				if ( $lightbox_caption ) {
+					$this->set_attribute( "a-$index", 'data-lightbox-caption', $lightbox_caption );
+				}
 
 				echo "<a {$this->render_attributes( "a-$index" )}>";
 			}
@@ -372,7 +494,12 @@ class Element_Image_Gallery extends Element {
 			// STEP: Render image
 			$image_atts = [ 'class' => implode( ' ', $image_classes ) ];
 
-			echo wp_get_attachment_image( $image_id, $size, false, $image_atts );
+			if ( $image_id ) {
+				echo wp_get_attachment_image( $image_id, $size, false, $image_atts );
+			} elseif ( ! empty( $item['url'] ) && isset( $item['isPlaceholder'] ) && $item['isPlaceholder'] ) {
+				// Maybe is a temporary placeholder image in Bricks (@since 1.12.2)
+				echo '<img src="' . esc_url( $item['url'] ) . '" alt="" width="800" height="600" />';
+			}
 
 			if ( $close_a_tag ) {
 				echo '</a>';

@@ -3,7 +3,7 @@ namespace Bricks;
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-class Woocommerce_Products extends Element {
+class Woocommerce_Products extends Custom_Render_Element {
 	public $category     = 'woocommerce';
 	public $name         = 'woocommerce-products';
 	public $icon         = 'ti-archive';
@@ -234,14 +234,21 @@ class Woocommerce_Products extends Element {
 		$settings['query']['post_type']           = [ 'product' ];
 		$settings['query']['ignore_sticky_posts'] = true;
 
-		// @since 1.9.1 - Set is_archive_main_query inside query key so the Query class understands
+		// Set is_archive_main_query inside query key so the Query class understands (@since 1.9.1)
 		if ( isset( $settings['is_archive_main_query'] ) ) {
 			$settings['query']['is_archive_main_query'] = true;
 		}
 
+		// Use new woo_disable_query_merge to avoid complicated query merging issue (@since 1.9.9)
+		if ( isset( $settings['woo_disable_query_merge'] ) ) {
+			$settings['query']['woo_disable_query_merge'] = true;
+		}
+
+		// Need to indicate the name for WooCommerce Product and it will be used in WooCommerce_Helpers::filters_query_args() (@since 1.12)
 		$query_object = new Query(
 			[
 				'id'       => $this->id,
+				'name'     => $this->name,
 				'settings' => $settings,
 			]
 		);
@@ -274,6 +281,10 @@ class Woocommerce_Products extends Element {
 				'current_page' => (int) max( 1, $query->get( 'paged', 1 ) ),
 			]
 		);
+
+		// Set $bricks_query (@since 1.10.2)
+		$this->set_bricks_query( $query_object );
+		$this->start_iteration();
 
 		echo "<div {$this->render_attributes( '_root' )}>";
 
@@ -311,6 +322,9 @@ class Woocommerce_Products extends Element {
 
 				$post = get_post();
 
+				// (@since 1.10.2)
+				$this->set_loop_object( $post );
+
 				$item_classes = [ 'repeater-item' ];
 
 				// Populate standard WooCommerce product loop item classes
@@ -324,14 +338,16 @@ class Woocommerce_Products extends Element {
 				$item_classes = [];
 
 				$post_index++;
+
+				// (@since 1.10.2)
+				$this->next_iteration();
 			}
 
 			wp_reset_postdata();
 		}
 
-		if ( $query_object ) {
-			$query_object->destroy();
-		}
+		// (@since 1.10.2)
+		$this->end_iteration();
 
 		// @see: woocommerce_product_loop_end();
 		echo '</ul>';
@@ -369,5 +385,4 @@ class Woocommerce_Products extends Element {
 
 		echo '</li>';
 	}
-
 }

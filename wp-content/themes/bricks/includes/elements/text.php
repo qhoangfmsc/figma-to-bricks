@@ -31,13 +31,11 @@ class Element_Text extends Element {
 		];
 
 		$this->controls['text'] = [
-			'tab'     => 'content',
 			'type'    => 'editor',
 			'default' => '<p>' . esc_html__( 'Here goes your text ... Select any part of your text to access the formatting toolbar.', 'bricks' ) . '</p>',
 		];
 
 		$this->controls['type'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Type', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [
@@ -50,7 +48,6 @@ class Element_Text extends Element {
 		];
 
 		$this->controls['style'] = [
-			'tab'         => 'content',
 			'label'       => esc_html__( 'Style', 'bricks' ),
 			'type'        => 'select',
 			'options'     => $this->control_options['styles'],
@@ -60,14 +57,12 @@ class Element_Text extends Element {
 		];
 
 		$this->controls['wordsLimit'] = [
-			'tab'   => 'content',
 			'label' => esc_html__( 'Words limit', 'bricks' ),
 			'type'  => 'number',
 			'min'   => 1,
 		];
 
 		$this->controls['readMore'] = [
-			'tab'            => 'content',
 			'label'          => esc_html__( 'Read more', 'bricks' ),
 			'type'           => 'text',
 			'inline'         => true,

@@ -22,6 +22,17 @@ $controls['typography'] = [
 	],
 ];
 
+$controls['border'] = [
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'type'  => 'border',
+	'css'   => [
+		[
+			'property' => 'border',
+			'selector' => '',
+		],
+	],
+];
+
 // Info
 
 $controls['infoSeparator'] = [
@@ -206,6 +217,17 @@ $controls['mutedBackground'] = [
 	'css'   => [
 		[
 			'property' => 'background-color',
+			'selector' => '&.muted',
+		],
+	],
+];
+
+$controls['mutedBorder'] = [
+	'label' => esc_html__( 'Border', 'bricks' ),
+	'type'  => 'border',
+	'css'   => [
+		[
+			'property' => 'border',
 			'selector' => '&.muted',
 		],
 	],

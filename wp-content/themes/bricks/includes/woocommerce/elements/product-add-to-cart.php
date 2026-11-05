@@ -8,6 +8,12 @@ class Product_Add_To_Cart extends Element {
 	public $name     = 'product-add-to-cart';
 	public $icon     = 'ti-shopping-cart';
 
+	public function enqueue_scripts() {
+		// Ensure variation form in AJAX Popup can init (@since 1.10.2)
+		wp_enqueue_script( 'wc-add-to-cart' );
+		wp_enqueue_script( 'wc-add-to-cart-variation' );
+	}
+
 	public function get_label() {
 		return esc_html__( 'Add to cart', 'bricks' );
 	}
@@ -20,6 +26,11 @@ class Product_Add_To_Cart extends Element {
 
 		$this->control_groups['stock'] = [
 			'title' => esc_html__( 'Stock', 'bricks' ),
+			'tab'   => 'content',
+		];
+
+		$this->control_groups['form'] = [
+			'title' => esc_html__( 'Form', 'bricks' ),
 			'tab'   => 'content',
 		];
 
@@ -81,7 +92,7 @@ class Product_Add_To_Cart extends Element {
 			'css'   => [
 				[
 					'property' => 'border',
-					'selector' => '.cart .variations tr',
+					'selector' => '.cart .variations tr:not(:has(.reset_variations))',
 				]
 			],
 		];
@@ -145,6 +156,32 @@ class Product_Add_To_Cart extends Element {
 			],
 		];
 
+		$this->controls['variationsRegularPriceTypography'] = [
+			'tab'   => 'content',
+			'group' => 'variations',
+			'label' => esc_html__( 'Regular price typography', 'bricks' ),
+			'type'  => 'typography',
+			'css'   => [
+				[
+					'selector' => '.woocommerce-variation-price .price del, .woocommerce-variation-price .price > span',
+					'property' => 'font',
+				],
+			],
+		];
+
+		$this->controls['variationsSalePriceTypography'] = [
+			'tab'   => 'content',
+			'group' => 'variations',
+			'label' => esc_html__( 'Sale price typography', 'bricks' ),
+			'type'  => 'typography',
+			'css'   => [
+				[
+					'selector' => '.woocommerce-variation-price .price ins',
+					'property' => 'font',
+				],
+			],
+		];
+
 		// STOCK
 
 		// NOTE: Stock settings not applicable in query loop (@since 1.6 @see #33v4yb9)
@@ -175,6 +212,186 @@ class Product_Add_To_Cart extends Element {
 				],
 			],
 			'required' => [ 'hideStock', '=', '' ]
+		];
+
+		// FORM (@since 1.12.2)
+		$this->controls['formInfo'] = [
+			'tab'     => 'content',
+			'group'   => 'form',
+			'type'    => 'info',
+			'content' => esc_html__( 'Only applicable if the add to cart display as form (e.g. on single product page).', 'bricks' ),
+		];
+
+		$this->controls['formDisplay'] = [
+			'tab'       => 'content',
+			'group'     => 'form',
+			'type'      => 'select',
+			'label'     => esc_html__( 'Display', 'bricks' ),
+			'type'      => 'select',
+			'options'   => [
+				'flex'         => 'flex',
+				'inline-flex'  => 'inline-flex',
+				'block'        => 'block',
+				'inline-block' => 'inline-block',
+				'inline'       => 'inline',
+				'none'         => 'none',
+			],
+			'add'       => true,
+			'inline'    => true,
+			'lowercase' => true,
+			'css'       => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'display',
+				],
+			],
+		];
+
+		$this->controls['formFlexDirection'] = [
+			'tab'      => 'content',
+			'group'    => 'form',
+			'label'    => esc_html__( 'Direction', 'bricks' ),
+			'tooltip'  => [
+				'content'  => 'flex-direction',
+				'position' => 'top-left',
+			],
+			'type'     => 'direction',
+			'css'      => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'flex-direction',
+				],
+			],
+			'inline'   => true,
+			'rerender' => true,
+			'required' => [ 'formDisplay', '=', 'flex' ],
+		];
+
+		$this->controls['formAlignSelf'] = [
+			'tab'     => 'content',
+			'group'   => 'form',
+			'label'   => esc_html__( 'Align self', 'bricks' ),
+			'type'    => 'align-items',
+			'tooltip' => [
+				'content'  => 'align-self',
+				'position' => 'top-left',
+			],
+			'css'     => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'align-self',
+				],
+			],
+		];
+
+		$this->controls['formJustifyContent'] = [
+			'tab'      => 'content',
+			'group'    => 'form',
+			'label'    => esc_html__( 'Align main axis', 'bricks' ),
+			'tooltip'  => [
+				'content'  => 'justify-content',
+				'position' => 'top-left',
+			],
+			'type'     => 'justify-content',
+			'css'      => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'justify-content',
+				],
+			],
+			'required' => [ 'formDisplay', '=', [ 'flex', 'inline-flex' ] ],
+		];
+
+		$this->controls['formAlignItems'] = [
+			'tab'      => 'content',
+			'group'    => 'form',
+			'label'    => esc_html__( 'Align cross axis', 'bricks' ),
+			'tooltip'  => [
+				'content'  => 'align-items',
+				'position' => 'top-left',
+			],
+			'type'     => 'align-items',
+			'css'      => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'align-items',
+				],
+			],
+			'required' => [ 'formDisplay', '=', [ 'flex', 'inline-flex' ] ],
+		];
+
+		$this->controls['formGap'] = [
+			'tab'      => 'content',
+			'group'    => 'form',
+			'label'    => esc_html__( 'Gap', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'css'      => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'gap',
+				],
+			],
+			'required' => [ 'formDisplay', '=', [ 'flex', 'inline-flex' ] ],
+		];
+
+		$this->controls['formFlexGrow'] = [
+			'tab'         => 'content',
+			'group'       => 'form',
+			'label'       => esc_html__( 'Flex grow', 'bricks' ),
+			'type'        => 'number',
+			'tooltip'     => [
+				'content'  => 'flex-grow',
+				'position' => 'top-left',
+			],
+			'css'         => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'flex-grow',
+				],
+			],
+			'min'         => 0,
+			'placeholder' => 0,
+		];
+
+		$this->controls['formFlexShrink'] = [
+			'tab'         => 'content',
+			'group'       => 'form',
+			'label'       => esc_html__( 'Flex shrink', 'bricks' ),
+			'type'        => 'number',
+			'tooltip'     => [
+				'content'  => 'flex-shrink',
+				'position' => 'top-left',
+			],
+			'css'         => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'flex-shrink',
+				],
+			],
+			'min'         => 0,
+			'placeholder' => 1,
+		];
+
+		$this->controls['formFlexBasis'] = [
+			'tab'            => 'content',
+			'group'          => 'form',
+			'label'          => esc_html__( 'Flex basis', 'bricks' ),
+			'type'           => 'text',
+			'tooltip'        => [
+				'content'  => 'flex-basis',
+				'position' => 'top-left',
+			],
+			'css'            => [
+				[
+					'selector' => 'form.cart:not(.variations_form), form.cart.variations_form .woocommerce-variation-add-to-cart',
+					'property' => 'flex-basis',
+				],
+			],
+			'inline'         => true,
+			'hasDynamicData' => false,
+			'hasVariables'   => true,
+			'placeholder'    => 'auto',
 		];
 
 		// QUANTITY
@@ -267,6 +484,19 @@ class Product_Add_To_Cart extends Element {
 			'placeholder' => esc_html__( 'Buy product', 'bricks' ),
 		];
 
+		$this->controls['buttonMargin'] = [
+			'tab'   => 'content',
+			'group' => 'button',
+			'label' => esc_html__( 'Margin', 'bricks' ),
+			'type'  => 'spacing',
+			'css'   => [
+				[
+					'selector' => '.cart .single_add_to_cart_button, a.button[data-product_id]',
+					'property' => 'margin',
+				],
+			],
+		];
+
 		$this->controls['buttonPadding'] = [
 			'tab'   => 'content',
 			'group' => 'button',
@@ -356,6 +586,16 @@ class Product_Add_To_Cart extends Element {
 			],
 		];
 
+		$this->controls['iconOnly'] = [
+			'tab'         => 'content',
+			'group'       => 'button',
+			'label'       => esc_html__( 'Icon only', 'bricks' ),
+			'type'        => 'checkbox',
+			'inline'      => true,
+			'placeholder' => esc_html__( 'Yes', 'bricks' ),
+			'required'    => [ 'icon', '!=', '' ],
+		];
+
 		$this->controls['iconPosition'] = [
 			'tab'         => 'content',
 			'group'       => 'button',
@@ -364,7 +604,10 @@ class Product_Add_To_Cart extends Element {
 			'options'     => $this->control_options['iconPosition'],
 			'inline'      => true,
 			'placeholder' => esc_html__( 'Left', 'bricks' ),
-			'required'    => [ 'icon', '!=', '' ],
+			'required'    => [
+				[ 'icon', '!=', '' ],
+				[ 'iconOnly', '=', '' ],
+			],
 		];
 
 		// AJAX add to cart
@@ -404,6 +647,16 @@ class Product_Add_To_Cart extends Element {
 				'rerender' => true,
 			];
 
+			$this->controls['addingButtonIconOnly'] = [
+				'tab'         => 'content',
+				'group'       => 'ajax',
+				'label'       => esc_html__( 'Icon only', 'bricks' ),
+				'type'        => 'checkbox',
+				'inline'      => true,
+				'placeholder' => esc_html__( 'Yes', 'bricks' ),
+				'required'    => [ 'addingButtonIcon', '!=', '' ],
+			];
+
 			$this->controls['addingButtonIconPosition'] = [
 				'tab'         => 'content',
 				'group'       => 'ajax',
@@ -412,7 +665,10 @@ class Product_Add_To_Cart extends Element {
 				'options'     => $this->control_options['iconPosition'],
 				'inline'      => true,
 				'placeholder' => esc_html__( 'Left', 'bricks' ),
-				'required'    => [ 'addingButtonIcon', '!=', '' ],
+				'required'    => [
+					[ 'addingButtonIcon', '!=', '' ],
+					[ 'addingButtonIconOnly', '=', '' ]
+				],
 			];
 
 			$this->controls['addingButtonIconSpinning'] = [
@@ -445,7 +701,6 @@ class Product_Add_To_Cart extends Element {
 				'tab'         => 'content',
 				'group'       => 'ajax',
 				'type'        => 'number',
-				'large'       => true,
 				'label'       => esc_html__( 'Reset text after .. seconds', 'bricks' ),
 				'inline'      => true,
 				'placeholder' => 3,
@@ -459,6 +714,16 @@ class Product_Add_To_Cart extends Element {
 				'rerender' => true,
 			];
 
+			$this->controls['addedButtonIconOnly'] = [
+				'tab'         => 'content',
+				'group'       => 'ajax',
+				'label'       => esc_html__( 'Icon only', 'bricks' ),
+				'type'        => 'checkbox',
+				'inline'      => true,
+				'placeholder' => esc_html__( 'Yes', 'bricks' ),
+				'required'    => [ 'addedButtonIcon', '!=', '' ],
+			];
+
 			$this->controls['addedButtonIconPosition'] = [
 				'tab'         => 'content',
 				'group'       => 'ajax',
@@ -467,7 +732,10 @@ class Product_Add_To_Cart extends Element {
 				'options'     => $this->control_options['iconPosition'],
 				'inline'      => true,
 				'placeholder' => esc_html__( 'Left', 'bricks' ),
-				'required'    => [ 'addedButtonIcon', '!=', '' ],
+				'required'    => [
+					[ 'addedButtonIcon', '!=', '' ],
+					[ 'addedButtonIconOnly', '=', '' ],
+				],
 			];
 
 			// Show notice after added (@since 1.9)
@@ -506,7 +774,7 @@ class Product_Add_To_Cart extends Element {
 				'label'       => esc_html__( 'Hide "View cart" button', 'bricks' ),
 				'type'        => 'select',
 				'inline'      => true,
-				'placeholder' => esc_html__( 'No', 'bricks' ),
+				'placeholder' => isset( Database::$global_settings['woocommerceAjaxHideViewCart'] ) ? esc_html__( 'Yes', 'bricks' ) : esc_html__( 'No', 'bricks' ),
 				'options'     => [
 					'inline-flex' => esc_html__( 'No', 'bricks' ), // Default .add_to_cart button display is inline-flex
 					'none'        => esc_html__( 'Yes', 'bricks' ),
@@ -537,6 +805,16 @@ class Product_Add_To_Cart extends Element {
 			);
 		}
 
+		// Return: Product is out of stock and "Hide stock" is enabled (@since 1.12)
+		if ( isset( $settings['hideStock'] ) && ! $product->is_in_stock() ) {
+			return $this->render_element_placeholder(
+				[
+					'title'       => esc_html__( 'Product is out of stock.', 'bricks' ),
+					'description' => esc_html__( 'Go to: WooCommerce > Products > Inventory', 'bricks' ),
+				]
+			);
+		}
+
 		$this->maybe_set_ajax_add_to_cart_data_attribute();
 
 		add_filter( 'woocommerce_product_single_add_to_cart_text', [ $this, 'add_to_cart_text' ], 10, 2 );
@@ -545,7 +823,10 @@ class Product_Add_To_Cart extends Element {
 
 		echo "<div {$this->render_attributes( '_root' )}>";
 
-		if ( Query::is_looping() ) {
+		// In AJAX Popup, is_looping() is always true, but we want to show the single add to cart button (@since 1.10.2)
+		$is_single_product_in_ajax_popup = Api::is_current_endpoint( 'load_popup_content' ) && (int) get_queried_object_id() === (int) $this->post_id;
+
+		if ( Query::is_looping() && ! $is_single_product_in_ajax_popup ) {
 			woocommerce_template_loop_add_to_cart();
 		} else {
 			woocommerce_template_single_add_to_cart();
@@ -588,17 +869,24 @@ class Product_Add_To_Cart extends Element {
 
 		$icon          = ! empty( $settings['icon'] ) ? self::render_icon( $settings['icon'], [ 'icon' ] ) : false;
 		$icon_position = isset( $settings['iconPosition'] ) ? $settings['iconPosition'] : 'left';
+		$icon_only     = isset( $settings['iconOnly'] );
 
+		// Build HTML
 		$output = '';
 
-		if ( $icon && $icon_position === 'left' ) {
-			$output .= $icon;
-		}
+		if ( $icon_only && $icon ) {
+			// Icon only (@since 1.12.2)
+			$output = $icon;
+		} else {
+			if ( $icon && $icon_position === 'left' ) {
+				$output .= $icon;
+			}
 
-		$output .= "<span>$text</span>";
+			$output .= "<span>$text</span>";
 
-		if ( $icon && $icon_position === 'right' ) {
-			$output .= $icon;
+			if ( $icon && $icon_position === 'right' ) {
+				$output .= $icon;
+			}
 		}
 
 		return $output;
@@ -639,17 +927,24 @@ class Product_Add_To_Cart extends Element {
 			$icon_classes             = isset( $settings[ $state . 'ButtonIconSpinning' ] ) ? [ 'icon', 'spinning' ] : [ 'icon' ];
 			$icon                     = isset( $settings[ $state . 'ButtonIcon' ] ) ? self::render_icon( $settings[ $state . 'ButtonIcon' ], $icon_classes ) : $default_icon;
 			$icon_position            = isset( $settings[ $state . 'ButtonIconPosition' ] ) ? $settings[ $state . 'ButtonIconPosition' ] : $default_icon_position;
+			$icon_only                = isset( $settings[ $state . 'ButtonIconOnly' ] );
 
+			// Build HTML
 			$output = '';
 
-			if ( $icon && $icon_position === 'left' ) {
-				$output .= $icon;
-			}
+			if ( $icon_only && $icon ) {
+				// Icon only (@since 1.12.2)
+				$output = $icon;
+			} else {
+				if ( $icon && $icon_position === 'left' ) {
+					$output .= $icon;
+				}
 
-			$output .= "<span>$state_text</span>";
+				$output .= "<span>$state_text</span>";
 
-			if ( $icon && $icon_position === 'right' ) {
-				$output .= $icon;
+				if ( $icon && $icon_position === 'right' ) {
+					$output .= $icon;
+				}
 			}
 
 			$ajax_add_to_cart_data[ $state . 'HTML' ] = $output;

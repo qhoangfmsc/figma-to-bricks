@@ -4,9 +4,11 @@ namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 class Filter_Search extends Filter_Element {
-	public $name        = 'filter-search';
-	public $icon        = 'ti-search';
-	public $filter_type = 'search';
+	public $name           = 'filter-search';
+	public $icon           = 'ti-search';
+	public $filter_type    = 'search';
+	public $css_selector   = 'input';
+	private $current_value = '';
 
 	public function get_label() {
 		return esc_html__( 'Filter', 'bricks' ) . ' - ' . esc_html__( 'Search', 'bricks' );
@@ -52,7 +54,43 @@ class Filter_Search extends Filter_Element {
 			'css'   => [
 				[
 					'property' => 'font',
-					'selector' => '&::placeholder',
+					'selector' => 'input::placeholder',
+				],
+			],
+		];
+
+		// Icon (Clear)
+		$this->controls['iconSep'] = [
+			'label' => esc_html__( 'Icon', 'bricks' ) . ' ( ' . esc_html__( 'Clear', 'bricks' ) . ')',
+			'type'  => 'separator',
+		];
+
+		$this->controls['icon'] = [
+			'label' => esc_html__( 'Icon', 'bricks' ),
+			'type'  => 'icon',
+		];
+
+		$this->controls['iconColor'] = [
+			'label'    => esc_html__( 'Icon color', 'bricks' ),
+			'type'     => 'color',
+			'required' => [ 'icon', '!=', '' ],
+			'css'      => [
+				[
+					'selector' => '.icon',
+					'property' => 'color',
+				],
+			],
+		];
+
+		$this->controls['iconSize'] = [
+			'label'    => esc_html__( 'Icon size', 'bricks' ),
+			'type'     => 'number',
+			'units'    => true,
+			'required' => [ 'icon', '!=', '' ],
+			'css'      => [
+				[
+					'selector' => '.icon',
+					'property' => 'font-size',
 				],
 			],
 		];
@@ -62,8 +100,8 @@ class Filter_Search extends Filter_Element {
 		$settings = $this->settings;
 
 		// In filter AJAX call: filterValue is the current filter value
-		$current_value = $settings['filterValue'] ?? '';
-		$this->set_attribute( '_root', 'value', $current_value );
+		$this->current_value = $settings['filterValue'] ?? '';
+		$this->set_attribute( 'input', 'value', $this->current_value );
 
 		// Insert filter settings as data-brx-filter attribute
 		$filter_settings = $this->get_common_filter_settings();
@@ -71,26 +109,56 @@ class Filter_Search extends Filter_Element {
 		// min chars
 		$filter_settings['filterMinChars'] = $settings['filterMinChars'] ?? 3;
 
-		$this->set_attribute( '_root', 'data-brx-filter', wp_json_encode( $filter_settings ) );
+		$this->set_attribute( 'input', 'data-brx-filter', wp_json_encode( $filter_settings ) );
 
-		$this->input_name = 's'; // For search query arg
+		// Not necessary anymore in Query Filter phase 2
+		// $this->input_name = 's'; // For search query arg
 	}
 
 	public function render() {
-		$this->input_name = $this->settings['name'] ?? "form-field-{$this->id}";
-		$placeholder      = ! empty( $this->settings['placeholder'] ) ? $this->render_dynamic_data( $this->settings['placeholder'] ) : esc_html__( 'Search', 'bricks' );
+		$settings         = $this->settings;
+		$placeholder      = ! empty( $settings['placeholder'] ) ? $this->render_dynamic_data( $settings['placeholder'] ) : esc_html__( 'Search', 'bricks' );
+		$icon             = $settings['icon'] ?? false;
+		$this->input_name = $settings['name'] ?? "form-field-{$this->id}";
 
 		if ( $this->is_filter_input() ) {
 			$this->set_as_filter();
 		}
 
-		$this->set_attribute( '_root', 'name', $this->input_name );
-		$this->set_attribute( '_root', 'placeholder', $placeholder );
-		$this->set_attribute( '_root', 'aria-label', $placeholder );
-		$this->set_attribute( '_root', 'type', 'search' );
-		$this->set_attribute( '_root', 'autocomplete', 'off' );
-		$this->set_attribute( '_root', 'spellcheck', 'false' );
+		$this->set_attribute( 'input', 'name', $this->input_name );
+		$this->set_attribute( 'input', 'placeholder', $placeholder );
+		$this->set_attribute( 'input', 'aria-label', $placeholder );
+		$this->set_attribute( 'input', 'type', 'search' );
+		$this->set_attribute( 'input', 'autocomplete', 'off' );
+		$this->set_attribute( 'input', 'spellcheck', 'false' );
 
-		echo "<input {$this->render_attributes('_root')}></input>";
+		echo "<div {$this->render_attributes('_root')}>";
+
+		echo "<input {$this->render_attributes('input')}>";
+
+		if ( $icon ) {
+			$classes = [ 'icon' ];
+
+			// Show the icon if the value is not empty or in the builder
+			if ( $this->current_value !== '' || bricks_is_builder() || bricks_is_builder_call() ) {
+				$classes[] = 'brx-show';
+			}
+
+			$icon = self::render_icon(
+				$icon,
+				[
+					'aria-label' => esc_html__( 'Clear', 'bricks' ),
+					'class'      => $classes,
+					'role'       => 'button',
+					'tabindex'   => 0,
+				]
+			);
+
+			if ( $icon ) {
+				echo $icon;
+			}
+		}
+
+		echo '</div>';
 	}
 }

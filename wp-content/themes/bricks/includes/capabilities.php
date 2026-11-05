@@ -25,17 +25,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - Edit any page settings except 'SEO' (default panel)
  */
 class Capabilities {
-	const FULL_ACCESS        = 'bricks_full_access';
-	const EDIT_CONTENT       = 'bricks_edit_content';
-	const UPLOAD_SVG         = 'bricks_upload_svg';
-	const EXECUTE_CODE       = 'bricks_execute_code';
-	const BYPASS_MAINTENANCE = 'bricks_bypass_maintenance';
+	const FULL_ACCESS            = 'bricks_full_access';
+	const EDIT_CONTENT           = 'bricks_edit_content';
+	const UPLOAD_SVG             = 'bricks_upload_svg';
+	const EXECUTE_CODE           = 'bricks_execute_code';
+	const BYPASS_MAINTENANCE     = 'bricks_bypass_maintenance';
+	const FORM_SUBMISSION_ACCESS = 'bricks_form_submission_access'; // @since 1.11
 
 	// Allow to disable for individual user (@since 1.6)
-	const NO_ACCESS              = 'bricks_no_access';
-	const UPLOAD_SVG_OFF         = 'bricks_upload_svg_off';
-	const EXECUTE_CODE_OFF       = 'bricks_execute_code_off';
-	const BYPASS_MAINTENANCE_OFF = 'bricks_bypass_maintenance_off';
+	const NO_ACCESS                  = 'bricks_no_access';
+	const UPLOAD_SVG_OFF             = 'bricks_upload_svg_off';
+	const EXECUTE_CODE_OFF           = 'bricks_execute_code_off';
+	const BYPASS_MAINTENANCE_OFF     = 'bricks_bypass_maintenance_off';
+	const FORM_SUBMISSION_ACCESS_OFF = 'bricks_form_submission_access_off'; // @since 1.11
 
 	// To run set_user_capabilities only once
 	public static $capabilities_set = false;
@@ -52,6 +54,9 @@ class Capabilities {
 	// Bypass maintenance mode (default: false)
 	public static $bypass_maintenance = false;
 
+	// Default values for the new capability (default: false) (@since 1.11)
+	public static $form_submission_access = false;
+
 	public function __construct() {
 		add_action( 'init', [ $this, 'set_user_capabilities' ] );
 		add_action( 'edit_user_profile', [ $this, 'user_profile' ] );
@@ -67,6 +72,8 @@ class Capabilities {
 	 * - builder access
 	 * - upload svg
 	 * - exectute code
+	 * - bypass maintenance (@since 1.9.4)
+	 * - form submission access (@since 1.11)
 	 *
 	 * @since 1.6
 	 */
@@ -178,6 +185,27 @@ class Capabilities {
 			self::$bypass_maintenance = true;
 		}
 
+		// STEP: Form submission access (@since 1.11)
+
+		// Current user
+		if ( in_array( self::FORM_SUBMISSION_ACCESS, $user_can ) ) {
+			self::$form_submission_access = true;
+		} elseif ( in_array( self::FORM_SUBMISSION_ACCESS_OFF, $user_can ) ) {
+			self::$form_submission_access = false;
+		}
+
+		// User role
+		elseif ( in_array( self::FORM_SUBMISSION_ACCESS, $role_can ) ) {
+			self::$form_submission_access = true;
+		} elseif ( in_array( self::FORM_SUBMISSION_ACCESS_OFF, $role_can ) ) {
+			self::$form_submission_access = false;
+		}
+
+		// Allow form submission access for administrators by default
+		elseif ( ( is_multisite() && is_super_admin( $user->ID ?? 0 ) ) || in_array( 'manage_options', $role_can ) ) {
+			self::$form_submission_access = true;
+		}
+
 		// To run logic above only once
 		self::$capabilities_set = true;
 	}
@@ -282,6 +310,20 @@ class Capabilities {
 			$output[] = esc_html__( 'Bypass maintenance', 'bricks' );
 		}
 
+		// STEP: Form submission access (@since 1.11)
+
+		// Current user
+		if ( in_array( self::FORM_SUBMISSION_ACCESS, $user_can ) ) {
+			$output[] = esc_html__( 'Form submission access', 'bricks' );
+		} elseif ( in_array( self::FORM_SUBMISSION_ACCESS_OFF, $user_can ) ) {
+		}
+
+		// User role
+		elseif ( in_array( self::FORM_SUBMISSION_ACCESS, $role_can ) ) {
+			$output[] = esc_html__( 'Form submission access', 'bricks' );
+		} elseif ( in_array( self::FORM_SUBMISSION_ACCESS_OFF, $role_can ) ) {
+		}
+
 		return implode( ', ', $output );
 	}
 
@@ -296,8 +338,13 @@ class Capabilities {
 			return false;
 		}
 
+		// Return: User can not edit this post (@since 1.9.9)
+		if ( $post_id && ! current_user_can( 'edit_post', $post_id ) ) {
+			return false;
+		}
+
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		// Full access OR Edit content
@@ -315,7 +362,7 @@ class Capabilities {
 	 */
 	public static function current_user_has_full_access() {
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		return self::$full_access;
@@ -329,7 +376,7 @@ class Capabilities {
 	 */
 	public static function current_user_has_no_access() {
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		// No full access nor edit content
@@ -346,7 +393,7 @@ class Capabilities {
 	 */
 	public static function current_user_can_upload_svg() {
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		return self::$upload_svg;
@@ -367,7 +414,7 @@ class Capabilities {
 		}
 
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		return self::$execute_code;
@@ -383,10 +430,26 @@ class Capabilities {
 	 */
 	public static function current_user_can_bypass_maintenance_mode() {
 		if ( ! self::$capabilities_set ) {
-			$set = self::set_user_capabilities();
+			self::set_user_capabilities();
 		}
 
 		return self::$bypass_maintenance;
+	}
+
+	/**
+	 * Logged-in user can access form submissions
+	 *
+	 * current_user_can not working on multisite for super admin.
+	 *
+	 * @return boolean
+	 * @since 1.11
+	 */
+	public static function current_user_can_form_submission_access() {
+		if ( ! self::$capabilities_set ) {
+			self::set_user_capabilities();
+		}
+
+		return self::$form_submission_access;
 	}
 
 	/**
@@ -400,9 +463,11 @@ class Capabilities {
 			self::UPLOAD_SVG,
 			self::EXECUTE_CODE,
 			self::BYPASS_MAINTENANCE,
+			self::FORM_SUBMISSION_ACCESS,
 			self::UPLOAD_SVG_OFF,
 			self::EXECUTE_CODE_OFF,
 			self::BYPASS_MAINTENANCE_OFF,
+			self::FORM_SUBMISSION_ACCESS_OFF,
 		];
 
 		$roles = wp_roles()->get_names();
@@ -414,9 +479,10 @@ class Capabilities {
 			}
 		}
 
-		// Set defaults: Administrator always has full access to Bricks
+		// Set defaults: Administrator always has full access to Bricks, bypass maintenance, and form submission access
 		wp_roles()->add_cap( 'administrator', self::FULL_ACCESS );
 		wp_roles()->add_cap( 'administrator', self::BYPASS_MAINTENANCE );
+		wp_roles()->add_cap( 'administrator', self::FORM_SUBMISSION_ACCESS ); // @since 1.11
 	}
 
 	/**
@@ -484,6 +550,7 @@ class Capabilities {
 	 * - bricks_cap_upload_svg
 	 * - bricks_cap_execute_code
 	 * - bricks_cap_bypass_maintenance (@since 1.9.4)
+	 * - bricks_cap_form_submission_access (@since 1.11)
 	 */
 	public function update_user_profile( $user_id ) {
 		// Exit if the current user does not have manage_options capability
@@ -524,6 +591,14 @@ class Capabilities {
 
 		if ( ! empty( $_POST['bricks_cap_bypass_maintenance'] ) ) {
 			$user->add_cap( sanitize_text_field( $_POST['bricks_cap_bypass_maintenance'] ) );
+		}
+
+		// Set form submission access capability (@since 1.11)
+		$user->remove_cap( self::FORM_SUBMISSION_ACCESS );
+		$user->remove_cap( self::FORM_SUBMISSION_ACCESS_OFF );
+
+		if ( ! empty( $_POST['bricks_cap_form_submission_access'] ) ) {
+			$user->add_cap( sanitize_text_field( $_POST['bricks_cap_form_submission_access'] ) );
 		}
 	}
 
@@ -576,6 +651,13 @@ class Capabilities {
 			$role_can_bypass_maintenance = esc_html__( 'Enabled', 'bricks' ) . ' (' . esc_html__( 'Settings', 'bricks' ) . ')';
 		}
 
+		// STEP: Form submission access
+		$role_can_form_submission_access = esc_html__( 'Disabled', 'bricks' ) . ' (' . esc_html__( 'Default', 'bricks' ) . ')';
+
+		if ( in_array( self::FORM_SUBMISSION_ACCESS, $role_can ) ) {
+			$role_can_form_submission_access = esc_html__( 'Enabled', 'bricks' ) . ' (' . esc_html__( 'Settings', 'bricks' ) . ')';
+		}
+
 		echo '<h2>' . BRICKS_NAME . '</h2>';
 		?>
 		<table class="form-table">
@@ -626,6 +708,17 @@ class Capabilities {
 						<option value=""><?php echo esc_html( $role_can_bypass_maintenance ); ?></option>
 						<option value="<?php echo esc_attr( self::BYPASS_MAINTENANCE ); ?>" <?php selected( in_array( self::BYPASS_MAINTENANCE, $user_can, true ) ); ?>><?php esc_html_e( 'Enabled', 'bricks' ); ?></option>
 						<option value="<?php echo esc_attr( self::BYPASS_MAINTENANCE_OFF ); ?>" <?php selected( in_array( self::BYPASS_MAINTENANCE_OFF, $user_can, true ) ); ?>><?php esc_html_e( 'Disabled', 'bricks' ); ?></option>
+					</select>
+				</td>
+			</tr>
+
+			<tr>
+				<th><label for="bricks_cap_form_submission_access"><?php esc_html_e( 'Form submission access', 'bricks' ); ?></label></th>
+				<td>
+					<select name="bricks_cap_form_submission_access" id="bricks_cap_form_submission_access">
+						<option value=""><?php echo $role_can_form_submission_access; ?></option>
+						<option value="<?php echo self::FORM_SUBMISSION_ACCESS; ?>" <?php selected( in_array( self::FORM_SUBMISSION_ACCESS, $user_can ) ); ?>><?php esc_html_e( 'Enabled', 'bricks' ); ?></option>
+						<option value="<?php echo self::FORM_SUBMISSION_ACCESS_OFF; ?>" <?php selected( in_array( self::FORM_SUBMISSION_ACCESS_OFF, $user_can ) ); ?>><?php esc_html_e( 'Disabled', 'bricks' ); ?></option>
 					</select>
 				</td>
 			</tr>

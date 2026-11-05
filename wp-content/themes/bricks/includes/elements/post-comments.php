@@ -17,6 +17,25 @@ class Element_Post_Comments extends Element {
 		if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
 			wp_enqueue_script( 'comment-reply' );
 		}
+
+		add_filter( 'bricks/comments/author_tag', [ $this, 'comment_author_link' ] );
+	}
+
+	/**
+	 * Author HTML tag
+	 *
+	 * @since 1.10
+	 */
+	public function comment_author_link( $comment_author_tag ) {
+		if ( ! empty( $this->settings['commentAuthorTag'] ) ) {
+			$custom_tag = Helpers::sanitize_html_tag( $this->settings['commentAuthorTag'], '' );
+			if ( $custom_tag ) {
+				$comment_author_tag = $custom_tag;
+			}
+		}
+
+		return $comment_author_tag;
+
 	}
 
 	public function set_control_groups() {
@@ -73,6 +92,27 @@ class Element_Post_Comments extends Element {
 			'label'   => esc_html__( 'Show title', 'bricks' ),
 			'type'    => 'checkbox',
 			'default' => true,
+		];
+
+		$this->controls['titleTag'] = [
+			'tab'         => 'content',
+			'group'       => 'title',
+			'label'       => esc_html__( 'HTML tag', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'div' => 'div',
+				'h1'  => 'h1',
+				'h2'  => 'h2',
+				'h3'  => 'h3',
+				'h4'  => 'h4',
+				'h5'  => 'h5',
+				'h6'  => 'h6',
+			],
+			'inline'      => true,
+			'small'       => true,
+			'rerender'    => true,
+			'placeholder' => 'h3',
+			'required'    => [ 'title', '!=', '' ],
 		];
 
 		$this->controls['titleTypography'] = [
@@ -147,10 +187,30 @@ class Element_Post_Comments extends Element {
 
 		// Group: comment
 
+		$this->controls['commentAuthorTag'] = [
+			'tab'         => 'content',
+			'group'       => 'comment',
+			'label'       => esc_html__( 'Author', 'bricks' ) . ': ' . esc_html__( 'HTML tag', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'div' => 'div',
+				'h1'  => 'h1',
+				'h2'  => 'h2',
+				'h3'  => 'h3',
+				'h4'  => 'h4',
+				'h5'  => 'h5',
+				'h6'  => 'h6',
+			],
+			'inline'      => true,
+			'small'       => true,
+			'rerender'    => true,
+			'placeholder' => 'h5',
+		];
+
 		$this->controls['commentAuthorTypography'] = [
 			'tab'   => 'content',
 			'group' => 'comment',
-			'label' => esc_html__( 'Author typography', 'bricks' ),
+			'label' => esc_html__( 'Author', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
 			'type'  => 'typography',
 			'css'   => [
 				[
@@ -163,7 +223,7 @@ class Element_Post_Comments extends Element {
 		$this->controls['commentMetaTypography'] = [
 			'tab'   => 'content',
 			'group' => 'comment',
-			'label' => esc_html__( 'Meta typography', 'bricks' ),
+			'label' => esc_html__( 'Meta', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
 			'type'  => 'typography',
 			'css'   => [
 				[
@@ -176,7 +236,7 @@ class Element_Post_Comments extends Element {
 		$this->controls['commentContentTypography'] = [
 			'tab'   => 'content',
 			'group' => 'comment',
-			'label' => esc_html__( 'Content typography', 'bricks' ),
+			'label' => esc_html__( 'Content', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
 			'type'  => 'typography',
 			'css'   => [
 				[
@@ -188,27 +248,62 @@ class Element_Post_Comments extends Element {
 
 		// FORM
 
+		$this->controls['formTitleSep'] = [
+			'tab'   => 'content',
+			'group' => 'form',
+			'label' => esc_html__( 'Form title', 'bricks' ),
+			'type'  => 'separator',
+		];
+
 		$this->controls['formTitle'] = [
 			'tab'     => 'content',
 			'group'   => 'form',
-			'label'   => esc_html__( 'Form title', 'bricks' ) . ': ' . esc_html__( 'Show', 'bricks' ),
+			'label'   => esc_html__( 'Show', 'bricks' ),
 			'type'    => 'checkbox',
 			'default' => true,
+		];
+
+		$this->controls['formTitleTag'] = [
+			'tab'         => 'content',
+			'group'       => 'form',
+			'label'       => esc_html__( 'HTML tag', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'div' => 'div',
+				'h1'  => 'h1',
+				'h2'  => 'h2',
+				'h3'  => 'h3',
+				'h4'  => 'h4',
+				'h5'  => 'h5',
+				'h6'  => 'h6',
+			],
+			'inline'      => true,
+			'small'       => true,
+			'rerender'    => true,
+			'placeholder' => 'h4',
+			'required'    => [ 'formTitle', '=', true ],
 		];
 
 		$this->controls['formTitleText'] = [
 			'tab'         => 'content',
 			'group'       => 'form',
-			'label'       => esc_html__( 'Form title', 'bricks' ) . ': ' . esc_html__( 'Text', 'bricks' ),
+			'label'       => esc_html__( 'Text', 'bricks' ),
 			'type'        => 'text',
 			'placeholder' => esc_html__( 'Leave your comment', 'bricks' ),
-			'required'    => [ 'formTitle', '!=', '' ],
+			'required'    => [ 'formTitle', '=', true ],
+		];
+
+		$this->controls['labelSep'] = [
+			'tab'   => 'content',
+			'group' => 'form',
+			'label' => esc_html__( 'Label', 'bricks' ),
+			'type'  => 'separator',
 		];
 
 		$this->controls['label'] = [
 			'tab'     => 'content',
 			'group'   => 'form',
-			'label'   => esc_html__( 'Label', 'bricks' ) . ': ' . esc_html__( 'Show', 'bricks' ),
+			'label'   => esc_html__( 'Show', 'bricks' ),
 			'type'    => 'checkbox',
 			'default' => true,
 		];
@@ -216,7 +311,7 @@ class Element_Post_Comments extends Element {
 		$this->controls['labelTypography'] = [
 			'tab'      => 'content',
 			'group'    => 'form',
-			'label'    => esc_html__( 'Label', 'bricks' ) . ': ' . esc_html__( 'Typography', 'bricks' ),
+			'label'    => esc_html__( 'Typography', 'bricks' ),
 			'type'     => 'typography',
 			'css'      => [
 				[
@@ -224,7 +319,7 @@ class Element_Post_Comments extends Element {
 					'selector' => 'label',
 				],
 			],
-			'required' => [ 'label', '!=', '' ],
+			'required' => [ 'label', '=', true ],
 		];
 
 		$this->controls['placeholderTypography'] = [
@@ -238,7 +333,7 @@ class Element_Post_Comments extends Element {
 					'selector' => '::placeholder',
 				],
 			],
-			'required' => [ 'label', '=', '' ],
+			'required' => [ 'label', '=', true ],
 		];
 
 		// COOKIES
@@ -253,24 +348,24 @@ class Element_Post_Comments extends Element {
 		$this->controls['cookies'] = [
 			'tab'   => 'content',
 			'group' => 'form',
-			'label' => esc_html__( 'Cookie consent', 'bricks' ) . ': ' . esc_html__( 'Show', 'bricks' ),
+			'label' => esc_html__( 'Show', 'bricks' ),
 			'type'  => 'checkbox',
 		];
 
 		$this->controls['cookiesRequired'] = [
 			'tab'      => 'content',
 			'group'    => 'form',
-			'label'    => esc_html__( 'Cookie consent', 'bricks' ) . ': ' . esc_html__( 'Required', 'bricks' ),
+			'label'    => esc_html__( 'Required', 'bricks' ),
 			'type'     => 'checkbox',
-			'required' => [ 'cookies', '!=', '' ],
+			'required' => [ 'cookies', '=', true ],
 		];
 
 		$this->controls['cookiesText'] = [
 			'tab'      => 'content',
 			'group'    => 'form',
-			'label'    => esc_html__( 'Cookie consent', 'bricks' ) . ': ' . esc_html__( 'Text', 'bricks' ),
+			'label'    => esc_html__( 'Text', 'bricks' ),
 			'type'     => 'text',
-			'required' => [ 'cookies', '!=', '' ],
+			'required' => [ 'cookies', '=', true ],
 		];
 
 		// FIELDS
@@ -353,6 +448,27 @@ class Element_Post_Comments extends Element {
 					'selector' => '.form-group textarea',
 				],
 			],
+		];
+
+		// Added 'resize' option to textarea (@since 1.11)
+		$this->controls['fieldResize'] = [
+			'tab'         => 'content',
+			'group'       => 'form',
+			'label'       => esc_html__( 'Textarea', 'bricks' ) . ': ' . esc_html__( 'Resize', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'none'       => esc_html__( 'None', 'bricks' ),
+				'vertical'   => esc_html__( 'Vertical', 'bricks' ),
+				'horizontal' => esc_html__( 'Horizontal', 'bricks' ),
+				'both'       => esc_html__( 'Both', 'bricks' ),
+			],
+			'css'         => [
+				[
+					'property' => 'resize',
+					'selector' => '.form-group textarea',
+				],
+			],
+			'placeholder' => esc_html__( 'Vertical', 'bricks' ),
 		];
 
 		// Group: submitButton
@@ -444,8 +560,33 @@ class Element_Post_Comments extends Element {
 
 		// STEP: Render Bricks comments
 		global $post;
-
 		$post = get_post( $this->post_id );
+
+		// Fetch comments for this post
+		$comment_args = [
+			'post_id' => get_the_ID(),
+			'status'  => 'approve',
+		];
+
+		/**
+		 * Include unapproved comments
+		 *
+		 * @see comment-template.php (WP core)
+		 *
+		 * @since 1.10.3
+		 */
+		if ( is_user_logged_in() ) {
+			$comment_args['include_unapproved'] = [ get_current_user_id() ];
+		} else {
+			$unapproved_email = wp_get_unapproved_comment_author_email();
+
+			if ( $unapproved_email ) {
+				$comment_args['include_unapproved'] = [ $unapproved_email ];
+			}
+		}
+
+		$comments       = get_comments( $comment_args );
+		$comments_count = count( $comments );
 
 		if ( post_password_required() ) {
 			return $this->render_element_placeholder(
@@ -456,7 +597,7 @@ class Element_Post_Comments extends Element {
 			);
 		}
 
-		if ( ! comments_open() ) {
+		if ( ! comments_open() && $comments_count === 0 ) {
 			return $this->render_element_placeholder(
 				[
 					'icon-class' => 'ti-comments',
@@ -465,14 +606,18 @@ class Element_Post_Comments extends Element {
 			);
 		}
 
-		$title_tag = ! empty( $settings['titleTag'] ) ? $settings['titleTag'] : 'h3';
+		$title_tag = 'h3';
+
+		if ( ! empty( $settings['titleTag'] ) ) {
+			$title_tag = Helpers::sanitize_html_tag( $settings['titleTag'], 'h3' );
+		}
 
 		echo "<div {$this->render_attributes( '_root' )}>";
 		?>
 		<div id="comments">
 			<div class="bricks-comments-inner">
 				<?php
-				if ( get_comments_number() ) {
+				if ( $comments_count ) {
 					// Set comment pagination
 					$paged = get_query_var( 'cpage' ) ? get_query_var( 'cpage' ) : 1; // cpage = comments pagination query var
 
@@ -480,27 +625,20 @@ class Element_Post_Comments extends Element {
 						set_query_var( 'cpage', $paged );
 					}
 
-					// Fetch approved comments for the post
-					$comments = get_comments(
-						[
-							'post_id' => get_the_ID(),
-							'status'  => [ 'approve', 'hold' ],
-						]
-					);
-
 					// Get Comments per page
 					$comments_per_page    = get_option( 'comments_per_page' );
 					$comments_total_pages = get_comment_pages_count( $comments, $comments_per_page );
 					?>
 
 					<?php if ( isset( $settings['title'] ) ) { ?>
-					<h3 class="comments-title">
+					<<?php echo $title_tag; ?> class="comments-title">
 						<?php
 						// translators: %1$s: number of comments
-						printf( esc_html( _n( '1 comment', '%1$s comments', get_comments_number(), 'bricks' ) ), number_format_i18n( get_comments_number() ) );
+						printf( esc_html( _n( '1 comment', '%1$s comments', $comments_count, 'bricks' ) ), number_format_i18n( $comments_count ) );
 						?>
-					</h3>
+					</<?php echo $title_tag; ?>>
 					<?php } ?>
+
 					<?php if ( $comments_total_pages > 1 && get_option( 'page_comments' ) ) { ?>
 					<nav class="navigation comment-navigation" id="comment-nav-above" role="navigation">
 						<h2 class="screen-reader-text"><?php esc_html_e( 'Comment navigation', 'bricks' ); ?></h2>
@@ -554,13 +692,8 @@ class Element_Post_Comments extends Element {
 					}
 				}
 
-				// No comments
-				// else {
-				// echo '<h3 class="comments-title">' . esc_html__( 'No comments.', 'bricks' ) . '</h3>';
-				// }
-
 				// Comments are closed
-				if ( ! comments_open() && get_comments_number() && post_type_supports( get_post_type(), 'comments' ) ) {
+				if ( ! comments_open() && $comments_count && post_type_supports( get_post_type(), 'comments' ) ) {
 					echo '<p class="no-comments">' . esc_html__( 'Comments are closed.', 'bricks' ) . '</p>';
 				}
 
@@ -627,7 +760,7 @@ class Element_Post_Comments extends Element {
 				if ( isset( $settings['label'] ) ) {
 					$comment_field =
 					'<div class="form-group">
-						<label for="comment">' . esc_html__( 'Comment', 'bricks' ) . ' *</label>
+						<label for="comment">' . esc_html__( 'Comment', 'bricks' ) . ' <span class="required">*</span></label>
 						<textarea id="comment" name="comment" cols="45" rows="8" required></textarea>
 					</div>';
 				} else {
@@ -668,9 +801,11 @@ class Element_Post_Comments extends Element {
 					$fields['cookies'] = '';
 				}
 
+				$form_title_tag = ! empty( $settings['formTitleTag'] ) ? Helpers::sanitize_html_tag( $settings['formTitleTag'], 'h4' ) : 'h4';
+
 				$custom_args = [
-					'title_reply_before'   => '<h4 id="reply-title" class="comment-reply-title">',
-					'title_reply_after'    => '</h4>',
+					'title_reply_before'   => "<$form_title_tag id=\"reply-title\" class=\"comment-reply-title\">",
+					'title_reply_after'    => "</$form_title_tag>",
 					'cancel_reply_link'    => esc_html__( '(Cancel Reply)', 'bricks' ),
 					'label_submit'         => $submit_text,
 					'comment_notes_before' => '',
@@ -684,7 +819,7 @@ class Element_Post_Comments extends Element {
 					if ( ! empty( $settings['formTitleText'] ) ) {
 						$custom_args['title_reply'] = $settings['formTitleText'];
 					} else {
-						$custom_args['title_reply'] = get_comments_number() ? esc_html__( 'Leave your comment', 'bricks' ) : esc_html__( 'Leave the first comment', 'bricks' );
+						$custom_args['title_reply'] = $comments_count ? esc_html__( 'Leave your comment', 'bricks' ) : esc_html__( 'Leave the first comment', 'bricks' );
 					}
 				} else {
 					$custom_args['title_reply'] = '';
@@ -694,7 +829,7 @@ class Element_Post_Comments extends Element {
 				?>
 			</div>
 		</div>
-		<?php
-		echo '</div>';
+			<?php
+			echo '</div>';
 	}
 }

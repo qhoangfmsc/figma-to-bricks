@@ -141,6 +141,12 @@ class Product_Meta extends Element {
 					'id'          => Helpers::generate_random_id( false ),
 					'prefix'      => 'Tags: ',
 				],
+				// Support WooCommerce Brand 9.6.0
+				[
+					'dynamicData' => '{post_terms_product_brand}',
+					'id'          => Helpers::generate_random_id( false ),
+					'prefix'      => 'Brand: ',
+				],
 			],
 		];
 	}
@@ -207,13 +213,22 @@ class Product_Meta extends Element {
 
 		echo "<div {$this->render_attributes( '_root' )}>";
 
-		do_action( 'woocommerce_product_meta_start' );
+		/**
+		 * No longer in use (@since 1.12)
+		 * Use instead {do_action:woocommerce_product_meta_start}
+		 */
+		// do_action( 'woocommerce_product_meta_start' );
 
 		$separator = ! empty( $settings['separator'] ) ? '<span class="separator">' . $settings['separator'] . '</span>' : '';
 
 		echo join( $separator, $field_data );
 
-		do_action( 'woocommerce_product_meta_end' );
+		/**
+		 * No longer in use (@since 1.12)
+		 * Use instead {do_action:woocommerce_product_meta_end}
+		 * NOTE: Actoin is used by Woo 9.6+ to output Brands ({post_terms_product_brand})
+		 */
+		// do_action( 'woocommerce_product_meta_end' );
 
 		echo '</div>';
 	}

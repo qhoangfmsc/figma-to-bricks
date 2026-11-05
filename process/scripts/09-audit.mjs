@@ -49,7 +49,7 @@ export function auditStep(urlOrDir) {
     `## Links without URL (${placeholderLinks.length}, written as "#")`, '', ...placeholderLinks.map((e) => `- ${label(e)}${e.settings.text ? `: ${String(e.settings.text).replace(/<[^>]+>/g, '').slice(0, 50)}` : ''}`), '',
     `## Images without alt text (${noAlt.length})`, '', ...noAlt.map((e) => `- ${label(e)}`), '',
     `## Tooltips without text (${tooltips.length})`, '', ...tooltips.map((e) => `- ${label(e)}`), '',
-    '## Form', '', '- action / recipient / success and error messages are not in Figma (Bricks defaults).', '',
+    '## Form', '', '- submit saves the entry (Save submission). No email recipient is set.', '',
   ];
   writeFileSync(ws.file('designer-list.md'), designer.join('\n'));
   console.log(`  audit: ${els.length} elements · ${links.length} links (${placeholderLinks.length} "#") · ${images.length} images (${noAlt.length} no alt) · h1 ×${h1}${skipped.length ? ` · ${skipped.length} skipped heading level(s)` : ''}`);

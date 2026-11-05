@@ -86,10 +86,6 @@ class Element_Testimonials extends Element {
 					'content' => 'Lorem ipsum dolor ist amte. Consectetuer adipiscing eilt. Aenean commodo ligula egget dolor. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus.',
 					'name'    => 'KIM NATAMO',
 					'title'   => 'Developer',
-					'image'   => [
-						'url'  => 'https://source.unsplash.com/random/600x600?face,man',
-						'full' => 'https://source.unsplash.com/random/600x600?face,man',
-					],
 				],
 			],
 		];
@@ -323,10 +319,15 @@ class Element_Testimonials extends Element {
 		 $this->controls['_border']['css'][0]['selector']    = '.swiper-slide';
 		 $this->controls['_boxShadow']['css'][0]['selector'] = '.swiper-slide';
 
+		 // Unset default arrows to avoid loading icon font files when 'arrows' is not enabled (@since 1.11.1)
 		 unset( $this->controls['slidesToShow']['default'] );
 		 unset( $this->controls['slidesToScroll']['default'] );
 		 unset( $this->controls['gutter']['default'] );
 		 unset( $this->controls['arrows']['default'] );
+		 unset( $this->controls['prevArrow']['default'] );
+		// unset( $this->controls['prevArrowLeft']['default'] );
+		 unset( $this->controls['nextArrow']['default'] );
+		// unset( $this->controls['nextArrowRight']['default'] );
 		 unset( $this->controls['dots']['default'] );
 		 unset( $this->controls['height']['default'] );
 	}
@@ -418,7 +419,7 @@ class Element_Testimonials extends Element {
 						if ( isset( $testimonial['content'] ) ) {
 							$this->set_attribute( "content-$index", 'class', [ 'testimonial-content-wrapper' ] );
 
-							echo "<div {$this->render_attributes( "content-$index" )}>{$testimonial['content']}</div>";
+							echo "<blockquote {$this->render_attributes( "content-$index" )}>{$testimonial['content']}</blockquote>";
 						}
 
 						if ( isset( $testimonial['name'] ) || isset( $testimonial['title'] ) || isset( $testimonial['image'] ) ) {

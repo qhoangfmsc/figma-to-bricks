@@ -11,7 +11,7 @@ class Woocommerce_Helpers {
 	 */
 	public static function get_product_query_controls( $args = false ) {
 		$query_controls = [
-			'posts_per_page'        => [
+			'posts_per_page'          => [
 				'tab'   => 'content',
 				'label' => esc_html__( 'Products per page', 'bricks' ),
 				'type'  => 'number',
@@ -19,7 +19,7 @@ class Woocommerce_Helpers {
 				'step'  => 1,
 			],
 
-			'orderby'               => [
+			'orderby'                 => [
 				'tab'         => 'content',
 				'label'       => esc_html__( 'Order by', 'bricks' ),
 				'type'        => 'select',
@@ -33,12 +33,13 @@ class Woocommerce_Helpers {
 					'modified'   => esc_html__( 'Modified date', 'bricks' ),
 					'menu_order' => esc_html__( 'Menu order', 'bricks' ),
 					'id'         => esc_html__( 'Product ID', 'bricks' ),
+					'_default'   => esc_html__( 'Default', 'bricks' ), // Use WP default order (@since 1.12)
 				],
 				'inline'      => true,
 				'placeholder' => esc_html__( 'Date', 'bricks' ),
 			],
 
-			'order'                 => [
+			'order'                   => [
 				'tab'         => 'content',
 				'label'       => esc_html__( 'Order', 'bricks' ),
 				'type'        => 'select',
@@ -50,7 +51,7 @@ class Woocommerce_Helpers {
 				'placeholder' => esc_html__( 'Descending', 'bricks' ),
 			],
 
-			'productType'           => [
+			'productType'             => [
 				'tab'         => 'content',
 				'label'       => esc_html__( 'Product type', 'bricks' ),
 				'type'        => 'select',
@@ -59,7 +60,7 @@ class Woocommerce_Helpers {
 				'placeholder' => esc_html__( 'Select product type', 'bricks' ),
 			],
 
-			'include'               => [
+			'include'                 => [
 				'tab'         => 'content',
 				'label'       => esc_html__( 'Include', 'bricks' ),
 				'type'        => 'select',
@@ -72,7 +73,7 @@ class Woocommerce_Helpers {
 				'placeholder' => esc_html__( 'Select products', 'bricks' ),
 			],
 
-			'exclude'               => [
+			'exclude'                 => [
 				'tab'         => 'content',
 				'label'       => esc_html__( 'Exclude', 'bricks' ),
 				'type'        => 'select',
@@ -85,7 +86,7 @@ class Woocommerce_Helpers {
 				'placeholder' => esc_html__( 'Select products', 'bricks' ),
 			],
 
-			'categories'            => [
+			'categories'              => [
 				'tab'      => 'content',
 				'label'    => esc_html__( 'Product categories', 'bricks' ),
 				'type'     => 'select',
@@ -93,7 +94,7 @@ class Woocommerce_Helpers {
 				'multiple' => true,
 			],
 
-			'tags'                  => [
+			'tags'                    => [
 				'tab'      => 'content',
 				'label'    => esc_html__( 'Product tags', 'bricks' ),
 				'type'     => 'select',
@@ -101,31 +102,53 @@ class Woocommerce_Helpers {
 				'multiple' => true,
 			],
 
-			'onSale'                => [
+			'onSale'                  => [
 				'tab'   => 'content',
 				'label' => esc_html__( 'On sale', 'bricks' ),
 				'type'  => 'checkbox',
 			],
 
-			'featured'              => [
+			'featured'                => [
 				'tab'   => 'content',
 				'label' => esc_html__( 'Featured', 'bricks' ),
 				'type'  => 'checkbox',
 			],
 
-			'hideOutOfStock'        => [
+			'hideOutOfStock'          => [
 				'tab'   => 'content',
 				'label' => esc_html__( 'Hide out of stock', 'bricks' ),
 				'type'  => 'checkbox',
 			],
 
-			'is_archive_main_query' => [
+			'is_archive_main_query'   => [
 				'tab'    => 'content',
 				'label'  => esc_html__( 'Is main query', 'bricks' ),
 				'type'   => 'checkbox',
 				'inline' => true,
 			],
+
+			'woo_disable_query_merge' => [
+				'tab'    => 'content',
+				'label'  => esc_html__( 'Disable query merge', 'bricks' ),
+				'type'   => 'checkbox',
+				'inline' => true,
+			],
 		];
+
+		// Display info if builderQueryMaxResults is set (@since 1.11)
+		$builder_query_max_results = Builder::get_query_max_results();
+		if ( $builder_query_max_results ) {
+			$query_controls = array_merge(
+				[
+					'queryMaxResultsInfo' => [
+						'tab'     => 'content',
+						'type'    => 'info',
+						'content' => Builder::get_query_max_results_info(),
+					],
+				],
+				$query_controls
+			);
+		}
 
 		if ( is_array( $args ) ) {
 			foreach ( $query_controls as $key => $control ) {
@@ -238,7 +261,7 @@ class Woocommerce_Helpers {
 
 	/**
 	 * Calculate the filters query args based on the URL parameters and element settings
-	 *
+	 * DO NOT early return!
 	 * WooCommerce query
 	 *
 	 * https://github.com/woocommerce/woocommerce/wiki/wc_get_products-and-WC_Product_Query
@@ -246,14 +269,19 @@ class Woocommerce_Helpers {
 	 *
 	 * @since 1.5
 	 *
-	 * @param array $settings
+	 * @param array  $settings The element settings.
+	 * @param array  $bricks_query_var Generated query_vars from Bricks_Query.
+	 * @param string $element_name The element name.
 	 * @return array
 	 */
-	public static function filters_query_args( $settings ) {
+	public static function filters_query_args( $settings, $bricks_query_var = [], $element_name = '' ) {
 		// STEP: Convert Query Loop settings into Products settings (e.g. posts_per_page, orderby, order ...)
 		if ( isset( $settings['query'] ) ) {
 			$settings = wp_parse_args( $settings, $settings['query'] );
 		}
+
+		// Flag if the element is a Products element
+		$is_products_element = $element_name === 'woocommerce-products';
 
 		// STEP: Calculate the product query args
 		$product_args = [];
@@ -287,116 +315,27 @@ class Woocommerce_Helpers {
 			// }
 		}
 
-		// Order & Orderby
-		if ( isset( $_GET['orderby'] ) ) {
-			$product_args['orderby'] = sanitize_text_field( wp_unslash( $_GET['orderby'] ) );
-
-			if ( $product_args['orderby'] == 'price' ) {
-				$product_args['orderby'] = 'price-asc';
-			}
-		} else {
-			$product_args['orderby'] = ! empty( $settings['orderby'] ) ? $settings['orderby'] : 'date';
-		}
-
-		$orderby_value           = explode( '-', $product_args['orderby'] ); // e.g. orderby=price-desc
-		$product_args['orderby'] = esc_attr( $orderby_value[0] );
-		$product_args['order']   = ! empty( $orderby_value[1] ) ? $orderby_value[1] : strtoupper( isset( $settings['order'] ) ? $settings['order'] : 'DESC' );
-
-		// @see: WC_Shortcode_Products::parse_query_args() [woocommerce/includes/shortcodes/class-wc-shortcode-products.php]
-		$ordering_args           = WC()->query->get_catalog_ordering_args( $product_args['orderby'], $product_args['order'] );
-		$product_args['orderby'] = $ordering_args['orderby'];
-		$product_args['order']   = $ordering_args['order'];
-
-		// Meta query
-		if ( $ordering_args['meta_key'] ) {
-			$product_args['meta_key'] = $ordering_args['meta_key'];
-		}
-
 		// Appends meta queries from filter 'woocommerce_product_query_meta_query'
 		$product_args['meta_query'] = WC()->query->get_meta_query();
 
+		// Get the product visibility terms, will be used in the query in multiple places
 		$product_visibility_terms = wc_get_product_visibility_term_ids();
 
-		// Exclude Out of Stock
+		// Settings: Exclude Out of Stock
 		if ( isset( $settings['hideOutOfStock'] ) ) {
 			$product_visibility_not_in[] = $product_visibility_terms['outofstock'];
-		}
 
-		if ( ! empty( $product_visibility_not_in ) ) {
-			$tax_query['product_visibility_not_in'] = [
-				'taxonomy' => 'product_visibility',
-				'field'    => 'term_taxonomy_id',
-				'terms'    => $product_visibility_not_in,
-				'operator' => 'NOT IN',
-			];
-		}
-
-		// Filter: Rating
-		if ( isset( $_GET['b_rating'] ) ) {
-			$rating_filter = array_filter( array_map( 'absint', (array) wp_unslash( $_GET['b_rating'] ) ) );
-
-			// Include products rated with equal or higher ratings
-			if ( count( $rating_filter ) == 1 ) {
-				$rating_filter = range( $rating_filter[0], 5 );
-			}
-
-			$rating_terms = [];
-
-			foreach ( range( 1, 5 ) as $key ) {
-				if ( in_array( $key, $rating_filter, true ) && isset( $product_visibility_terms[ 'rated-' . $key ] ) ) {
-					$rating_terms[] = $product_visibility_terms[ 'rated-' . $key ];
-				}
-			}
-
-			if ( ! empty( $rating_terms ) ) {
-				$tax_query['product_visibility_rating'] = [
-					'taxonomy'      => 'product_visibility',
-					'field'         => 'term_taxonomy_id',
-					'terms'         => $rating_terms,
-					'operator'      => 'IN',
-					'rating_filter' => true,
+			if ( ! empty( $product_visibility_not_in ) ) {
+				$tax_query['product_visibility_not_in'] = [
+					'taxonomy' => 'product_visibility',
+					'field'    => 'term_taxonomy_id',
+					'terms'    => $product_visibility_not_in,
+					'operator' => 'NOT IN',
 				];
 			}
 		}
 
-		// Filter: Stock
-		if ( isset( $_GET['b_stock'] ) ) {
-			$filter = array_filter( array_map( 'sanitize_text_field', (array) wp_unslash( $_GET['b_stock'] ) ) );
-
-			// Default stock query instock, outofstock or onbackorder
-			$stock_defaults = wc_get_product_stock_status_options();
-			$default_filter = array_intersect( $filter, array_keys( $stock_defaults ) );
-
-			if ( ! empty( $default_filter ) ) {
-				$product_args['meta_query'][] = [
-					'key'     => '_stock_status',
-					'value'   => $default_filter,
-					'compare' => 'IN',
-				];
-
-			} elseif ( in_array( 'lowstock', $filter ) ) {
-				$low_amount                             = absint( max( get_option( 'woocommerce_notify_low_stock_amount' ), 2 ) );
-				$product_args['meta_query']['relation'] = 'AND';
-				$product_args['meta_query'][]           = [
-					'key'     => '_stock',
-					'type'    => 'numeric',
-					'value'   => $low_amount,
-					'compare' => '<=',
-				];
-				$product_args['meta_query'][]           = [
-					'key'     => '_stock_status',
-					'value'   => 'instock',
-					'compare' => '=',
-				];
-			}
-		}
-
-		// Filter: Search
-		if ( ! empty( $_GET['b_search'] ) || ! empty( $_GET['s'] ) ) {
-			$product_args['s'] = ! empty( $_GET['b_search'] ) ? sanitize_text_field( $_GET['b_search'] ) : sanitize_text_field( $_GET['s'] );
-		}
-
-		// Filter: Product type
+		// Settings: Product type (tax_query)
 		if ( ! empty( $settings['productType'] ) ) {
 			$tax_query['product_type'] = [
 				'taxonomy' => 'product_type',
@@ -405,7 +344,7 @@ class Woocommerce_Helpers {
 			];
 		}
 
-		// Filter: Product category
+		// Settings: Product category (tax_query)
 		if ( ! empty( $settings['categories'] ) ) {
 			$tax_query['product_cat'] = [
 				'taxonomy' => 'product_cat',
@@ -414,7 +353,7 @@ class Woocommerce_Helpers {
 			];
 		}
 
-		// Filter: Product tag
+		// Settings: Product tag (tax_query)
 		if ( ! empty( $settings['tags'] ) ) {
 			$tax_query['product_tag'] = [
 				'taxonomy' => 'product_tag',
@@ -423,7 +362,7 @@ class Woocommerce_Helpers {
 			];
 		}
 
-		// Include products
+		// Settings: Include products
 		if ( ! empty( $settings['include'] ) ) {
 			$product_args['post__in'] = $settings['include'];
 		}
@@ -433,7 +372,7 @@ class Woocommerce_Helpers {
 			$product_args['post__in'] = $settings['post__in'];
 		}
 
-		// Exclude products
+		// Settings: Exclude products
 		if ( ! empty( $settings['exclude'] ) ) {
 			$product_args['post__not_in'] = $settings['exclude'];
 		}
@@ -450,7 +389,7 @@ class Woocommerce_Helpers {
 			}
 		}
 
-		// Show only products on sale
+		// Show only products on sale (post__in)
 		if ( isset( $settings['onSale'] ) ) {
 			$post_in                  = isset( $product_args['post__in'] ) ? $product_args['post__in'] : [];
 			$product_args['post__in'] = array_merge( $post_in, wc_get_product_ids_on_sale() );
@@ -462,7 +401,7 @@ class Woocommerce_Helpers {
 			}
 		}
 
-		// Show only products featured
+		// Show only products featured (tax_query)
 		if ( isset( $settings['featured'] ) ) {
 			$visibility_term_ids = wc_get_product_visibility_term_ids();
 
@@ -473,36 +412,230 @@ class Woocommerce_Helpers {
 			];
 		}
 
-		// Posts per page
-		$product_args['posts_per_page'] = isset( $settings['posts_per_page'] ) ? intval( $settings['posts_per_page'] ) : get_option( 'posts_per_page' );
+		// Upsell (@since 1.10)
+		if ( isset( $settings['upSells'] ) ) {
+			// Default: Array with 0 to return no products
+			$upsell_post_ids = [ 0 ];
 
-		// Products Pagination
-		if ( ! empty( $_GET['product-page'] ) ) {
-			$product_args['paged'] = sanitize_text_field( $_GET['product-page'] );
-		}
+			// Get the current product
+			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
+			$product    = wc_get_product( $product_id );
 
-		// Merge tax_query with the filters
-		$filters = self::get_filters_list();
+			// Ensure it's a product
+			if ( is_a( $product, 'WC_Product' ) ) {
+				// Get upsell products
+				$upsell_ids = $product->get_upsell_ids();
 
-		foreach ( $filters as $name => $filter ) {
-			if ( ! isset( $_GET[ 'b_' . $name ] ) || ! isset( $filter['query'] ) || 'taxonomy' != $filter['query'] ) {
-				continue;
+				// Only use the upsell products if there are any
+				if ( ! empty( $upsell_ids ) ) {
+					$upsell_post_ids = $upsell_ids;
+				}
 			}
 
-			$value = wp_unslash( $_GET[ 'b_' . $name ] );
+			// Set the post__in query arg and overwrite post__in
+			$product_args['post__in'] = $upsell_post_ids;
+		}
 
-			if ( ! empty( $value ) ) {
-				$terms = array_filter( array_map( 'absint', (array) $value ) );
+		// Cart Cross-sell (@since 1.10)
+		if ( isset( $settings['cartCrossSells'] ) ) {
+			// Default to an array with 0 to return no products
+			$cross_sell_post_ids = [ 0 ];
 
-				if ( array_key_exists( $name, $tax_query ) ) {
-					$terms = array_intersect( $terms, (array) $tax_query[ $name ]['terms'] );
+			// Cross-sells should only get from cart data
+			if ( function_exists( 'WC' ) && WC()->cart ) {
+				// Get cross-sell products
+				$cross_sell_ids = WC()->cart->get_cross_sells();
+
+				// Only use the cross-sell products if there are any
+				if ( ! empty( $cross_sell_ids ) ) {
+					$cross_sell_post_ids = $cross_sell_ids;
+				}
+			}
+
+			// Set the post__in query arg and overwrite post__in
+			$product_args['post__in'] = $cross_sell_post_ids;
+		}
+
+		// Product Cross-sell (@since 1.11.1)
+		if ( isset( $settings['crossSells'] ) ) {
+			// Get the current product
+			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
+			$product    = wc_get_product( $product_id );
+
+			// Ensure it's a product
+			if ( is_a( $product, 'WC_Product' ) ) {
+				// Get cross-sell products
+				$cross_sell_ids = $product->get_cross_sell_ids();
+
+				// Only use the cross-sell products if there are any
+				if ( ! empty( $cross_sell_ids ) ) {
+					$product_args['post__in'] = $cross_sell_ids;
+				}
+			}
+		}
+
+		// Related Products (@since 1.10)
+		if ( isset( $settings['relatedProducts'] ) ) {
+			// Get the current product
+			$product_id = Database::$page_data['preview_or_post_id'] ?? get_the_ID();
+			$product    = wc_get_product( $product_id );
+
+			// Ensure it's a product
+			if ( is_a( $product, 'WC_Product' ) ) {
+				// Get related products
+				$limit       = $settings['posts_per_page'] ?? 5;
+				$related_ids = wc_get_related_products( $product_id, $limit, $product->get_upsell_ids() );
+
+				// Only use the related products if there are any
+				if ( ! empty( $related_ids ) ) {
+					$product_args['post__in'] = $related_ids;
+				}
+			}
+		}
+
+		// Ensure post_type is set to product and product_variation for cross-sells and upsells (@since 1.10)
+		if ( isset( $settings['crossSells'] ) || isset( $settings['upSells'] ) || isset( $settings['cartCrossSells'] ) ) {
+			if ( ! isset( $product_args['post_type'] ) ) {
+				$product_args['post_type'] = [ 'product', 'product_variation' ];
+			}
+
+			elseif ( is_array( $product_args['post_type'] ) ) {
+				if ( ! in_array( 'product_variation', $product_args['post_type'] ) ) {
+					$product_args['post_type'][] = 'product_variation';
+				}
+				if ( ! in_array( 'product', $product_args['post_type'] ) ) {
+					$product_args['post_type'][] = 'product';
+				}
+			}
+
+			else {
+				$selected_post_type = $product_args['post_type'];
+				if ( $selected_post_type !== 'product' && $selected_post_type !== 'product_variation' ) {
+					$product_args['post_type'] = [ 'product', 'product_variation' ];
+				} else {
+					$product_args['post_type'] = [ $selected_post_type, 'product_variation', 'product' ];
+				}
+			}
+		}
+
+		// Posts per page
+		if ( $is_products_element ) {
+			// Retrieve the posts per page from the Products element settings (@since 1.11.1.1)
+			$product_args['posts_per_page'] = isset( $settings['posts_per_page'] ) ? intval( $settings['posts_per_page'] ) : get_option( 'posts_per_page' );
+		} else {
+			// Retrieve the posts per page from the Query Loop settings
+			$product_args['posts_per_page'] = isset( $bricks_query_var['posts_per_page'] ) ? intval( $bricks_query_var['posts_per_page'] ) : get_option( 'posts_per_page' );
+		}
+
+		$woo_sort_url = ''; // Sorting parameter by Products orderby element
+
+		// Related to Filter, only run these if the 'woo_disable_query_merge' is not set
+		if ( ! isset( $settings['woo_disable_query_merge'] ) ) {
+			// Filter: Orderby
+			if ( isset( $_GET['orderby'] ) ) {
+				$woo_sort_url = sanitize_text_field( wp_unslash( $_GET['orderby'] ) );
+			}
+
+			// Filter: Rating (tax_query)
+			if ( isset( $_GET['b_rating'] ) ) {
+				$rating_filter = array_filter( array_map( 'absint', (array) wp_unslash( $_GET['b_rating'] ) ) );
+
+				// Include products rated with equal or higher ratings
+				if ( count( $rating_filter ) == 1 ) {
+					$rating_filter = range( $rating_filter[0], 5 );
 				}
 
-				$tax_query[ $name ] = [
-					'taxonomy' => $name,
-					'field'    => 'term_id',
-					'terms'    => $terms,
-				];
+				$rating_terms = [];
+
+				foreach ( range( 1, 5 ) as $key ) {
+					if ( in_array( $key, $rating_filter, true ) && isset( $product_visibility_terms[ 'rated-' . $key ] ) ) {
+						$rating_terms[] = $product_visibility_terms[ 'rated-' . $key ];
+					}
+				}
+
+				if ( ! empty( $rating_terms ) ) {
+					$tax_query['product_visibility_rating'] = [
+						'taxonomy'      => 'product_visibility',
+						'field'         => 'term_taxonomy_id',
+						'terms'         => $rating_terms,
+						'operator'      => 'IN',
+						'rating_filter' => true,
+					];
+				}
+			}
+
+			// Filter: Stock (meta_query)
+			if ( isset( $_GET['b_stock'] ) ) {
+				$filter = array_filter( array_map( 'sanitize_text_field', (array) wp_unslash( $_GET['b_stock'] ) ) );
+
+				// Default stock query instock, outofstock or onbackorder
+				$stock_defaults = wc_get_product_stock_status_options();
+				$default_filter = array_intersect( $filter, array_keys( $stock_defaults ) );
+
+				if ( ! empty( $default_filter ) ) {
+					$product_args['meta_query'][] = [
+						'key'     => '_stock_status',
+						'value'   => $default_filter,
+						'compare' => 'IN',
+					];
+
+				} elseif ( in_array( 'lowstock', $filter ) ) {
+					$low_amount                             = absint( max( get_option( 'woocommerce_notify_low_stock_amount' ), 2 ) );
+					$product_args['meta_query']['relation'] = 'AND';
+					$product_args['meta_query'][]           = [
+						'key'     => '_stock',
+						'type'    => 'numeric',
+						'value'   => $low_amount,
+						'compare' => '<=',
+					];
+					$product_args['meta_query'][]           = [
+						'key'     => '_stock_status',
+						'value'   => 'instock',
+						'compare' => '=',
+					];
+				}
+			}
+
+			// Filter: Search (s)
+			if ( ( ! empty( $_GET['b_search'] ) || ! empty( $_GET['s'] ) ) ) {
+				$product_args['s'] = ! empty( $_GET['b_search'] ) ? sanitize_text_field( $_GET['b_search'] ) : sanitize_text_field( $_GET['s'] );
+			}
+
+			// Filter: Products Pagination (paged)
+			if ( ! empty( $_GET['product-page'] ) && ! isset( $settings['woo_disable_query_merge'] ) ) {
+				$product_args['paged'] = sanitize_text_field( $_GET['product-page'] );
+			}
+
+			// Filter by price (meta query)
+			$product_args = self::set_price_query_args( $product_args );
+		}
+
+		// Tax Query logic Start
+		// Merge tax_query with the filters
+		if ( ! isset( $settings['woo_disable_query_merge'] ) ) {
+			// Get the possible filters list
+			$filters = self::get_filters_list();
+
+			foreach ( $filters as $name => $filter ) {
+				if ( ! isset( $_GET[ 'b_' . $name ] ) || ! isset( $filter['query'] ) || 'taxonomy' != $filter['query'] ) {
+					continue;
+				}
+
+				$value = wp_unslash( $_GET[ 'b_' . $name ] );
+
+				if ( ! empty( $value ) ) {
+					$terms = array_filter( array_map( 'absint', (array) $value ) );
+
+					if ( array_key_exists( $name, $tax_query ) ) {
+						$terms = array_intersect( $terms, (array) $tax_query[ $name ]['terms'] );
+					}
+
+					$tax_query[ $name ] = [
+						'taxonomy' => $name,
+						'field'    => 'term_id',
+						'terms'    => $terms,
+					];
+				}
 			}
 		}
 
@@ -518,9 +651,92 @@ class Woocommerce_Helpers {
 		$product_args['tax_query'] = WC()->query->get_tax_query( $tax_query, false );
 
 		unset( $tax_query );
+		// Tax Query logic End
 
-		// Filter by price
-		$product_args = self::set_price_query_args( $product_args );
+		// Order & Orderby
+		// Has sorting parameter, directly use the orderby and order generated by WooCommerce
+		if ( $woo_sort_url !== '' ) {
+			// Using the sorting parameter from Products orderby element
+			if ( $woo_sort_url == 'price' ) {
+				$woo_sort_url = 'price-asc';
+			}
+
+			if ( $woo_sort_url == 'date' ) {
+				$woo_sort_url = 'date-desc';
+			}
+
+			$orderby_value = explode( '-', $woo_sort_url ); // e.g. orderby=price-desc
+			$wc_order_by   = esc_attr( $orderby_value[0] );
+			$wc_order      = strtoupper( isset( $orderby_value[1] ) && ! empty( $orderby_value[1] ) ? $orderby_value[1] : '' );
+
+			// @see: WC_Shortcode_Products::parse_query_args() [woocommerce/includes/shortcodes/class-wc-shortcode-products.php]
+			// price, popularity, and rating will add posts_clauses to the query
+			$ordering_args           = WC()->query->get_catalog_ordering_args( $wc_order_by, $wc_order );
+			$product_args['orderby'] = $ordering_args['orderby'];
+			$product_args['order']   = $ordering_args['order'];
+
+			// Ordering by meta key
+			if ( $ordering_args['meta_key'] ) {
+				$product_args['meta_key'] = $ordering_args['meta_key'];
+			}
+
+		}
+
+		// Use the orderby and order from the element settings
+		else {
+
+			// Check if this query loop has order settings (not products element)
+			$query_loop_has_order_settings = ! $is_products_element && isset( $bricks_query_var['orderby'] );
+
+			// If this is products element or the query loop without order settings, use WooCommerce default order settings
+			if ( $is_products_element || ! $query_loop_has_order_settings ) {
+				$products_element_orderby = $is_products_element && ! empty( $settings['orderby'] ) && is_string( $settings['orderby'] ) ? $settings['orderby'] : 'date';
+				$products_element_order   = $is_products_element && ! empty( $settings['order'] ) && is_string( $settings['order'] ) ? $settings['order'] : 'DESC';
+
+				// orderby already unset if this is query loop with order settings, check if brx_default_orderby is set (@since 1.12)
+				$query_loop_use_wp_default = ! $is_products_element && isset( $bricks_query_var['brx_default_orderby'] );
+
+				// Default Woo Sorting (@since 1.12)
+				if ( $products_element_orderby === '_default' || $query_loop_use_wp_default ) {
+					$products_element_orderby = '';
+					$products_element_order   = '';
+				}
+
+				$orderby_value = explode( '-', $products_element_orderby ); // e.g. orderby=price-desc
+				$wc_order_by   = esc_attr( $orderby_value[0] );
+				$wc_order      = strtoupper( isset( $orderby_value[1] ) && ! empty( $orderby_value[1] ) ? $orderby_value[1] : $products_element_order );
+
+				// @see: WC_Shortcode_Products::parse_query_args() [woocommerce/includes/shortcodes/class-wc-shortcode-products.php]
+				// price, popularity, and rating will add posts_clauses to the query
+				$ordering_args = WC()->query->get_catalog_ordering_args( $wc_order_by, $wc_order );
+
+				if ( isset( $ordering_args['orderby'] ) ) {
+					$product_args['orderby'] = $ordering_args['orderby'];
+				}
+
+				if ( isset( $ordering_args['order'] ) ) {
+					$product_args['order'] = $ordering_args['order'];
+				}
+
+				// Ordering by meta key
+				if ( isset( $ordering_args['meta_key'] ) ) {
+					$product_args['meta_key'] = $ordering_args['meta_key'];
+				}
+			}
+
+			// Query loop with user defined orderby and order settings
+			else {
+
+				// Query loop with user defined orderby and order settings
+				$product_args['orderby'] = $bricks_query_var['orderby'] ?? 'date'; // Default orderby
+				$product_args['order']   = $bricks_query_var['order'] ?? 'DESC'; // Default order
+
+				// Ordering by meta key
+				if ( isset( $bricks_query_var['meta_key'] ) ) {
+					$product_args['meta_key'] = $bricks_query_var['meta_key'];
+				}
+			}
+		}
 
 		return $product_args;
 	}
@@ -1124,4 +1340,64 @@ class Woocommerce_Helpers {
 		return $html;
 	}
 
+	/**
+	 * Get product stock amount value
+	 *
+	 * Previously in get_stock_html(), but refactored into a separate function for reusability and readability.
+	 * Bare in mind if the product is not managed stock, the value will be 0 even stock status is instock.
+	 *
+	 * @param \WC_Product $product
+	 * @return int
+	 *
+	 * @since 1.6.1
+	 * @since 1.11.1: Moved here from provider-woo.php.
+	 */
+	public static function get_stock_amount( $product ) {
+		$stock_amount = $product->get_stock_quantity();
+
+		if ( $product->is_type( 'variable' ) ) {
+			$variations = $product->get_available_variations();
+
+			foreach ( $variations as $variation ) {
+				if ( empty( $variation['is_in_stock'] ) ) {
+					continue;
+				}
+
+				$variation_obj = new \WC_Product_variation( $variation['variation_id'] );
+
+				$stock_amount += $variation_obj->get_stock_quantity();
+			}
+		}
+
+		return (int) $stock_amount; // Possible to return negative value when using backorders (#861n84vua)
+	}
+
+	/**
+	 * Similar function to wc_format_stock_for_display but adapted to be possible to use the stock sum up of the product variations
+	 *
+	 * @since 1.5.7
+	 * @since 1.11.1: Moved here from provider-woo.php.
+	 */
+	public static function format_stock_for_display( $product, $stock_amount ) {
+		$display = __( 'In stock', 'woocommerce' );
+
+		switch ( get_option( 'woocommerce_stock_format' ) ) {
+			case 'low_amount':
+				if ( $stock_amount <= wc_get_low_stock_amount( $product ) ) {
+					/* translators: %s: stock amount */
+					$display = sprintf( __( 'Only %s left in stock', 'woocommerce' ), wc_format_stock_quantity_for_display( $stock_amount, $product ) );
+				}
+				break;
+			case '':
+				/* translators: %s: stock amount */
+				$display = sprintf( __( '%s in stock', 'woocommerce' ), wc_format_stock_quantity_for_display( $stock_amount, $product ) );
+				break;
+		}
+
+		if ( $product->backorders_allowed() && $product->backorders_require_notification() ) {
+			$display .= ' ' . __( '(can be backordered)', 'woocommerce' );
+		}
+
+		return $display;
+	}
 }

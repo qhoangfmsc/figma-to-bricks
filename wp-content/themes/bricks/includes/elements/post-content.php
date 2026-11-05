@@ -52,7 +52,7 @@ class Element_Post_Content extends Element {
 
 	public function render() {
 		$settings    = $this->settings;
-		$data_source = ! empty( $settings['dataSource'] ) ? $settings['dataSource'] : '';
+		$data_source = $settings['dataSource'] ?? '';
 
 		// To apply CSS flex when "Data Source" is set to "bricks"
 		if ( $data_source ) {
@@ -77,11 +77,16 @@ class Element_Post_Content extends Element {
 			$bricks_data = get_post_meta( $this->post_id, BRICKS_DB_PAGE_CONTENT, true );
 
 			if ( empty( $bricks_data ) || ! is_array( $bricks_data ) ) {
-				return $this->render_element_placeholder(
-					[
-						'title' => esc_html__( 'No Bricks data found.', 'bricks' ),
-					]
-				);
+				$placeholder_data = [
+					'title' => esc_html__( 'No Bricks data found.', 'bricks' ),
+				];
+
+				// Add custom class if source is Bricks (for StaticArea.vue to find the placeholder) (@since 1.12.2)
+				if ( $data_source === 'bricks' ) {
+					$placeholder_data['class'] = 'brx-post-content-placeholder';
+				}
+
+				return $this->render_element_placeholder( $placeholder_data );
 			}
 
 			// Avoid infinite loop
@@ -93,46 +98,23 @@ class Element_Post_Content extends Element {
 				// Store the current main render_data self::$elements
 				$store_elements = Frontend::$elements;
 
-				// STEP: Disable lazy load in builder (required in builder when generating frontend data)
-				$disable_global_lazy_load = isset( Database::$global_settings['disableLazyLoad'] );
-				$disable_page_lazy_load   = isset( Database::$page_settings['disableLazyLoad'] );
-
-				if ( bricks_is_builder_call() ) {
-					Database::$global_settings['disableLazyLoad'] = true;
-					Database::$page_settings['disableLazyLoad']   = true;
-				}
-
 				$output = Frontend::render_data( $bricks_data );
-
-				// STEP: Restore original lazy load setting
-				if ( bricks_is_builder_call() ) {
-					if ( $disable_global_lazy_load ) {
-						Database::$global_settings['disableLazyLoad'] = true;
-					} else {
-						unset( Database::$global_settings['disableLazyLoad'] );
-					}
-
-					if ( $disable_page_lazy_load ) {
-						Database::$page_settings['disableLazyLoad'] = true;
-					} else {
-						unset( Database::$page_settings['disableLazyLoad'] );
-					}
-				}
 
 				// Reset the main render_data self::$elements
 				Frontend::$elements = $store_elements;
 
-				// Add 'style' inline (elements & global classes) in the Builder or Frontend (with Query Loop + External Files)
-				if ( bricks_is_builder_call() || ( Query::is_looping() && Database::get_setting( 'cssLoading' ) === 'file' ) ) {
+				// Add elements & global classes CSS inline in the builder or frontend (with Query Loop + External Files)
+				// Don't add global classes CSS when rendering static area e.g. show outer post content (@since 1.12.3)
+				if ( ! isset( $_POST['staticArea'] ) && ( bricks_is_builder() || bricks_is_builder_call() || ( Query::is_looping() && Database::get_setting( 'cssLoading' ) === 'file' ) ) ) {
 					Assets::$inline_css['content'] = '';
 
-					// Clear the list of elements already styled (@since 1.5)
+					// Clear the list of elements already styled
 					Assets::$css_looping_elements = [];
 
 					Assets::generate_css_from_elements( $bricks_data, 'content' );
 					$inline_css = Assets::$inline_css['content'];
 
-					// Add global classes CSS (@since 1.5)
+					// Add global classes CSS
 					$inline_css_global_classes = Assets::generate_global_classes();
 					$inline_css               .= Assets::$inline_css['global_classes'];
 

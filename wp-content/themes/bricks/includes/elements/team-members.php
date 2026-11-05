@@ -71,37 +71,21 @@ class Element_Team_Members extends Element {
 			],
 			'default'       => [
 				[
-					'image'       => [
-						'full' => 'https://source.unsplash.com/random/600x600?woman',
-						'url'  => 'https://source.unsplash.com/random/600x600?woman',
-					],
 					'title'       => 'Bianca Gosh',
 					'subtitle'    => 'CEO',
 					'description' => 'Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus.',
 				],
 				[
-					'image'       => [
-						'full' => 'https://source.unsplash.com/random/700x700?man',
-						'url'  => 'https://source.unsplash.com/random/700x700?man',
-					],
 					'title'       => 'Linus Slim',
 					'subtitle'    => 'CFO',
 					'description' => 'Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus.',
 				],
 				[
-					'image'       => [
-						'full' => 'https://source.unsplash.com/random/800x800?woman',
-						'url'  => 'https://source.unsplash.com/random/800x800?woman',
-					],
 					'title'       => 'Ilaria Cue',
 					'subtitle'    => 'CMO',
 					'description' => 'Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus.',
 				],
 				[
-					'image'       => [
-						'full' => 'https://source.unsplash.com/random/800x800?man',
-						'url'  => 'https://source.unsplash.com/random/800x800?man',
-					],
 					'title'       => 'Brian Masset',
 					'subtitle'    => 'CTO',
 					'description' => 'Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus.',
@@ -286,7 +270,7 @@ class Element_Team_Members extends Element {
 
 		$this->controls['memberTitleTag'] = [
 			'tab'         => 'content',
-			'group'       => 'member',
+			'group'       => 'content',
 			'label'       => esc_html__( 'Title tag', 'bricks' ),
 			'type'        => 'select',
 			'options'     => [

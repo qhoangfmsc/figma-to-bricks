@@ -17,6 +17,14 @@ class Breadcrumbs extends Element {
 	}
 
 	public function set_control_groups() {
+		$this->control_groups['structure'] = [
+			'title' => esc_html__( 'Structure', 'bricks' ),
+		];
+
+		$this->control_groups['home'] = [
+			'title' => esc_html__( 'Home', 'bricks' ),
+		];
+
 		$this->control_groups['separator'] = [
 			'title' => esc_html__( 'Separator', 'bricks' ),
 		];
@@ -31,13 +39,6 @@ class Breadcrumbs extends Element {
 	}
 
 	public function set_controls() {
-		$this->controls['homeLabel'] = [
-			'label'       => esc_html__( 'Label', 'bricks' ) . ': ' . esc_html__( 'Home', 'bricks' ),
-			'type'        => 'text',
-			'inline'      => true,
-			'placeholder' => esc_html__( 'Home', 'bricks' ),
-		];
-
 		$this->controls['gap'] = [
 			'label' => esc_html__( 'Gap', 'bricks' ),
 			'type'  => 'number',
@@ -47,6 +48,118 @@ class Breadcrumbs extends Element {
 					'property' => 'gap',
 				]
 			],
+		];
+
+		// STRUCTURE (@since 1.11)
+		$this->controls['singularSep'] = [
+			'group'       => 'structure',
+			'label'       => esc_html__( 'Structure', 'bricks' ),
+			'type'        => 'separator',
+			'description' => esc_html__( 'Customise this breadcrumb structure for specific post types.', 'bricks' ),
+		];
+
+		$this->controls['singularStructure'] = [
+			'group'         => 'structure',
+			'type'          => 'repeater',
+			'titleProperty' => 'postType',
+			'fields'        => [
+				'postType'            => [
+					'label'       => esc_html__( 'Post types', 'bricks' ),
+					'type'        => 'select',
+					'multiple'    => true,
+					'options'     => bricks_is_builder() ? Helpers::get_registered_post_types() : [],
+					'placeholder' => esc_html__( 'Posts', 'bricks' ),
+				],
+				'hideCurrentPost'     => [
+					'label' => esc_html__( 'Hide current post', 'bricks' ),
+					'type'  => 'checkbox',
+				],
+				'showParentPosts'     => [
+					'label' => esc_html__( 'Show parent posts', 'bricks' ),
+					'type'  => 'checkbox',
+				],
+				'showPostTypeArchive' => [
+					'label' => esc_html__( 'Show post type archive', 'bricks' ),
+					'type'  => 'checkbox',
+				],
+				'showTaxonomy'        => [
+					'label' => esc_html__( 'Show taxonomy', 'bricks' ),
+					'type'  => 'checkbox',
+				],
+				'taxonomy'            => [
+					'label'          => esc_html__( 'Taxonomy slug', 'bricks' ),
+					'type'           => 'text',
+					'hasDynamicData' => false,
+					'placeholder'    => 'category',
+					'required'       => [ 'showTaxonomy', '=', true ],
+				],
+				'taxonomyInfo'        => [
+					'content'  => esc_html__( 'Only the first assigned term will be displayed.', 'bricks' ),
+					'type'     => 'info',
+					'required' => [ 'showTaxonomy', '=', true ],
+				],
+				'showParentTerms'     => [
+					'label'       => esc_html__( 'Show parent terms', 'bricks' ),
+					'type'        => 'checkbox',
+					'description' => esc_html__( 'Only works if the first assigned term is a child term.', 'bricks' ),
+				],
+			],
+		];
+
+		$this->controls['dateSep'] = [
+			'group' => 'structure',
+			'label' => esc_html__( 'Date', 'bricks' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['showDateContext'] = [
+			'group'       => 'structure',
+			'label'       => esc_html__( 'Add context', 'bricks' ),
+			'type'        => 'checkbox',
+			'description' => esc_html__( 'Add context to dates on archive templates.', 'bricks' ),
+		];
+
+		// HOME
+		$this->controls['homeLabel'] = [
+			'group'       => 'home',
+			'label'       => esc_html__( 'Label', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_html__( 'Home', 'bricks' ),
+		];
+
+		$this->controls['homeURL'] = [
+			'group'       => 'home',
+			'label'       => esc_html__( 'URL', 'bricks' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => esc_url( home_url() ),
+		];
+
+		$this->controls['homeIcon'] = [
+			'group' => 'home',
+			'label' => esc_html__( 'Icon', 'bricks' ),
+			'type'  => 'icon',
+		];
+
+		$this->controls['hideHomeLabel'] = [
+			'group'    => 'home',
+			'label'    => esc_html__( 'Hide label', 'bricks' ),
+			'type'     => 'checkbox',
+			'required' => [ 'homeIcon', '!=', '' ],
+		];
+
+		$this->controls['homeIconPosition'] = [
+			'group'       => 'home',
+			'label'       => esc_html__( 'Icon position', 'bricks' ),
+			'type'        => 'select',
+			'options'     => [
+				'before' => esc_html__( 'Before', 'bricks' ),
+				'after'  => esc_html__( 'After', 'bricks' ),
+			],
+			'inline'      => true,
+			'placeholder' => esc_html__( 'Before', 'bricks' ),
+			'required'    => [ 'homeIcon', '!=', '' ],
 		];
 
 		// SEPERATOR
@@ -106,12 +219,6 @@ class Breadcrumbs extends Element {
 		];
 
 		// ITEM
-
-		$this->controls['itemSep'] = [
-			'group' => 'item',
-			'label' => esc_html__( 'Item', 'bricks' ),
-			'type'  => 'separator',
-		];
 
 		$this->controls['itemPadding'] = [
 			'group' => 'item',
@@ -231,7 +338,7 @@ class Breadcrumbs extends Element {
 		$settings = $this->settings;
 
 		// Get the current queried object
-		$queried_obj = get_queried_object();
+		$queried_obj = bricks_is_builder() || bricks_is_builder_call() ? get_post( $this->post_id ) : get_queried_object();
 
 		// Prepare different formats to be used for sprintf
 		$current_span_format   = self::$current_span_format;
@@ -241,9 +348,10 @@ class Breadcrumbs extends Element {
 		$breadcrumb_items = [];
 
 		// Single post or page
-		if ( is_singular() ) {
+		if ( is_singular() || bricks_is_builder() || bricks_is_builder_call() ) {
 			// Get the post type
-			$post_type = get_post_type();
+			$post      = $queried_obj;
+			$post_type = $queried_obj->post_type ?? get_post_type();
 
 			// Get the post type label and URL
 			$post_type_obj = get_post_type_object( $post_type );
@@ -251,44 +359,107 @@ class Breadcrumbs extends Element {
 			// Use plural if exists
 			$post_type_label = '';
 
-			if ( $post_type_obj ) {
-				$post_type_label = $post_type_obj->labels->name ? $post_type_obj->label : $post_type_obj->labels->name;
+			if ( is_a( $post_type_obj, 'WP_Post_Type' ) ) {
+				$post_type_label = $post_type_obj->labels->name ?? $post_type_obj->label;
 			}
 
-			// Post type is native WP post: Get the category
-			if ( $post_type === 'post' ) {
-				// Get the post categories
-				$categories = get_the_category( $queried_obj->ID );
+			$user_structure      = false;
+			$singular_structures = $settings['singularStructure'] ?? [];
 
-				// Get the first category
-				$category = $categories[0];
+			if ( ! empty( $singular_structures ) ) {
+				// Find user-defined structure for the post type
+				foreach ( $singular_structures as $structure ) {
+					if ( ! empty( $structure['postType'] ) && is_array( $structure['postType'] ) && in_array( $post_type, $structure['postType'] ) ) {
+						$user_structure = $structure;
+						break;
+					}
+				}
+			}
 
-				// Populate category parents
-				if ( $category->parent ) {
-					$parents          = self::populate_breadcrumbs_parent_links( $category->parent, 'category' );
+			// User-defined structure
+			if ( $user_structure && ! empty( $user_structure ) ) {
+				$show_archive      = ! empty( $user_structure['showPostTypeArchive'] );
+				$show_parent_posts = ! empty( $user_structure['showParentPosts'] );
+				$show_taxonomy     = ! empty( $user_structure['showTaxonomy'] );
+				$taxonomy_slug     = $show_taxonomy && ! empty( $user_structure['taxonomy'] ) ? $user_structure['taxonomy'] : '';
+				$show_parent_terms = ! empty( $user_structure['showParentTerms'] );
+				$hide_current_post = ! empty( $user_structure['hideCurrentPost'] );
+
+				if ( $show_archive ) {
+					$post_type_link     = get_post_type_archive_link( $post_type );
+					$breadcrumb_items[] = sprintf( $link_format, esc_url( $post_type_link ), esc_html( $post_type_label ) );
+				}
+
+				if ( $show_taxonomy && $taxonomy_slug !== '' ) {
+					$taxonomy = get_taxonomy( $taxonomy_slug );
+
+					if ( $taxonomy ) {
+						$taxonomy_obj = get_the_terms( $queried_obj->ID, $taxonomy_slug );
+
+						if ( $taxonomy_obj ) {
+							// Get the first term
+							$taxonomy_obj  = $taxonomy_obj[0];
+							$taxonomy_link = get_term_link( $taxonomy_obj );
+
+							// Populate parents
+							if ( $taxonomy_obj->parent && $show_parent_terms ) {
+								$parents          = self::populate_breadcrumbs_parent_links( $taxonomy_obj->parent, 'taxonomy' );
+								$breadcrumb_items = array_merge( $breadcrumb_items, $parents );
+							}
+
+							$breadcrumb_items[] = sprintf( $link_format, esc_url( $taxonomy_link ), esc_html( $taxonomy_obj->name ) );
+						}
+					}
+				}
+
+				if ( $show_parent_posts ) {
+					// Populate parents
+					if ( $post->post_parent ) {
+						$parents          = self::populate_breadcrumbs_parent_links( $post->post_parent, 'single' );
+						$breadcrumb_items = array_merge( $breadcrumb_items, $parents );
+					}
+				}
+
+				if ( ! $hide_current_post ) {
+					$breadcrumb_items[] = sprintf( $current_span_format, esc_html( $post->post_title ) );
+				}
+			}
+
+			// Default structure
+			else {
+				// Post type is native WP post: Get the category
+				if ( $post_type === 'post' ) {
+					// Get the post categories
+					$categories = get_the_category( $queried_obj->ID );
+
+					// Get the first category
+					$category = $categories[0];
+
+					// Populate category parents
+					if ( $category->parent ) {
+						$parents          = self::populate_breadcrumbs_parent_links( $category->parent, 'category' );
+						$breadcrumb_items = array_merge( $breadcrumb_items, $parents );
+					}
+
+					$breadcrumb_items[] = sprintf( $link_format, esc_url( get_category_link( $category->term_id ) ), esc_html( $category->name ) );
+
+				} else {
+					// Populate post type archive if post type has an archive
+					$post_type_link = get_post_type_archive_link( $post_type );
+
+					if ( $post_type_link ) {
+						$breadcrumb_items[] = sprintf( $link_format, esc_url( $post_type_link ), esc_html( $post_type_label ) );
+					}
+				}
+
+				// Populate parents
+				if ( $post->post_parent ) {
+					$parents          = self::populate_breadcrumbs_parent_links( $post->post_parent, 'single' );
 					$breadcrumb_items = array_merge( $breadcrumb_items, $parents );
 				}
 
-				$breadcrumb_items[] = sprintf( $link_format, esc_url( get_category_link( $category->term_id ) ), esc_html( $category->name ) );
-
-			} else {
-				// Populate post type archive if post type has an archive
-				$post_type_link = get_post_type_archive_link( $post_type );
-
-				if ( $post_type_link ) {
-					$breadcrumb_items[] = sprintf( $link_format, esc_url( $post_type_link ), esc_html( $post_type_label ) );
-				}
+				$breadcrumb_items[] = sprintf( $current_span_format, esc_html( $post->post_title ) );
 			}
-
-			$post = $queried_obj;
-
-			// Populate parents
-			if ( $post->post_parent ) {
-				$parents          = self::populate_breadcrumbs_parent_links( $post->post_parent, 'single' );
-				$breadcrumb_items = array_merge( $breadcrumb_items, $parents );
-			}
-
-			$breadcrumb_items[] = sprintf( $current_span_format, esc_html( $post->post_title ) );
 		}
 
 		// Home
@@ -337,6 +508,55 @@ class Breadcrumbs extends Element {
 			}
 		}
 
+		// Tag (@since 1.11)
+		elseif ( is_tag() ) {
+			$tag = $queried_obj;
+
+			// Tag is not hierarchical
+			$breadcrumb_items[] = sprintf( $current_span_format, esc_html( $tag->name ) );
+		}
+
+		// Date (@since 1.11)
+		elseif ( is_date() ) {
+			$show_context = ! empty( $settings['showDateContext'] );
+			$year_text    = get_the_date( 'Y' );
+			$month_text   = get_the_date( 'F' );
+			$day_text     = get_the_date( 'j' );
+
+			if ( $show_context ) {
+				$year_text  = sprintf( esc_html__( 'Year: %s', 'bricks' ), $year_text );
+				$month_text = sprintf( esc_html__( 'Month: %s', 'bricks' ), $month_text );
+				$day_text   = sprintf( esc_html__( 'Day: %s', 'bricks' ), $day_text );
+			}
+
+			// Year
+			if ( is_year() ) {
+				// Year as current
+				$breadcrumb_items[] = sprintf( $current_span_format, $year_text );
+			}
+
+			// Month
+			elseif ( is_month() ) {
+				// Year add as a link
+				$year_link          = get_year_link( get_the_date( 'Y' ) );
+				$breadcrumb_items[] = sprintf( $link_format, esc_url( $year_link ), $year_text );
+				// Month as current
+				$breadcrumb_items[] = sprintf( $current_span_format, $month_text );
+			}
+
+			// Day
+			elseif ( is_day() ) {
+				// Year add as a link
+				$year_link          = get_year_link( get_the_date( 'Y' ) );
+				$breadcrumb_items[] = sprintf( $link_format, esc_url( $year_link ), $year_text );
+				// Month add as a link
+				$month_link         = get_month_link( get_the_date( 'Y' ), get_the_date( 'm' ) );
+				$breadcrumb_items[] = sprintf( $link_format, esc_url( $month_link ), $month_text );
+				// Day as current
+				$breadcrumb_items[] = sprintf( $current_span_format, $day_text );
+			}
+		}
+
 		// Author
 		elseif ( is_author() ) {
 			$author = $queried_obj;
@@ -357,8 +577,21 @@ class Breadcrumbs extends Element {
 		}
 
 		// Home link
-		$home_link  = esc_url( home_url() );
+		$home_link  = ! empty( $settings['homeURL'] ) ? esc_url( $this->render_dynamic_data( $settings['homeURL'], $this->post_id ) ) : esc_url( home_url() );
 		$home_label = ! empty( $settings['homeLabel'] ) ? $settings['homeLabel'] : esc_html__( 'Home', 'bricks' );
+		$home_icon  = ! empty( $settings['homeIcon'] ) ? self::render_icon( $settings['homeIcon'] ) : '';
+
+		if ( $home_icon ) {
+			$icon_pos        = ! empty( $settings['homeIconPosition'] ) ? $settings['homeIconPosition'] : 'before';
+			$hide_home_label = ! empty( $settings['hideHomeLabel'] );
+
+			if ( $hide_home_label ) {
+				// Remove the home label if the icon is set and the label is hidden
+				$home_label = '';
+			}
+			$home_label = $icon_pos === 'before' ? $home_icon . ' ' . $home_label : $home_label . ' ' . $home_icon;
+		}
+
 		$home_label = apply_filters( 'bricks/breadcrumbs/home_label', $home_label );
 
 		// Separator

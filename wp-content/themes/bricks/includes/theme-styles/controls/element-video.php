@@ -63,9 +63,13 @@ $controls['overlayIconTypography'] = [
 ];
 
 $controls['customPlayerSeparator'] = [
-	'type'        => 'separator',
-	'label'       => esc_html__( 'Custom video player', 'bricks' ),
-	'description' => esc_html__( 'The custom video player is only applicable to "Media" or "File URL" video source.', 'bricks' ),
+	'type'  => 'separator',
+	'label' => esc_html__( 'Custom video player', 'bricks' ),
+];
+
+$controls['customPlayerInfo'] = [
+	'type'    => 'info',
+	'content' => esc_html__( 'The custom video player is only applicable to "Media" or "File URL" video source.', 'bricks' ),
 ];
 
 // Custom player (plyr.io)
@@ -108,7 +112,7 @@ $controls['filePip'] = [
 $controls['apply'] = [
 	'type'   => 'apply',
 	'reload' => true,
-	'label'  => esc_html__( 'Apply controls & reload', 'bricks' ),
+	'label'  => esc_html__( 'Apply', 'bricks' ),
 ];
 
 return [

@@ -65,6 +65,7 @@ class Element_Nav_Nested extends Element {
 			'inline'         => true,
 			'fullAccess'     => true,
 			'hasDynamicData' => false,
+			'validate'       => $this->get_in_builder_html_tag_validation_rules(),
 			'placeholder'    => 'nav',
 		];
 
@@ -92,24 +93,26 @@ class Element_Nav_Nested extends Element {
 		];
 
 		$this->controls['itemJustifyContent'] = [
-			'group'     => 'item',
-			'label'     => esc_html__( 'Justify content', 'bricks' ),
-			'type'      => 'justify-content',
-			'direction' => 'row',
-			'exclude'   => [
+			'deprecated'  => true, // @since 1.10
+			'group'       => 'item',
+			'label'       => esc_html__( 'Justify content', 'bricks' ),
+			'description' => esc_html__( 'Set "Align items" under "Mobile menu" instead.', 'bricks' ),
+			'type'        => 'justify-content',
+			'direction'   => 'row',
+			'exclude'     => [
 				'space',
 			],
-			'inline'    => true,
-			'css'       => [
-				[
-					'property' => 'justify-content',
-					'selector' => '&.brx-open .brx-nav-nested-items > *',
-				],
-				[
-					'property' => 'justify-content',
-					'selector' => '&.brx-open .brx-submenu-toggle',
-				],
-			],
+			'inline'      => true,
+			// 'css'         => [
+			// [
+			// 'property' => 'justify-content',
+			// 'selector' => '&.brx-open .brx-nav-nested-items > *',
+			// ],
+			// [
+			// 'property' => 'justify-content',
+			// 'selector' => '&.brx-open .brx-submenu-toggle',
+			// ],
+			// ],
 		];
 
 		$this->controls['itemPadding'] = [
@@ -312,7 +315,6 @@ class Element_Nav_Nested extends Element {
 			'label' => esc_html__( 'Gap', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'gap',
@@ -399,8 +401,9 @@ class Element_Nav_Nested extends Element {
 			'inline'         => true,
 			'css'            => [
 				[
-					'property' => 'transition',
-					'selector' => '.brx-submenu-toggle button[aria-expanded]',
+					'property'  => 'transition',
+					'selector'  => '.brx-submenu-toggle button[aria-expanded]',
+					'important' => true, // To precede sticker header transition template setting (@since 1.11.1)
 				],
 			],
 		];
@@ -419,7 +422,6 @@ class Element_Nav_Nested extends Element {
 			'label'    => esc_html__( 'Min. width', 'bricks' ),
 			'type'     => 'number',
 			'units'    => true,
-			'large'    => true,
 			'css'      => [
 				[
 					'property' => 'min-width',
@@ -523,7 +525,6 @@ class Element_Nav_Nested extends Element {
 			'group'       => 'dropdown',
 			'label'       => esc_html__( 'Z-index', 'bricks' ),
 			'type'        => 'number',
-			'large'       => true,
 			'css'         => [
 				[
 					'property' => 'z-index',
@@ -731,7 +732,6 @@ class Element_Nav_Nested extends Element {
 			'label' => esc_html__( 'Width', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'width',
@@ -745,7 +745,6 @@ class Element_Nav_Nested extends Element {
 			'label' => esc_html__( 'Height', 'bricks' ),
 			'type'  => 'number',
 			'units' => true,
-			'large' => true,
 			'css'   => [
 				[
 					'property' => 'height',
@@ -787,9 +786,10 @@ class Element_Nav_Nested extends Element {
 					'selector' => '&.brx-open .brx-nav-nested-items',
 				],
 				[
-					'selector' => '&.brx-open .brx-nav-nested-items',
-					'property' => 'width',
-					'value'    => 'auto',
+					'selector'  => '&.brx-open .brx-nav-nested-items',
+					'property'  => 'width',
+					'value'     => 'auto',
+					'skipIfSet' => 'mobileMenuWidth', // NOTE: Undocumented (@since 1.10)
 				],
 			],
 		];
@@ -826,40 +826,35 @@ class Element_Nav_Nested extends Element {
 				[
 					'property' => 'justify-content',
 					'selector' => '&.brx-open .brx-submenu-toggle',
-					'value'    => 'flex-start',
-					'required' => 'flex-start',
 				],
 				[
-					'property' => 'text-align',
-					'selector' => '&.brx-open li.menu-item',
-					'value'    => 'left',
-					'required' => 'flex-start',
+					'property' => 'justify-content',
+					'selector' => '&.brx-open .brx-nav-nested-items > li',
 				],
 
 				[
 					'property' => 'justify-content',
 					'selector' => '&.brx-open .brx-submenu-toggle',
-					'value'    => 'center',
-					'required' => 'center',
 				],
 				[
-					'property' => 'text-align',
-					'selector' => '&.brx-open li.menu-item',
-					'value'    => 'center',
-					'required' => 'center',
+					'property' => 'justify-content',
+					'selector' => '&.brx-open .brx-nav-nested-items > li',
 				],
 
 				[
 					'property' => 'justify-content',
 					'selector' => '&.brx-open .brx-submenu-toggle',
-					'value'    => 'flex-end',
-					'required' => 'flex-end',
 				],
 				[
-					'property' => 'text-align',
+					'property' => 'justify-content',
+					'selector' => '&.brx-open .brx-nav-nested-items > li',
+				],
+
+				// Necessary to apply justify-content (@since 1.10)
+				[
+					'property' => 'display',
 					'selector' => '&.brx-open li.menu-item',
-					'value'    => 'right',
-					'required' => 'flex-end',
+					'value'    => 'flex',
 				],
 			],
 		];
@@ -973,8 +968,6 @@ class Element_Nav_Nested extends Element {
 		$output .= Frontend::render_children( $this );
 
 		if ( $show_nav_button_at !== 'never' ) {
-			$nav_button_aria_label = ! empty( $settings['navButtonAriaLabel'] ) ? esc_attr( $settings['navButtonAriaLabel'] ) : esc_html__( 'Toggle menu', 'bricks' );
-
 			// Builder: Add nav menu & mobile menu visibility via inline style
 			if ( bricks_is_builder() || bricks_is_builder_call() ) {
 				$breakpoint          = Breakpoints::get_breakpoint_by( 'key', $show_nav_button_at );

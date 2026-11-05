@@ -19,6 +19,7 @@ class Element_Html extends Element {
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Raw HTML', 'bricks' ),
 			'type'    => 'code',
+			'mode'    => 'text/html',
 			'default' => "<h4>Raw HTML title</h4>\n<p>Just a simple paragraph ..</p>",
 		];
 	}

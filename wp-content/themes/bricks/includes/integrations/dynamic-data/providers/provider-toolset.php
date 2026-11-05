@@ -80,12 +80,9 @@ class Provider_Toolset extends Base {
 			$value = explode( '%BriCkS$', $value );
 		}
 
-		$filters['separator'] = '<br>';
-
 		switch ( $field['type'] ) {
 			case 'textarea':
 				$value = array_map( 'nl2br', $value );
-				// $filters['separator'] = '<br>';
 				break;
 
 			case 'image':

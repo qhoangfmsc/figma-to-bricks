@@ -23,6 +23,11 @@ class Element_Post_Table_Of_Contents extends Element {
 	}
 
 	public function set_controls() {
+		$this->controls['singleTocNotice'] = [
+			'type'    => 'info',
+			'content' => esc_html__( 'Only one "Table of contents" element can be visible on a page at a time.', 'bricks' ),
+		];
+
 		$this->controls['contentSelector'] = [
 			'label'       => esc_html__( 'Content selector', 'bricks' ),
 			'type'        => 'text',

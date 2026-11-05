@@ -9,6 +9,33 @@ class Compatibility {
 	public static function register() {
 		$instance = new self();
 
+		/**
+		 * Remove 'auto' from 'sizes' attribute as 'width' set via CSS, not attribute, to auto or 100% messes with image
+		 *
+		 * @since 1.11.1.1 (WP 6.7+; #86c10cte0)
+		 */
+		add_filter(
+			'wp_get_attachment_image_attributes',
+			function( $attr, $attachment, $size ) {
+				if (
+				isset( $attr['sizes'] ) &&
+				isset( $attr['loading'] ) &&
+				'lazy' === $attr['loading'] &&
+				function_exists( 'wp_sizes_attribute_includes_valid_auto' ) &&
+				wp_sizes_attribute_includes_valid_auto(
+					$attr['sizes']
+				)
+				) {
+					// Remove 'auto, ' , it will be the first string in the sizes attribute
+					$attr['sizes'] = preg_replace( '/auto, /', '', $attr['sizes'], 1 );
+				}
+
+				return $attr;
+			},
+			1,
+			3
+		);
+
 		// Autoptimize (disable in builder)
 		if ( bricks_is_builder() ) {
 			add_filter(

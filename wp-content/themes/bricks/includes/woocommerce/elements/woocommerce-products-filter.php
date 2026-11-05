@@ -88,7 +88,10 @@ class Woocommerce_Products_Filters extends Element {
 						'dropdown' => esc_html__( 'Dropdown', 'bricks' ),
 						'list'     => esc_html__( 'Text list', 'bricks' ),
 					],
-					'required' => [ 'otherFilter', '=', [ 'stock' ] ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', [ 'stock' ] ],
+					],
 				],
 
 				'inputRating'               => [
@@ -102,14 +105,21 @@ class Woocommerce_Products_Filters extends Element {
 						'list'     => esc_html__( 'Text list', 'bricks' ),
 						'box'      => esc_html__( 'Box list', 'bricks' ),
 					],
-					'required' => [ 'otherFilter', '=', 'rating' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'rating' ],
+					],
 				],
 
 				// Stars
 				'starsIcon'                 => [
 					'label'    => esc_html__( 'Rating icon', 'bricks' ),
 					'type'     => 'icon',
-					'required' => [ 'inputRating', '=', 'stars' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'rating' ],
+						[ 'inputRating', '=', 'stars' ],
+					],
 				],
 
 				'starsIconTypography'       => [
@@ -133,6 +143,8 @@ class Woocommerce_Products_Filters extends Element {
 						'letter-spacing',
 					],
 					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'rating' ],
 						[ 'inputRating', '=', 'stars' ],
 						[ 'starsIcon.icon', '!=', '' ],
 					],
@@ -141,7 +153,11 @@ class Woocommerce_Products_Filters extends Element {
 				'starsIconActive'           => [
 					'label'    => esc_html__( 'Active rating icon', 'bricks' ),
 					'type'     => 'icon',
-					'required' => [ 'inputRating', '=', 'stars' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'rating' ],
+						[ 'inputRating', '=', 'stars' ],
+					],
 				],
 
 				'starsIconActiveTypography' => [
@@ -165,6 +181,8 @@ class Woocommerce_Products_Filters extends Element {
 						'letter-spacing',
 					],
 					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'rating' ],
 						[ 'inputRating', '=', 'stars' ],
 						[ 'starsIconActive.icon', '!=', '' ],
 					],
@@ -175,7 +193,10 @@ class Woocommerce_Products_Filters extends Element {
 					'label'       => esc_html__( 'Any option text', 'bricks' ),
 					'type'        => 'text',
 					'placeholder' => esc_html__( 'Any', 'bricks' ),
-					'required'    => [ 'inputType', '=', [ 'dropdown', 'radio' ] ],
+					'required'    => [
+						[ 'type', '=', [ 'attribute', 'taxonomy' ] ],
+						[ 'inputType', '=', [ 'dropdown', 'radio' ] ]
+					],
 				],
 
 				'parentTermsOnly'           => [
@@ -203,21 +224,57 @@ class Woocommerce_Products_Filters extends Element {
 					'label'    => esc_html__( 'Min. value', 'bricks' ),
 					'type'     => 'number',
 					'min'      => 0,
-					'required' => [ 'otherFilter', '=', 'price' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'price' ],
+					],
 				],
 
 				'sliderMax'                 => [
 					'label'    => esc_html__( 'Max. value', 'bricks' ),
 					'type'     => 'number',
 					'min'      => 0,
-					'required' => [ 'otherFilter', '=', 'price' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'price' ],
+					],
+				],
+
+				'currencySymbol'            => [
+					'label'       => esc_html__( 'Currency', 'bricks' ),
+					'type'        => 'text',
+					'placeholder' => html_entity_decode( get_woocommerce_currency_symbol() ),
+					'inline'      => true,
+					'required'    => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'price' ],
+					],
+				],
+
+				'currencySymbolPosition'    => [
+					'label'       => esc_html__( 'Currency position', 'bricks' ),
+					'type'        => 'select',
+					'options'     => [
+						'left'       => esc_html__( 'Left', 'bricks' ),
+						'leftSpace'  => esc_html__( 'Left with space', 'bricks' ),
+						'right'      => esc_html__( 'Right', 'bricks' ),
+						'rightSpace' => esc_html__( 'Right with space', 'bricks' ),
+					],
+					'placeholder' => esc_html__( 'Left', 'bricks' ),
+					'required'    => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'price' ],
+					],
 				],
 
 				// Reset Button [filter = reset]
 				'resetText'                 => [
 					'type'        => 'text',
 					'placeholder' => esc_html__( 'Reset', 'bricks' ),
-					'required'    => [ 'otherFilter', '=', 'reset' ],
+					'required'    => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'reset' ],
+					],
 				],
 
 				'resetBackgroundColor'      => [
@@ -229,7 +286,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'background-color',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'reset' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'reset' ],
+					],
 				],
 
 				'resetBorder'               => [
@@ -241,7 +301,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'border',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'reset' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'reset' ],
+					],
 				],
 
 				'resetTypography'           => [
@@ -255,7 +318,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'font',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'reset' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'reset' ],
+					],
 				],
 
 				// Filter title
@@ -297,7 +363,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'background-color',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'search' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'search' ],
+					],
 				],
 
 				'searchBorder'              => [
@@ -309,7 +378,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'border',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'search' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'search' ],
+					],
 				],
 
 				'searchBoxShadow'           => [
@@ -321,7 +393,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'box-shadow',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'search' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'search' ],
+					],
 				],
 
 				'searchTypography'          => [
@@ -337,7 +412,10 @@ class Woocommerce_Products_Filters extends Element {
 							'property' => 'font',
 						],
 					],
-					'required' => [ 'otherFilter', '=', 'search' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'search' ],
+					],
 				],
 
 				'searchIcon'                => [
@@ -345,7 +423,10 @@ class Woocommerce_Products_Filters extends Element {
 					'type'     => 'icon',
 					'rerender' => true,
 					'inline'   => true,
-					'required' => [ 'otherFilter', '=', 'search' ],
+					'required' => [
+						[ 'type', '=', 'other' ],
+						[ 'otherFilter', '=', 'search' ],
+					],
 				],
 			],
 		];
@@ -376,7 +457,6 @@ class Woocommerce_Products_Filters extends Element {
 					'selector' => '.title',
 				],
 			],
-			'required'    => [ 'hideTitle', '=', '' ],
 			'placeholder' => [
 				'top'    => 0,
 				'right'  => 0,
@@ -386,31 +466,29 @@ class Woocommerce_Products_Filters extends Element {
 		];
 
 		$this->controls['titlePadding'] = [
-			'tab'      => 'content',
-			'group'    => 'title',
-			'label'    => esc_html__( 'Padding', 'bricks' ),
-			'type'     => 'spacing',
-			'css'      => [
+			'tab'   => 'content',
+			'group' => 'title',
+			'label' => esc_html__( 'Padding', 'bricks' ),
+			'type'  => 'spacing',
+			'css'   => [
 				[
 					'property' => 'padding',
 					'selector' => '.title',
 				],
 			],
-			'required' => [ 'hideTitle', '=', '' ],
 		];
 
 		$this->controls['titleTypography'] = [
-			'tab'      => 'content',
-			'group'    => 'title',
-			'label'    => esc_html__( 'Typography', 'bricks' ),
-			'type'     => 'typography',
-			'css'      => [
+			'tab'   => 'content',
+			'group' => 'title',
+			'label' => esc_html__( 'Typography', 'bricks' ),
+			'type'  => 'typography',
+			'css'   => [
 				[
 					'property' => 'font',
 					'selector' => '.title .title-tag',
 				],
 			],
-			'required' => [ 'hideTitle', '=', '' ],
 		];
 
 		$this->controls['titleBackgroundColor'] = [
@@ -458,7 +536,6 @@ class Woocommerce_Products_Filters extends Element {
 				'icon'    => 'ion-ios-remove',
 			],
 			'rerender' => true,
-			'required' => [ 'hideTitle', '=', '' ],
 		];
 
 		$this->controls['iconCollapsed'] = [
@@ -471,21 +548,19 @@ class Woocommerce_Products_Filters extends Element {
 				'icon'    => 'ion-ios-add',
 			],
 			'rerender' => true,
-			'required' => [ 'hideTitle', '=', '' ],
 		];
 
 		$this->controls['iconTypography'] = [
-			'tab'      => 'content',
-			'group'    => 'title',
-			'label'    => esc_html__( 'Icon typography', 'bricks' ),
-			'type'     => 'typography',
-			'css'      => [
+			'tab'   => 'content',
+			'group' => 'title',
+			'label' => esc_html__( 'Icon typography', 'bricks' ),
+			'type'  => 'typography',
+			'css'   => [
 				[
 					'selector' => '.toggle',
 					'property' => 'font',
 				],
 			],
-			'required' => [ 'hideTitle', '=', '' ],
 		];
 
 		$this->controls['iconPosition'] = [
@@ -505,7 +580,6 @@ class Woocommerce_Products_Filters extends Element {
 				],
 			],
 			'placeholder' => esc_html__( 'Right', 'bricks' ),
-			'required'    => [ 'hideTitle', '=', '' ],
 		];
 	}
 
@@ -860,6 +934,16 @@ class Woocommerce_Products_Filters extends Element {
 		$min_value = absint( isset( $filter['sliderMin'] ) ? $filter['sliderMin'] : 0 );
 		$max_value = absint( isset( $filter['sliderMax'] ) ? $filter['sliderMax'] : 200 );
 
+		// Currency Symbol and Currency Symbol position
+		$currency_symbol          = isset( $filter['currencySymbol'] ) ? $filter['currencySymbol'] : get_woocommerce_currency_symbol();
+		$currency_symbol_position = isset( $filter['currencySymbolPosition'] ) ? $filter['currencySymbolPosition'] : 'left';
+
+		// Create currency JSON data, to pass to JS
+		$currency_data = [
+			'symbol'   => $currency_symbol,
+			'position' => $currency_symbol_position,
+		];
+
 		// Current value
 		$value_min = absint( isset( $_GET[ $min_arg ] ) ? absint( $_GET[ $min_arg ] ) : $min_value );
 		$value_max = absint( isset( $_GET[ $max_arg ] ) ? absint( $_GET[ $max_arg ] ) : $max_value );
@@ -867,7 +951,7 @@ class Woocommerce_Products_Filters extends Element {
 		$key_base = sanitize_key( $this->id . '_' );
 		?>
 		<form class="filter" method="get">
-			<div class="double-slider-wrap" aria-label="<?php echo esc_html( $title ); ?>" data-currency="<?php echo get_woocommerce_currency_symbol(); ?>">
+			<div class="double-slider-wrap" aria-label="<?php echo esc_html( $title ); ?>" data-currency="<?php echo esc_attr( wp_json_encode( $currency_data, JSON_UNESCAPED_UNICODE ) ); ?>">
 				<label for="<?php echo $key_base . 'lower'; ?>" class="lower"><?php esc_html_e( 'Min. price', 'bricks' ); ?></label>
 				<input id="<?php echo $key_base . 'lower'; ?>" class="lower" name="<?php echo $min_arg; ?>" type="range" min="<?php echo $min_value; ?>" max="<?php echo $max_value; ?>" step="1" value="<?php echo esc_attr( $value_min ); ?>">
 				<label for="<?php echo $key_base . 'upper'; ?>" class="upper"><?php esc_html_e( 'Max. price', 'bricks' ); ?></label>

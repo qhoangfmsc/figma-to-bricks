@@ -103,7 +103,6 @@ class Element_Audio extends Element {
 				'h5' => 'h5',
 				'h6' => 'h6',
 			],
-			'clearable'   => false,
 			'inline'      => true,
 			'placeholder' => 'p',
 			'required'    => [ 'file', '!=', '' ],

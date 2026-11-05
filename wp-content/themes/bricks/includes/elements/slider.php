@@ -809,7 +809,11 @@ class Element_Slider extends Element {
 			<div class="slider-content">
 				<?php
 				if ( isset( $slide['title'] ) && ! empty( $slide['title'] ) ) {
-					$tag = isset( $slide['titleTag'] ) ? esc_html( $slide['titleTag'] ) : 'h3';
+					$tag = 'h3';
+
+					if ( ! empty( $slide['titleTag'] ) ) {
+						$tag = Helpers::sanitize_html_tag( $slide['titleTag'], 'h3' );
+					}
 
 					$this->set_attribute( "title-$index", $tag );
 					$this->set_attribute( "title-$index", 'class', [ 'title' ] );

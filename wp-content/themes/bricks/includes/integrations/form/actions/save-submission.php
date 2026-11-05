@@ -17,16 +17,17 @@ class Save_Submission extends Base {
 		$submission_db  = Submission_Database::get_instance();
 		$submitted_data = $form->get_fields();
 
-		$post_id = isset( $submitted_data['postId'] ) ? absint( $submitted_data['postId'] ) : 0;
-		$form_id = isset( $submitted_data['formId'] ) ? sanitize_text_field( $submitted_data['formId'] ) : '';
+		$form_id      = isset( $submitted_data['formId'] ) ? sanitize_text_field( $submitted_data['formId'] ) : '';
+		$post_id      = isset( $submitted_data['postId'] ) ? absint( $submitted_data['postId'] ) : 0;
+		$loop_post_id = isset( $submitted_data['loopId'] ) ? absint( $submitted_data['loopId'] ) : 0; // Get query loop post ID to parse dynamic data (@since 1.11.1)
 
 		// Use global element ID as form ID
 		if ( ! empty( $submitted_data['globalId'] ) ) {
 			$form_id = sanitize_text_field( $submitted_data['globalId'] );
 		}
 
-		// Return: post ID or form ID are not valid
-		if ( ! $post_id || ! $form_id ) {
+		// Return: form ID are not valid, post_id could be 0 if the form located in CPT archive, 404, search, etc. (@since 1.12.2)
+		if ( ! $form_id ) {
 			$form->set_result(
 				[
 					'action'  => $this->name,
@@ -49,6 +50,11 @@ class Save_Submission extends Base {
 
 			// Skip: Form field type 'html'
 			if ( $field_type === 'html' ) {
+				continue;
+			}
+
+			// Skip: Fields that are defined as honeypot (@since 1.12.2)
+			if ( isset( $field['isHoneypot'] ) ) {
 				continue;
 			}
 
@@ -85,7 +91,7 @@ class Save_Submission extends Base {
 				$message = esc_html__( 'Maximum number of entries reached.', 'bricks' );
 
 				if ( ! empty( $form_settings['submissionMaxEntriesErrorMessage'] ) ) {
-					$message = bricks_render_dynamic_data( $form_settings['submissionMaxEntriesErrorMessage'], $post_id );
+					$message = bricks_render_dynamic_data( $form_settings['submissionMaxEntriesErrorMessage'], $loop_post_id );
 				}
 
 				// Return: Max. entries reached
@@ -167,7 +173,7 @@ class Save_Submission extends Base {
 				$message = esc_html__( 'Duplicate entries not allowed.', 'bricks' );
 
 				if ( ! empty( $form_settings['submissionDupEntriesErrorMessage'] ) ) {
-					$message = bricks_render_dynamic_data( $form_settings['submissionDupEntriesErrorMessage'], $post_id );
+					$message = bricks_render_dynamic_data( $form_settings['submissionDupEntriesErrorMessage'], $loop_post_id );
 				}
 
 				$form->set_result(

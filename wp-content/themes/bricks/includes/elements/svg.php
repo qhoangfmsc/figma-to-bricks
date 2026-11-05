@@ -49,8 +49,9 @@ class Element_Svg extends Element {
 			$this->controls['code'] = [
 				'label'        => esc_html__( 'Code', 'bricks' ),
 				'type'         => 'code',
-				'mode'         => 'xml',
+				'mode'         => 'text/html', // https://codemirror.net/5/mode/xml/ (@since 1.10)
 				'executeCode'  => true,
+				'signCode'     => true,
 				'hasVariables' => false,
 				'desc'         => sprintf(
 					esc_html__( 'Please ensure that the SVG code you paste in here does not contain any potentially malicious code. You can run it first through a free online SVG cleaner like %s', 'bricks' ),
@@ -127,21 +128,28 @@ class Element_Svg extends Element {
 				]
 			],
 		];
+
+		$this->controls['link'] = [
+			'label' => esc_html__( 'Link', 'bricks' ),
+			'type'  => 'link',
+		];
 	}
 
 	public function render() {
-		$svg    = '';
-		$source = $this->settings['source'] ?? 'file';
+		$settings = $this->settings;
+		$source   = $settings['source'] ?? 'file';
+		$link     = ! empty( $settings['link'] ) && bricks_is_frontend() ? $settings['link'] : false; // Front-end only (@since 1.10.2)
+		$svg      = '';
 
 		// Default: Get SVG from file ID
-		if ( $source === 'file' && ! empty( $this->settings['file']['id'] ) ) {
-			$svg_path = get_attached_file( $this->settings['file']['id'] );
+		if ( $source === 'file' && ! empty( $settings['file']['id'] ) ) {
+			$svg_path = get_attached_file( $settings['file']['id'] );
 			$svg      = $svg_path ? Helpers::file_get_contents( $svg_path ) : false;
 		}
 
 		// Get SVG from dynamic data
-		if ( $source === 'dynamicData' && ! empty( $this->settings['dynamicData'] ) ) {
-			$svg_data = $this->render_dynamic_data_tag( $this->settings['dynamicData'], 'image' );
+		if ( $source === 'dynamicData' && ! empty( $settings['dynamicData'] ) ) {
+			$svg_data = $this->render_dynamic_data_tag( $settings['dynamicData'], 'image' );
 			$file_id  = ! empty( $svg_data[0] ) && is_numeric( $svg_data[0] ) ? $svg_data[0] : false;
 
 			if ( $file_id ) {
@@ -151,8 +159,8 @@ class Element_Svg extends Element {
 		}
 
 		// STEP: Get SVG HTML from Code element
-		$code      = $this->settings['code'] ?? '';
-		$signature = $this->settings['signature'] ?? false;
+		$code      = $settings['code'] ?? '';
+		$signature = $settings['signature'] ?? false;
 
 		if ( $source === 'code' && $code ) {
 			// Return error message if $code contains any PHP tags
@@ -165,10 +173,11 @@ class Element_Svg extends Element {
 					[
 						'id'       => $this->id,
 						'settings' => [
-							'code'        => $code,
-							'signature'   => $signature,
-							'executeCode' => true,
-							'noRootForce' => true, // Return SVG code without element wrapper
+							'code'         => $code,
+							'signature'    => $signature,
+							'executeCode'  => true,
+							'noRootForce'  => true, // Return SVG code without element wrapper
+							'isStaticArea' => isset( $this->element['staticArea'] ), // To render SVG element 'code' in static header template without root wrapper (@since 1.11.1)
 						],
 					]
 				);
@@ -189,11 +198,51 @@ class Element_Svg extends Element {
 			}
 		}
 
+		// Maybe imported template without importing images. Try to get from placeholder (@since 1.12.2)
+		if ( ! $svg && isset( $settings['file']['path'] ) && $settings['file']['path'] !== '' ) {
+			$svg = Helpers::file_get_contents( $settings['file']['path'] );
+		}
+
+		// Return: No SVG
 		if ( ! $svg ) {
 			return $this->render_element_placeholder( [ 'title' => esc_html__( 'No SVG selected.', 'bricks' ) ] );
 		}
 
+		// Linked icon: Remove custom attributes from '_root' to add to the 'link'
+		if ( $link ) {
+			$custom_attributes = $this->get_custom_attributes( $settings );
+
+			if ( is_array( $custom_attributes ) ) {
+				foreach ( $custom_attributes as $key => $value ) {
+					if ( isset( $this->attributes['_root'][ $key ] ) ) {
+						unset( $this->attributes['_root'][ $key ] );
+					}
+				}
+			}
+		}
+
+		// Run root attributes through filter (@since 1.10)
+		else {
+			$this->attributes = apply_filters( 'bricks/element/render_attributes', $this->attributes, '_root', $this );
+		}
+
+		$output = '';
+
+		// Linked SVG
+		if ( $link ) {
+			$this->set_link_attributes( 'link', $link );
+
+			// Add custom attributes to the link instead of the icon
+			$output .= "<a {$this->render_attributes( 'link', true )}>";
+		}
+
 		// Render SVG + root attributes (ID, classes, etc.)
-		echo self::render_svg( $svg, $this->attributes['_root'] );
+		$output .= self::render_svg( $svg, $this->attributes['_root'] );
+
+		if ( $link ) {
+			$output .= '</a>';
+		}
+
+		echo $output;
 	}
 }

@@ -500,7 +500,8 @@ class Submission_Database {
 
 	// Helper function to get form settings
 	public static function get_form_settings( $post_id = 0, $form_id = 0, $global_id = 0 ) {
-		if ( empty( $post_id ) || empty( $form_id ) ) {
+		// Return empty array if form_id is empty, post_id could be 0 if the form located in CPT archive, 404, search, etc. (@since 1.12.2)
+		if ( empty( $form_id ) ) {
 			return [];
 		}
 

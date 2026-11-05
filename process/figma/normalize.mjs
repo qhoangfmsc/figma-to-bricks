@@ -6,6 +6,7 @@
 //  * Nothing is silently dropped: every raw key is classified in schema/handling.json; a key that is not there, or a visual one the build does not
 //    reproduce and that the node really uses, ends up in node.unhandled and is printed in tree.md / report.md.
 import { safeId } from '../shared/workspace.mjs';
+import { isLayoutRow } from './nodes.mjs';
 import { enumFlag, nodeFlag, textFlag } from '../schema/handling.mjs';
 import { relayoutInstances } from './relayout.mjs';
 
@@ -233,7 +234,8 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
   if (raw.boundVariables && Object.keys(raw.boundVariables).length) node.variables = raw.boundVariables;
 
   // assets
-  const svg = ctx.manifest.svgs?.[safeId(raw.id)];
+  // A layout row of cards is not a leaf, even when an older fetch exported the whole row as one svg.
+  const svg = !isLayoutRow(raw) && ctx.manifest.svgs?.[safeId(raw.id)];
   if (svg) node.svg = { file: svg.file, bytes: svg.bytes, ...(svg.width && { width: svg.width, height: svg.height }) };
   for (const f of node.fills ?? []) {
     if (f.type === 'IMAGE') {

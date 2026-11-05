@@ -10,6 +10,7 @@ import { normalizeRoot } from '../figma/normalize.mjs';
 import { imageInfo, sha256 } from '../shared/image-info.mjs';
 import { safeId } from '../shared/workspace.mjs';
 import { parseFigmaUrl } from '../figma/url.mjs';
+import { rejectTabBar } from './recheck.mjs';
 
 const stamp = (id) => `o${safeId(id)}`;
 
@@ -42,7 +43,7 @@ export function graftExpand(tree, hostId, expandTree) {
   return prefixed.id;
 }
 
-async function fetchExpandTree(url, dest) {
+export async function fetchSideTree(url, dest) {
   const { fileKey, nodeId } = parseFigmaUrl(url);
   const images = join(dest, 'assets/images');
   const svgs = join(dest, 'assets/svg');
@@ -80,7 +81,7 @@ async function fetchExpandTree(url, dest) {
   return normalizeRoot(raw, nodeId, manifest);
 }
 
-function copyAssets(from, ws) {
+export function copyAssets(from, ws) {
   for (const folder of ['images', 'svg']) {
     const src = join(from, 'assets', folder);
     if (!existsSync(src)) continue;
@@ -103,7 +104,7 @@ export async function attachExpandFrames(ws, { log = () => {} } = {}) {
     if (nodeId === c.node) throw new Error('Link bản đầy đủ đang trỏ vào chính khung bị cắt. Cần link khung đang mở hết.');
     log(`Đang lấy bản đầy đủ ${nodeId}`);
     const dest = join(ws.dir, 'expand-src', safeId(nodeId));
-    const expandTree = await fetchExpandTree(url, dest);
+    const expandTree = rejectTabBar(await fetchSideTree(url, dest));
     graftExpand(tree, c.node, expandTree);
     copyAssets(dest, ws);
   }

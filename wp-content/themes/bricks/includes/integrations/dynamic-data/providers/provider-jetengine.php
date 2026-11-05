@@ -302,6 +302,77 @@ class Provider_Jetengine extends Base {
 					}
 
 					break;
+
+				/**
+				 * Support Source: Manual, Glossary
+				 * Can use :value filter to show the actual value of the selected options
+				 * As it's an array, will be converted to a comma-separated string after went through format_value_for_context()
+				 *
+				 * Default: Only show the true labels of the selected options
+				 *
+				 * @since 1.11
+				 */
+				case 'checkbox':
+					if ( is_array( $value ) && ! empty( $value ) ) {
+						$save_as_array = isset( $field['is_array'] ) && $field['is_array'];
+
+						// STEP: Get the actual values of the selected options
+						if ( ! $save_as_array && is_array( $value ) ) {
+							// The serialized value saved in the database, array key is the value, array value is 'false' or 'true'
+							// Filter all values that are true
+							$value = array_filter(
+								$value,
+								function( $v ) {
+									return $v === 'true';
+								}
+							);
+
+							// Keys are the actual values
+							$value = array_keys( $value );
+						}
+
+						// STEP: Label or value
+						$use_label = ! isset( $filters['value'] );
+
+						if ( $use_label ) {
+							$source = isset( $field['options_source'] ) ? $field['options_source'] : 'manual';
+
+							switch ( $source ) {
+								case 'manual':
+									$options = isset( $field['options'] ) ? $field['options'] : [];
+
+									if ( is_array( $value ) && ! empty( $options ) ) {
+										// Reorganize the options array and set the key as the option value
+										$options = array_combine( array_column( $options, 'key' ), $options );
+
+										// Convert each value to the label (label saved in 'value' key in the options array)
+										$value = array_map(
+											function( $v ) use ( $options ) {
+												return isset( $options[ $v ] ) ? $options[ $v ]['value'] : $v;
+											},
+											$value
+										);
+									}
+
+									break;
+
+								case 'glossary':
+									// Get the glossary_id
+									$glossary_id = isset( $field['glossary_id'] ) ? $field['glossary_id'] : 0;
+
+									if ( ! $glossary_id ) {
+										break;
+									}
+
+									// Convert each value to the label
+									// @see: wp-content/plugins/jet-engine/includes/components/glossaries/manager.php
+									$value = jet_engine()->glossaries->get_labels_for_values( $value, $glossary_id );
+
+									break;
+							}
+						}
+					}
+					break;
 			}
 		}
 
@@ -315,9 +386,10 @@ class Provider_Jetengine extends Base {
 		$tag_object = $this->tags[ $tag ];
 		$field      = $tag_object['field'];
 
-		// STEP: Check if in a Repeater loop or Relationship sub-field
-		if ( \Bricks\Query::is_looping() ) {
-			$query_type = \Bricks\Query::get_query_object_type();
+		// STEP: Check if in a Repeater loop or Relationship sub-field, use is_any_looping (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$query_type = \Bricks\Query::get_query_object_type( $any_loop_id );
 
 			// Check if this loop belongs to this provider
 			if ( array_key_exists( $query_type, $this->loop_tags ) ) {
@@ -340,12 +412,21 @@ class Provider_Jetengine extends Base {
 							return '';
 						}
 
+						// Default parent ID
+						$parent_id       = \Bricks\Database::$page_data['preview_or_post_id'];
+						$parent_query_id = \Bricks\Query::get_parent_loop_id();
+
+						// If the parent loop is a post, term or user, use the parent ID (@since 1.11.1)
+						if ( $parent_query_id && in_array( \Bricks\Query::get_loop_object_type( $parent_query_id ), [ 'post', 'term', 'user' ], true ) ) {
+							$parent_id = \Bricks\Query::get_loop_object_id( $parent_query_id );
+						}
+
 						// Retrieve the relationship sub meta field content
-						return $relation->get_meta( \Bricks\Database::$page_data['preview_or_post_id'], $post_id, $field['name'] );
+						return $relation->get_meta( $parent_id, $post_id, $field['name'] );
 					}
 
 					// Or, sub-field belongs to a repater
-					$query_loop_object = \Bricks\Query::get_loop_object();
+					$query_loop_object = \Bricks\Query::get_loop_object( $any_loop_id );
 
 					// Sub-field not found in the loop object (array)
 					if ( ! is_array( $query_loop_object ) || ! array_key_exists( $field['name'], $query_loop_object ) ) {
@@ -388,11 +469,13 @@ class Provider_Jetengine extends Base {
 		$type        = $field['_brx_type']; // post, term, or user
 		$object_slug = $field['_brx_object']; // object slug or user
 
-		if ( \Bricks\Query::is_looping() ) {
-			$object_type = \Bricks\Query::get_loop_object_type();
+		// If any looping (@since 1.10)
+		$any_loop_id = \Bricks\Query::is_any_looping();
+		if ( $any_loop_id ) {
+			$object_type = \Bricks\Query::get_loop_object_type( $any_loop_id );
 
 			if ( $object_type === $type ) {
-				return \Bricks\Query::get_loop_object();
+				return \Bricks\Query::get_loop_object( $any_loop_id );
 			}
 		}
 
