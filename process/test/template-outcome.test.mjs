@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outcomeOf, readyForUser } from '../template/outcome.mjs';
+import { outcomeOf, readyForUser } from '../modules/single-template/outcome.mjs';
 
 test('a pushed template is a result even when verify exits with mismatches', () => {
   const out = outcomeOf({

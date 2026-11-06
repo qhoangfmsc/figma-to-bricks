@@ -1,0 +1,62 @@
+// Which section of another breakpoint frame is the twin of a section of the base frame? Deterministic:
+//   1. the same NAME, when that name is unique among the sections of both frames;
+//   2. otherwise (the name is repeated: "vnx-service" x4, "f-w" x4, or the designer renamed it: "f-w" -> "Note") the sections that share the most
+//      WORDS of visible text: a pair counts only when each is the other's best match, the overlap (Jaccard of the word sets) is at least
+//      MIN_OVERLAP and at least MARGIN times the runner-up on both sides. Anything less certain has no twin (the section stays base only).
+export const MIN_OVERLAP = 0.2;
+export const MARGIN = 1.5;
+
+export const wordsOf = (node) => {
+  const out = new Set();
+  (function rec(n) {
+    if (n.visible === false) return;
+    if (n.type === 'TEXT') String(n.characters ?? '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2).forEach((w) => out.add(w));
+    (n.children ?? []).forEach(rec);
+  })(node);
+  return out;
+};
+
+const jaccard = (a, b) => { let i = 0; for (const w of a) if (b.has(w)) i++; return i / Math.max(1, a.size + b.size - i); };
+
+// base / candidates: [{ id, name, words:Set }]; returns the candidate (or null)
+export function pickTwin(target, base, candidates) {
+  const sameName = (list) => list.filter((x) => x.name === target.name);
+  if (sameName(base).length === 1 && sameName(candidates).length === 1) return sameName(candidates)[0];
+  if (!target.words?.size) return null;
+  const score = (a, b) => jaccard(a.words, b.words);
+  const best = (list, from) => { const s = list.map((x) => ({ x, j: score(from, x) })).sort((p, q) => q.j - p.j); return { top: s[0], second: s[1]?.j ?? 0 }; };
+  const mine = best(candidates, target);
+  if (!mine.top || mine.top.j < MIN_OVERLAP || mine.top.j < MARGIN * mine.second) return null;
+  const back = best(base, mine.top.x);
+  if (back.top.x.id !== target.id || back.top.j < MARGIN * back.second) return null;
+  return mine.top.x;
+}
+
+// The whole stack. Unique names first, then text, then the same vertical order when both sides have the same number left over.
+// A renamed section with the same place in the frame still gets a twin. A frame that dropped a section does not shift the rest.
+export function pairSections(base, candidates) {
+  const pairs = new Map();
+  const usedB = new Set();
+  const usedC = new Set();
+  for (const b of base) {
+    const sameB = base.filter((x) => x.name === b.name);
+    const sameC = candidates.filter((x) => x.name === b.name);
+    if (sameB.length === 1 && sameC.length === 1) {
+      pairs.set(b.id, sameC[0]);
+      usedB.add(b.id);
+      usedC.add(sameC[0].id);
+    }
+  }
+  const leftB = () => base.filter((b) => !usedB.has(b.id));
+  const leftC = () => candidates.filter((c) => !usedC.has(c.id));
+  for (const b of leftB()) {
+    const hit = pickTwin(b, leftB(), leftC());
+    if (!hit || usedC.has(hit.id)) continue;
+    pairs.set(b.id, hit);
+    usedB.add(b.id);
+    usedC.add(hit.id);
+  }
+  const restB = leftB(), restC = leftC();
+  if (restB.length && restB.length === restC.length) restB.forEach((b, i) => pairs.set(b.id, restC[i]));
+  return pairs;
+}

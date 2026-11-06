@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { detectFlatImages } from '../detect/rules/flat-image.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { detectFlatImages } from '../modules/recognize-parts/rules/flat-image.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 
 const manifest = { images: { r: { file: 'images/r.png', bytes: 1, sha256: 'x', width: 800, height: 400, ext: 'png' } }, svgs: {} };
 

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeResponsive } from '../responsive/merge.mjs';
-import { fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve } from '../responsive/solo.mjs';
-import { applyAppearance } from '../bricks/render/utils/appearance.mjs';
+import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
+import { fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve } from '../modules/breakpoints/solo.mjs';
+import { applyAppearance } from '../modules/write-bricks/render/utils/appearance.mjs';
 
 const el = (id, parent, name, settings = {}) => ({ id, parent, name, settings });
 

@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { detectCarousels } from '../detect/rules/carousel.mjs';
-import { checkCites } from '../detect/cite.mjs';
-import carousel, { paginationMarks } from '../bricks/components/carousel.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { validateAnswers } from '../plan/index.mjs';
-import { graftSlides } from '../template/slides.mjs';
+import { detectCarousels } from '../modules/recognize-parts/rules/carousel.mjs';
+import { checkCites } from '../modules/recognize-parts/cite.mjs';
+import carousel, { paginationMarks } from '../modules/write-bricks/components/carousel.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { validateAnswers } from '../modules/missing-content/index.mjs';
+import { graftSlides } from '../modules/single-template/slides.mjs';
 
-const treeOf = (id) => JSON.parse(readFileSync(new URL(`../work/NcaLAzM0EyDXVnHwqAjOR0/${id}/tree.json`, import.meta.url), 'utf8'));
-const svgOf = (id, file) => readFileSync(new URL(`../work/NcaLAzM0EyDXVnHwqAjOR0/${id}/assets/${file}`, import.meta.url), 'utf8');
+const treeOf = (id) => JSON.parse(readFileSync(new URL(`../fixtures/sections/${id}/tree.json`, import.meta.url), 'utf8'));
+const svgOf = (id, file) => readFileSync(new URL(`../fixtures/sections/${id}/assets/${file}`, import.meta.url), 'utf8');
 
 const card = (id, x) => ({ id, name: 'card', type: 'FRAME', box: { x, y: 0, w: 100, h: 60, absX: x, absY: 0 }, children: [{ id: id + 't', type: 'TEXT', text: { characters: 'Card' } }] });
 const rowOf = (children, extra = {}) => ({ id: 'r', name: 'root', children: [{ id: 'row', name: 'Row', layout: { mode: 'HORIZONTAL', wrap: false, gap: 20 }, box: { x: 0, y: 0, w: 400, h: 60, absX: 0, absY: 0 }, children, ...extra }] });

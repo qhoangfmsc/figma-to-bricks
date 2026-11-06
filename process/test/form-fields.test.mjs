@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { detectForms } from '../detect/rules/form.mjs';
-import { submissionName } from '../bricks/components/form.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
+import { submissionName } from '../modules/write-bricks/components/form.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, b) => ({

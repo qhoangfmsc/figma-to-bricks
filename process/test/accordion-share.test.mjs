@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { shareAccordionAnswers, shareFilledContent } from '../plan/index.mjs';
+import { shareAccordionAnswers, shareFilledContent } from '../modules/missing-content/index.mjs';
 
 const text = (id, value) => ({ id, name: id, type: 'TEXT', text: { characters: value }, children: [] });
 const item = (id, name, question) => ({ id, name, children: [{ id: `${id}-title`, name: 'Title', children: [text(`${id}-t`, question)] }] });

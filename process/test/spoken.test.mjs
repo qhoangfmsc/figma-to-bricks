@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hearAnswers, validateAnswers, readPane } from '../plan/index.mjs';
+import { hearAnswers, validateAnswers, readPane } from '../modules/missing-content/index.mjs';
 
 test('a normal sentence is read as the value the field needs', () => {
   const heard = hearAnswers({

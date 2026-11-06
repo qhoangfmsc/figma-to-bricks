@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewFrame } from '../template/review.mjs';
+import { reviewFrame } from '../modules/single-template/review.mjs';
 
 const shifted = (id, want, got) => ({ id, label: `${id} block`, check: 'x', want: String(want), got: String(got), ok: false, tier: 2 });
 

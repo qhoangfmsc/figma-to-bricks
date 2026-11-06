@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { mergeResponsive } from '../responsive/merge.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
 
 const manifest = { images: { r: { file: 'images/r.png', bytes: 1, sha256: 'x', width: 390, height: 492, ext: 'png' } }, svgs: {} };
 const other = { images: { r: { file: 'images/other.png', bytes: 1, sha256: 'y', width: 390, height: 492, ext: 'png' } }, svgs: {} };

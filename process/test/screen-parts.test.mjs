@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { screenParts } from '../template/parts.mjs';
-import { validateAnswers, applyAnswers, readExpand } from '../plan/index.mjs';
-import { graftExpand } from '../template/expand.mjs';
-import readmore from '../bricks/components/readmore.mjs';
-import button from '../bricks/components/button.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
+import { validateAnswers, applyAnswers, readExpand } from '../modules/missing-content/index.mjs';
+import { graftExpand } from '../modules/single-template/expand.mjs';
+import readmore from '../modules/write-bricks/components/readmore.mjs';
+import button from '../modules/write-bricks/components/button.mjs';
 
 const tree = {
   id: 'root', name: 'SEO', children: [

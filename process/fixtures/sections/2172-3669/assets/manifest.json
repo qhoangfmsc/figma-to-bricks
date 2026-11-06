@@ -1,0 +1,52 @@
+{
+  "images": {
+    "0cfb604db8775b956dc874c8473107c72aada5bb": {
+      "file": "images/0cfb604db8775b956dc874c8473107c72aada5bb.png",
+      "bytes": 604031,
+      "sha256": "27f123f1f4a784fc6e66312ab88f0bc3262432d9bcc0b7ee80ff8dfaccd12a8a",
+      "ext": "png",
+      "width": 838,
+      "height": 704
+    },
+    "4fd330947f6343930336f4023db92065d102e5a8": {
+      "file": "images/4fd330947f6343930336f4023db92065d102e5a8.png",
+      "bytes": 601045,
+      "sha256": "2be3b2196ded229b5a864b659c598f8b7a81ff08176f9f21ce7483590cbe5560",
+      "ext": "png",
+      "width": 838,
+      "height": 704
+    },
+    "ca90783b484fd4463bd0bb310bb62d6a3cd755fc": {
+      "file": "images/ca90783b484fd4463bd0bb310bb62d6a3cd755fc.png",
+      "bytes": 603985,
+      "sha256": "461b16b8388433fb816c66c04edb51f05c2ce2b153189eb00e6aae8fa817422e",
+      "ext": "png",
+      "width": 838,
+      "height": 704
+    }
+  },
+  "svgs": {
+    "2172_3712": {
+      "file": "svg/2172_3712.svg",
+      "bytes": 550,
+      "sha256": "8dbfa678faac4fff759d7bef37aebbb21695a6b3bbdca1725ecaa9e28f1963e0",
+      "width": 124,
+      "height": 4
+    },
+    "I2172_3710_92_459": {
+      "file": "svg/I2172_3710_92_459.svg",
+      "bytes": 411,
+      "sha256": "fba4ff608f433cf80490d03a2dd3956440cc26c55a80f2f78f06296ccc678e88",
+      "width": 7,
+      "height": 12
+    },
+    "I2172_3711_92_465": {
+      "file": "svg/I2172_3711_92_465.svg",
+      "bytes": 398,
+      "sha256": "ea39c7cb70e9ba905788db93a9df2517fac23d18054237d9fb1a1c581b188ef8",
+      "width": 7,
+      "height": 12
+    }
+  },
+  "flats": {}
+}

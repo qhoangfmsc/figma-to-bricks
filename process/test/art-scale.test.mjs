@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 
 const manifest = { images: { r: { file: 'images/r.png', bytes: 1, sha256: 'x', width: 800, height: 400, ext: 'png' }, g: { file: 'images/g.png', bytes: 1, sha256: 'y', width: 658, height: 656, ext: 'png' } }, svgs: {} };
 

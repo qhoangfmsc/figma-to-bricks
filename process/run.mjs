@@ -5,17 +5,17 @@
 //   node process/run.mjs <figma-url> --only=tree           a single step
 //   node process/run.mjs <figma-url> --fixture <dir>       offline fetch from a saved fixture
 //   node process/run.mjs <figma-url> --strict              fail on any warning / unhandled property
-import { fetchStep } from './scripts/01-fetch.mjs';
-import { treeStep } from './scripts/02-tree.mjs';
-import { detectStep } from './scripts/03-detect.mjs';
-import { exportStep } from './scripts/04-export.mjs';
-import { buildStep } from './scripts/05-build.mjs';
-import { pushStep } from './scripts/06-push.mjs';
-import { verifyStep } from './scripts/07-verify.mjs';
-import { summaryStep } from './scripts/08-summary.mjs';
+import { fetchStep } from './modules/build-steps/01-fetch.mjs';
+import { treeStep } from './modules/build-steps/02-tree.mjs';
+import { detectStep } from './modules/build-steps/03-detect.mjs';
+import { exportStep } from './modules/build-steps/04-export.mjs';
+import { buildStep } from './modules/build-steps/05-build.mjs';
+import { pushStep } from './modules/build-steps/06-push.mjs';
+import { verifyStep } from './modules/build-steps/07-verify.mjs';
+import { summaryStep } from './modules/build-steps/08-summary.mjs';
 import { dirname, join } from 'node:path';
-import { resolveWorkspace } from './shared/workspace.mjs';
-import { gate } from './review/index.mjs';
+import { resolveWorkspace } from './modules/common/workspace.mjs';
+import { gate } from './modules/sign-off/index.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => (args.find((a) => a.startsWith(`--${name}=`)) ?? '').split('=')[1];
@@ -50,7 +50,7 @@ for (const step of run) {
       waiting = true;
       console.log(`\n⏸  REVIEW GATE (before ${step}): ${g.reason}`);
       console.log(`   Compare ${ws.dir}/detections.md (and facts.md) with the Figma file, correct it, then sign off:`);
-      console.log(`   node process/scripts/review.mjs "${ws.dir}" status | approve <ids> | reject <ids> | set <id> k=v | signoff "<note>"`);
+      console.log(`   node process/modules/maintenance/review.mjs "${ws.dir}" status | approve <ids> | reject <ids> | set <id> k=v | signoff "<note>"`);
       console.log(`   then: node process/run.mjs "${target}" --from=export`);
       process.exitCode = 2;
     }

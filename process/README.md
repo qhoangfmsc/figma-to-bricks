@@ -1,7 +1,21 @@
-# Figma → Bricks workflow
+# Figma → Bricks
 
-One fixed flow for every section. **Code does the work; AI only fills a small, reviewable decision file.**
-Bricks always mirrors the Figma tree, with every value copied from Figma, never estimated from a picture.
+Hai lệnh. Không có màn admin.
+
+| Việc | Lệnh |
+|---|---|
+| Một template, tự gắn vào trang | `/generate-template-from-figma` |
+| Cả trang, mỗi section một template | `/generate-page-from-figma` |
+
+Template: Desktop bắt buộc. Thiếu link Widescreen, Tablet, Mobile landscape, Mobile portrait thì hỏi, không đoán. `read` chạy bước 1–3 rồi dừng ở plan (phần đã nhận, ô cần điền, nhóm lặp `repeats`). OK rồi mới `build` (bước 4–8).
+
+Page: một link. `auto.mjs` tách section, tìm khung tablet/mobile, ghi `jobs/<section>.json`. Plan là `plan-<node>.md`, duyệt một lần. Sau `Xác nhận: có`, chạy lại `auto.mjs`: nó build hết section, so ảnh, rồi ghép trang. Không thấy khung thì để trống, không bịa link.
+
+Số lấy từ cây Figma. Nhóm là gì thì nhìn hình (render Figma hoặc Playwright trong Docker) cùng cấu trúc con lặp. Tên layer (`tab`, `menu`, `nav`, `button`) chỉ là gợi ý. Một file fail là lỗ của rule chung, có test, không phải regex riêng cho file đó.
+
+## Tám bước
+
+Code chạy đủ tám bước. Chat chỉ chặn trước bước 4 của một template.
 
 ```
 Figma URL
@@ -12,7 +26,7 @@ Figma URL
    ▼
  tree.json · tree.md                        ← READ THIS to know what the design is
    │            overrides.json               ← the ONLY place for human/AI decisions
-   │ 3 detect   facts + which nodes are really a tooltip / button / …, each with a citation (rules + AI)
+   │ 3 detect   name hint (tab/menu/nav/button) plus repeated shape (structure.mjs). Cite the node.
    ▼
  facts.md · detections.json · detections.md  ← proposed → approved/rejected by the owner
    ⏸ REVIEW GATE: the owner rechecks detections.md against Figma and signs off (review.json). No sign-off, no export/build/push/verify.
@@ -27,33 +41,42 @@ Figma URL
    │ 7 verify   Playwright IN DOCKER at every frame width: boxes, LOOK vs Figma's own render, covered layers,
    ▼          horizontal scroll, image weight, hidden images, WebKit + Firefox                  (code)
  verify.md · verify.png · verify.diff.png   ← pass = the values match AND the picture matches Figma, not "looks right"
+   │ 8 summary  one report: done, wrong, missing, not supported
 ```
 
 ## Folders
 
 ```
 process/
-  run.mjs            entry point: runs the steps below for one Figma node
-  scripts/           the steps, one file each (01-fetch … 08-summary); only wiring, no rules
-  facts/             step 3: the deterministic inventory (components, repeats, headings, prototype, styles)
-  review/            the review gate: sign-off bound to tree + decisions; every step after detect checks it
-  detect/            step 3: candidate rules (tooltip, button, sections), detections.json merge/validate, the review sheet
-  figma/             everything that READS Figma: REST api, url parsing, raw → tree (normalize), tree.md renderer
-  bricks/            everything that WRITES Bricks
-    bridge.mjs         client of the WordPress REST bridge (templates, media, fonts, preview)
-    render/            tree → Bricks elements (the rules): index, size, layout, text, style + utils/ (one file per Figma property)
-    components/        registry of real Bricks components (tooltip, button, planned: form, carousel…) + README with the Figma signals
-  shared/            env, workspace paths, image info, headless Chromium in a Docker container (cdp)
-  test/  fixtures/   offline tests and a saved Figma fixture
-  work/              one folder per Figma section (generated + overrides.json)
+  run.mjs            một section, gọi lần lượt các bước build
+  auto.mjs           cả trang: tách section, hỏi plan, rồi build
+  template.mjs       một template: đọc, dừng plan, build sau khi OK
+  policy.json        vài lựa chọn chung (line-height, …)
+  modules/read-figma/            đọc file Figma, ra cây
+  modules/recognize-parts/       nhận nút, tab, menu, form. rules/ = một file một loại
+  modules/approve-parts/         duyệt phần đã nhận. Chỉ có hình dạng thì để hỏi lại
+  modules/missing-content/       câu hỏi những gì Figma không vẽ (link, alt, nội dung tab)
+  modules/sign-off/              chữ ký gắn với cây, trước khi build
+  modules/tree-inventory/        thống kê cây: component, nhóm lặp, heading
+  modules/build-steps/           tám bước 01-fetch … 08-summary
+  modules/section-jobs/          một file json cho mỗi section của trang
+  modules/maintenance/           lệnh tay: dọn tạm, đối chiếu, ghép trang
+  modules/write-bricks/components/   một file một component Bricks
+  modules/write-bricks/render/       số trên cây thành settings Bricks
+  modules/single-template/       khung breakpoint, plan một template, kiểm lại link
+  modules/breakpoints/           ghép khung tablet và mobile
+  modules/visual-check/          chụp và so bằng Playwright trong Docker
+  modules/property-coverage/     property Figma nào đã đọc, cái nào chưa
+  modules/common/                env, đường dẫn, tiến độ
+  docs/  test/  fixtures/
 ```
 
-Adding or changing a rule (rotation, blur, a new fill type…): read [AI-GUIDE.md](AI-GUIDE.md).
+Adding or changing a rule: read [docs/AI-GUIDE.md](docs/AI-GUIDE.md).
 
 ## Run
 
 In Claude Code, a **page** is `/generate-page-from-figma <figma-url> [extra requirements]`
-([.claude/commands/generate-page-from-figma.md](../.claude/commands/generate-page-from-figma.md)). One **template** is `/generate-template-from-figma` or the Vietnix Tools screen (`node process/template.mjs`, no page). The page command runs the steps below, writes
+([.claude/commands/generate-page-from-figma.md](../.claude/commands/generate-page-from-figma.md)). One **template** is `/generate-template-from-figma` (`node process/template.mjs`, no page). The page command runs the steps below, writes
 `overrides.json` for what the rules cannot decide, re-runs, and reports from `summary.md` (step 6: ✅ done, ✗ wrong, ❓ missing,
 ⚠ not supported, ⏭ skipped, ◌ not measured). By hand:
 
@@ -65,7 +88,7 @@ node process/run.mjs "<figma-url>" --fixture process/fixtures/award   # offline,
 npm test --prefix process                             # offline unit tests
 ```
 
-Each step is also a standalone script (`scripts/01-fetch.mjs` … `scripts/08-summary.mjs`, argument: URL or workspace dir).
+Each step is also a standalone script (`modules/build-steps/01-fetch.mjs` … `modules/build-steps/08-summary.mjs`). Lệnh tay (plan, triage, regress, assemble) nằm trong `modules/maintenance/`.
 
 Needs in `.env`: `FIGMA_TOKEN` (Figma → Settings → Security → Personal access tokens, scope `file_content:read`),
 plus `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` (already set for the local site).
@@ -73,9 +96,9 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Workspace
 
-`process/work/` is the working area of the pipeline and the AI (owner decision 2026-10-27): it is **not committed** (`/process/work` in `.gitignore`). Everything that must outlive a run lives outside it: the rules (`bricks/`, `decide/`, `responsive/`, `detect/`), `policy.json`, the tests and the docs. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`, notes such as `page-scope.md`) are local and can be regenerated from the Figma link by `auto.mjs`.
+Scratch for a run is the OS temp folder `figma-to-bricks/<fileKey>/<node-id>/` (`os.tmpdir()`), not a folder in this project. `modules/maintenance/clean-work.mjs <fileKey> --apply` deletes it. Rules, `policy.json`, tests and docs stay in the repo. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`) are regenerated from the Figma link by `auto.mjs`.
 
-`process/work/<fileKey>/<node-id>/` holds everything for one section:
+`<temp>/figma-to-bricks/<fileKey>/<node-id>/` holds everything for one section:
 
 | file | made by | purpose |
 |---|---|---|
@@ -94,7 +117,7 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Autopilot: one link in, Bricks out
 
-**The Plan (owner's decision 2026-10-29).** Before anything is built, `auto.mjs` reads every section and writes one `plan-<node>.md` next to the section workspaces (`process/plan/index.mjs`):
+**The Plan (owner's decision 2026-10-29).** Before anything is built, `auto.mjs` reads every section and writes one `plan-<node>.md` next to the section workspaces (`process/modules/missing-content/index.mjs`):
 a table of the sections and what each becomes, then one heading per group of questions, each with a Figma link per item and one line to fill. Only content the Figma file does
 not draw is asked: link URLs of buttons and menu items, alt text of content images, answers of the FAQ items drawn closed, content of the tabs not drawn, autoplay / loop of a slider,
 and "is this an accordion?" for a block that only looks like one. The run stops with exit code 3. Claude points to the file (nothing is asked in the chat); the owner fills it and changes the line `Xác nhận: không` to `Xác nhận: có`, then Claude runs
@@ -102,7 +125,7 @@ and "is this an accordion?" for a block that only looks like one. The run stops 
 so the next run of the same link shows the Plan again with the values filled in (`plan.mjs set / confirm` exist for scripts, the owner does not need them). Answers are keyed by the Figma node id and re-applied after `decide()` on every run (`decide()` rebuilds
 its own entries, so nothing the owner typed is stored in them). Blank = the safe default (`#`, empty alt, empty answer block). `--no-confirm` skips the Plan.
 
-After a build, `node process/scripts/interact.mjs "<preview page url>"` clicks the built page in the Docker browser: accordion items toggle, tabs show only their own pane,
+After a build, `node process/modules/maintenance/interact.mjs "<preview page url>"` clicks the built page in the Docker browser: accordion items toggle, tabs show only their own pane,
 a slider's next arrow moves the track. "Looks like Figma" (verify) and "works" (interact) are two different checks.
 
 `node process/auto.mjs "<figma url of a section frame>" [--first-section] [--no-responsive] [--no-cross]` runs the whole pipeline without questions:
@@ -111,9 +134,9 @@ alt left empty and listed for the designer), `figma/discover.mjs` (the same sect
 `autopilot`, build / push / verify. Output per section: `scorecard.md` (frames, look vs Figma, image weight, other browsers, known limits),
 `decisions.md` (every decision taken by a rule, why, confidence), the designer list. `--first-section` makes the section title the page's `h1`.
 To change a decision: edit `detections.json` / `overrides.json` (or `policy.json` for a project-wide default) and re-run `run.mjs ... --from=build`.
-`/generate-page-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow. `/generate-template-from-figma` stops at one template.
-The fix loop after a run is part of the workflow: `scripts/triage.mjs <workspace>` (worst picture regions -> Figma nodes -> likely cause), a rule fix with a test,
-then `scripts/regress.mjs <fileKey>` (rebuilds every section and compares with `baseline.json`; `--save` after a good round).
+`/generate-page-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow. `/generate-template-from-figma` stops at one template. Its `read` writes `plan.md` in the desktop workspace: one heading per component, then the fields to fill. Build waits for `Xác nhận: có` in that file.
+The fix loop after a run is part of the workflow: `ops/triage.mjs <workspace>` (worst picture regions -> Figma nodes -> likely cause), a rule fix with a test,
+then `ops/regress.mjs <fileKey>` (rebuilds every section and compares with `baseline.json`; `--save` after a good round).
 A rule change in `decide/` or `auto.mjs` only reaches the sections by re-running `auto.mjs` (it regenerates every autopilot detection and override), then `regress.mjs <fileKey> --no-rebuild` compares; `regress.mjs` alone only rebuilds from the saved decisions.
 Components decided by rule: `button` (named button / btn / cta), `form` (>= 2 placeholder inputs + a submit; a field gets the text of the Figma frame `Error message / <same name>` found beside the page frames, never an invented one), menu items (`Menu Item` labels -> `text-link`, their container `ul > li`, no heading in a menu section).
 Network: Figma's render of a frame is cached per file version (`figma-render*.json` + `verify*.figma.png`); the images API is rate limited, requests time out after 2 minutes and are retried 4 times, a frame that still could not be fetched is `NOT MEASURED` in the guard.
@@ -129,13 +152,13 @@ a failed request, more than one visible `h1`. Differences in the width / x of te
 
 Images are pushed as **WebP** (`shared/qa.mjs` `optimizeAssets`, cached in `assets/optimized/`; photos capped at 1600px, flat exports keep their size).
 Project-wide defaults with their reasons live in `policy.json` (e.g. line heights are written as Figma lays them out, whole pixels).
-Motion is never built while painting: `node process/scripts/animations.mjs <workspace> [--page=<page workspace>]` writes `animations.md` (the
+Motion is never built while painting: `node process/modules/maintenance/animations.mjs <workspace> [--page=<page workspace>]` writes `animations.md` (the
 designer's motion spec verbatim + prototype interactions), a backlog for the last pass.
 
 ## Responsive (breakpoint variants)
 
 A design with several frames (desktop 1440 / tablet 768 / mobile 375) is built as ONE template: the base frame is a normal run, every other frame has its own
-workspace (fetch, tree, detect, decisions carried by name with `scripts/carry.mjs`, sign-off) and is listed in the base workspace's `responsive.json`
+workspace (fetch, tree, detect, decisions carried by name with `ops/carry.mjs`, sign-off) and is listed in the base workspace's `responsive.json`
 (`key`, `workspace`, `maxWidth`, aliases for renamed nodes). Step 5 builds each variant with the normal renderer and `responsive/merge.mjs` merges it:
 changed values become `<key>:<breakpoint>` settings or `@media` css, nodes that exist in one frame only are hidden where Figma has none, a wrapper a
 variant dropped becomes `display: contents`. Step 7 measures the same template at every frame's width (`verify.<key>.md`). Rules and limits:

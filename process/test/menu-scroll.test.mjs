@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectMenus } from '../detect/rules/menu.mjs';
-import { detectCarousels } from '../detect/rules/carousel.mjs';
-import { checkCites } from '../detect/cite.mjs';
-import menuSlider from '../bricks/components/menu-slider.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
+import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
+import { detectCarousels } from '../modules/recognize-parts/rules/carousel.mjs';
+import { checkCites } from '../modules/recognize-parts/cite.mjs';
+import menuSlider from '../modules/write-bricks/components/menu-slider.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 
 const pad = { top: 0, right: 0, bottom: 0, left: 0 };
 const text = (id, label, w) => ({
@@ -95,7 +95,7 @@ test('a clipping parent that cuts the row adds the inner slider even when the me
   assert.equal(found[0].params.prev, undefined);
 });
 
-test('one named item is not a menu, and a row of links with no menu name is not a menu', () => {
+test('one item is not a menu, and a row of short links with no menu name stays low confidence', () => {
   assert.equal(detectMenus(row([item(1, 0, 80, 'Một')])).length, 0);
   const plain = row(fitItems);
   const menuRow = plain.children[0].children[0];
@@ -103,7 +103,7 @@ test('one named item is not a menu, and a row of links with no menu name is not 
   menuRow.children.forEach((c) => { if (c.name === '_sub-menu-item') c.name = 'Link'; });
   plain.name = 'Footer';
   plain.children[0].name = 'Links';
-  assert.equal(detectMenus(plain).length, 0);
+  assert.equal(detectMenus(plain)[0]?.confidence, 'low');
 });
 
 test('menu items that run past the frame become a slider of those items, not a separate carousel', () => {

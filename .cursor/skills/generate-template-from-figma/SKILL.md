@@ -1,18 +1,20 @@
 ---
 name: generate-template-from-figma
-description: Build one Bricks 1.12.3 template from a Desktop Figma URL, with optional Widescreen, Tablet portrait, Mobile landscape and Mobile portrait URLs. Use when the user runs /generate-template-from-figma, asks for a single template, or mentions the Vietnix Tools screen. Does not assemble a WordPress page.
+description: Build one Bricks 1.12.3 template from a Desktop Figma URL, with optional Widescreen, Tablet portrait, Mobile landscape and Mobile portrait URLs. Use when the user runs /generate-template-from-figma or asks for a single template. Asks for missing breakpoint links, writes plan.md for the owner to fill, and builds only after Xác nhận: có. Does not assemble a WordPress page.
 ---
 
 # Generate one template from Figma
 
 The procedure is `.claude/commands/generate-template-from-figma.md`. Read that file and follow it.
 
-Desktop is required. Widescreen, Tablet portrait, Mobile landscape and Mobile portrait are optional and are the URLs the user pasted, not frames discovered from the file. A blank slot is skipped. A filled slot is merged. The template is pushed. The user attaches it. Do not assemble a page.
+Reply in Vietnamese. Short. Do the step, then stop.
 
-Every generate, including desktop-only, keeps undesigned widths inside the window. Layout changes at sm 640, md 768, lg 1024, xl 1280 and 2xl 1536. A pasted phone frame holds until 768. That lives in `process/scripts/05-build.mjs`, not in one template.
+Desktop is required. If widescreen, tablet, landscape, or mobile is missing, ask once and wait. Do not invent a URL.
 
-A Figma link the owner pastes on the confirm screen is read again with the same structure rules as the desktop frame. Keep the part that matches the question. Do not paste the whole link. If that read still finds a tab bar, or two item groups of the same size, stop.
+`read` is engine steps 1–3. It writes `plan.md` in the desktop workspace. Point to that file and stop. Do not paste the form into the chat. **Component sẽ dựng** is one heading per approved component, then its fields. **Đoán, chưa gắn** is `open`, and only when a row exists: Figma link plus the evidence. **Ô cùng hình, chưa gắn** is `repeats`, and only when a row exists. The owner fills the `` `key`: value `` lines and sets `Xác nhận: có`. Build only after that. `build` is steps 4–8. Then look at the verify pictures once.
 
-A component follows `process/bricks/components/README.md` and `CATALOG.md`. Check each image on every pasted frame. Another file with the same crop is `sources` at that breakpoint. A crop that moves keeps that frame's own picture.
+Name regex is a hint. A repeated shape plus the frame picture is the evidence. Figma's render or the Docker Playwright shot says what the group is. `tree.md` supplies the numbers. Do not measure pixels off the picture.
 
-Do not follow `reference/Brick-Build-Page` skills. Do not call `get_design_context`. Do not hand-write Bricks JSON.
+No whack-a-mole. A miss is a gap in `process/modules/recognize-parts/` or `process/modules/write-bricks/`, checked against another section with the same shape, with a test. Do not add a name regex for one file. The owner still confirms the plan once. Do that work first, then show the plan and wait.
+
+A component follows `process/modules/write-bricks/components/README.md` and `CATALOG.md`. Do not follow `reference/Brick-Build-Page`. Do not call `get_design_context`. Do not hand-write Bricks JSON.
