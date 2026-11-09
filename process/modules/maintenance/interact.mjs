@@ -5,14 +5,16 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { ensureQaImage } from '../common/qa.mjs';
-import { env } from '../common/env.mjs';
+import { env, isLocalSite, siteUrl } from '../common/env.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../visual-check/interact.mjs', import.meta.url));
 const [urlArg, width = '1440'] = process.argv.slice(2);
 if (!urlArg) { console.error('usage: interact.mjs <url of the page to click through> [width]  (the preview page of the last verify is printed in verify.md: "Rendered with Playwright … <url>")'); process.exit(1); }
 ensureQaImage();
-const wp = new URL(env.WP_URL ?? 'http://localhost:8080');
-const r = spawnSync('docker', ['run', '--rm', '--ipc=host', '--add-host=host.docker.internal:host-gateway', '-v', `${SCRIPT}:/qa/interact.mjs:ro`, env.QA_IMAGE ?? 'f2b-qa:1', 'node', '/qa/interact.mjs', urlArg.replace(wp.origin, `http://host.docker.internal:${wp.port || 8080}`), width], { encoding: 'utf8', maxBuffer: 1 << 26 });
+const wp = siteUrl();
+const localPort = wp.port || (wp.protocol === 'https:' ? '443' : '80');
+const target = isLocalSite(wp) ? urlArg.replace(wp.origin, `http://host.docker.internal:${localPort}`) : urlArg;
+const r = spawnSync('docker', ['run', '--rm', '--ipc=host', '--add-host=host.docker.internal:host-gateway', '-v', `${SCRIPT}:/qa/interact.mjs:ro`, env.QA_IMAGE || 'f2b-qa:1', 'node', '/qa/interact.mjs', target, width], { encoding: 'utf8', maxBuffer: 1 << 26 });
 if (r.status !== 0) { console.error((r.stderr || r.stdout).slice(-800)); process.exit(1); }
 const rep = JSON.parse(r.stdout.trim().split('\n').at(-1));
 const yes = (b) => (b ? 'yes' : 'NO');

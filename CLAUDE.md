@@ -1,6 +1,6 @@
 # figma-to-bricks
 
-Local WordPress (Docker, `docker compose up -d`, http://localhost:8080) with **Bricks 1.12.3** (owner upgrade 2026-11-04, from 1.9.8). Do not jump to 2.x. The installed theme in `wp-content/themes/bricks/` is the authority.
+WordPress target comes from `.env` (`WP_URL`). Local stack is `node local/up.mjs`. Staging is the same keys pointed at that site. Bricks is **1.12.3** (owner upgrade 2026-11-04, from 1.9.8). Do not jump to 2.x. The installed theme in `wp-content/themes/bricks/` is the authority.
 Goal: turn a Figma section into a Bricks template that mirrors the Figma tree exactly.
 
 ## Hard rules (owner's instructions, never override)

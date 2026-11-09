@@ -30,7 +30,7 @@ Desktop is required and needs `node-id`. Widescreen, Tablet portrait, Mobile lan
 
 If any optional slot is absent from the message, ask once, in one line, which of those four links they have. Wait. A "không" is a blank slot. Do not invent a URL. Do not start `read` before that answer.
 
-Pre-flight: `.env` has `FIGMA_TOKEN`. `docker compose ps` shows WordPress. Playwright stays in Docker. No browser on this machine.
+Pre-flight: `.env` has `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`. Local WordPress, when used, is `node local/up.mjs`. Playwright stays in Docker. No browser on this machine.
 
 Then run:
 
@@ -68,6 +68,16 @@ Read `plan.md`. If the line is still `Xác nhận: không`, point at the file an
 Sign-off is `owner (chat)`. Then look at `verify.figma.png`, `verify.png`, and `verify.diff.png` for each frame. One wrong component: fix that detection and build this template once more. Then stop.
 
 Report: title, `Mở template trong Bricks` (`builderUrl`), one line per frame (`lệch N%` and the review notes), `Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.`, designer list. No page assemble.
+
+Then ask, in one line, whether this local template should go to staging. Stop. Do not upload in that turn.
+
+## 4. Staging — only the exact sentence
+
+A later message uploads only when the whole message is `Xác nhận lên staging`. Run:
+
+`node process/modules/staging/push.mjs "<desktop workspace>" "Xác nhận lên staging"`
+
+The script calls the `f2b-mcp` plugin (`STAGING_MCP_URL`, `STAGING_MCP_TOKEN` in `.env`). Any other wording, including a shorter or longer sentence, does not upload. Do not call those MCP tools from the chat.
 
 ## Pixels
 

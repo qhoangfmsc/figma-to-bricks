@@ -1,21 +1,11 @@
 // MCP server: thin wrapper over the f2b/v1 REST bridge (wp-content/mu-plugins/figma-to-bricks-bridge.php)
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { env } from '../../process/modules/common/env.mjs';
 
-// Credentials: process env first, then the project-root .env (gitignored)
-const env = { ...process.env };
-try {
-  const file = readFileSync(fileURLToPath(new URL('../../.env', import.meta.url)), 'utf8');
-  for (const line of file.split('\n')) {
-    const m = line.match(/^\s*([A-Z_]+)\s*=\s*"?(.*?)"?\s*$/);
-    if (m && !(m[1] in env)) env[m[1]] = m[2];
-  }
-} catch {}
-
-const { WP_URL = 'http://localhost:8080', WP_USER, WP_APP_PASSWORD } = env;
+const { WP_URL, WP_USER, WP_APP_PASSWORD } = env;
+if (!WP_URL || !WP_USER || !WP_APP_PASSWORD) throw new Error('Set WP_URL, WP_USER and WP_APP_PASSWORD in .env');
 const auth = 'Basic ' + Buffer.from(`${WP_USER}:${WP_APP_PASSWORD}`).toString('base64');
 
 // ?rest_route= works without pretty permalinks

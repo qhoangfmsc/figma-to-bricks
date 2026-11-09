@@ -11,10 +11,14 @@ const require = createRequire('/qa/');
 const { chromium } = require('playwright');
 
 const [url, width = '1440'] = process.argv.slice(2);
-// the site is on the Docker host (WP_URL = http://localhost:8080): forward localhost:8080 of this container to it
-for (const host of ['0.0.0.0', '::1']) {
-  const srv = net.createServer((c) => { const t = net.connect(8080, 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
-  srv.on('error', () => {}); srv.listen(8080, host);
+const target = new URL(url);
+const localHost = target.hostname === 'localhost' || target.hostname === '127.0.0.1' || target.hostname === 'host.docker.internal';
+if (localHost) {
+  const port = Number(target.port || (target.protocol === 'https:' ? 443 : 80));
+  for (const host of ['0.0.0.0', '::1']) {
+    const srv = net.createServer((c) => { const t = net.connect(port, 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
+    srv.on('error', () => {}); srv.listen(port, host);
+  }
 }
 
 const browser = await chromium.launch();

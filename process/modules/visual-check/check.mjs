@@ -20,11 +20,13 @@ const job = JSON.parse(readFileSync(jobFile, 'utf8'));
 const out = '/job/out';
 mkdirSync(out, { recursive: true });
 
-// The site is on the Docker host (WP_URL = http://localhost:8080): forward localhost:8080 of this container to it, for every engine.
-for (const host of ['0.0.0.0', '::1']) {
-  const srv = net.createServer((c) => { const t = net.connect(Number(job.hostPort ?? 8080), 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
-  srv.on('error', () => {});
-  srv.listen(Number(job.hostPort ?? 8080), host);
+// hostPort is set only when WP_URL is on the Docker host. Staging is fetched by its own host name.
+if (job.hostPort) {
+  for (const host of ['0.0.0.0', '::1']) {
+    const srv = net.createServer((c) => { const t = net.connect(Number(job.hostPort), 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
+    srv.on('error', () => {});
+    srv.listen(Number(job.hostPort), host);
+  }
 }
 
 const decode = (buf) => PNG.sync.read(buf);

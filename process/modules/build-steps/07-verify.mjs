@@ -21,7 +21,7 @@ import { settleMeasuredRows } from '../visual-check/settle.mjs';
 import { computeStates, fingerprintOf, frameDone, summarize } from '../common/node-state.mjs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { screensToProve } from '../breakpoints/solo.mjs';
-import { env } from '../common/env.mjs';
+import { need } from '../common/env.mjs';
 
 export function externalCssUrl(origin, fileName) {
   return `${String(origin ?? '').replace(/\/$/, '')}/wp-content/uploads/bricks/css/${fileName}`;
@@ -122,7 +122,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
   if (!externalCssReady(css)) {
     throw new Error(`template ${state.templateId}: post-${state.templateId}.min.css was not written. Bricks defaults to inline styles; this site stays on External files.`);
   }
-  const served = await fetch(externalCssUrl(env.WP_URL ?? 'http://localhost:8080', css.file_name), { method: 'HEAD' });
+  const served = await fetch(externalCssUrl(need('WP_URL'), css.file_name), { method: 'HEAD' });
   if (!served.ok) throw new Error(`template ${state.templateId}: ${css.file_name} was not served (${served.status}).`);
 
   // Figma's own render of every frame = what the eye should see

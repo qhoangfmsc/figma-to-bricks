@@ -87,7 +87,7 @@ npm test --prefix process                             # offline unit tests
 Each step is also a standalone script (`modules/build-steps/01-fetch.mjs` … `modules/build-steps/08-summary.mjs`). Lệnh tay (plan, triage, regress, assemble) nằm trong `modules/maintenance/`.
 
 Needs in `.env`: `FIGMA_TOKEN` (Figma → Settings → Security → Personal access tokens, scope `file_content:read`),
-plus `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` (already set for the local site).
+plus `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` in `.env`. The same four keys point at a local site or at staging. The local WordPress stack reads `.env.local` and starts with `node local/up.mjs`.
 The URL must contain `node-id`: in Figma, right click the frame → *Copy link to selection*.
 
 ## Workspace
@@ -138,8 +138,7 @@ Network: Figma's render of a frame is cached per file version (`figma-render*.js
 
 ## Checks (step 7) and the QA image
 
-Step 7 runs Playwright (Chromium, Firefox, WebKit) **inside Docker** (`shared/qa.mjs` + `qa/check.mjs`; the first run builds the image `f2b-qa:1` from
-`qa/Dockerfile`; the pipeline itself still has no npm dependency). The page is rendered at the width of each Figma frame with the clock frozen and
+Step 7 runs Playwright (Chromium, Firefox, WebKit) **inside Docker** (`modules/common/qa.mjs` + `modules/visual-check/check.mjs`; the first run builds the image named by `QA_IMAGE` in `.env`; the pipeline itself still has no npm dependency). A `WP_URL` on localhost is proxied to the Docker host. A staging URL is opened as written. The page is rendered at the width of each Figma frame with the clock frozen and
 animations off, and compared with **Figma's own render of that frame** (REST export). A mismatch is any of: a box / css value off by more than 1px, a
 region of the picture clearly different from Figma (80px cells, both pictures blurred 3x3 first, live parts masked), a text / button / image with an alt
 that is not on top at its own center, horizontal scroll, images heavier than `qa/budgets.json`, an image hidden by CSS that is still downloaded,

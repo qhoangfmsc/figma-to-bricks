@@ -1,8 +1,8 @@
 // Client for the WordPress bridge (wp-content/mu-plugins/figma-to-bricks-bridge.php)
-import { env, need } from '../common/env.mjs';
+import { need } from '../common/env.mjs';
 
 export async function bridge(method, path, body) {
-  const url = (env.WP_URL ?? 'http://localhost:8080') + '/?rest_route=/f2b/v1' + path;
+  const url = need('WP_URL').replace(/\/$/, '') + '/?rest_route=/f2b/v1' + path;
   const auth = Buffer.from(`${need('WP_USER')}:${need('WP_APP_PASSWORD')}`).toString('base64');
   const res = await fetch(url, {
     method,

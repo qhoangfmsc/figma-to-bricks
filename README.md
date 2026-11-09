@@ -2,14 +2,14 @@
 
 Máy local chạy WordPress + Bricks 1.12.3. Bạn làm trong chat Cursor. Phiên bản này chỉ có một lệnh: một template. Cả trang để sau.
 
-Site: http://localhost:8080
+Site lấy từ `WP_URL` trong `.env`. Local và staging dùng cùng các khóa đó.
 
 ## Stack
 
 | Phần | Phiên bản |
 |---|---|
 | Node.js | 22 trở lên. Pipeline không cài package. |
-| Docker Compose | bản đang có trên máy, để chạy hai container bên dưới |
+| Docker | bản đang có trên máy. Site local: `node local/up.mjs` |
 | WordPress | image `wordpress:latest` |
 | MariaDB | image `mariadb:11` |
 | Bricks | 1.12.3, nằm sẵn trong `wp-content/themes/bricks`. Không nâng lên 2.x |
@@ -28,24 +28,23 @@ Chưa có nvm thì tải bản 22 LTS tại https://nodejs.org và cài. Không 
 
 Cài Docker Desktop (https://www.docker.com/products/docker-desktop/) nếu chưa có lệnh `docker`.
 
-## Docker
+## Local
 
-Ở thư mục gốc của repo:
+Một lệnh, chỉ khi cần WordPress trên máy mình:
 
 ```bash
-docker compose up -d      # bật site
-docker compose stop       # dừng, giữ database
-docker compose up -d      # bật lại
-docker compose down -v    # xóa sạch, kể cả database
+node local/up.mjs        # bật
+node local/up.mjs stop   # dừng, giữ database
+node local/up.mjs down   # xóa container và database
 ```
 
-Lần đầu mở http://localhost:8080 và cài WordPress nếu trình duyệt còn hiện màn hình cài đặt.
+Lần đầu mở `WP_URL` và cài WordPress nếu trình duyệt còn hiện màn hình cài đặt. Staging thì đổi `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` trong `.env`, không chạy lệnh này.
 
 Ảnh so với Figma do Playwright chụp trong Docker. Không cần mở Chrome trên máy. Lần verify đầu sẽ dựng image, nên chậm hơn các lần sau.
 
 ## Chuẩn bị
 
-File `.env` ở gốc repo. Không commit, không dán vào chat. Cần `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`.
+File `.env` ở gốc repo. Không commit, không dán vào chat. Bốn khóa: `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`. WordPress trên máy mình thêm `.env.local`.
 
 Link Figma phải có `node-id`. Trong Figma: chuột phải frame → Copy link to selection.
 
@@ -72,7 +71,7 @@ AI đọc câu trong plan, ghi enum vào `choices.json`, rồi mới build. Code
 
 ## Kết quả nằm ở đâu
 
-Plan, ảnh so (`verify.png`, `verify.figma.png`, `verify.diff.png`) và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`. Danh sách trang thử: `history/urls.md`. Template và trang thì nằm trên site http://localhost:8080.
+Plan, ảnh so (`verify.png`, `verify.figma.png`, `verify.diff.png`) và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`. Danh sách trang thử: `history/urls.md`. Template và trang nằm trên site trong `WP_URL`.
 
 `verify.md` ghi tên phần nằm trên từng vùng ảnh lệch.
 

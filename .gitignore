@@ -1,5 +1,6 @@
 # secrets and machine files
 .env
+.env.local
 wp-content/mu-plugins/vietnix-tools/.token
 .cursor/mcp.json
 .DS_Store

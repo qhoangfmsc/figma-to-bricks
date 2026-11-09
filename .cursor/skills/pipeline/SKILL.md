@@ -41,7 +41,9 @@ The shelf in `history/notes/components.md` is closed. Do not open `reference/ANV
 
 `gallery`, `progress`, `rating`, `alert`, `logo`, `hamburger`, `dropdown`, `offcanvas`. Shape: `process/modules/recognize-parts/rules/production-widgets.mjs`. Output: `process/modules/write-bricks/components/production.mjs`. The readable card for each one is `process/docs/widget-components/<id>.md`.
 
-`posts`, WooCommerce, `map`, `audio`, and `social-icons` wait until a frame is a loop, a shop, an address, or a named icon. Do not invent that value.
+The local generate pipeline stays on the `f2b` mu-plugin and `WP_URL`. Staging is a later step. The plugin is `wp-content/plugins/f2b-mcp/`. Upload only when the owner writes exactly `Xác nhận lên staging`, through `process/modules/staging/push.mjs`. Any other text does not upload. `STAGING_MCP_URL` and `STAGING_MCP_TOKEN` live in `.env`. Do not put the token in a committed file.
+
+`posts`, WooCommerce, dynamic tags, element conditions, masonry, and shape dividers live in `process/modules/standby/`. They are not part of detection. Call a builder only when the plan has the value that function requires. `map`, `audio`, and `social-icons` still wait for an address or an icon name. Do not invent that value.
 
 ## States
 

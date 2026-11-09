@@ -2,26 +2,26 @@
 //
 // The browser runs INSIDE DOCKER (chromedp/headless-shell), never as an app on the owner's Mac: a local Chrome shows up in the Dock and
 // steals focus on every run. The container is reached on 127.0.0.1:<random port>; inside it, the WordPress host name from WP_URL
-// (localhost:8080) is mapped to the Docker host, so the preview URL works unchanged.
+// A local WP_URL is mapped to the Docker host. A staging URL is left as written.
 import { spawnSync } from 'node:child_process';
-import { env } from '../common/env.mjs';
+import { env, isLocalSite, siteUrl } from '../common/env.mjs';
 
-const IMAGE = env.CHROME_IMAGE ?? 'chromedp/headless-shell:latest';
+const image = () => env.CHROME_IMAGE || 'chromedp/headless-shell:latest';
 const docker = (...args) => spawnSync('docker', args, { encoding: 'utf8' });
 
 export async function launchChrome() {
   if (docker('info').status !== 0) throw new Error('Docker is not running: start Docker Desktop (the browser used by verify runs in a container)');
   const port = 9300 + Math.floor(Math.random() * 500);
   const name = `f2b-chrome-${process.pid}-${port}`;
-  const wp = new URL(env.WP_URL ?? 'http://localhost:8080');
+  const wp = siteUrl();
   const wpPort = wp.port || (wp.protocol === 'https:' ? '443' : '80');
-  // every name the site can be reached by from the host -> the Docker host
-  const rules = [...new Set([wp.hostname, 'localhost', '127.0.0.1'])].map((h) => `MAP ${h}:${wpPort} host.docker.internal:${wpPort}`).join(', ');
+  // Only a site on this machine needs the host mapped into the container. Staging keeps its own host name.
+  const rules = isLocalSite(wp) ? [...new Set([wp.hostname, 'localhost', '127.0.0.1'])].map((h) => `MAP ${h}:${wpPort} host.docker.internal:${wpPort}`).join(', ') : '';
   // The image's own run.sh passes its arguments unquoted, which breaks --host-resolver-rules (it contains spaces), so the same
   // two processes are started here: socat publishes Chrome's loopback-only DevTools port, Chrome gets the rules from $RULES.
   const script = 'socat TCP4-LISTEN:9222,fork TCP4:127.0.0.1:9223 & exec /headless-shell/headless-shell --no-sandbox --use-gl=angle --use-angle=swiftshader --remote-debugging-port=9223 --hide-scrollbars --font-render-hinting=none --host-resolver-rules="$RULES"';
   const run = docker('run', '--rm', '-d', '--name', name, '--shm-size=1g', '--add-host=host.docker.internal:host-gateway', '-e', `RULES=${rules}`,
-    '-p', `127.0.0.1:${port}:9222`, '--entrypoint', '/bin/bash', IMAGE, '-c', script);
+    '-p', `127.0.0.1:${port}:9222`, '--entrypoint', '/bin/bash', image(), '-c', script);
   if (run.status !== 0) throw new Error(`could not start the browser container: ${run.stderr.trim()}`);
   const proc = { kill: () => docker('rm', '-f', name) };
   process.once('exit', () => proc.kill()); // never leave a container behind, even when a step crashes

@@ -77,6 +77,19 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 |---|---|
 | [state](widget-components/state.md) | hover, active, open, focus, disabled, pressed |
 
+### Để riêng, gọi khi plan cần
+
+Không đi vào detect. Module: `process/modules/standby/`.
+
+| | |
+|---|---|
+| [posts](widget-components/posts.md) | vòng lặp bài viết |
+| [woocommerce](widget-components/woocommerce.md) | shop |
+| [dynamic-data](widget-components/dynamic-data.md) | ACF, meta, tag Woo |
+| [conditions](widget-components/conditions.md) | hiện theo điều kiện |
+| [masonry](widget-components/masonry.md) | lưới xếp gạch |
+| [shape-divider](widget-components/shape-divider.md) | hình mép section |
+
 ### Chưa có
 
 | | |
@@ -102,6 +115,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 | Breakpoint | `process/modules/breakpoints/` |
 | Lỗi đọc | `process/modules/common/read-errors.mjs` |
 | Chạy một template | `.cursor/skills/generate-template-from-figma/SKILL.md` |
+| MCP staging | `wp-content/plugins/f2b-mcp/` |
 | Rule pipeline | `.cursor/skills/pipeline/SKILL.md` |
 
 Sửa một component thì sửa file cùng tên trong `widget-components/`, sửa file `.mjs`, rồi thêm test trong `process/test/`.
