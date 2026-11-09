@@ -86,18 +86,18 @@ test('a template plan names each component and says what an empty group means', 
     open: [],
     repeats: [],
   });
-  assert.match(md, /## Component sẽ dựng/);
+  assert.match(md, /## Component Detected \(1\)/);
   assert.match(md, /### Slider `_case-study-list`/);
-  assert.match(md, /`part:2172:3675`: giữ/);
+  assert.match(md, /`part:2172:3675`:\s*$/m);
   assert.doesNotMatch(md, /Đang có:/);
   assert.doesNotMatch(md, /Gõ số giây/);
   assert.match(md, /`autoplay:2172:3675`: tự chuyển mỗi 3 giây/);
-  assert.match(md, /`items:2172:3675`:\s*$/m);
+  assert.match(md, /`items:2172:3675`: \[Chưa có value\]/);
   assert.doesNotMatch(md, /Đoán, chưa gắn/);
   assert.doesNotMatch(md, /Ô cùng hình/);
   assert.doesNotMatch(md, /^Sửa:/m);
   assert.equal(parsePlan(md)['autoplay:2172:3675'], 'tự chuyển mỗi 3 giây');
-  assert.equal(parsePlan(md)['items:2172:3675'], '');
+  assert.equal(parsePlan(md)['items:2172:3675'], '[Chưa có value]');
 });
 
 test('a guess shows its link and evidence, a same-shape group shows what was seen', () => {
@@ -106,14 +106,15 @@ test('a guess shows its link and evidence, a same-shape group shows what was see
     open: [{ node: '1:20', label: 'Tab "Giá"', evidence: '4 nhãn một hàng', figma: 'https://www.figma.com/design/FK/x?node-id=1-20' }],
     repeats: [{ node: '1:30', count: 3, item: 'Card', sample: 'MaxSpeed', figma: 'https://www.figma.com/design/FK/x?node-id=1-30' }],
   });
-  assert.match(md, /## Đoán, chưa gắn/);
+  assert.match(md, /## Chưa chắc/);
   assert.match(md, /Tab "Giá"/);
   assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-20\)/);
-  assert.match(md, /Vì: 4 nhãn một hàng/);
-  assert.match(md, /`guess:1:20`: chưa gắn/);
-  assert.match(md, /3 ô "Card" cùng hình, mẫu "MaxSpeed"/);
+  assert.match(md, /4 nhãn một hàng/);
+  assert.match(md, /`guess:1:20`:\s*$/m);
+  assert.match(md, /## Nhóm lặp/);
+  assert.match(md, /3 ô "Card", mẫu "MaxSpeed"/);
   assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-30\)/);
-  assert.match(md, /`repeat:1:30`: chưa gắn/);
+  assert.match(md, /`repeat:1:30`:\s*$/m);
 });
 
 test('writing the plan again keeps a value the owner typed and resets the confirmation', () => {
@@ -135,8 +136,8 @@ test('writing the plan again keeps a value the owner typed and resets the confir
   assert.equal(parsePlan(next)['link:1:10'], 'https://vietnix.vn/dang-ky');
   assert.match(next, /^Xác nhận: không$/m);
   assert.match(next, /^Sửa: bỏ nút$/m);
-  assert.match(next, /`guess:1:20`: chưa gắn/);
-  assert.match(next, /`repeat:1:30`: chưa gắn/);
+  assert.match(next, /`guess:1:20`:\s*$/m);
+  assert.match(next, /`repeat:1:30`:\s*$/m);
 });
 
 test('several images keep the quoted layer name in the question', () => {

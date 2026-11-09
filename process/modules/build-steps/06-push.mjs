@@ -9,6 +9,7 @@ import { requireSignOff } from '../sign-off/index.mjs';
 import { bridge } from '../write-bricks/bridge.mjs';
 import { sha256 } from '../common/image-info.mjs';
 import { optimizeAssets } from '../common/qa.mjs';
+import { popupPageSettings } from '../write-bricks/components/popup-settings.mjs';
 
 
 export async function pushStep(urlOrDir) {
@@ -56,7 +57,7 @@ export async function pushStep(urlOrDir) {
     console.log(`  fonts (Google): ${fonts.map((f) => `${f.family} ${[...f.weights, ...f.italicWeights.map((w) => w + 'i')].join('/')}`).join(', ')}`);
   }
 
-  const body = { title: template.title, content };
+  const body = { title: template.title, content, type: template.type || 'section' };
   // A different template title means a NEW version: the old template stays untouched (owner decision 2026-10-26, "Pagespeed - Landing v2").
   if (state.templateId) {
     let oldTitle = state.templateTitle;
@@ -83,14 +84,22 @@ export async function pushStep(urlOrDir) {
     catch (e) { if (!/404/.test(e.message)) throw e; }
   }
   if (!res) {
-    res = await bridge('POST', '/templates', { ...body, type: template.type });
+    res = await bridge('POST', '/templates', body);
     console.log(`  created template ${res.id}`);
   }
   state.templateId = res.id;
   state.templateTitle = body.title;
   state.builderUrl = res.builderUrl;
+  if ((template.type || 'section') === 'popup') {
+    await bridge('PUT', `/templates/${res.id}`, { page_settings: popupPageSettings(res.id, template.popup) });
+  }
   ws.writeJson('state.json', state);
   console.log(`  elements ${res.elementCount}  ${res.builderUrl}`);
+  const css = await bridge('POST', '/css-file', { template_id: res.id });
+  if (css.css_loading !== 'file' || !css.generated || !css.file_name) {
+    throw new Error(`template ${res.id}: post-${res.id}.min.css was not written. Bricks defaults to inline styles; this site stays on External files.`);
+  }
+  console.log(`  css ${css.file_name}`);
   return ws;
 }
 

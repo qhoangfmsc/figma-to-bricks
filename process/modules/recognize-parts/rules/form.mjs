@@ -1,12 +1,17 @@
 // Candidate forms: a container with a button-like child (the submit) and two or more fields.
+// One field is enough on a dim overlay, or when a close mark sits in the frame. A dialog of switches stays separate switch rows: one form element would merge the card.
 // A field is either an input-like frame itself, or a row that holds one: a label, a filled box (placeholder text plus icon instances) and a helper line.
 // Consent rows (a small checkbox + a statement) between them become checkbox fields.
 // Params for components/form.mjs: fields [{ node, type, label, placeholder, required }] in drawing order, submit (node id). Types are inferred from
 // the visible text only (e-mail / phone words). Submit stores the entry (save-submission). The form name is filled at build from the Figma file, the section and this frame.
+import { classifyChoice } from './choice.mjs';
+import { centeredCard, covers, dimFill, hasClose, textsOf, visibleKids } from './shape.mjs';
+
+const SAVE = /\blưu\b|\bluu\b|\bsave\b/i;
+
 const HOLDERS = new Set(['FRAME', 'INSTANCE', 'COMPONENT']);
 const BUTTON = /\b(button|btn|cta)\b/i;
-const kidsOf = (n) => (n.children ?? []).filter((c) => c.visible !== false);
-const textsOf = (n, out = []) => { if (n.visible === false) return out; if (n.type === 'TEXT' && !n.svg && n.text?.characters?.trim()) out.push(n); kidsOf(n).forEach((c) => textsOf(c, out)); return out; };
+const kidsOf = visibleKids;
 const hasSvg = (n) => n.visible !== false && (!!n.svg || kidsOf(n).some(hasSvg));
 const has = (n, re) => re.test(n.name ?? '') || kidsOf(n).some((c) => has(c, re));
 
@@ -26,8 +31,11 @@ export const isButtonLike = (n) => {
   const icons = kids.filter((k) => texts[0] && k !== texts[0] && hasSvg(k));
   const oneLabel = texts.length === 1 && kids.length === 1 + icons.length && icons.length <= 1;
   const h = n.box?.h ?? 0;
-  // a consent row has a checkbox beside the sentence; a filled placeholder is a field
-  return oneLabel && h >= 32 && h <= 72 && !isInputLike(n);
+  // A header puts the title and a corner icon at opposite ends. A button keeps them together.
+  const sorted = kids.filter((k) => k.box).sort((a, b) => a.box.x - b.box.x);
+  const gap = sorted.length >= 2 ? sorted.at(-1).box.x - (sorted[0].box.x + sorted[0].box.w) : 0;
+  const spread = n.box?.w > 0 && gap > n.box.w * 0.4;
+  return oneLabel && h >= 32 && h <= 72 && !isInputLike(n) && !spread;
 };
 export const isConsent = (n) => HOLDERS.has(n.type) && n.visible !== false && n.box.h <= 140 && has(n, /check\s?box|consent/i) && textsOf(n).length >= 1;
 
@@ -74,11 +82,115 @@ function fieldFromBox(box, wrap) {
   };
 }
 
-export function detectForms(tree) {
-  const found = [];
+function pathTo(root, id, acc = []) {
+  if (!root || root.visible === false) return null;
+  if (root.id === id) return [...acc, root];
+  for (const child of kidsOf(root)) {
+    const hit = pathTo(child, id, [...acc, root]);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function parentNode(root, id) {
+  const path = pathTo(root, id);
+  return path && path.length > 1 ? path[path.length - 2] : null;
+}
+
+function buttonText(n) {
+  return textsOf(n).map((t) => t.text.characters).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function titleFor(root, row, stateText, stateId) {
+  let current = row;
+  for (let depth = 0; depth < 8 && current; depth += 1) {
+    const title = textsOf(current)
+      .filter((t) => t.id !== stateId && t.text.characters.trim().replace(/\s+/g, ' ') !== stateText)
+      .map((t) => t.text.characters.trim().replace(/\s+/g, ' '))
+      .filter((t) => t && t.length <= 80)
+      .sort((a, b) => a.length - b.length)[0];
+    if (depth > 0 && title) return title;
+    current = parentNode(root, current.id);
+  }
+  return stateText || 'Switch';
+}
+
+function smallestHost(node, saveId, switchIds) {
+  for (const child of kidsOf(node)) {
+    if (containsId(child, saveId) && switchIds.some((id) => containsId(child, id))) return smallestHost(child, saveId, switchIds);
+  }
+  return node;
+}
+
+// A settings / action popup: switches plus a Lưu / Save button. That button is the submit.
+// A popup with no fields is a notice: its confirm button only closes.
+export function detectActionForms(tree) {
+  const switches = [];
+  const saves = [];
   (function walk(n) {
-    if (n.visible === false) return;
+    if (!n || n.visible === false) return;
+    const choice = classifyChoice(n);
+    if (choice?.component === 'switch') {
+      switches.push({ node: n, choice });
+      return;
+    }
+    if (isButtonLike(n) && SAVE.test(buttonText(n))) {
+      saves.push(n);
+      return;
+    }
+    kidsOf(n).forEach(walk);
+  })(tree);
+  const claimed = new Set();
+  const found = [];
+  for (const save of saves) {
+    const open = switches.filter((sw) => !claimed.has(sw.node.id));
+    if (!open.length) continue;
+    const host = smallestHost(tree, save.id, open.map((sw) => sw.node.id));
+    const mine = open.filter((sw) => containsId(host, sw.node.id));
+    if (!mine.length || host.id === save.id) continue;
+    mine.forEach((sw) => claimed.add(sw.node.id));
+    mine.sort((a, b) => (a.node.box.absY - b.node.box.absY) || (a.node.box.absX - b.node.box.absX));
+    const fields = mine.map((sw) => {
+      const stateText = sw.choice.labelNode.text.characters.trim().replace(/\s+/g, ' ');
+      return {
+        node: sw.node.id,
+        type: 'checkbox',
+        role: 'switch',
+        label: titleFor(tree, sw.node, stateText, sw.choice.labelNode.id),
+        labelNode: sw.choice.labelNode.id,
+        markNode: sw.choice.mark.id,
+        checked: sw.choice.checked === true,
+      };
+    });
+    found.push({
+      component: 'form',
+      node: host.id,
+      level: 'E2',
+      confidence: 'high',
+      cite: [
+        { node: host.id, field: 'name', equals: host.name },
+        { node: fields[0].node, field: 'type', equals: 'FRAME' },
+        { node: save.id, field: 'type', equals: save.type },
+      ],
+      evidence: `${host.type} "${host.name}": action popup, ${fields.length} switch(es) and submit "${buttonText(save).slice(0, 40)}"`,
+      params: { kind: 'action', popupKind: 'action', fields, submit: save.id, actions: ['save-submission'] },
+      note: 'submit saves the entry (Bricks Save submission). The switch words are the drawn on and off values',
+    });
+  }
+  return found;
+}
+
+export function detectForms(tree) {
+  const action = detectActionForms(tree);
+  const actionNodes = new Set(action.map((form) => form.node));
+  const found = [...action];
+  (function walk(n, parent) {
+    if (!n || n.visible === false) return;
     const kids = kidsOf(n);
+    if (actionNodes.has(n.id)) {
+      kids.forEach((c) => walk(c, n));
+      return;
+    }
     const submit = kids.find(isButtonLike);
     // The submit control is often a filled frame with one text, so it also looks like an input. It is the button, not a field.
     const direct = kids.filter((k) => k !== submit && isInputLike(k));
@@ -86,8 +198,11 @@ export function detectForms(tree) {
       const boxes = inputBoxes(k);
       return boxes.length === 1 ? [{ wrap: k, box: boxes[0] }] : [];
     });
-    const useDirect = direct.length >= 2 && submit;
-    const useGrouped = !useDirect && grouped.length >= 2 && submit;
+    // A dim child, a close mark anywhere in this frame, or this card sitting on a dim parent.
+    const overlay = kids.some((k) => covers(k, n) && dimFill(k)) || hasClose(n) || (!!parent && dimFill(parent) && centeredCard(n, parent));
+    const minFields = overlay ? 1 : 2;
+    const useDirect = !!submit && direct.length >= minFields && grouped.length < 2;
+    const useGrouped = !!submit && !useDirect && grouped.length >= minFields;
     if (useDirect || useGrouped) {
       const fields = [];
       const firstBox = useDirect ? direct[0] : grouped[0].box;
@@ -114,11 +229,11 @@ export function detectForms(tree) {
         component: 'form', node: n.id, level: 'E2', confidence: count >= 3 ? 'high' : 'medium',
         cite: [{ node: n.id, field: 'name', equals: n.name }, { node: firstBox.id, field: 'type', equals: firstBox.type }, { node: submit.id, field: 'type', equals: submit.type }],
         evidence: `${n.type} "${n.name}": ${count} input-like frame(s) (light fill + one placeholder text) and a button "${textsOf(submit)[0].text.characters.trim().slice(0, 40)}"`,
-        params: { fields, submit: submit.id, actions: ['save-submission'] },
+        params: { fields, submit: submit.id, actions: ['save-submission'], ...(overlay && count < 2 ? { overlay: true } : {}) },
         note: 'submit saves the entry (Bricks Save submission). Form name is the Figma file, the section and this frame. The site setting Save form submissions in database has to be on',
       });
     }
-    kids.forEach(walk);
-  })(tree);
+    kids.forEach((c) => walk(c, n));
+  })(tree, null);
   return found;
 }

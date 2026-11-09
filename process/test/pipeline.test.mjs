@@ -171,6 +171,9 @@ test('gradient text fill -> background-clip:text on the text element', () => {
   const [root, text] = buildMini({ children: [{ id: 't', name: 't', type: 'TEXT', characters: 'x', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' }, fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 1, g: 1, b: 1, a: 1 } }] }] }] });
   assert.equal(text.settings._gradient.applyTo, 'text'); // Bricks writes background-clip: text and the transparent fill for this option
   assert.equal(text.settings._cssCustom, undefined);
+  const shadowed = buildMini({ children: [{ id: 'g', name: 'g', type: 'TEXT', characters: 'x', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' }, fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 1, g: 1, b: 1, a: 1 } }, { position: 1, color: { r: 0.44, g: 0.87, b: 0.98, a: 1 } }] }], effects: [{ type: 'DROP_SHADOW', visible: true, color: { r: 0, g: 0, b: 0, a: 0.25 }, offset: { x: 0, y: 4 }, radius: 4, spread: 0 }] }] });
+  assert.match(shadowed[1].settings._cssCustom, /filter: drop-shadow\(0px 4px 4px rgba\(0, 0, 0, 0\.25\)\);/);
+  assert.doesNotMatch(shadowed[1].settings._cssCustom, /text-shadow/);
 });
 
 // ---- detect step + components (approved detections change the build, nothing else does)
@@ -1636,9 +1639,9 @@ test('plan: lists what was detected, what is only a shape, and a repeated group 
   model.sections[0].repeats = [{ node: '1:30', label: '3 mục "Card", mẫu "MaxSpeed"' }];
   const md = renderPlan(model);
   assert.match(md, /### Đã nhận/);
-  assert.match(md, /`part:1:10`: giữ/);
-  assert.match(md, /`guess:1:20`: chưa gắn/);
-  assert.match(md, /`repeat:1:30`: chưa gắn/);
+  assert.match(md, /`part:1:10`:\s*$/m);
+  assert.match(md, /`guess:1:20`:\s*$/m);
+  assert.match(md, /`repeat:1:30`:\s*$/m);
   assert.deepEqual(validateAnswers({ 'part:1:10': 'giữ', 'guess:1:20': 'chưa gắn', 'repeat:1:30': 'slider' }), []);
   const files = {
     'tree.json': { id: 'r', children: [{ id: '1:10' }, { id: '1:20' }, { id: '1:30' }] },
@@ -1649,7 +1652,7 @@ test('plan: lists what was detected, what is only a shape, and a repeated group 
     'overrides.json': { nodes: {} },
   };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  applyPlanAnswers(ws, { 'part:1:10': 'bỏ', 'guess:1:20': 'gắn', 'repeat:1:30': 'slider' });
+  applyPlanAnswers(ws, { 'part:1:10': { choice: 'drop' }, 'guess:1:20': { choice: 'attach' }, 'repeat:1:30': { choice: 'slider' } });
   const comps = files['detections.json'].components;
   assert.equal(comps.find((c) => c.node === '1:10').status, 'rejected');
   assert.equal(comps.find((c) => c.node === '1:20').status, 'approved');
@@ -1658,8 +1661,8 @@ test('plan: lists what was detected, what is only a shape, and a repeated group 
 
 test('plan: values are validated (a link needs a scheme, # or /; a blank value is fine) and a multi-line value is kept', () => {
   assert.deepEqual(validateAnswers({ 'link:a': '', 'link:b': '#', 'link:c': '/gia', 'link:d': 'https://x.vn/a?b=1', 'link:e': 'mailto:a@b.vn', 'alt:f': 'Cúp vàng' }), []);
-  assert.equal(validateAnswers({ 'link:a': 'x.vn/gia' }).length, 1);
-  assert.equal(validateAnswers({ 'link:a': 'two words' }).length, 1);
+  assert.equal(validateAnswers({ 'link:a': 'x.vn/gia' }).length, 0);
+  assert.equal(validateAnswers({ 'link:a': 'two words' }).length, 0);
   const md = renderPlan(planModel()).replace('`alt:1:12`: ', '`alt:1:12`: Cúp vàng\n  giải thưởng 2024');
   assert.equal(parsePlan(md)['alt:1:12'], 'Cúp vàng\ngiải thưởng 2024');
 });
@@ -1676,13 +1679,14 @@ test('plan: generating the file again keeps what the owner typed; the confirmati
   // the owner edits the line by hand, no command
   writeFileSync(file, readSync2(file, 'utf8').replace('Xác nhận: không', 'Xác nhận: có'));
   assert.deepEqual(loadConfirmed(dir, '1-2'), { 'link:1:10': 'https://x.vn/dang-ky' });
-  // marked confirmed with a wrong value: nothing is built on it, the problem is named
+  // a free sentence is kept; the reader interprets it. Only a value past the length cap blocks.
   writeFileSync(file, readSync2(file, 'utf8').replace('https://x.vn/dang-ky', 'khong hop le'));
+  assert.deepEqual(loadConfirmed(dir, '1-2'), { 'link:1:10': 'khong hop le' });
+  writeFileSync(file, readSync2(file, 'utf8').replace('khong hop le', 'x'.repeat(501)));
   assert.equal(loadConfirmed(dir, '1-2'), null);
   assert.equal(planProblems(dir, '1-2').length, 1);
   assert.throws(() => confirmPlan(dir, '1-2'), /cannot confirm/);
-  // the command does the same as editing the line
-  writeFileSync(file, readSync2(file, 'utf8').replace('khong hop le', '/dang-ky').replace('Xác nhận: có', 'Xác nhận: không'));
+  writeFileSync(file, readSync2(file, 'utf8').replace('x'.repeat(501), '/dang-ky').replace('Xác nhận: có', 'Xác nhận: không'));
   assert.equal(confirmPlan(dir, '1-2').answered, 1);
   assert.match(readSync2(file, 'utf8'), /^Xác nhận: có$/m);
 });
@@ -1697,7 +1701,7 @@ test('plan: a confirmed value reaches the button / text link and the image alt; 
     'overrides.json': { nodes: { '1:12': { alt: '', reason: 'autopilot: image, alt left empty until the designer provides it' } } },
   };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  const r = applyPlanAnswers(ws, { [keyOf('link', '1:10')]: '/dang-ky', [keyOf('link', '1:11')]: 'https://x.vn', [keyOf('alt', '1:12')]: 'Cúp vàng', [keyOf('link', '1:13')]: '/x', [keyOf('alt', '9:9')]: 'gone' });
+  const r = applyPlanAnswers(ws, { [keyOf('link', '1:10')]: { choice: 'url', href: '/dang-ky' }, [keyOf('link', '1:11')]: { choice: 'url', href: 'https://x.vn' }, [keyOf('alt', '1:12')]: { choice: 'text', text: 'Cúp vàng' }, [keyOf('link', '1:13')]: { choice: 'url', href: '/x' }, [keyOf('alt', '9:9')]: { choice: 'text', text: 'gone' } });
   assert.equal(files['detections.json'].components[0].params.link, '/dang-ky');
   assert.equal(files['detections.json'].components[1].params.link, 'https://x.vn');
   assert.equal(files['overrides.json'].nodes['1:12'].alt, 'Cúp vàng');
@@ -1721,9 +1725,10 @@ test('plan: decide records a question for every button, menu label and content i
   ] };
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
-  assert.deepEqual(out.questions.map((q) => keyOf(q.group, q.node)).sort(), ['alt:img', 'link:b1']);
+  assert.deepEqual(out.questions.map((q) => keyOf(q.group, q.node)).sort(), ['alt:img', 'link:b1', 'type:r']);
   assert.equal(out.questions.find((q) => q.node === 'b1').label, 'Nút "Đăng ký"');
-  assert.equal(out.questions.find((q) => q.node === 'img').value, 'Photo');
+  assert.match(out.questions.find((q) => q.node === 'img').label, /Photo/);
+  assert.equal(out.questions.find((q) => q.node === 'img').value, undefined);
 });
 
 // ---- usable widgets (2026-10-29): accordion / tabs / menu detection, their content from the Plan, decide's structural approval
@@ -1798,7 +1803,7 @@ test('accordion: an answer typed in the Plan becomes a content block with the se
   assert.deepEqual(mine.settings._padding, drawn.settings._padding); // the look of the drawn answer block
   const text = b.template.content.find((e) => e.parent === mine.id);
   assert.equal(text.name, 'text-basic');
-  assert.equal(text.settings.text, 'Có, chuyển miễn phí.<br>Liên hệ để được hỗ trợ.');
+  assert.equal(text.settings.text, 'Có, chuyển miễn phí. <br>Liên hệ để được hỗ trợ.');
   assert.deepEqual(text.settings._typography['font-size'], byFigma(b, 'an1').settings._typography['font-size']);
   assert.equal(text.settings._height, undefined);
   // item 3 has no answer: an empty block, still warned
@@ -1861,7 +1866,10 @@ test('decide: accordion / tabs / menu / carousel are approved by structure and a
   assert.deepEqual(status, { 'accordion:list': 'approved', 'menu:menu': 'approved', 'accordion:stack': 'proposed' });
   const keys = out.questions.map((q) => `${q.group}:${q.node}`).sort();
   // faq-list: items 1 and 3 are drawn closed (title only); the guessed stack: both rows closed; the menu: one URL per label
-  assert.deepEqual(keys, ['answer:it1', 'answer:it3', 'answer:s1', 'answer:s2', 'confirm:stack', 'link:ml0', 'link:ml1', 'link:ml2']);
+  assert.deepEqual(keys, ['answer:it1', 'answer:it2', 'answer:it3', 'answer:s1', 'answer:s2', 'confirm:stack', 'link:ml0', 'link:ml1', 'link:ml2', 'type:root']);
+  const drawn = out.questions.find((q) => q.node === 'it2');
+  assert.equal(drawn.value, 'Answer 2');
+  assert.equal(out.questions.find((q) => q.node === 'it1').value, '[Chưa có value]');
 });
 
 test('plan: answers reach the accordion, the tabs, the menu links, the slider options; "có" on a guessed accordion approves it and drops the list that was on it', () => {
@@ -1878,7 +1886,7 @@ test('plan: answers reach the accordion, the tabs, the menu links, the slider op
     { id: 'd5', component: 'accordion', node: 'guess', status: 'proposed', params: {} }, { id: 'd6', component: 'semantic', node: 'guess', status: 'approved', params: { tag: 'ul' } },
   ] } };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  const r = applyPlanAnswers(ws, { 'answer:it2': 'Trả lời hai', 'pane:tb2': 'Gói hai', 'link:ml1': '/gioi-thieu', 'autoplay:sl': '5', 'loop:sl': 'có', 'confirm:guess': 'có', 'answer:ghost': 'x' });
+  const r = applyPlanAnswers(ws, { 'answer:it2': { choice: 'text', text: 'Trả lời hai' }, 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'link:ml1': { choice: 'url', href: '/gioi-thieu' }, 'autoplay:sl': { choice: 'on', seconds: 5 }, 'loop:sl': { choice: 'wrap' }, 'confirm:guess': { choice: 'accordion' }, 'answer:ghost': { choice: 'text', text: 'x' } });
   const c = (id) => files['detections.json'].components.find((x) => x.id === id);
   assert.equal(c('d1').params.content.answers.it2, 'Trả lời hai');
   assert.equal(c('d2').params.content.panes.tb2, 'Gói hai');
@@ -1932,34 +1940,65 @@ test('accordion: a closed item drops the gap Figma stores while the answer is hi
   assert.equal(content.settings._display, undefined);
 });
 
-test('accordion: an icon a strict majority shares is used on every item, a tie leaves each icon as drawn', () => {
+test('accordion: the open glyph and the closed glyph swap with .brx-open, a same-state odd icon still follows the majority', () => {
   const icon = (id, glyph) => txt(id, glyph, {});
   const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 124, children: [
     kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
     ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
   ] });
   const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus'), item(4, false, 'plus')] })] });
-  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus' || n.text?.characters === 'star')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
   const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
   const file = (id) => byFigma(b, id).settings.file.$asset;
-  assert.equal(file('ic2'), 'svg/plus.svg');
+  assert.equal(file('ic2'), 'svg/minus.svg');
   assert.equal(file('ic1'), 'svg/plus.svg');
-  const tied = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus')] })] });
-  walk(tied);
-  const b2 = buildWith(tied, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
-  assert.equal(byFigma(b2, 'ic2').settings.file.$asset, 'svg/minus.svg');
+  assert.equal(byFigma(b, 'ic2').settings._cssClasses, 'acc-icon-open');
+  assert.equal(byFigma(b, 'ic1').settings._cssClasses, 'acc-icon-closed');
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open \.acc-icon-open \{ display: block !important; \}/);
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open \.acc-icon-closed \{ display: none !important; \}/);
+  assert.equal(b.template.content.filter((e) => e.label === 'Open icon').length, 3);
+  assert.equal(b.template.content.filter((e) => e.label === 'Closed icon').length, 1);
+  const odd = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, false, 'star'), item(3, false, 'plus')] })] });
+  walk(odd);
+  const b3 = buildWith(odd, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  assert.equal(byFigma(b3, 'ic2').settings.file.$asset, 'svg/plus.svg');
 });
 
-test('accordion sync: a blank answer shares every item, "không sửa" keeps them as drawn, a sentence can turn one part off', () => {
+test('accordion: a Hover variant fill is :hover on every item, and that item has no resting background', () => {
+  const icon = (id, glyph) => txt(id, glyph, {});
+  const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 16, children: [
+    kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
+    ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
+  ] });
+  const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus')] })] });
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 24, height: 24 }; for (const c of n.children ?? []) walk(c); };
+  walk(tree);
+  const rows = tree.children[0].children;
+  rows[0].props = { State: 'Default' };
+  rows[1].props = { State: 'Expand' };
+  rows[2].props = { State: 'Hover' };
+  rows[2].fills = [{ type: 'SOLID', hex: '#007cfc', alpha: 0.04 }];
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const hover = byFigma(b, 'it3');
+  assert.equal(hover.settings._background, undefined);
+  assert.equal(b.mapping.it3.expect.css['background-color'], 'rgba(0, 0, 0, 0)');
+  assert.match(hover.settings._cssCustom, /:hover \{ background-color: rgba\(0, 124, 252, 0\.04\); \}/);
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /:hover \{ background-color: rgba\(0, 124, 252, 0\.04\); \}/);
+  assert.equal(byFigma(b, 'ic2').settings.file.$asset, 'svg/minus.svg');
+  assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('rê chuột')));
+  assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon mở')));
+});
+
+test('accordion sync switches on all, unchanged, text, and no-icon', () => {
   assert.equal(readSync('').icon, true);
-  assert.deepEqual([readSync('đồng bộ').icon, readSync('đồng bộ').title, readSync('đồng bộ').gap], [true, true, true]);
-  assert.deepEqual([readSync('làm các mục giống nhau').icon, readSync('làm các mục giống nhau').title, readSync('làm các mục giống nhau').gap], [true, true, true]);
-  assert.equal(readSync('không sửa gì cả').gap, false);
-  assert.equal(readSync('đừng đổi icon').icon, false);
-  assert.equal(readSync('đừng đổi icon').title, true);
-  assert.deepEqual([readSync('chỉ đồng bộ chữ').title, readSync('chỉ đồng bộ chữ').icon, readSync('chỉ đồng bộ chữ').gap], [true, false, false]);
-  assert.equal(validateAnswers({ 'sync:acc': 'làm gì đó lạ' }).length, 1);
+  assert.deepEqual([readSync('all').icon, readSync('all').title, readSync('all').gap], [true, true, true]);
+  assert.equal(readSync('unchanged').gap, false);
+  assert.equal(readSync('no-icon').icon, false);
+  assert.equal(readSync('no-icon').title, true);
+  assert.deepEqual([readSync('text').title, readSync('text').icon, readSync('text').gap], [true, false, false]);
+  assert.equal(readSync('đừng đổi icon').ok, false);
+  assert.equal(validateAnswers({ 'sync:acc': 'làm gì đó lạ' }).length, 0);
   assert.deepEqual(validateAnswers({ 'sync:acc': 'giữ nguyên' }), []);
   assert.deepEqual(validateAnswers({ 'sync:acc': 'làm các mục giống nhau', 'autoplay:sl': 'không tự chuyển', 'link:b': 'chưa có địa chỉ', 'loop:sl': 'dừng ở slide cuối', 'confirm:g': 'giữ nguyên khối' }), []);
   const icon = (id, glyph) => txt(id, glyph, {});
@@ -1971,13 +2010,13 @@ test('accordion sync: a blank answer shares every item, "không sửa" keeps the
   const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: 17 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
   assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon')));
-  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'không sửa' } }] });
+  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'unchanged' } }] });
   assert.equal(byFigma(kept, 'it1').settings._rowGap, '124px');
   assert.equal(byFigma(kept, 'ic2').settings.file.$asset, 'svg/minus.svg');
   const files = { 'detections.json': { components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] }, 'overrides.json': { nodes: {} }, 'tree.json': tree };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  applyPlanAnswers(ws, { 'sync:acc': 'đừng đổi icon' });
-  assert.equal(files['detections.json'].components[0].params.sync, 'đừng đổi icon');
+  applyPlanAnswers(ws, { 'sync:acc': { choice: 'no-icon' } });
+  assert.equal(files['detections.json'].components[0].params.sync, 'no-icon');
 });
 
 test('accordion: a typed answer follows the same rule: the new content block has no display of its own and the item opens it with the drawn block\'s display', () => {

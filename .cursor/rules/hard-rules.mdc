@@ -5,13 +5,17 @@ alwaysApply: true
 
 # Authority
 
-Follow root `CLAUDE.md` and `process/README.md`. Bricks on this site is **1.12.3**.
+Follow root `CLAUDE.md`, `process/README.md`, and `.cursor/skills/pipeline/SKILL.md`. Bricks on this site is **1.12.3**. `process/` and the installed theme are the authority.
+
+`reference/ANV_mcp` is an older copy. Move one small piece into `process/`, record it in `history/notes/components.md`, then that piece is ours. Do not keep basing a rule on that copy after it has moved. Do not run its scripts.
 
 `reference/Brick-Build-Page` is Bricks **2.3.6** (PLAN/DO/DONE, hand-written JSON, `bricks-mcp`, `get_design_context`). Do not use those skills, rules, or scripts for a build, a template, or an edit under `process/` or `wp-content/` in this repo.
 
-A page follows `.claude/commands/generate-page-from-figma.md` and `node process/auto.mjs`. One template follows `.claude/commands/generate-template-from-figma.md` and `node process/template.mjs`. Those two commands are the only workflows. Read the matching command before building.
+One template follows `.claude/commands/generate-template-from-figma.md` and `node process/template.mjs`. A page is split into sections from the Figma tree in chat. Each section is that command.
 
-While a workflow runs: reply in Vietnamese, short, do the step, then stop. Ask for a missing breakpoint link. Do not guess a URL, alt, or FAQ answer.
+While a workflow runs: reply in Vietnamese, short, do the step, then stop. Ask for a missing breakpoint link. Do not guess a URL, alt, or FAQ answer. The run only records decisions. A doubtful type or component stays a question in `plan.md`. Do not edit `process/` or the theme during that run. A miss, a wrong rule, or a case that fits one file and breaks another is a note in `history/notes/`, not a code change. Never write Bricks theme styles. CSS loading stays External files.
+
+Plan text is free. Before build, write `choices.json` with one enum per line (`process/modules/missing-content/choices.mjs`). A sentence you cannot map is a question in the same turn. Code switches on that enum. It does not match the sentence.
 
 Eight engine steps stay in code: fetch, tree, detect, export, build, push, verify, summary. A template `read` stops after detect and writes `plan.md` in the frame folder. The chat only points to that file. Build starts after the owner sets `Xác nhận: có`.
 

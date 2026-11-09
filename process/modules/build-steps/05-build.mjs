@@ -10,7 +10,7 @@ import { requireSignOff } from '../sign-off/index.mjs';
 import { buildTemplate } from '../write-bricks/render/index.mjs';
 import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
-import { fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
+import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
 
 // [{ family, weights: [400, 700], italicWeights: [] }] for every visible text node (incl. mixed-style runs)
@@ -42,7 +42,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   const flats = ws.readJson('assets/manifest.json', {}).flats ?? {};
   const readAsset = (file) => readFileSync(ws.file('assets/' + file), 'utf8');
 
-  const firstBuild = buildTemplate(tree, { overrides, detections, flats, readAsset, salt: ws.ref?.fileKey ?? '' });
+  const firstBuild = buildTemplate(tree, { overrides, detections, flats, readAsset, salt: ws.ref?.fileKey ?? '', fileKey: ws.ref?.fileKey ?? '' });
   const { mapping, warnings } = firstBuild;
   let template = firstBuild.template;
   for (const f of ws.readJson('assets/manifest.json', {}).svgFailed ?? []) warnings.push({ node: f.id, name: f.name, msg: 'Figma could not render this svg (e.g. a mask): built as a plain node, the look is not reproduced' });
@@ -67,7 +67,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {
         overrides: vws.readJson('overrides.json', { nodes: {} }), detections: vws.readJson('detections.json', null), flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
-        readAsset: (file) => readFileSync(vws.file('assets/' + file), 'utf8'), salt: `${ws.ref?.fileKey ?? ''}|${v.key}`,
+        readAsset: (file) => readFileSync(vws.file('assets/' + file), 'utf8'), salt: `${ws.ref?.fileKey ?? ''}|${v.key}`, fileKey: ws.ref?.fileKey ?? '',
       });
       for (const w of b.warnings) warnings.push({ ...w, msg: `[${v.key}] ${w.msg}` });
       return { key: v.key, maxWidth: v.maxWidth, minWidth: v.minWidth, aliases: v.aliases ?? {}, tree: vtree, template: b.template, mapping: b.mapping, ws: vws, sig: signature(vws) };
@@ -92,9 +92,12 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   const keep = narrowing.map((v) => v.key);
   const coveredUntil = narrowing.reduce((max, v) => Math.max(max, v.maxWidth ?? 0), 0);
   fitSoloTemplate(template, { keep });
-  fitFluid(template, { frameWidth: tree.box?.w, coveredUntil, keep });
+  fitFluid(template, { frameWidth: template.popup?.width ?? tree.box?.w, coveredUntil, keep });
   // A pasted phone frame holds until 768. The open 479–767 band is not a third layout.
   holdMobileBand(template, { keep });
+  // A pasted frame already supplied this breakpoint. What is still wider than an undesigned screen
+  // becomes 100%, capped at the px Figma drew, so 320 / 767 / 991 do not scroll sideways.
+  fitAnvRemainder(template, { keep });
   ws.writeJson('bricks.json', template);
   ws.writeJson('mapping.json', mapping);
   ws.writeJson('warnings.json', warnings);

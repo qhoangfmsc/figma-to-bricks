@@ -38,15 +38,15 @@ test('typed text fills only a tab Figma did not draw; a link is stored for every
     ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
     ws.writeJson('overrides.json', { nodes: {} });
     applyAnswers(ws, {
-      'pane:tb1': 'gõ đè',
-      'pane:tb2': 'https://www.figma.com/design/Abcd/n?node-id=12-3',
+      'pane:tb1': { choice: 'text', text: 'gõ đè' },
+      'pane:tb2': { choice: 'figma', url: 'https://www.figma.com/design/Abcd/n?node-id=12-3', fileKey: 'Abcd', nodeId: '12:3' },
     });
     const params = ws.readJson('detections.json').components[0].params;
     assert.equal(params.content.panes, undefined);
     assert.equal(params.content.sources.tb2.nodeId, '12:3');
     assert.equal(params.content.sources.tb1, undefined);
     ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
-    applyAnswers(ws, { 'pane:tb2': 'Gói hai', 'pane:tb1': 'chưa có nội dung' });
+    applyAnswers(ws, { 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'pane:tb1': { choice: 'keep' } });
     const again = ws.readJson('detections.json').components[0].params;
     assert.equal(again.content.panes.tb2, 'Gói hai');
     assert.equal(again.content.panes.tb1, undefined);

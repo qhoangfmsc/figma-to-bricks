@@ -1,6 +1,7 @@
 # secrets and machine files
 .env
 wp-content/mu-plugins/vietnix-tools/.token
+.cursor/mcp.json
 .DS_Store
 
 # WordPress runtime
@@ -13,6 +14,10 @@ node_modules/
 
 # scratch now lives in the OS temp directory; ignore a leftover folder if one is created
 /process/work
+
+# Figma runs and notes stay on this machine. The url list and the phase log stay in git.
+/history/runs/
+/history/notes/
 
 # installers: the Bricks theme zip is a download, not source
 *.zip

@@ -21,5 +21,12 @@ import tooltipStyle from '../../write-bricks/components/tooltip-style.mjs';
 import menu from '../../write-bricks/components/menu.mjs';
 import menuSlider from '../../write-bricks/components/menu-slider.mjs';
 import readmore from '../../write-bricks/components/readmore.mjs';
+import checkbox from '../../write-bricks/components/checkbox.mjs';
+import toggleSwitch from '../../write-bricks/components/switch.mjs';
+import radio from '../../write-bricks/components/radio.mjs';
+import divider from '../../write-bricks/components/divider.mjs';
+import search from '../../write-bricks/components/search.mjs';
+import video from '../../write-bricks/components/video.mjs';
+import { PRODUCTION } from '../../write-bricks/components/production.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, ...PRODUCTION].map((c) => [c.id, c]));

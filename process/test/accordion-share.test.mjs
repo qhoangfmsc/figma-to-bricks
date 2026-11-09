@@ -75,7 +75,7 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
       ],
     }, {
       components: [
-        { id: 'd1', component: 'accordion', status: 'approved', node: 'acc', params: { sync: 'không sửa', content: { answers: { q1: 'Trả lời' } } } },
+        { id: 'd1', component: 'accordion', status: 'approved', node: 'acc', params: { sync: 'unchanged', content: { answers: { q1: 'Trả lời' } } } },
         { id: 'd2', component: 'accordion', status: 'approved', node: 'guess', note: 'autopilot: shape · confirmed by the owner in the Plan', params: {} },
         { id: 'd3', component: 'button', status: 'approved', node: 'btn', params: { link: 'https://vietnix.vn' } },
         { id: 'd4', component: 'menu', status: 'approved', node: 'menu', params: { links: { 'mi1-t': 'https://a.vn/uu', 'mi2-t': '/gia' } } },
@@ -123,7 +123,7 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
     const det = JSON.parse(readFileSync(join(mob, 'detections.json'), 'utf8'));
     const by = (node) => det.components.find((c) => c.node === node && c.component !== 'semantic');
     assert.equal(by('macc').params.content.answers.mq1, 'Trả lời');
-    assert.equal(by('macc').params.sync, 'không sửa');
+    assert.equal(by('macc').params.sync, 'unchanged');
     assert.equal(by('mguess').status, 'approved');
     assert.equal(det.components.find((c) => c.component === 'semantic').status, 'rejected');
     assert.equal(by('mbtn').params.link, 'https://vietnix.vn');

@@ -4,6 +4,7 @@
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { normalizeRoot } from '../read-figma/normalize.mjs';
 import { renderTreeMd, stats } from '../read-figma/tree-md.mjs';
+import { noteReadError } from '../common/read-errors.mjs';
 
 export function treeStep(urlOrDir) {
   const ws = resolveWorkspace(urlOrDir);
@@ -12,6 +13,12 @@ export function treeStep(urlOrDir) {
   const nodeId = ws.ref?.nodeId ?? Object.keys(raw.nodes)[0];
 
   const root = normalizeRoot(raw, nodeId, manifest);
+  const fileKey = ws.ref?.fileKey;
+  (function note(n) {
+    const broken = (n.unhandled ?? []).filter((u) => u === 'interaction action is null' || u === 'component property value is null');
+    if (broken.length) noteReadError({ step: 'tree', node: n.id, fileKey, error: `${n.name}: ${broken.join('; ')}` });
+    for (const c of n.children ?? []) note(c);
+  })(root);
   ws.writeJson('tree.json', root);
   ws.writeText('tree.md', renderTreeMd(root, { fileName: raw.name, fileKey: ws.ref?.fileKey, version: raw.version }));
 

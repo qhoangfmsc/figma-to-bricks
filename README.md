@@ -4,6 +4,30 @@ Máy local chạy WordPress + Bricks 1.12.3. Bạn làm trong chat Cursor. Phiê
 
 Site: http://localhost:8080
 
+## Stack
+
+| Phần | Phiên bản |
+|---|---|
+| Node.js | 22 trở lên. Pipeline không cài package. |
+| Docker Compose | bản đang có trên máy, để chạy hai container bên dưới |
+| WordPress | image `wordpress:latest` |
+| MariaDB | image `mariadb:11` |
+| Bricks | 1.12.3, nằm sẵn trong `wp-content/themes/bricks`. Không nâng lên 2.x |
+| CSS | External files. Bricks mặc định là inline. Bridge ghi `cssLoading = file` rồi viết `post-{id}.min.css` sau mỗi lần lưu template, page preview và page ghép. Không regenerate cả site |
+
+Cài Node 22 nếu `node -v` chưa phải 22:
+
+```bash
+# macOS, đã có nvm
+nvm install 22
+nvm use 22
+node -v
+```
+
+Chưa có nvm thì tải bản 22 LTS tại https://nodejs.org và cài. Không chạy `yarn` hay `npm install` cho pipeline: `process/package.json` không có dependency.
+
+Cài Docker Desktop (https://www.docker.com/products/docker-desktop/) nếu chưa có lệnh `docker`.
+
 ## Docker
 
 Ở thư mục gốc của repo:
@@ -37,16 +61,18 @@ Dán link Desktop. Có thêm Widescreen, Tablet portrait, Mobile landscape, Mobi
 
 Chat ghi `plan.md` trong thư mục tạm của frame rồi dừng. Mở file đó, điền sau dấu `:` trên dòng có khóa:
 
-- **Component sẽ dựng** — mỗi component một mục. Đổi `giữ` thành `bỏ` thì khối đó chỉ là layout.
-- **Đoán, chưa gắn** — chỉ hiện khi có. Mỗi dòng một khối, kèm link Figma và vì sao đoán. Ghi `gắn` hoặc `bỏ`.
-- **Ô cùng hình, chưa gắn** — chỉ hiện khi có ô giống nhau chưa gọi tên. Ghi `slider`, `tab`, `menu`, `form`, `accordion` hoặc `nút`.
-- Ô cần điền: URL, alt, câu trả lời, nội dung tab chưa vẽ. Trống thì link `#`, alt trống, câu trả lời trống.
+- **Loại** — `section` (mặc định), `header`, `footer`, `popup`, `content`, `archive`, `search`, `error`.
+- **Component Detected** — danh sách component tool detect được, kể cả khối. Tool điền giá trị đọc được từ Figma. Chỗ Figma không có thì là `[Chưa có value]`.
+- **Góp ý** — mỗi phần một dòng. Muốn đổi khối thành slider, tab, menu, form, accordion hoặc button thì viết vào đó.
+- **Góp ý thêm** — một dòng cuối file.
+
+AI đọc câu trong plan, ghi enum vào `choices.json`, rồi mới build. Code không đối chiếu chữ "giữ" hay "bỏ".
 
 Đổi `Xác nhận: không` thành `Xác nhận: có`, rồi nhắn chạy tiếp. Máy build, đẩy template lên Bricks, chụp và so với ảnh Figma. Bạn tự gắn template vào trang.
 
 ## Kết quả nằm ở đâu
 
-Plan, ảnh so (`verify.png`, `verify.figma.png`, `verify.diff.png`) và báo cáo nằm trong thư mục tạm của hệ điều hành: `figma-to-bricks/<fileKey>/`. Template và trang thì nằm trên site http://localhost:8080.
+Plan, ảnh so (`verify.png`, `verify.figma.png`, `verify.diff.png`) và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`. Danh sách trang thử: `history/urls.md`. Template và trang thì nằm trên site http://localhost:8080.
 
 `verify.md` ghi tên phần nằm trên từng vùng ảnh lệch.
 

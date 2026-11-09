@@ -31,6 +31,7 @@ import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { typography } from '../../write-bricks/render/text.mjs';
 import { boxLook, findNode, firstText, jsonParam, rowId, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { lineHeightFor } from '../../write-bricks/render/text.mjs';
+import { paintSwitch, switchOption } from './choice-control.mjs';
 
 // form.php type select. `step` is not a type. `date` / `time` are not types: the control is datepicker.
 const FIELD_TYPES = new Set(['email', 'text', 'textarea', 'tel', 'number', 'url', 'checkbox', 'select', 'radio', 'file', 'datepicker', 'password', 'rememberme', 'html', 'hidden']);
@@ -72,6 +73,67 @@ export function submissionName({ designTitle, root, node } = {}) {
   return head ? `${head} / ${frame}` : frame;
 }
 
+function applyActionForm({ node, inner: t, root, warn, designTitle, s, fileKey }, det) {
+  const fields = (jsonParam(det.params.fields) ?? []).filter((f) => f?.node && f.node !== det.params?.submit);
+  if (s && !s._position) s._position = 'relative';
+  t.fields = fields.map((f, i) => {
+    const state = f.labelNode ? findNode(root, f.labelNode) : null;
+    const drawn = state?.text?.characters?.trim().replace(/\s+/g, ' ') || '';
+    const painted = paintSwitch(t, root, { id: det.id, node: f.node, params: { ...f, label: drawn, checked: f.checked } }, 'checkbox', fileKey, ` .form-group:nth-child(${i + 1})`);
+    const offWord = painted?.offLabel || drawn;
+    const onWord = painted?.onLabel || '';
+    const html = switchOption(offWord, onWord);
+    const submitted = html ? onWord : 'on';
+    const row = findNode(root, f.node);
+    if (row?.box) {
+      const top = row.box.absY - node.box.absY;
+      const left = row.box.absX - node.box.absX;
+      addCustomCss(t, `position: absolute; top: ${px(top)}; left: ${px(left)}; width: ${px(row.box.w)}; height: ${px(row.box.h)}; margin: 0; padding: 0;`, ` .form-group:nth-child(${i + 1})`);
+    }
+    return {
+      id: rowId(det.id, i),
+      type: 'checkbox',
+      label: f.label || offWord || 'Switch',
+      options: html ? `${submitted}:${html}` : `${submitted}:${drawn}`,
+      valueLabelOptions: true,
+      ...(f.checked ? { value: submitted } : {}),
+    };
+  });
+  t.fieldMargin = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
+  t.actions = ['save-submission'];
+  t.submissionFormName = submissionName({ designTitle, root, node });
+  t._position = 'absolute';
+  t._top = '0px';
+  t._left = '0px';
+  t._width = '100%';
+  t._height = '100%';
+  addCustomCss(t, 'position: absolute; inset: 0; margin: 0; padding: 0; pointer-events: none; background: none;');
+  addCustomCss(t, 'pointer-events: auto;', ' .form-group');
+  const submit = findNode(root, det.params.submit);
+  const btnText = submit && firstText(submit);
+  if (btnText) {
+    t.submitButtonText = btnText.text.characters.trim();
+    const bt = typography(btnText);
+    bt['letter-spacing'] ??= '0px';
+    bt['text-transform'] ??= 'none';
+    t.submitButtonTypography = bt;
+  }
+  if (submit) {
+    const look = boxLook(submit, warn);
+    if (look.background) t.submitButtonBackgroundColor = look.background;
+    if (look.border) t.submitButtonBorder = look.border;
+    const top = submit.box.absY - node.box.absY;
+    const left = submit.box.absX - node.box.absX;
+    addCustomCss(t, `position: absolute; top: ${px(top)}; left: ${px(left)}; width: ${px(submit.box.w)}; margin: 0; pointer-events: auto;`, ' .submit-button-wrapper');
+    const decls = [`width: ${px(submit.box.w)}; height: ${px(submit.box.h)}; box-sizing: border-box; cursor: pointer;`];
+    if (submit.layout?.padding) {
+      const p = submit.layout.padding;
+      decls.push(`padding: ${px(p.top)} ${px(p.right)} ${px(p.bottom)} ${px(p.left)};`);
+    }
+    addCustomCss(t, decls.join(' '), ' button[type=submit]');
+  }
+}
+
 export default {
   id: 'form',
   status: 'implemented',
@@ -86,8 +148,32 @@ export default {
 
   // children that hold no field, label or submit (a note under the button) stay built
   keepNodes(node, det) {
+    if (det.params?.kind === 'action') return visibleKids(node).map((c) => c.id);
     const ids = [...(jsonParam(det.params?.fields) ?? []).flatMap((f) => [f.node, f.labelNode]), det.params?.submit].filter(Boolean);
     return visibleKids(node).filter((c) => !ids.some((id) => contains(c, id))).map((c) => c.id);
+  },
+
+  descendants(node, det, { root } = {}) {
+    if (det.params?.kind !== 'action' || !root) return {};
+    const out = {};
+    for (const field of jsonParam(det.params?.fields) ?? []) {
+      if (field.role !== 'switch') continue;
+      const row = findNode(root, field.node);
+      if (!row?.box) continue;
+      out[field.node] = {
+        skipChildren: true,
+        settings: { _width: px(row.box.w), _height: px(row.box.h), _widthMin: '0px', _heightMin: '0px' },
+        css: [{ decl: 'pointer-events: none;' }],
+      };
+    }
+    const submit = findNode(root, det.params?.submit);
+    if (submit?.box) {
+      out[submit.id] = {
+        settings: { _opacity: '0', _width: px(submit.box.w), _height: px(submit.box.h) },
+        css: [{ decl: 'pointer-events: none;' }],
+      };
+    }
+    return out;
   },
 
   check(node, det, { root }) {
@@ -98,7 +184,12 @@ export default {
     return { ok: true, warnings: [`${fields.length} field(s): submit saves the entry under the Figma name. Bricks only shows Save submission after the site setting is on`] };
   },
 
-  apply({ node, inner: t, root, warn, designTitle }, det) {
+  apply(ctx, det) {
+    if (det.params?.kind === 'action') {
+      applyActionForm(ctx, det);
+      return;
+    }
+    const { node, inner: t, root, warn, designTitle } = ctx;
     const fields = (jsonParam(det.params.fields) ?? []).filter((f) => f?.node && f.node !== det.params?.submit);
     const frames = fields.map((f) => findNode(root, f.node));
     const pad = node.layout?.padding;
@@ -159,7 +250,9 @@ export default {
     if (look.padding) t.fieldPadding = look.padding;
     const inText = firstText(first);
     if (inText) { t.placeholderTypography = typography(inText); t.fieldTypography = typography(inText); }
-    addCustomCss(t, `height: ${px(first.box.h)}; box-sizing: border-box;`, ' .form-group input:not([type=checkbox])');
+    addCustomCss(t, `height: ${px(first.box.h)}; box-sizing: border-box; cursor: text;`, ' .form-group input:not([type=checkbox]):not([type=radio]):not([type=submit])');
+    addCustomCss(t, 'cursor: text;', ' .form-group textarea');
+    addCustomCss(t, 'cursor: pointer;', ' .form-group select, .form-group input[type=checkbox], .form-group input[type=radio]');
     if (inText) addCustomCss(t, `line-height: ${px(lineHeightFor(inText))}; resize: none;`, ' .form-group textarea');
     frames.forEach((fr, i) => {
       const type = fields[i].type;
@@ -233,7 +326,7 @@ export default {
       if (cb) {
         const look = boxLook(cb, warn);
         const b = look.border;
-        addCustomCss(t, `appearance: none; -webkit-appearance: none; flex: none; margin: 0; width: ${px(cb.box.w)}; height: ${px(cb.box.h)}; box-sizing: border-box; background: ${look.background ? cssColor(look.background) : 'transparent'};${b ? ` border: ${b.width.top} ${b.style} ${cssColor(b.color)}; border-radius: ${b.radius?.top ?? '0px'};` : ''}`, ' .form-group input[type=checkbox]');
+        addCustomCss(t, `appearance: none; -webkit-appearance: none; cursor: pointer; flex: none; margin: 0; width: ${px(cb.box.w)}; height: ${px(cb.box.h)}; box-sizing: border-box; background: ${look.background ? cssColor(look.background) : 'transparent'};${b ? ` border: ${b.width.top} ${b.style} ${cssColor(b.color)}; border-radius: ${b.radius?.top ?? '0px'};` : ''}`, ' .form-group input[type=checkbox]');
         const gap = stmt ? stmt.box.x - (cb.box.x + cb.box.w) : 12;
         // Bricks markup: .form-group > ul.options-wrapper > li > input[type=checkbox] + label
         addCustomCss(t, 'list-style: none; margin: 0; padding: 0;', ' .options-wrapper');

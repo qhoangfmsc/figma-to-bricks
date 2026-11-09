@@ -5,6 +5,7 @@
 // Items that fit the frame stay a plain menu. Items that run past the clip (or start before it) become a slider of those items: the arrows drawn
 // beside the row (angle-left / angle-right, often inside a Navigation frame) are that slider's arrows.
 import { isLinkRow } from '../../recognize-parts/rules/links.mjs';
+import { containsChoice, isPressable, textsOf } from './shape.mjs';
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const ITEM = /menu[ _-]?item|nav[ _-]?(item|link)|sub[ _-]?menu/i;
 const ROW = /(^|[^a-z])(menu|nav|navigation)([^a-z]|$)/i;
@@ -59,7 +60,15 @@ export function detectMenus(tree) {
   (function walk(n, trail) {
     if (n.visible === false) return;
     const kids = visibleKids(n);
-    if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && isLinkRow(kids)) {
+    const chip = (k) => {
+      if ((k.box?.h ?? 0) > 28 || (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45 || textsOf(k).length !== 1) return false;
+      if ((k.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5)) return true;
+      const inner = (k.children ?? []).filter((c) => c.visible !== false);
+      return inner.length === 1 && (inner[0].fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
+    };
+    const titleAndBadge = kids.some((k) => k.type === 'TEXT' && (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45) && kids.some(chip);
+    const actionBar = kids.length >= 2 && kids.every(isPressable);
+    if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && isLinkRow(kids) && !kids.some(containsChoice) && !titleAndBadge && !actionBar) {
       const itemNamed = kids.every((k) => ITEM.test(`${k.name} ${k.componentSet ?? ''}`));
       const namedNode = [n, ...trail].find((x) => ROW.test(x.name ?? '')), rowNamed = !!namedNode;
       const short = kids.every((k) => (k.box?.h ?? 0) <= 48);

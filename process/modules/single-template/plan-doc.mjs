@@ -3,6 +3,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parsePlan } from '../missing-content/index.mjs';
+import { MISSING } from '../missing-content/choices.mjs';
+import { SLOTS } from '../single-template/frames.mjs';
 
 export const templatePlanPath = (dir) => join(dir, 'plan.md');
 
@@ -10,15 +12,50 @@ const FIX = /^Sửa:[ \t]?(.*)$/m;
 
 const clean = (s) => String(s ?? '').replace(/[`\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-function fieldLine(field, saved) {
-  const key = field.key;
-  const value = Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : (field.value ?? '');
-  return `- ${clean(field.title)} \`${key}\`: ${clean(value)}`;
+function stored(saved, key, fallback) {
+  return Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : fallback;
 }
 
-function choiceLine(prefix, key, saved, fallback) {
-  const value = Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : fallback;
-  return `- ${prefix} \`${key}\`: ${clean(value)}`;
+function valueLine(key, saved, fallback) {
+  const text = String(stored(saved, key, fallback) ?? '');
+  const [first, ...rest] = text.split(/\r?\n/);
+  return [`- \`${key}\`: ${first ?? ''}`, ...rest.map((line) => `  ${line}`)].join('\n');
+}
+
+function pushPart(out, part, saved) {
+  out.push(`### ${part.kind} \`${part.name}\``, '');
+  out.push(`- Loại: ${part.kind}`);
+  if (part.figma) out.push(`- Figma: [Mở](${part.figma})`);
+  if (part.detail) out.push(`- ${part.detail}`);
+  out.push('');
+  if (part.node) {
+    out.push('Dựng', '', valueLine(`part:${part.node}`, saved, ''), '');
+  }
+  for (const field of part.fields ?? []) {
+    const title = field.group === 'answer' && field.caption
+      ? clean(field.caption).replace(/^["«]+|["»]+$/g, '')
+      : (clean(field.title) || field.field || field.group);
+    out.push(title, '');
+    if (field.figma) out.push(`- Figma: [Mở](${field.figma})`);
+    const fallback = field.value == null || field.value === '' ? MISSING : field.value;
+    out.push(valueLine(field.key, saved, fallback), '');
+  }
+  if (part.node) out.push('Góp ý', '', valueLine(`expect:${part.node}`, saved, ''), '');
+}
+
+function rowsOf(model) {
+  const parts = model.parts ?? [];
+  const blocks = model.blocks ?? [];
+  if (!blocks.length) return parts.map((part) => ({ block: null, self: part, nested: [] }));
+  const claimed = new Set();
+  const rows = blocks.map((block) => {
+    const mine = parts.filter((part) => block.ids.includes(part.node));
+    mine.forEach((part) => claimed.add(part.node));
+    const self = mine.find((part) => part.node === block.id) ?? null;
+    return { block, self, nested: mine.filter((part) => part !== self) };
+  });
+  for (const part of parts) if (!claimed.has(part.node)) rows.push({ block: null, self: part, nested: [] });
+  return rows;
 }
 
 export function renderTemplatePlan(model, saved = {}, note = '') {
@@ -29,52 +66,85 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
     '',
     [model.name, width].filter(Boolean).join(' · '),
   ];
-  if (merged.length) out.push(`Gộp ${merged.map((v) => `${v.label} ${Math.round(v.width)}px`).join(', ')}.`);
+  if (merged.length) out.push('', `Đã gộp: ${merged.map((v) => `${v.label} ${Math.round(v.width)}px`).join(', ')}`);
+  const pasted = new Set(merged.map((v) => v.label));
+  const missing = SLOTS.filter((slot) => slot.maxWidth && !pasted.has(slot.label)).map((slot) => slot.label);
+  if (missing.length) out.push(`Chưa có: ${missing.join(', ')}`);
+  const typeKey = model.templateType?.key || 'type:root';
+  const typeFallback = model.templateType?.value || 'section';
   out.push(
     '',
-    'Điền sau dấu `:` trên dòng có khóa. Giữ giá trị sẵn cũng được.',
-    'Đổi dòng `Xác nhận: không` thành `Xác nhận: có`, rồi nhắn chạy tiếp.',
+    'Đổi `Xác nhận: không` thành `Xác nhận: có` khi xong.',
     '',
     'Xác nhận: không',
     '',
-    '## Component sẽ dựng',
+    '## Loại',
     '',
-    'Đổi `giữ` thành `bỏ` nếu không dựng component đó.',
+    'section · header · footer · popup · content · archive · search · error',
+    '',
+    valueLine(typeKey, saved, typeFallback),
     '',
   );
-  const parts = model.parts ?? [];
-  if (!parts.length) out.push('Không nhận ra component nào.', '');
-  for (const part of parts) {
-    out.push(`### ${part.kind} \`${part.name}\``, '', `[Mở trong Figma](${part.figma})`, '');
-    if (part.detail) out.push(part.detail, '');
-    if (part.note) out.push(part.note, '');
-    if (part.node) out.push(choiceLine('Đổi thành bỏ nếu không dựng.', `part:${part.node}`, saved, 'giữ'));
-    for (const field of part.fields ?? []) out.push(fieldLine(field, saved));
-    out.push('');
-  }
-  const open = model.open ?? [];
-  if (open.length) {
-    out.push('## Đoán, chưa gắn', '', 'Ghi `gắn` hoặc `bỏ`.', '');
-    for (const item of open) {
-      const because = clean(item.evidence);
-      const where = item.figma ? ` [Mở](${item.figma}).` : '';
-      const why = because ? ` Vì: ${because}.` : '';
-      out.push(choiceLine(`${clean(item.label)}.${where}${why}`.replace(/\s+/g, ' '), `guess:${item.node}`, saved, 'chưa gắn'));
+  const rows = rowsOf(model);
+  const kinds = rows.flatMap((row) => [row.self?.kind || (row.block ? 'Khối' : null), ...row.nested.map((part) => part.kind)].filter(Boolean));
+  const tally = [...kinds.reduce((map, kind) => map.set(kind, (map.get(kind) ?? 0) + 1), new Map())].map(([kind, n]) => `${n} ${kind}`).join(', ');
+  out.push(`## Component Detected (${rows.length})`, '');
+  if (tally) out.push(tally, '');
+  if (!rows.length) out.push('Không nhận ra component nào.', '');
+  rows.forEach((row, index) => {
+    if (row.self && !row.block) {
+      out.push(`${index + 1}.`, '');
+      pushPart(out, row.self, saved);
+      return;
     }
-    out.push('');
+    if (row.self) {
+      out.push(`${index + 1}.`, '');
+      pushPart(out, row.self, saved);
+    } else if (row.block) {
+      out.push(`${index + 1}.`, '', `### Khối \`${row.block.name}\``, '', '- Loại: block');
+      if (row.block.figma) out.push(`- Figma: [Mở](${row.block.figma})`);
+      out.push('', 'Góp ý', '', valueLine(`expect:${row.block.id}`, saved, ''), '');
+    }
+    for (const part of row.nested) pushPart(out, part, saved);
+    const ids = new Set(row.block?.ids ?? []);
+    const hosts = [row.self, ...row.nested].filter(Boolean);
+    for (const item of (model.open ?? []).filter((guess) => ids.has(guess.node) && !hosts.some((part) => part.node !== guess.node && part.ids?.includes(guess.node)))) {
+      out.push(`### ${clean(item.label)}`, '');
+      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
+      if (clean(item.evidence)) out.push(`- ${clean(item.evidence)}`);
+      out.push('', valueLine(`guess:${item.node}`, saved, ''), '');
+    }
+    for (const item of (model.repeats ?? []).filter((repeat) => ids.has(repeat.node))) {
+      const name = clean(item.item || item.label);
+      const sample = clean(item.sample);
+      out.push(item.count ? `${item.count} ô "${name}"${sample ? `, mẫu "${sample}"` : ''}` : clean(item.label), '');
+      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
+      out.push('', valueLine(`repeat:${item.node}`, saved, ''), '');
+    }
+  });
+  const placed = new Set(rows.flatMap((row) => [row.block?.id, row.self?.node, ...row.nested.map((part) => part.node), ...(row.block?.ids ?? [])].filter(Boolean)));
+  const open = (model.open ?? []).filter((item) => !placed.has(item.node));
+  if (open.length) {
+    out.push('## Chưa chắc', '');
+    for (const item of open) {
+      out.push(`### ${clean(item.label)}`, '');
+      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
+      if (clean(item.evidence)) out.push(`- ${clean(item.evidence)}`);
+      out.push('', valueLine(`guess:${item.node}`, saved, ''), '');
+    }
   }
-  const repeats = model.repeats ?? [];
+  const repeats = (model.repeats ?? []).filter((item) => !placed.has(item.node));
   if (repeats.length) {
-    out.push('## Ô cùng hình, chưa gắn', '', 'Ghi slider, tab, menu, form, accordion hoặc nút.', '');
+    out.push('## Nhóm lặp', '');
     for (const item of repeats) {
       const name = clean(item.item || item.label);
       const sample = clean(item.sample);
-      const where = item.figma ? ` [Mở](${item.figma}).` : '';
-      const seen = item.count ? `${item.count} ô "${name}" cùng hình${sample ? `, mẫu "${sample}"` : ''}.` : `${clean(item.label)}.`;
-      out.push(choiceLine(`${seen}${where}`.replace(/\s+/g, ' '), `repeat:${item.node}`, saved, 'chưa gắn'));
+      out.push(item.count ? `${item.count} ô "${name}"${sample ? `, mẫu "${sample}"` : ''}` : clean(item.label), '');
+      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
+      out.push('', valueLine(`repeat:${item.node}`, saved, ''), '');
     }
-    out.push('');
   }
+  out.push('## Góp ý thêm', '', valueLine('note:plan', saved, ''), '');
   if (clean(note)) out.push(`Sửa: ${clean(note)}`, '');
   return out.join('\n');
 }

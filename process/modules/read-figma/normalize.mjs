@@ -222,11 +222,22 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
   }
   // what the designer declared on an instance: variant choices, booleans (e.g. "Tooltips icon" = true), texts, swaps
   if (raw.componentProperties && Object.keys(raw.componentProperties).length) {
-    node.props = Object.fromEntries(Object.entries(raw.componentProperties).map(([k, p]) => [k.replace(/#\d+:\d+$/, ''), p.value]));
+    const entries = Object.entries(raw.componentProperties).filter(([, p]) => p && Object.prototype.hasOwnProperty.call(p, 'value'));
+    if (entries.length !== Object.keys(raw.componentProperties).length) (node.unhandled ??= []).push('component property value is null');
+    if (entries.length) node.props = Object.fromEntries(entries.map(([k, p]) => [k.replace(/#\d+:\d+$/, ''), p.value]));
   }
-  // prototype: trigger -> action (hover / click / navigate to a variant ...). Not rendered by Figma exports, but it is the designer's statement of behavior
+  // prototype: trigger -> action (hover / click / navigate to a variant ...). Not rendered by Figma exports, but it is the designer's statement of behavior.
+  // Figma sometimes stores an action as null (a click with no destination). That is recorded, not thrown.
   if (raw.interactions?.length) {
-    node.interactions = raw.interactions.flatMap((i) => (i.actions?.length ? i.actions : [{}]).map((a) => ({ trigger: i.trigger?.type, action: a.type, navigation: a.navigation, dest: a.destinationId, url: a.url, duration: a.transition?.duration, easing: a.transition?.easing?.type })));
+    const rows = [];
+    for (const i of raw.interactions) {
+      const actions = i.actions ?? [];
+      const real = actions.filter((a) => a && a.type);
+      if (actions.length && real.length !== actions.length) (node.unhandled ??= []).push('interaction action is null');
+      const list = real.length ? real : (actions.length ? [] : [{}]);
+      for (const a of list) rows.push({ trigger: i.trigger?.type, action: a?.type, navigation: a?.navigation, dest: a?.destinationId, url: a?.url, duration: a?.transition?.duration, easing: a?.transition?.easing?.type });
+    }
+    if (rows.length) node.interactions = rows;
   }
   if (raw.styles) {
     node.styleRefs = Object.fromEntries(Object.entries(raw.styles).map(([k, id]) => [k, ctx.styleNames?.[id] ?? id]));

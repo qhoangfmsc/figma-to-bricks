@@ -11,6 +11,7 @@ import { requireSignOff } from '../sign-off/index.mjs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { imageInfo, sha256 } from '../common/image-info.mjs';
 import { exportJobs } from '../write-bricks/components/flat-image.mjs';
+import { noteReadError } from '../common/read-errors.mjs';
 
 export async function exportStep(urlOrDir) {
   const ws = resolveWorkspace(urlOrDir);
@@ -30,7 +31,12 @@ export async function exportStep(urlOrDir) {
     if (!todo.length) continue;
     const urls = await getRenders(ws.ref.fileKey, todo.map((j) => j.node), 'png', { scale: Number(scale) });
     for (const j of todo) {
-      if (!urls[j.node]) throw new Error(`Figma could not render ${j.node}`);
+      if (!urls[j.node]) {
+        const error = `Figma could not render ${j.node}`;
+        noteReadError({ step: 'export', node: j.node, fileKey: ws.ref?.fileKey, error });
+        console.log(`  ! ${error}: that picture stays elements`);
+        continue;
+      }
       const buf = await download(urls[j.node]);
       const file = `flat/${safeId(j.node)}.png`;
       writeFileSync(ws.file('assets/' + file), buf);

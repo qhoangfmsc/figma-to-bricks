@@ -1,10 +1,34 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
-import { fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve } from '../modules/breakpoints/solo.mjs';
+import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve } from '../modules/breakpoints/solo.mjs';
 import { applyAppearance } from '../modules/write-bricks/render/utils/appearance.mjs';
 
 const el = (id, parent, name, settings = {}) => ({ id, parent, name, settings });
+
+test('a box still wider than an undesigned screen becomes 100% and keeps the Figma px as its cap', () => {
+  const row = {
+    content: [
+      el('row', 0, 'block', { _direction: 'row', _width: '1440px' }),
+      el('card', 'row', 'block', { _width: '376px' }),
+      el('card2', 'row', 'block', { _width: '376px' }),
+      el('title', 'row', 'block', { _cssClasses: 'tab-title', _width: '500px' }),
+    ],
+  };
+  fitSoloTemplate(row);
+  fitAnvRemainder(row);
+  const by = (id) => row.content.find((e) => e.id === id).settings;
+  assert.equal(by('card')._width, '376px');
+  assert.equal(by('card')['_width:mobile_portrait'], '100%');
+  assert.equal(by('card')['_widthMax:mobile_portrait'], '376px');
+  assert.equal(by('row')['_direction:mobile_portrait'], 'column');
+  assert.equal(by('title')['_width:mobile_portrait'], undefined);
+  const pasted = { content: [el('box', 0, 'block', { _width: '900px' })] };
+  fitSoloTemplate(pasted, { keep: ['mobile_portrait', 'mobile_landscape', 'tablet_portrait'] });
+  fitAnvRemainder(pasted, { keep: ['mobile_portrait', 'mobile_landscape', 'tablet_portrait'] });
+  assert.equal(pasted.content[0].settings['_width:mobile_portrait'], undefined);
+  assert.equal(pasted.content[0].settings._width, '900px');
+});
 
 test('a missing responsive frame is still measured, and a wide box is not a px width there', () => {
   assert.deepEqual(screensToProve([]).map((s) => s.width), [991, 767, 320]);

@@ -59,7 +59,7 @@ function textContent(t, baseColor = null, box = null) {
     html.forEach((h, i) => {
       if (t.listLines[i].type === 'UNORDERED') { if (!ul) out.push((ul = { items: [] })); ul.items.push(h); } else { ul = null; out.push(h); }
     });
-    return out.map((o, i) => (typeof o === 'string' ? (i > 0 && typeof out[i - 1] === 'string' ? `<br>${o}` : o) : `<ul>${o.items.map((x) => `<li>${x}</li>`).join('')}</ul>`)).join('');
+    return out.map((o, i) => (typeof o === 'string' ? (i > 0 && typeof out[i - 1] === 'string' ? breakBefore(out[i - 1], o) : o) : `<ul>${o.items.map((x) => `<li>${x}</li>`).join('')}</ul>`)).join('');
   }
   if (paras.length > 1 && (t.paragraphSpacing || t.paragraphIndent)) {
     return html.map((h, i) => {
@@ -69,7 +69,16 @@ function textContent(t, baseColor = null, box = null) {
       return `<span style="${c.join(';')}">${h}</span>`;
     }).join('');
   }
-  return html.join('<br>');
+  return breakJoin(html);
+}
+
+// A hidden <br> must leave a space, or the two words on either side stick together.
+function breakBefore(prev, next) {
+  return `${/\s$/.test(String(prev)) ? '' : ' '}<br>${next}`;
+}
+
+function breakJoin(parts) {
+  return parts.reduce((acc, part, i) => (i === 0 ? part : acc + breakBefore(acc, part)), '');
 }
 
 // Line height as Figma really laid the text out. For a text whose height is automatic the box height IS the layout result (lines x line box); the

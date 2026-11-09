@@ -3,6 +3,7 @@
 // so a missed question is not a blank screen.
 import { findNode, firstText } from '../write-bricks/components/helpers.mjs';
 import { GROUPS, itemHeading, keyOf, figmaLink } from '../missing-content/index.mjs';
+import { MISSING } from '../missing-content/choices.mjs';
 import { unclaimedRepeats } from '../recognize-parts/structure.mjs';
 
 const HINT = {
@@ -15,17 +16,19 @@ const HINT = {
   autoplay: 'Ví dụ 5 giây, hoặc đừng tự chạy.',
   count: 'Ví dụ 5 cái.',
   items: 'Để trống là dùng các mục đang có. Hoặc dán link khung chứa đủ mục.',
+  mobileform: 'Để nguyên. Có link mobile thì tool dựng đúng thứ khung đó vẽ.',
   sync: 'Giữ nguyên, chỉ giống phần chữ, hoặc đừng đổi icon.',
   act: 'Hiện hết chữ, hoặc viết địa chỉ trang.',
   expand: 'Viết chữ thêm khi mở, hoặc dán link khung đã mở hết. Để trống thì hiện nốt chữ đang có.',
   keep: 'Giữ nguyên như bản vẽ.',
 };
 const KIND = {
-  button: 'Nút', readmore: 'Xem thêm', semantic: 'Khối', accordion: 'Accordion', tabs: 'Tab', 'tab-switch': 'Tabs Component', menu: 'Menu',
+  button: 'Nút', checkbox: 'Checkbox', switch: 'Switch', readmore: 'Xem thêm', semantic: 'Khối', accordion: 'Accordion', tabs: 'Tab', 'tab-switch': 'Tabs Component', menu: 'Menu',
   'menu-slider': 'Menu slider', carousel: 'Slider', form: 'Form', link: 'Link', 'flat-image': 'Ảnh', 'icon-list': 'Danh sách icon',
   breadcrumbs: 'Breadcrumb', counter: 'Số', countdown: 'Đếm ngược', tooltip: 'Tooltip', 'tooltip-style': 'Tooltip',
 };
 const TAB_NOTE = 'Mỗi nút là một tab. Phần bên dưới là nội dung của tab đang mở. Tab chưa vẽ thì dán link khung đó, hoặc viết nội dung vào. Để trống là giữ như bản vẽ.';
+const SLIDER_NOTE = 'Chỉ có khung desktop thì mobile vẫn là slider. Có link mobile thì dựng đúng thứ khung đó vẽ, kể cả khi không phải slider. Không tự đổi slider thành hàng kéo.';
 
 const owns = (node, id) => !!node && (node.id === id || (node.children ?? []).some((c) => owns(c, id)));
 const depthOf = (tree, id) => {
@@ -67,13 +70,21 @@ function detailOf(tree, component) {
   return [labels.join(', '), button ? `nút ${button}` : ''].filter(Boolean).join(' · ');
 }
 
+const CANNED = new Set(['chưa có địa chỉ', 'chưa có địa chỉ video', 'chưa có câu trả lời', 'chưa có nội dung', 'tự chuyển mỗi 3 giây', 'ảnh chỉ để trang trí', 'giữ nguyên khối', 'làm các mục giống nhau']);
+
+function shownValue(value, fallback) {
+  const text = value != null && value !== '' ? String(value) : (fallback ?? '');
+  if (!text || CANNED.has(text)) return MISSING;
+  return text;
+}
+
 function fieldOf(q, fileKey) {
   const g = GROUPS[q.group];
   return {
     field: g?.field || q.group,
     group: q.group,
     key: q.key || keyOf(q.group, q.node),
-    value: q.value != null && q.value !== '' ? q.value : (g?.value ?? ''),
+    value: shownValue(q.value, g?.value),
     placeholder: HINT[q.group] || '',
     options: g?.options,
     linkOption: g?.linkOption,
@@ -92,6 +103,7 @@ export function screenParts(tree, components, questions, fileKey) {
   const buckets = new Map(approved.map((c) => [c.node + ':' + c.component, []]));
   const loose = [];
   for (const q of questions ?? []) {
+    if (q.group === 'type') continue;
     const owner = ranked.find((c) => owns(findNode(tree, c.node), q.node));
     const item = { ...q, caption: q.group === 'pane' || questions.filter((x) => x.group === q.group).length > 1 ? q.label : '' };
     if (owner) buckets.get(owner.node + ':' + owner.component).push(item);
@@ -101,13 +113,15 @@ export function screenParts(tree, components, questions, fileKey) {
     const name = partName(tree, c);
     const kind = KIND[c.component] || c.component;
     let fields = (buckets.get(c.node + ':' + c.component) ?? []).map((q) => withTitle(fieldOf(q, fileKey), name, kind));
+    if (c.component === 'form') fields = fields.filter((field) => field.group !== 'confirm');
     if (!fields.length) {
       const fb = fallbackField(c, readmoreButtons);
       if (fb) fields = [withTitle(fieldOf({ ...fb, node: c.node, label: '' }, fileKey), name, kind)];
     }
-    const note = c.component === 'tabs' || c.component === 'tab-switch' ? TAB_NOTE : '';
+    const note = c.component === 'tabs' || c.component === 'tab-switch' ? TAB_NOTE : c.component === 'carousel' ? SLIDER_NOTE : '';
     const detail = detailOf(tree, c);
-    return { kind, name, node: c.node, figma: figmaLink(fileKey, c.node), ...(detail && { detail }), ...(note && { note }), fields };
+    const ids = walkIds(findNode(tree, c.node) ?? { id: c.node });
+    return { kind, name, node: c.node, figma: figmaLink(fileKey, c.node), ids, ...(detail && { detail }), ...(note && { note }), fields };
   });
   for (const q of loose) {
     const name = clip(q.label);
@@ -137,4 +151,27 @@ export function planInventory(tree, components, fileKey = '') {
       value: '',
     })),
   };
+}
+
+function walkIds(node, out = []) {
+  if (!node) return out;
+  out.push(node.id);
+  for (const child of node.children ?? []) walkIds(child, out);
+  return out;
+}
+
+// One row per small section inside the template: the root's children, or the children of a single wrapper.
+export function sectionBlocks(tree, fileKey = '') {
+  const visible = (node) => (node?.children ?? []).filter((child) => child.visible !== false && child.type !== 'TEXT' && child.type !== 'LINE');
+  let rows = visible(tree);
+  if (rows.length === 1) {
+    const inner = visible(rows[0]);
+    if (inner.length >= 2) rows = inner;
+  }
+  return rows.map((node) => ({
+    id: node.id,
+    name: node.name || node.id,
+    figma: fileKey ? figmaLink(fileKey, node.id) : '',
+    ids: walkIds(node),
+  }));
 }

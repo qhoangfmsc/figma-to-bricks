@@ -19,6 +19,7 @@ import { firstText } from '../write-bricks/components/helpers.mjs';
 import { parseFigmaUrl } from '../read-figma/url.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { resolveWorkspace } from '../common/workspace.mjs';
+import { choiceOf, MISSING, REPEAT_COMPONENT } from './choices.mjs';
 
 export const keyOf = (group, node) => `${group}:${node}`;
 export const figmaLink = (fileKey, node) => `https://www.figma.com/design/${fileKey}/x?node-id=${String(node).replaceAll(':', '-')}`;
@@ -32,7 +33,23 @@ export const GROUPS = {
     heading: (name, kind) => (kind === 'Menu' ? `Bấm ${name || 'mục này'} thì mở trang nào?` : `Bấm nút ${name || 'này'} thì mở trang nào?`),
     summary: 'Chưa có trang thì ghi chưa có. Có rồi thì viết địa chỉ, ví dụ vietnix.vn/bang-gia.',
     value: 'chưa có địa chỉ',
-    check: (v) => (/^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(v) || fold(v) === 'chua co dia chi' ? null : 'viết địa chỉ trang, hoặc ghi là chưa có'),
+    check: (v) => (v.length <= 500 ? null : 'dài quá 500 ký tự'),
+  },
+  type: {
+    title: () => 'Loại template',
+    field: 'Loại template',
+    heading: () => 'Template này thuộc loại nào?',
+    summary: 'Mặc định là section. Đổi thành header, footer, popup, content, archive, search hoặc error khi đúng. Giữ section nếu chưa chắc.',
+    value: 'section',
+    check: (v) => (v.length <= 80 ? null : 'ngắn hơn 80 ký tự'),
+  },
+  video: {
+    title: (n) => `Địa chỉ video của ${n} khung`,
+    field: 'Địa chỉ video',
+    heading: (name) => `${name || 'Khung này'} phát video nào?`,
+    summary: 'Dán link YouTube, Vimeo, hoặc file. Để trống thì giữ ảnh Figma đã vẽ.',
+    value: 'chưa có địa chỉ video',
+    check: (v) => (v.length <= 500 ? null : 'dài quá 500 ký tự'),
   },
   answer: {
     title: (n) => `Câu trả lời cho ${n} câu hỏi FAQ`,
@@ -56,7 +73,7 @@ export const GROUPS = {
     heading: (name) => `${name || 'Phần này'} tự chạy không?`,
     summary: 'Đang để tự chạy mỗi 3 giây. Viết số giây nếu muốn chậm hơn hoặc nhanh hơn, hoặc ghi đừng tự chạy nếu chỉ chạy khi bấm.',
     value: 'tự chuyển mỗi 3 giây',
-    check: (v) => readAutoplay(v).why ?? null,
+    check: (v) => (String(v ?? '').length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   loop: {
     title: (n) => `Lặp vòng của ${n} slider`,
@@ -65,7 +82,7 @@ export const GROUPS = {
     summary: 'Slider luôn chạy vòng. Dòng này còn để file Plan cũ vẫn đọc được; tool không hỏi nữa.',
     value: 'quay lại slide đầu',
     options: ['dừng ở slide cuối', 'quay lại slide đầu'],
-    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) || /^(dung o slide cuoi|quay lai slide dau)$/.test(fold(v)) ? null : 'dừng ở slide cuối, hoặc quay lại slide đầu'),
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   count: {
     title: (n) => `Tổng số item của ${n} slider`,
@@ -73,7 +90,7 @@ export const GROUPS = {
     heading: (name) => `${name || 'Phần này'} có bao nhiêu mục?`,
     summary: 'Số sẵn là số mục đang vẽ. Viết số khác nếu bộ thật nhiều hơn, ví dụ 8 cái.',
     value: '',
-    check: (v) => (/^\d+$/.test(String(v).trim()) && +v >= 1 && +v <= 200 ? null : 'viết một số, ví dụ 5'),
+    check: (v) => (v.length <= 80 ? null : 'ngắn hơn 80 ký tự'),
   },
   items: {
     title: (n) => `Bộ item của ${n} slider`,
@@ -81,7 +98,15 @@ export const GROUPS = {
     heading: (name) => `${name || 'Phần này'} lấy các mục ở đâu?`,
     summary: 'Để trống là dùng các mục đang có. Muốn đủ hơn thì dán link khung chứa hết các mục, từ trái sang phải.',
     value: '',
-    check: (v) => readItems(v).why ?? null,
+    check: (v) => (readItems(v).kind === 'bad' && /figma\.com/i.test(v) ? readItems(v).why : v.length <= 500 ? null : 'dài quá 500 ký tự'),
+  },
+  mobileform: {
+    title: (n) => `Mobile của ${n} slider`,
+    field: 'Mobile của slider',
+    heading: (name) => `Mobile của ${name || 'slider này'} dựng thế nào?`,
+    summary: 'Chỉ có khung desktop thì mobile vẫn là slider. Có link mobile thì dựng đúng thứ khung đó vẽ, kể cả khi không phải slider. Không tự đổi slider thành hàng kéo.',
+    value: 'mobile vẫn là slider',
+    check: (v) => (v.length <= 500 ? null : 'dài quá 500 ký tự'),
   },
   confirm: {
     title: (n) => `Xác nhận ${n} khối mà tool chỉ đoán được là accordion`,
@@ -90,7 +115,7 @@ export const GROUPS = {
     summary: 'Chưa rõ đây có phải câu hỏi bấm ra câu trả lời hay không. Giữ nguyên nếu không phải.',
     value: 'giữ nguyên khối',
     options: ['giữ nguyên khối', 'làm accordion'],
-    check: (v) => (/^(có|co|không|khong|yes|no)$/i.test(v) || /^(giu nguyen khoi|lam accordion)$/.test(fold(v)) ? null : 'giữ nguyên khối, hoặc làm accordion'),
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   sync: {
     title: (n) => `Đồng bộ ${n} accordion`,
@@ -98,7 +123,7 @@ export const GROUPS = {
     heading: (name) => `Các mục trong ${name || 'phần này'} cho giống nhau không?`,
     summary: 'Các mục đang lệch nhau. Để giống nhau, hoặc ghi giữ nguyên, chỉ giống phần chữ, đừng đổi icon.',
     value: 'làm các mục giống nhau',
-    check: (v) => { const r = readSync(v); return r.ok ? null : r.why; },
+    check: (v) => (v.length <= 500 ? null : 'dài quá 500 ký tự'),
   },
   alt: {
     title: (n) => `Mô tả (alt) của ${n} ảnh nội dung`,
@@ -120,7 +145,7 @@ export const GROUPS = {
     value: 'Bấm để hiện hết chữ',
     options: ['Bấm để hiện hết chữ', 'Bấm để mở một địa chỉ'],
     linkOption: 'Bấm để mở một địa chỉ',
-    check: (v) => (/figma\.com/i.test(v) ? 'đây là link bản vẽ, hãy viết địa chỉ trang web' : /^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(v) || /^(mo phan chu bi cat|bam de hien het chu)$/.test(fold(v)) ? null : 'viết là hiện hết chữ, hoặc một địa chỉ trang'),
+    check: (v) => (/figma\.com/i.test(v) ? 'đây là link bản vẽ, hãy viết địa chỉ trang web' : v.length <= 500 ? null : 'dài quá 500 ký tự'),
   },
   expand: {
     title: (n) => `Nội dung khi mở của ${n} phần`,
@@ -138,6 +163,22 @@ export const GROUPS = {
     value: '',
     check: (v) => (String(v ?? '').trim().length <= 80 ? null : 'tên tab ngắn hơn 80 ký tự'),
   },
+  expect: {
+    title: () => 'Góp ý component',
+    field: 'Góp ý',
+    heading: () => 'Khối này phải là component nào?',
+    summary: 'Để trống là giữ cách tool đang gắn.',
+    value: '',
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
+  },
+  note: {
+    title: () => 'Góp ý thêm',
+    field: 'Góp ý thêm',
+    heading: () => 'Góp ý thêm',
+    summary: 'Ghi thêm điều tool chưa hỏi.',
+    value: '',
+    check: (v) => (v.length <= 2000 ? null : 'dài quá 2000 ký tự'),
+  },
   tabdata: {
     title: (n) => `Nhóm item của ${n} tab`,
     field: 'Nhóm item',
@@ -153,37 +194,32 @@ export const GROUPS = {
     summary: 'Khối này dựng y như bản vẽ.',
     value: 'Dựng thành một khối tĩnh',
     options: ['Dựng thành một khối tĩnh'],
-    check: (v) => (/^(giu block|giu nguyen khoi|dung thanh mot khoi tinh)$/.test(fold(v)) ? null : 'Dựng thành một khối tĩnh'),
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   part: {
     title: (n) => `Component đã nhận của ${n} phần`,
     field: 'Component đã nhận',
     heading: (name) => name || 'Phần này',
-    summary: 'Tool đã gắn component này. Giữ nguyên, hoặc ghi bỏ nếu không phải.',
-    value: 'giữ',
-    check: (v) => (/^(giu|giu nguyen|bo|khong phai)$/.test(fold(v)) ? null : 'giữ, hoặc bỏ'),
+    summary: 'Tool đã gắn component này. Viết một câu nếu không dựng. Để trống là dựng.',
+    value: '',
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   guess: {
     title: (n) => `Component chưa chắc của ${n} phần`,
     field: 'Component chưa chắc',
     heading: (name) => name || 'Phần này',
-    summary: 'Chỉ thấy hình dạng. Ghi gắn để dùng, bỏ để giữ block, hoặc để chưa gắn.',
-    value: 'chưa gắn',
-    check: (v) => (/^(chua gan|gan|bo|khong phai)$/.test(fold(v)) ? null : 'chưa gắn, gắn, hoặc bỏ'),
+    summary: 'Chỉ thấy hình dạng. Viết một câu nếu muốn gắn hoặc bỏ. Để trống là chưa gắn.',
+    value: '',
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
   repeat: {
     title: (n) => `Nhóm lặp chưa gắn của ${n} phần`,
     field: 'Nhóm lặp',
     heading: (name) => name || 'Nhóm này',
-    summary: 'Các mục giống nhau mà tool chưa gọi tên. Để chưa gắn, hoặc ghi slider, tab, menu, form, accordion, nút.',
-    value: 'chưa gắn',
-    check: (v) => (fold(v) === 'chua gan' || NAMED_PART[fold(v)] ? null : 'chưa gắn, hoặc slider, tab, menu, form, accordion, nút'),
+    summary: 'Các mục giống nhau mà tool chưa gọi tên. Viết nhóm này là gì. Để trống là chưa gắn.',
+    value: '',
+    check: (v) => (v.length <= 200 ? null : 'ngắn hơn 200 ký tự'),
   },
-};
-
-const NAMED_PART = {
-  slider: 'carousel', carousel: 'carousel', tab: 'tabs', tabs: 'tabs', menu: 'menu', form: 'form',
-  accordion: 'accordion', nut: 'button', button: 'button',
 };
 
 const fold = (s) => String(s ?? '').trim().toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ');
@@ -267,85 +303,14 @@ export function readAutoplay(v) {
   return { why: 'viết số giây, ví dụ 5 giây, hoặc ghi đừng tự chạy' };
 }
 
-const NONE = /^(khong|khong co|khong co dia chi|khong co link|chua|chua co|chua co dia chi|chua co link|de trong|bo trong|chua biet|khong biet|de sau|khong can|khong can mo ta)$/;
-
-function pullUrl(text) {
-  const raw = String(text ?? '').trim();
-  const explicit = raw.match(/https?:\/\/\S+|mailto:\S+|tel:\S+/i);
-  if (explicit) return explicit[0].replace(/[),.;]+$/, '');
-  if (/^(#\S*|\/\S+)$/.test(raw)) return raw;
-  const mail = raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  if (mail) return `mailto:${mail[0]}`;
-  const phone = raw.match(/(?:\+84|0)\d[\d\s.]{7,14}/);
-  if (phone) return `tel:${phone[0].replace(/[^\d+]/g, '')}`;
-  const domain = raw.match(/\b(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?/i);
-  if (domain) return `https://${domain[0].replace(/[),.;]+$/, '')}`;
-  return '';
-}
-
-function keepPhrase(folded) {
-  return /^(giu|de nguyen|de vay|khong doi|giu nhu|dung nhu|de do|giu nguyen)/.test(folded);
-}
-
-// The screen is filled in ordinary speech. This turns that sentence into the value the rest of the pipeline already stores.
+// The chat filters a sentence into a choice before build. This keeps the words as typed.
 export function hearAnswers(answers) {
   const out = {};
   for (const [key, value] of Object.entries(answers ?? {})) {
-    const heard = hearOne(key.split(':')[0], value);
-    if (heard !== '') out[key] = heard;
+    const text = String(value ?? '').trim();
+    if (text) out[key] = text;
   }
   return out;
-}
-
-function hearOne(group, value) {
-  const text = String(value ?? '').trim();
-  if (!text) return '';
-  const folded = fold(text);
-  if (group === 'link') {
-    if (NONE.test(folded) || folded === 'chua co dia chi') return 'chưa có địa chỉ';
-    return pullUrl(text) || 'chưa có địa chỉ';
-  }
-  if (group === 'act') {
-    if (/figma\.com/i.test(text)) return text;
-    if (/^(mo phan chu bi cat|bam de hien het chu|hien het chu|xem het|xem them)$/.test(folded)) return 'Bấm để hiện hết chữ';
-    if (folded === 'bam de mo mot dia chi') return 'Bấm để mở một địa chỉ';
-    return pullUrl(text) || 'Bấm để hiện hết chữ';
-  }
-  if (group === 'alt') {
-    if (NONE.test(folded) || /trang tri|khong can mo ta|anh chi de trang tri/.test(folded)) return 'ảnh chỉ để trang trí';
-    return text;
-  }
-  if (group === 'autoplay') {
-    if ((/khong tu|dung tu|dung chay|chi khi bam|khong chay|tat tu/.test(folded) || folded === 'khong') && !/\d/.test(text)) return 'không tự chuyển';
-    const n = text.match(/(\d+(?:\.\d+)?)/);
-    if (n && +n[1] > 0 && +n[1] <= 120) return String(+n[1]);
-    return 'tự chuyển mỗi 3 giây';
-  }
-  if (group === 'count') {
-    const n = text.match(/(\d+)/);
-    return n && +n[1] >= 1 && +n[1] <= 200 ? String(+n[1]) : '';
-  }
-  if (group === 'confirm') {
-    if (/accordion|hoi dap|bam de mo|cau hoi/.test(folded)) return 'làm accordion';
-    return 'giữ nguyên khối';
-  }
-  if (group === 'loop') {
-    if (/dung|khong lap|khong chay vong/.test(folded)) return 'dừng ở slide cuối';
-    return 'quay lại slide đầu';
-  }
-  if (group === 'keep') return 'Dựng thành một khối tĩnh';
-  if (group === 'sync') {
-    if (NONE.test(folded) || /giu nguyen|khong sua|dung doi/.test(folded)) return 'không sửa';
-    return text;
-  }
-  if (group === 'pane' || group === 'expand' || group === 'items') {
-    const fig = text.match(/https?:\/\/\S*figma\.com\S*/i);
-    if (fig) return fig[0].replace(/[),.;]+$/, '');
-    if (!folded || keepPhrase(folded) || folded === 'chua co noi dung') return group === 'pane' ? 'chưa có nội dung' : '';
-    return text;
-  }
-  if (group === 'answer' && (NONE.test(folded) || folded === 'chua co cau tra loi')) return 'chưa có câu trả lời';
-  return text;
 }
 
 export function itemHeading(group, name, kind) {
@@ -374,7 +339,7 @@ export function renderPlan(model, answers = {}) {
   const total = model.sections.reduce((a, s) => a + s.questions.length, 0);
   out.push(`# Plan: ${model.title}`, '',
     `Tạo bởi \`process/auto.mjs\` ngày ${new Date().toISOString().slice(0, 10)}. Đọc từng heading, điền giá trị vào cuối các dòng có \`khoá\` (để trống = dùng mặc định an toàn).`,
-    'Điền xong, đổi dòng bên dưới thành `Xác nhận: có` rồi nhắn Claude chạy tiếp. Claude sẽ build mọi section, kiểm tra, sửa lỗi và ghép trang, không hỏi gì thêm.', '',
+    'Điền xong, đổi dòng bên dưới thành `Xác nhận: có` rồi nhắn chạy tiếp. Lần chạy chỉ dựng theo các quyết định trong file này. Chỗ chưa điền giữ mặc định. Lần chạy không sửa code.', '',
     'Xác nhận: không', '',
     '## Tóm tắt', '', '| # | Section | Link Figma | Sẽ build thành | Cần điền |', '|---|---|---|---|---|',
     ...model.sections.map((s, i) => `| ${i + 1} | ${s.name} | [mở](${figmaLink(model.fileKey, s.id)}) | ${s.build || 'block'} | ${s.questions.length ? s.questions.length + ' nhóm' : '-'} |`), '',
@@ -388,18 +353,18 @@ export function renderPlan(model, answers = {}) {
       return `- ${clean(item.label)} ([Figma](${figmaLink(model.fileKey, item.node)})) \`${k}\`: ${answers[k] ?? item.value ?? fallback}`;
     };
     if (s.found?.length) {
-      out.push('### Đã nhận', '', 'Tool đã gắn các component này. Giữ nguyên, hoặc ghi `bỏ` ở cuối dòng nếu không phải.', '');
-      for (const item of s.found) out.push(line('part', item, 'giữ'));
+      out.push('### Đã nhận', '', 'Tool đã gắn các component này. Viết một câu nếu không dựng. Để trống là dựng.', '');
+      for (const item of s.found) out.push(line('part', item, ''));
       out.push('');
     }
     if (s.open?.length) {
-      out.push('### Chưa chắc', '', 'Chỉ thấy hình dạng. Ghi `gắn` để dùng component này, `bỏ` để giữ block, hoặc để `chưa gắn`.', '');
-      for (const item of s.open) out.push(line('guess', item, 'chưa gắn'));
+      out.push('### Chưa chắc', '', 'Chỉ thấy hình dạng. Viết một câu nếu muốn gắn hoặc bỏ. Để trống là chưa gắn.', '');
+      for (const item of s.open) out.push(line('guess', item, ''));
       out.push('');
     }
     if (s.repeats?.length) {
-      out.push('### Nhóm lặp chưa gắn', '', 'Các mục giống nhau mà tool chưa gọi tên. Để `chưa gắn`, hoặc ghi slider, tab, menu, form, accordion, nút.', '');
-      for (const item of s.repeats) out.push(line('repeat', item, 'chưa gắn'));
+      out.push('### Nhóm lặp chưa gắn', '', 'Các mục giống nhau mà tool chưa gọi tên. Viết nhóm này là gì. Để trống là chưa gắn.', '');
+      for (const item of s.repeats) out.push(line('repeat', item, ''));
       out.push('');
     }
     if (!s.questions.length && !s.found?.length && !s.open?.length && !s.repeats?.length) { out.push('Không có gì cần điền ở section này.', ''); return; }
@@ -501,7 +466,6 @@ export function loadConfirmed(dir, nodeKey) {
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const hasDescendant = (n, id) => kids(n).some((c) => c.id === id || hasDescendant(c, id));
-const yes = (v) => /^(có|co|yes)$/i.test(v);
 const deep = (o, path, v) => { let t = o; path.slice(0, -1).forEach((k) => { t = t[k] ??= {}; }); t[path.at(-1)] = v; };
 
 // Put the answers on the workspace after decide(). A value for a node that is no longer there is reported, not an error.
@@ -516,98 +480,235 @@ export function applyAnswers(ws, answers) {
   const applied = [], unused = [];
   for (const [k, value] of Object.entries(answers ?? {})) {
     const i = k.indexOf(':'), group = k.slice(0, i), node = k.slice(i + 1);
+    const picked = choiceOf(group, value, GROUPS[group]?.value);
     let ok = false;
-    if (group === 'link') {
-      const href = fold(value) === 'chua co dia chi' ? '#' : value;
-      for (const c of det.components.filter((x) => ['button', 'link'].includes(x.component) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = href; ok = true; }
-      const menu = !ok && (holder('menu', node) || holder('menu-slider', node));
-      if (menu) { deep(menu, ['params', 'links', node], href); ok = true; }
-    } else if (group === 'alt') {
-      if (ov.nodes?.[node]) { if (fold(value) !== 'anh chi de trang tri') ov.nodes[node].alt = value; ok = true; } // the entry keeps its autopilot reason: decide() rebuilds it on the next run and this puts the value back
-    } else if (group === 'answer') {
-      const c = holder('accordion', node, true);
-      if (c) { if (fold(value) !== 'chua co cau tra loi') deep(c, ['params', 'content', 'answers', node], value); ok = true; }
-    } else if (group === 'pane') {
-      const parsed = readPane(value);
-      const rowsOf = (c) => (c.component === 'tab-switch' ? switchInventory(findIn(c.node)) : tabInventory(findIn(c.node)));
-      const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.status !== 'rejected' && rowsOf(x).some((row) => row.title.id === node));
-      if (c && parsed.kind === 'figma') { deep(c, ['params', 'content', 'sources', node], parsed); ok = true; }
-      else if (c && parsed.kind === 'text' && !rowsOf(c).find((row) => row.title.id === node)?.drawn) { deep(c, ['params', 'content', 'panes', node], parsed.text); ok = true; }
-      else if (c && (parsed.kind === 'keep' || parsed.kind === 'text')) ok = true;
-    } else if (group === 'tabopen' || group === 'tabdata') {
-      const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.node === node && x.status !== 'rejected');
-      const typed = String(value ?? '').trim();
-      if (c && !typed) ok = true;
-      else if (c && group === 'tabdata') { deep(c, ['params', 'content', 'dataName'], typed); ok = true; }
-      else if (c) {
-        const hit = tabTitles(findIn(c.node)).find((t) => (firstText(t)?.text?.characters ?? t.name ?? '').replace(/\s+/g, ' ').trim().toLowerCase() === typed.toLowerCase());
-        if (hit) deep(c, ['params', 'content', 'activeTitleId'], hit.id);
+    if (!picked) { unused.push(k); continue; }
+    switch (group) {
+      case 'type':
+        ov.template = { ...(ov.template ?? {}), type: picked.choice };
         ok = true;
-      }
-    } else if (group === 'autoplay') {
-      const parsed = readAutoplay(value);
-      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) {
-        (c.params ??= {}).autoplay = parsed.on;
-        if (parsed.on) { deep(c, ['params', 'settings', 'autoplay'], true); deep(c, ['params', 'settings', 'interval'], Math.round(parsed.seconds * 1000)); }
+        break;
+      case 'expect': {
+        if (!findIn(node) || picked.choice === 'unset' || picked.choice === 'block') { ok = !!findIn(node); break; }
+        const name = REPEAT_COMPONENT[picked.choice] ?? picked.choice;
+        let c = det.components.find((x) => x.node === node && x.status !== 'rejected');
+        if (!c) det.components.push({ id: `e${node.replace(/\W/g, '').slice(0, 8)}`, status: 'approved', source: 'plan', component: name, node, confidence: 'low', params: {}, note: 'plan: owner expected this component' });
+        else { c.component = name; c.status = 'approved'; c.note = 'plan: owner expected this component'; }
         ok = true;
+        break;
       }
-    } else if (group === 'loop') {
-      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) { if (yes(value) || fold(value) === 'quay lai slide dau') deep(c, ['params', 'settings', 'type'], 'loop'); ok = true; }
-    } else if (group === 'count') {
-      const n = /^\d+$/.test(String(value).trim()) ? +value : 0;
-      for (const c of of('carousel', node).filter((x) => x.status === 'approved')) { if (n >= 1) (c.params ??= {}).itemCount = n; ok = true; }
-    } else if (group === 'items') {
-      const parsed = readItems(value);
-      const c = of('carousel', node).find((x) => x.status === 'approved');
-      if (c) { if (parsed.kind === 'figma') (c.params ??= {}).items = parsed; ok = true; }
-    } else if (group === 'sync') {
-      for (const c of of('accordion', node).filter((x) => x.status !== 'rejected')) { deep(c, ['params', 'sync'], value); ok = true; }
-    } else if (group === 'act') {
-      const mode = /^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(value) ? 'link' : 'toggle';
-      const button = det.components.find((c) => c.component === 'button' && c.node === node && c.status === 'approved');
-      const opener = det.components.find((c) => c.component === 'readmore' && c.status === 'approved' && c.params?.button === node);
-      if (button && mode === 'link') { (button.params ??= {}).link = value; ok = true; }
-      if (opener) { (opener.params ??= {}).buttonMode = mode; ok = true; }
-      else if (button) ok = true;
-    } else if (group === 'expand') {
-      const parsed = readExpand(value);
-      const c = of('readmore', node).find((x) => x.status === 'approved');
-      if (c) {
-        if (parsed.kind === 'text' || parsed.kind === 'figma') (c.params ??= {}).expand = parsed;
-        ok = true;
-      }
-    } else if (group === 'keep') {
-      ok = true;
-    } else if (group === 'part') {
-      const c = det.components.find((x) => x.node === node && x.status === 'approved');
-      if (c) {
-        if (/^(bo|khong phai)$/.test(fold(value))) { c.status = 'rejected'; c.note = 'the owner dropped this component in the Plan'; }
-        ok = true;
-      }
-    } else if (group === 'guess') {
-      const c = det.components.find((x) => x.node === node && (x.status === 'proposed' || x.status === 'approved'));
-      if (c) {
-        if (fold(value) === 'gan') { c.status = 'approved'; c.note = 'the owner confirmed this component in the Plan'; }
-        else if (/^(bo|khong phai)$/.test(fold(value))) { c.status = 'rejected'; c.note = 'the owner dropped this component in the Plan'; }
-        ok = true;
-      }
-    } else if (group === 'repeat') {
-      const kind = NAMED_PART[fold(value)];
-      if (!kind) ok = true;
-      else if (findIn(node)) {
-        const existing = det.components.find((x) => x.node === node && x.component === kind);
-        if (existing) { existing.status = 'approved'; existing.source = existing.source || 'human'; existing.note = 'the owner named this group in the Plan'; }
-        else det.components.push({ id: `plan-${kind}-${String(node).replace(/[^a-z0-9]/gi, '').slice(-8)}`, component: kind, node, status: 'approved', source: 'human', params: {}, note: 'the owner named this group in the Plan' });
-        ok = true;
-      }
-    } else if (group === 'confirm') {
-      for (const c of det.components.filter((x) => x.node === node && x.status === 'proposed')) {
-        if (yes(value) || fold(value) === 'lam accordion') {
-          c.status = 'approved'; c.note = `${c.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
-          for (const l of det.components.filter((x) => x.component === 'semantic' && x.node === node)) { l.status = 'rejected'; l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)'; } // the accordion is the list
+      case 'video': {
+        const c = det.components.find((x) => x.component === 'video' && x.node === node && x.status !== 'rejected');
+        if (!c) break;
+        switch (picked.choice) {
+          case 'url':
+            if (/^https?:\/\//.test(picked.href ?? '')) { (c.params ??= {}).url = picked.href; c.status = 'approved'; }
+            ok = true;
+            break;
+          case 'empty':
+            ok = true;
+            break;
+          default:
+            break;
         }
-        ok = true;
+        break;
       }
+      case 'link': {
+        const href = picked.choice === 'url' ? picked.href : '#';
+        if (picked.choice === 'url' && !/^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(href ?? '')) break;
+        for (const c of det.components.filter((x) => ['button', 'link'].includes(x.component) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = href; ok = true; }
+        const menu = !ok && (holder('menu', node) || holder('menu-slider', node));
+        if (menu) { deep(menu, ['params', 'links', node], href); ok = true; }
+        break;
+      }
+      case 'alt':
+        if (ov.nodes?.[node]) {
+          if (picked.choice === 'text') ov.nodes[node].alt = picked.text ?? '';
+          ok = true;
+        }
+        break;
+      case 'answer': {
+        const c = holder('accordion', node, true);
+        if (!c) break;
+        if (picked.choice === 'text') deep(c, ['params', 'content', 'answers', node], picked.text ?? '');
+        ok = true;
+        break;
+      }
+      case 'pane': {
+        const rowsOf = (c) => (c.component === 'tab-switch' ? switchInventory(findIn(c.node)) : tabInventory(findIn(c.node)));
+        const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.status !== 'rejected' && rowsOf(x).some((row) => row.title.id === node));
+        if (!c) break;
+        switch (picked.choice) {
+          case 'figma':
+            if (picked.nodeId && picked.fileKey) deep(c, ['params', 'content', 'sources', node], { kind: 'figma', url: picked.url, fileKey: picked.fileKey, nodeId: picked.nodeId });
+            ok = true;
+            break;
+          case 'text':
+            if (!rowsOf(c).find((row) => row.title.id === node)?.drawn) deep(c, ['params', 'content', 'panes', node], picked.text ?? '');
+            ok = true;
+            break;
+          case 'keep':
+            ok = true;
+            break;
+          default:
+            break;
+        }
+        break;
+      }
+      case 'tabopen':
+      case 'tabdata': {
+        const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.node === node && x.status !== 'rejected');
+        if (!c) break;
+        switch (picked.choice) {
+          case 'unset':
+            ok = true;
+            break;
+          case 'name':
+            deep(c, ['params', 'content', 'dataName'], picked.name ?? '');
+            ok = true;
+            break;
+          case 'title': {
+            const typed = String(picked.title ?? '').trim();
+            const hit = tabTitles(findIn(c.node)).find((t) => (firstText(t)?.text?.characters ?? t.name ?? '').replace(/\s+/g, ' ').trim() === typed);
+            if (hit) deep(c, ['params', 'content', 'activeTitleId'], hit.id);
+            ok = true;
+            break;
+          }
+          default:
+            break;
+        }
+        break;
+      }
+      case 'autoplay':
+        for (const c of of('carousel', node).filter((x) => x.status === 'approved')) {
+          const on = picked.choice === 'on';
+          (c.params ??= {}).autoplay = on;
+          if (on) { deep(c, ['params', 'settings', 'autoplay'], true); deep(c, ['params', 'settings', 'interval'], Math.round((picked.seconds ?? 3) * 1000)); }
+          else deep(c, ['params', 'settings', 'autoplay'], false);
+          ok = true;
+        }
+        break;
+      case 'loop':
+        for (const c of of('carousel', node).filter((x) => x.status === 'approved')) {
+          if (picked.choice === 'wrap') deep(c, ['params', 'settings', 'type'], 'loop');
+          ok = true;
+        }
+        break;
+      case 'count':
+        for (const c of of('carousel', node).filter((x) => x.status === 'approved')) {
+          if (picked.choice === 'set' && picked.count >= 1 && picked.count <= 200) (c.params ??= {}).itemCount = picked.count;
+          ok = true;
+        }
+        break;
+      case 'items': {
+        const c = of('carousel', node).find((x) => x.status === 'approved');
+        if (!c) break;
+        if (picked.choice === 'figma' && picked.nodeId) (c.params ??= {}).items = { kind: 'figma', url: picked.url, fileKey: picked.fileKey, nodeId: picked.nodeId };
+        ok = true;
+        break;
+      }
+      case 'mobileform': {
+        const c = of('carousel', node).find((x) => x.status === 'approved');
+        if (!c) break;
+        switch (picked.choice) {
+          case 'slider':
+            (c.params ??= {}).mobileForm = 'slider';
+            if (typeof picked.note === 'string') c.params.mobileNote = picked.note;
+            ok = true;
+            break;
+          default:
+            break;
+        }
+        break;
+      }
+      case 'sync':
+        for (const c of of('accordion', node).filter((x) => x.status !== 'rejected')) { deep(c, ['params', 'sync'], picked.choice); ok = true; }
+        break;
+      case 'act': {
+        const button = det.components.find((c) => c.component === 'button' && c.node === node && c.status === 'approved');
+        const opener = det.components.find((c) => c.component === 'readmore' && c.status === 'approved' && c.params?.button === node);
+        const mode = picked.choice === 'link' ? 'link' : picked.choice === 'none' ? 'none' : 'toggle';
+        if (button && mode === 'link' && picked.href) { (button.params ??= {}).link = picked.href; ok = true; }
+        if (opener) { (opener.params ??= {}).buttonMode = mode; ok = true; }
+        else if (button) ok = true;
+        break;
+      }
+      case 'expand': {
+        const c = of('readmore', node).find((x) => x.status === 'approved');
+        if (!c) break;
+        if (picked.choice === 'text') (c.params ??= {}).expand = { kind: 'text', text: picked.text ?? '' };
+        else if (picked.choice === 'figma' && picked.nodeId) (c.params ??= {}).expand = { kind: 'figma', url: picked.url, fileKey: picked.fileKey, nodeId: picked.nodeId };
+        ok = true;
+        break;
+      }
+      case 'keep':
+        ok = picked.choice === 'static';
+        break;
+      case 'part': {
+        const c = det.components.find((x) => x.node === node && x.status === 'approved');
+        if (!c) break;
+        if (picked.choice === 'drop') { c.status = 'rejected'; c.note = 'the owner dropped this component in the Plan'; }
+        ok = true;
+        break;
+      }
+      case 'guess': {
+        const c = det.components.find((x) => x.node === node && (x.status === 'proposed' || x.status === 'approved'));
+        if (!c) break;
+        switch (picked.choice) {
+          case 'attach':
+            c.status = 'approved';
+            c.note = 'the owner confirmed this component in the Plan';
+            ok = true;
+            break;
+          case 'drop':
+            c.status = 'rejected';
+            c.note = 'the owner dropped this component in the Plan';
+            ok = true;
+            break;
+          case 'unset':
+            ok = true;
+            break;
+          default:
+            break;
+        }
+        break;
+      }
+      case 'repeat': {
+        switch (picked.choice) {
+          case 'unset':
+            ok = true;
+            break;
+          case 'slider':
+          case 'tab':
+          case 'menu':
+          case 'form':
+          case 'accordion':
+          case 'button': {
+            const kind = REPEAT_COMPONENT[picked.choice];
+            if (!findIn(node)) break;
+            const existing = det.components.find((x) => x.node === node && x.component === kind);
+            if (existing) { existing.status = 'approved'; existing.source = existing.source || 'human'; existing.note = 'the owner named this group in the Plan'; }
+            else det.components.push({ id: `plan-${kind}-${String(node).replace(/[^a-z0-9]/gi, '').slice(-8)}`, component: kind, node, status: 'approved', source: 'human', params: {}, note: 'the owner named this group in the Plan' });
+            ok = true;
+            break;
+          }
+          default:
+            break;
+        }
+        break;
+      }
+      case 'confirm':
+        for (const c of det.components.filter((x) => x.node === node && x.status === 'proposed')) {
+          if (picked.choice === 'accordion') {
+            c.status = 'approved';
+            c.note = `${c.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
+            for (const l of det.components.filter((x) => x.component === 'semantic' && x.node === node)) { l.status = 'rejected'; l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)'; }
+          }
+          ok = true;
+        }
+        break;
+      default:
+        break;
     }
     (ok ? applied : unused).push(k);
   }

@@ -45,7 +45,7 @@ structure in the tree > layer name > geometry. Every signal must be measurable i
 | Decorative vector | Pure vector | `svg` | `svg` (file / dynamic / code, width, height, fill, stroke). No `iconSet` source | yes | Ours | – |
 | Icon list | Rows of one icon + one text | `list` (`pricing-table`, `bem-pricing`) | `list` (items with title, icon, separator) | `icon-list` | Ours | – |
 | Icon + title + text | Repeated small blocks | `icon-box` (`contact-section`) | `icon-box` (direction, icon, content). Brings its own CSS (icon 40 px, margin 20 px) | no | Native, only when the Figma matches the layout; otherwise `div` + `icon` + `heading` + `text-basic` (the reference skill itself advises this) | Phase 2 |
-| Divider | Line, optionally with an icon in the middle | `divider` | `divider` | no | `div` with a border is exact; native only if an icon sits in the line | Phase 2 |
+| Divider | Line, optionally with an icon in the middle | `divider` | `divider` | `divider` | Native when the line is at most 2px on one side | An icon in the middle of the line is not copied |
 | Link card | The whole card is clickable | `link` on a card block | `block` with `tag: a` + `link` | `semantic` (`link`) | Ours | – |
 | List / grid of items | Sibling frames with the same structure, no controls | `feature-grid`, `logo-strip` (plain grid) | `block` with `tag: ul`, items `tag: li` | `semantic` | Ours | – |
 
@@ -87,14 +87,18 @@ structure in the tree > layer name > geometry. Every signal must be measurable i
 | Component | Figma signal | Reference | Bricks 1.9.8 | Ours today | Chosen source | To do |
 |---|---|---|---|---|---|---|
 | Form | At least 2 input-like frames + a submit | `sections/contact-section.json`, `templates/popup-newsletter.json` | `form` on 1.12.3 (types email, text, textarea, tel, number, url, checkbox, select, radio, file, datepicker, password, rememberme, html, hidden; no `step`; options are a textarea, one line each; actions custom, email, redirect, mailchimp, sendgrid, login, registration, lost-password, reset-password; `save-submission` only while Save form submissions in database is on; `unlock-password-protection` only while password protection is on. Still absent: `webhook`, `confirmation-email`, `create-post`, `update-post`) | yes | Ours | Each field keeps its width and height and its own id. Submit action is Save submission. Form name is the Figma file, the section and the form frame |
-| Search box | Input with a magnifier | `elements/search.json` | `search` | no | Native if drawn | Phase 2 |
+| Checkbox | A small square beside one label, not already inside a form | form field `checkbox` in `references/forms.md` | `form` field type `checkbox` (`options` textarea, `value` checked). No standalone checkbox element | `checkbox` | Native field | The square's width, height and radius are element CSS. Bricks compiles that into the external post CSS file. Theme styles stay untouched |
+| Radio | A small circle beside one label, not already inside a form | form field `radio` in `references/forms.md` | `form` field type `radio` | `radio` | Native field | Same external-file CSS as the checkbox |
+| Switch | A pill track with one knob beside one label | no switch element in the 1.12.3 catalog (`toggle` is the menu button, `toggle-mode` is absent) | same checkbox field, sized to the pill | `switch` | Native checkbox | The pill size is element CSS compiled into the external post CSS file. Theme styles stay untouched |
+| Divider | A line, one side at most 2px | `divider` in `includes/elements/divider.php` | `divider` height, width, style, direction, color | `divider` | Native element | Color comes from a solid fill |
+| Search box | A wide field with one text and one small icon | `elements/search.json` | `search` | `search` | Native field | The drawn icon is not copied. The form uses the WordPress home URL |
 | Alert | Coloured message box | `alert.json` | `alert` | no | `block` unless it has to be dismissible | – |
 
 ## 6. Media
 
 | Component | Figma signal | Reference | Bricks 1.9.8 | Ours today | Chosen source | To do |
 |---|---|---|---|---|---|---|
-| Video | Frame with a play button over a picture | `video-section.json` | `video` (youtube, vimeo, media, file URL, dynamic, overlay). Not in 1.9.8: `aspectRatio`, `previewImageSize` keys | no | Native; the URL comes from the Plan | Phase 2 |
+| Video | A picture with a play circle at the centre | `video-section.json` | `video` (youtube, vimeo, file URL). Not in 1.12.3 as a separate key: `aspectRatio` | `video` | Native once the Plan has an address | Until then the frame stays the picture Figma drew |
 | Gallery / lightbox | Grid of pictures | `gallery-section.json` | `image-gallery` (layout, columns, gutter, lightbox). Not in 1.9.8: `lightboxThumbnails`, `lightboxCaption` | no | Native only if the Figma is a plain grid | Phase 2 |
 | Flat artwork | Many art layers drawn by hand | – | – | `flat-image` | Ours | – |
 | Map | Map picture | `map-google.json` | `map` (Google, API key). Not in 1.9.8: `renderMode`, `markerCluster`, `syncQuery`, `map-leaflet`, `map-connector` | no | Picture, unless the owner names the spot | – |

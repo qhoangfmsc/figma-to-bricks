@@ -21,6 +21,15 @@ import { settleMeasuredRows } from '../visual-check/settle.mjs';
 import { computeStates, fingerprintOf, frameDone, summarize } from '../common/node-state.mjs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { screensToProve } from '../breakpoints/solo.mjs';
+import { env } from '../common/env.mjs';
+
+export function externalCssUrl(origin, fileName) {
+  return `${String(origin ?? '').replace(/\/$/, '')}/wp-content/uploads/bricks/css/${fileName}`;
+}
+
+export function externalCssReady(css) {
+  return css?.css_loading === 'file' && !!css.generated && !!css.file_name;
+}
 
 const BUDGETS = JSON.parse(readFileSync(new URL('../visual-check/budgets.json', import.meta.url), 'utf8'));
 const FREEZE = '2026-10-27T03:00:00Z'; // fixed "now": the live countdown renders the same numbers on every run
@@ -107,6 +116,14 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     return id ? `brxe-${id}` : rootId;
   };
   const { url } = await bridge('POST', `/preview/${state.templateId}`);
+  // Push already writes the file. Verify asks again, then checks the file is actually served.
+  // A missing file means the page fell back to inline styles.
+  const css = await bridge('POST', '/css-file', { template_id: state.templateId });
+  if (!externalCssReady(css)) {
+    throw new Error(`template ${state.templateId}: post-${state.templateId}.min.css was not written. Bricks defaults to inline styles; this site stays on External files.`);
+  }
+  const served = await fetch(externalCssUrl(env.WP_URL ?? 'http://localhost:8080', css.file_name), { method: 'HEAD' });
+  if (!served.ok) throw new Error(`template ${state.templateId}: ${css.file_name} was not served (${served.status}).`);
 
   // Figma's own render of every frame = what the eye should see
   const figmaErr = {};

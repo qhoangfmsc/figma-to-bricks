@@ -5,7 +5,7 @@ argument-hint: --desktop <url> [--widescreen <url>] [--tablet <url>] [--landscap
 
 Build **one template** for: $ARGUMENTS
 
-The owner attaches the template in Bricks. This does not assemble a page. That is `/generate-page-from-figma`.
+The owner attaches the template in Bricks. A page is several of these templates. Split the Figma tree into sections in chat, then run this command once per section.
 
 Reply in Vietnamese. Short. Do the step, then stop. Do not recap these rules. Do not guess a missing link, alt, FAQ answer, or tab pane.
 
@@ -42,22 +42,22 @@ A link changed after this read makes the plan stale. Read again. Do not build on
 
 `read` writes `plan.md` in the desktop workspace (`planFile`). That file is the form. Do not paste the form into the chat. Point to the file, then stop. Do not build in the same turn.
 
-Look before you point at the file. Order: `repeats[]` (same child shape), then the frame picture (Figma render under `assets/`, or a Docker Playwright shot), then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay under **Component sẽ dựng**. Fix the shared rule, then `read` again so `plan.md` matches. Do not measure pixels off the picture. Do not approve a component the picture does not support.
+Look before you point at the file. Order: `repeats[]` (same child shape), then the frame picture (Figma render under `assets/`, or a Docker Playwright shot), then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay as that component. Leave it as a block with an empty `expect` line and do not edit the rule in this run. Do not measure pixels off the picture. Do not approve a component the picture does not support.
 
-No whack-a-mole. If a group is missed, the fix is a shared rule in `process/modules/recognize-parts/` or `process/modules/write-bricks/` that also fits another section of the same shape, plus a test. Do not add a name regex for this file. Do that before pointing at the plan. The owner confirms once, then build.
+During this run, do not edit `process/` or the theme. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task. The owner confirms once, then build. Never write Bricks theme styles. CSS loading stays External files.
 
 The file, in this order:
 
 - Title, frame name, width. Then `Gộp` with each pasted variant and its width, or omit that line.
 - `Xác nhận: không`. The owner changes it to `Xác nhận: có`.
-- **Component sẽ dựng.** One heading per `parts[]` item, including a component the rules approved on their own: kind and name in the heading, Figma link, then one line per field. The line is the label and `` `key`: value ``. No hint sentence and no "Đang có". An image line is `Ghi alt cho ảnh "<layer>"`. Tabs and tab-switch: every pane, and a line to paste the Figma link of a pane that is not drawn. Empty `parts`: `Không nhận ra component nào.` `bỏ` on that component's line sets it `rejected` before build.
-- **Đoán, chưa gắn.** Only when `open[]` has a row. One line: name, Figma link, the evidence sentence. `gắn` sets it `approved`. `bỏ` sets it `rejected`. No row: omit the section.
-- **Ô cùng hình, chưa gắn.** Only when `repeats[]` has a row that is still unnamed. One line: count, item name, sample text, Figma link. The owner leaves `chưa gắn`, or names it slider, tab, menu, form, accordion, or nút. A name becomes one human detection on that node, `approved`, before build. Do not write any of these into `detections.json` before they confirm. No row: omit the section.
+- **Loại template.** One line `` `type:<node>`: section ``. section, header, footer, popup, content, archive, search, or error. A sure header, footer, or popup is already filled. A weak guess stays section and the line above says why.
+- **Component Detected.** One block per recognized component, including a plain block. Kind on its own line, then the Figma link, then each field on its own lines. A value Figma drew is filled. A value Figma does not have is `[Chưa có value]`. `expect:<id>` is the owner's override. `note:plan` is the free note. Tabs and tab-switch still list every pane.
+- **Chưa chắc** and **Nhóm lặp** only when a row is not already inside a section above.
 - `Sửa:` only when the owner already typed one. Blank means keep the values shown.
 
 A new `read` keeps typed values and resets `Xác nhận` to `không`.
 
-Blank stays the safe default. Never invent content. A value that fails the check: quote that line and wait. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run.
+Blank stays the safe default. Never invent content. The owner writes any words. Before build, read `plan.md` and write `choices.json`. Map each sentence to one enum in `process/modules/missing-content/choices.mjs` by what it means. `part` and `guess` are keep or drop: "xóa", "bỏ", "đừng dựng" are drop. A blank line is the default, not a sentence. Do not add those words to the code. A sentence you cannot map is a question in the same turn. Do not edit `process/` because the words differ. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run. A miss during the run goes to `history/notes/gaps.md`.
 
 ## 3. Build — only after `Xác nhận: có`
 

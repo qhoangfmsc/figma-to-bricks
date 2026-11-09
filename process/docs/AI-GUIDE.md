@@ -7,6 +7,7 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 
 | Folder | Job | Touch it when |
 |---|---|---|
+| `docs/INDEX.md` | map of this project's docs | finding which file owns a topic. One component is `docs/widget-components/<id>.md`. ANV files are listed in `docs/SHELF.md` |
 | `run.mjs` | runs the steps in order | adding a step |
 | `modules/build-steps/` | one file per engine step: `01-fetch` … `08-summary`. Wiring only | changing what a step reads or writes. Not for Figma→Bricks rules |
 | `modules/maintenance/` | maintenance commands: plan, review, triage, regress, rebuild-diff, assemble-page, todo | a command the owner runs by hand, not a pipeline step |
@@ -24,7 +25,7 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `auto.mjs`, `figma/discover.mjs` | one link -> Bricks (see README "Autopilot"); discover finds the other breakpoint frames of a section | |
 | `modules/common/` | `env.mjs` (.env), `workspace.mjs` (work paths), `image-info.mjs`, `cdp.mjs` (headless Chromium in a Docker container, never a browser on the owner's machine) | small cross-cutting helpers |
 | `test/`, `fixtures/` | offline tests (`npm test --prefix process`) | every rule change gets a test |
-| OS temp `figma-to-bricks/<fileKey>/<node-id>/` | generated data per section; deleted by `maintenance/clean-work.mjs` | per task |
+| `history/runs/<fileKey>/<node-id>/` | generated data per section; deleted by `maintenance/clean-work.mjs`. A miss during a run is `history/notes/gaps.md` | per task |
 
 ### Text widths and line breaks: the font build comes first
 
@@ -171,7 +172,7 @@ never sign off or approve on your own: the owner says OK in the conversation, yo
 **Revise loop.** After a build the owner's remarks are triaged: Figma lacks the data (ask, store as param) · a detection decision (edit `detections.json`, new
 sign-off for the delta) · a rule bug (fix `bricks/`, add a test) · a semantic choice (`overrides.json`). Each remark is logged with `review.mjs log` (`revisions.md`).
 
-**AI pass** (you, after `detect` ran; details in `.claude/commands/generate-page-from-figma.md`):
+**AI pass** (you, after `detect` ran; details in `.claude/commands/generate-template-from-figma.md`):
 1. Read `facts.md`, then fill `sections[]` names + one-line summaries from `tree.md`.
 2. Add candidates the rules cannot see (carousel, form, link…) as `proposed`, `source: ai`, with `evidence` quoted from the tree, an honest `level` / `confidence`, and **`cite`** (mandatory).
 3. Never set `approved`, never invent `params` (tooltip text is usually not in Figma: leave it null and say so).

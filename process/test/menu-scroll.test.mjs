@@ -95,6 +95,48 @@ test('a clipping parent that cuts the row adds the inner slider even when the me
   assert.equal(found[0].params.prev, undefined);
 });
 
+test('a title with a badge, a switch, or a bar of buttons is not a menu', () => {
+  const text = (id, characters, w, h = 24) => ({
+    id, type: 'TEXT', box: { x: 0, y: 0, w, h },
+    text: { characters, fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, align: 'LEFT' },
+  });
+  const row = (id, children, w) => ({
+    id, type: 'FRAME', name: id, box: { x: 0, y: 0, w, h: 24 },
+    layout: { mode: 'HORIZONTAL', gap: 12, padding: pad },
+    children,
+  });
+  const titleBadge = row('title', [
+    text('name', 'Cookie thiết yếu', 360),
+    {
+      id: 'badge', type: 'FRAME', box: { x: 372, y: 0, w: 100, h: 20 },
+      children: [{
+        id: 'chip', type: 'FRAME', box: { x: 0, y: 0, w: 100, h: 20 },
+        fills: [{ type: 'SOLID', hex: '#dcfce7', alpha: 1 }],
+        children: [text('badge-text', 'Luôn hoạt động', 90, 12)],
+      }],
+    },
+  ], 480);
+  const track = {
+    id: 'track', type: 'INSTANCE', box: { x: 29, y: 0, w: 36, h: 20 }, radius: [12, 12, 12, 12],
+    children: [{ id: 'knob', type: 'FRAME', box: { x: 2, y: 2, w: 16, h: 16 }, radius: [8, 8, 8, 8] }],
+  };
+  const withSwitch = row('option', [
+    text('opt', 'Cookie phân tích', 400),
+    { id: 'hold', type: 'FRAME', box: { x: 412, y: 0, w: 65, h: 20 }, children: [text('state', 'Tắt', 21, 20), track] },
+  ], 480);
+  const button = (id, x) => ({
+    id, type: 'INSTANCE', name: 'Button', box: { x, y: 24, w: 150, h: 40 },
+    fills: [{ type: 'SOLID', hex: '#007cfc', alpha: 1 }],
+    children: [text(`${id}t`, 'Lưu', 40)],
+  });
+  const actions = {
+    id: 'footer', type: 'FRAME', name: 'Modal Footer', box: { x: 0, y: 0, w: 560, h: 88 },
+    layout: { mode: 'HORIZONTAL', gap: 16, padding: pad },
+    children: [button('a', 214), button('b', 380)],
+  };
+  assert.equal(detectMenus({ id: 'r', children: [titleBadge, withSwitch, actions] }).length, 0);
+});
+
 test('one item is not a menu, and a row of short links with no menu name stays low confidence', () => {
   assert.equal(detectMenus(row([item(1, 0, 80, 'Một')])).length, 0);
   const plain = row(fitItems);

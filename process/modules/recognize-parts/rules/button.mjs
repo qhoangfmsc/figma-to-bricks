@@ -1,6 +1,8 @@
 // A button is a small frame with one text label and at most one icon.
 // A component named Button is high confidence. The same shape with no such name is still proposed, at low confidence, so a layer called "Frame 12" is not dropped.
 import { ICON_FONT } from '../../read-figma/nodes.mjs';
+import { buttonRole } from '../../write-bricks/components/button.mjs';
+import { layoutOnlyReason } from './layout-only.mjs';
 
 const NAMED = /\b(button|btn|cta)\b/i;
 const HOLDERS = new Set(['FRAME', 'INSTANCE', 'COMPONENT']);
@@ -26,7 +28,7 @@ export function detectButtons(tree) {
         component: 'button', node: n.id, level: designed ? 'E1' : named ? 'E3' : 'E2', confidence,
         cite: [{ node: label.id, field: 'type', equals: 'TEXT' }, ...(named ? [{ node: n.id, field: designed ? (n.componentSet ? 'componentSet' : 'component') : 'name' }] : [])],
         evidence: `${n.type} "${n.name}" with the text "${label.text?.characters?.trim()}"${icons.length ? ' and one icon' : ''}${named ? '' : ' (shape only)'}`,
-        params: {}, note: null,
+        params: { role: layoutOnlyReason(n, tree) ? 'layout' : buttonRole(label.text?.characters) }, note: null,
       });
     }
     kids.forEach(walk);

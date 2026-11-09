@@ -1,12 +1,14 @@
-// Scratch for one Figma node lives in the OS temp directory, not in the project tree.
-// A run creates <temp>/figma-to-bricks/<fileKey>/<nodeId>/ and the maintenance clean command removes it.
+// Scratch for one Figma node lives in history/runs inside this repo (gitignored).
+// A run creates history/runs/<fileKey>/<nodeId>/. maintenance/clean-work.mjs removes one file.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join, resolve } from 'node:path';
 import { parseFigmaUrl } from '../read-figma/url.mjs';
 
+const REPO = fileURLToPath(new URL('../../../', import.meta.url));
+
 export function workRoot() {
-  const dir = join(tmpdir(), 'figma-to-bricks');
+  const dir = join(REPO, 'history', 'runs');
   mkdirSync(dir, { recursive: true });
   return dir;
 }

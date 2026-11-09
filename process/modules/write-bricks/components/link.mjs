@@ -23,6 +23,7 @@ export default {
 
   apply(ctx, det) {
     applyText(ctx);
+    ctx.s._cursor = 'pointer';
     ctx.s.link = linkSetting(det.params?.link);
     addHoverFade(ctx.s);
   },

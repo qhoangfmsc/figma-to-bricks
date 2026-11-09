@@ -105,6 +105,7 @@ final class F2B_Bridge {
 			[ 'methods' => 'POST', 'callback' => [ __CLASS__, 'set_fonts' ] ] + $p,
 		] );
 		$r( '/media', [ [ 'methods' => 'POST', 'callback' => [ __CLASS__, 'upload_media' ] ] + $p ] );
+		$r( '/css-file', [ [ 'methods' => 'POST', 'callback' => [ __CLASS__, 'generate_css' ] ] + $p ] );
 		$r( '/elements', [ [ 'methods' => 'GET', 'callback' => [ __CLASS__, 'list_elements' ] ] + $p ] );
 		$r( '/elements/(?P<name>[a-z0-9-]+)', [ [ 'methods' => 'GET', 'callback' => [ __CLASS__, 'element_schema' ] ] + $p ] );
 	}
@@ -196,9 +197,106 @@ final class F2B_Bridge {
 		return $elements;
 	}
 
+	private static function save_page_settings( $post_id, $settings ) {
+		if ( ! is_array( $settings ) ) {
+			return;
+		}
+		// Footer scripts are page settings. Popup controls and the condition that puts the
+		// popup in the footer are template settings (Helpers::get_template_settings).
+		$page_keys = [ 'customScriptsBodyFooter', 'template_interactions' ];
+		$template_keys = [ 'popupCloseOn', 'templateConditions', 'popupContentWidth', 'popupContentPadding', 'popupBackground' ];
+		$page = [];
+		$template = [];
+		foreach ( $page_keys as $key ) {
+			if ( array_key_exists( $key, $settings ) ) {
+				$page[ $key ] = $settings[ $key ];
+			}
+		}
+		foreach ( $template_keys as $key ) {
+			if ( array_key_exists( $key, $settings ) ) {
+				$template[ $key ] = $settings[ $key ];
+			}
+		}
+		if ( $page ) {
+			update_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, wp_slash( $page ) );
+		}
+		if ( $template ) {
+			$existing = get_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, true );
+			if ( ! is_array( $existing ) ) {
+				$existing = [];
+			}
+			update_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, wp_slash( array_merge( $existing, $template ) ) );
+		}
+	}
+
 	private static function save_elements( $post_id, $type, $elements ) {
 		// wp_slash: update_post_meta unslashes, which would strip backslashes (custom CSS/code)
 		update_post_meta( $post_id, self::meta_key( $type ), wp_slash( $elements ) );
+		self::external_css_file( $post_id, $type, $elements );
+	}
+
+	/**
+	 * Performance → CSS loading = External files.
+	 * Bricks leaves the key empty, and Database::get_setting then returns false.
+	 * generate_post_css_file (includes/assets/files.php) returns immediately unless the value is "file",
+	 * so the page would keep the default inline styles and never write post-{id}.min.css.
+	 * Production writes that file after every upload. This sets the same mode, then writes the one file.
+	 * Does not write theme styles.
+	 */
+	private static function external_css_file( $post_id, $type, $elements ) {
+		$settings = get_option( BRICKS_DB_GLOBAL_SETTINGS, [] );
+		if ( ! is_array( $settings ) ) {
+			$settings = [];
+		}
+		$settings['cssLoading'] = 'file';
+		update_option( BRICKS_DB_GLOBAL_SETTINGS, $settings );
+		if ( class_exists( '\Bricks\Database' ) ) {
+			// get_setting reads the static copy taken at boot, not the option just saved.
+			if ( ! is_array( \Bricks\Database::$global_data['settings'] ?? null ) ) {
+				\Bricks\Database::$global_data['settings'] = [];
+			}
+			\Bricks\Database::$global_data['settings']['cssLoading'] = 'file';
+			\Bricks\Database::$global_settings['cssLoading'] = 'file';
+		}
+		if ( class_exists( '\Bricks\Assets_Files' ) ) {
+			return \Bricks\Assets_Files::generate_post_css_file( $post_id, $type, $elements );
+		}
+		return null;
+	}
+
+	/**
+	 * One template, after its elements are in the database.
+	 * Same entry as the production bridge: Assets_Files::generate_post_css_file.
+	 * Does not regenerate every CSS file on the site.
+	 */
+	public static function generate_css( $req ) {
+		$post_id = (int) ( $req['template_id'] ?? $req['post_id'] ?? 0 );
+		if ( ! $post_id ) {
+			return new WP_Error( 'f2b_invalid', 'template_id or post_id is required', [ 'status' => 400 ] );
+		}
+		$type = (string) get_post_meta( $post_id, BRICKS_DB_TEMPLATE_TYPE, true );
+		$content_type = in_array( $type, [ 'header', 'footer' ], true ) ? $type : 'content';
+		$elements = get_post_meta( $post_id, self::meta_key( $content_type ), true );
+		if ( ! is_array( $elements ) ) {
+			$elements = [];
+		}
+		$file_name = self::external_css_file( $post_id, $content_type, $elements );
+		return [
+			'generated'    => (bool) $file_name,
+			'css_loading'  => 'file',
+			'post_id'      => $post_id,
+			'content_type' => $content_type,
+			'file_name'    => $file_name ? $file_name : null,
+			'via'          => 'Bricks\\Assets_Files::generate_post_css_file',
+		];
+	}
+
+	private static function read_type( $req, $fallback ) {
+		$type = $req['type'] ?? $fallback;
+		if ( ! in_array( $type, self::TYPES, true ) ) {
+			return new WP_Error( 'f2b_invalid', 'type must be one of: ' . implode( ', ', self::TYPES ), [ 'status' => 400 ] );
+		}
+		return $type;
 	}
 
 	public static function list_templates( $req ) {
@@ -217,11 +315,10 @@ final class F2B_Bridge {
 	}
 
 	public static function create_template( $req ) {
-		$type  = $req['type'] ?? 'section';
+		$type  = self::read_type( $req, 'section' );
 		$title = trim( (string) ( $req['title'] ?? '' ) );
-
-		if ( ! in_array( $type, self::TYPES, true ) ) {
-			return new WP_Error( 'f2b_invalid', 'type must be one of: ' . implode( ', ', self::TYPES ), [ 'status' => 400 ] );
+		if ( is_wp_error( $type ) ) {
+			return $type;
 		}
 
 		$elements = self::normalize( $req['content'] ?? [] );
@@ -241,6 +338,7 @@ final class F2B_Bridge {
 
 		update_post_meta( $id, BRICKS_DB_TEMPLATE_TYPE, $type );
 		self::save_elements( $id, $type, $elements );
+		self::save_page_settings( $id, $req['page_settings'] ?? null );
 
 		return self::shape( get_post( $id ), true );
 	}
@@ -252,17 +350,38 @@ final class F2B_Bridge {
 		}
 
 		$type = get_post_meta( $post->ID, BRICKS_DB_TEMPLATE_TYPE, true );
+		$next = self::read_type( $req, $type ?: 'section' );
+		if ( is_wp_error( $next ) ) {
+			return $next;
+		}
 
 		if ( isset( $req['title'] ) ) {
 			wp_update_post( [ 'ID' => $post->ID, 'post_title' => (string) $req['title'] ] );
 		}
 
+		$elements = null;
 		if ( isset( $req['content'] ) ) {
 			$elements = self::normalize( $req['content'] );
 			if ( is_wp_error( $elements ) ) {
 				return $elements;
 			}
+		}
+
+		if ( $next !== $type ) {
+			if ( $elements === null ) {
+				$old = get_post_meta( $post->ID, self::meta_key( $type ), true );
+				$elements = is_array( $old ) ? $old : [];
+			}
+			delete_post_meta( $post->ID, self::meta_key( $type ) );
+			update_post_meta( $post->ID, BRICKS_DB_TEMPLATE_TYPE, $next );
+			$type = $next;
+		}
+
+		if ( $elements !== null ) {
 			self::save_elements( $post->ID, $type, $elements );
+		}
+		if ( array_key_exists( 'page_settings', $req->get_params() ) || isset( $req['page_settings'] ) ) {
+			self::save_page_settings( $post->ID, $req['page_settings'] ?? null );
 		}
 
 		return self::shape( get_post( $post->ID ), true );
@@ -417,15 +536,22 @@ final class F2B_Bridge {
 		}
 
 		update_post_meta( $id, BRICKS_DB_EDITOR_MODE, 'bricks' );
-		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, [ [
+		$elements = [ [
 			'id'       => 'f2bprv',
 			'name'     => 'template',
 			'parent'   => 0,
 			'children' => [],
 			'settings' => [ 'template' => $tpl->ID ],
-		] ] );
+		] ];
+		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, $elements );
+		$file_name = self::external_css_file( $id, 'content', $elements );
 
-		return [ 'pageId' => $id, 'url' => add_query_arg( 'page_id', $id, home_url( '/' ) ) ];
+		return [
+			'pageId'      => $id,
+			'url'         => add_query_arg( 'page_id', $id, home_url( '/' ) ),
+			'css_loading' => 'file',
+			'file_name'   => $file_name ? $file_name : null,
+		];
 	}
 
 	/** Move the preview page(s) to the trash: the shared one and the per-template ones older versions of the pipeline left (f2b-preview-<id>). */
@@ -472,8 +598,16 @@ final class F2B_Bridge {
 		update_post_meta( $id, '_f2b_page_key', $key );
 		update_post_meta( $id, BRICKS_DB_EDITOR_MODE, 'bricks' );
 		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, $content );
+		$file_name = self::external_css_file( $id, 'content', $content );
 
-		return [ 'pageId' => $id, 'url' => get_permalink( $id ), 'builderUrl' => add_query_arg( 'bricks', 'run', get_permalink( $id ) ), 'templates' => $ids ];
+		return [
+			'pageId'      => $id,
+			'url'         => get_permalink( $id ),
+			'builderUrl'  => add_query_arg( 'bricks', 'run', get_permalink( $id ) ),
+			'templates'   => $ids,
+			'css_loading' => 'file',
+			'file_name'   => $file_name ? $file_name : null,
+		];
 	}
 
 	/** Merge fonts: body { fonts: [ { family, weights: [400,700], italicWeights?: [400] } ] } */

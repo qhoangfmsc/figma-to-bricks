@@ -17,7 +17,12 @@ import { detectTabs } from '../recognize-parts/rules/tabs.mjs';
 import { detectTabSwitches } from '../recognize-parts/rules/tab-switch.mjs';
 import { detectMenus } from '../recognize-parts/rules/menu.mjs';
 import { detectReadMore } from '../recognize-parts/rules/readmore.mjs';
+import { detectChoices } from '../recognize-parts/rules/choice.mjs';
+import { detectDividers } from '../recognize-parts/rules/divider.mjs';
+import { detectMedia } from '../recognize-parts/rules/media.mjs';
+import { detectProduction } from '../recognize-parts/rules/production-widgets.mjs';
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
+import { partRule } from '../recognize-parts/kinds.mjs';
 import { checkCites, findNode } from '../recognize-parts/cite.mjs';
 
 export const STATUSES = ['proposed', 'approved', 'rejected'];
@@ -34,9 +39,16 @@ export function nodePath(tree, id, trail = []) {
 }
 
 export function runRules(tree) {
+  const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
+  const claimed = new Set();
+  for (const c of components) {
+    if (c.component !== 'search') continue;
+    if (c.params?.fieldNode) claimed.add(c.params.fieldNode);
+    if (c.params?.buttonNode) claimed.add(c.params.buttonNode);
+  }
   return {
     sections: detectSections(tree),
-    components: [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree)].map((c) => ({ status: 'proposed', source: 'rule', ...c })),
+    components: components.filter((c) => !(c.component === 'button' && claimed.has(c.node))),
   };
 }
 
@@ -74,6 +86,7 @@ export function validate(det, tree) {
     if (!findNode(tree, c.node)) problems.push(`${where}: the node is not in the tree any more (stale)`);
     for (const p of checkCites(c.cite, tree)) problems.push(`${where}: ${p}`);
     if (c.source === 'ai' && !(c.cite?.length)) problems.push(`${where}: an AI candidate must cite what it saw in the tree (cite: [{ node, field, equals }]); it cannot be approved without`);
+    if (c.source === 'rule' && !partRule(c.kind ?? c.component)) problems.push(`${where}: no shape rule for "${c.component}"`);
     const comp = COMPONENTS[c.component];
     if (!comp) problems.push(`${where}: unknown component "${c.component}" (known: ${Object.keys(COMPONENTS).join(', ')})`);
     else if (c.status === 'approved' && comp.status !== 'implemented') problems.push(`${where}: approved but "${c.component}" is ${comp.status}: the node stays a block`);

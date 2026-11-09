@@ -1,15 +1,12 @@
 # Figma → Bricks
 
-Hai lệnh. Không có màn admin.
-
 | Việc | Lệnh |
 |---|---|
-| Một template, tự gắn vào trang | `/generate-template-from-figma` |
-| Cả trang, mỗi section một template | `/generate-page-from-figma` |
+| Một template. Một trang thì tách section trong chat, mỗi section một lần lệnh này | `/generate-template-from-figma` |
 
-Template: Desktop bắt buộc. Thiếu link Widescreen, Tablet, Mobile landscape, Mobile portrait thì hỏi, không đoán. `read` chạy bước 1–3 rồi dừng ở plan (phần đã nhận, ô cần điền, nhóm lặp `repeats`). OK rồi mới `build` (bước 4–8).
+Template: Desktop bắt buộc. Thiếu link Widescreen, Tablet, Mobile landscape, Mobile portrait thì hỏi, không đoán link. Khung đã dán giữ đúng số của khung đó. Khung để trống thì co từ desktop cho vừa màn hình đó, rồi ô nào vẫn rộng hơn màn hình thành 100% và không vượt quá số pixel Figma đã vẽ. `read` chạy bước 1–3 rồi dừng ở plan (phần đã nhận, ô cần điền, nhóm lặp `repeats`). OK rồi mới `build` (bước 4–8).
 
-Page: một link. `auto.mjs` tách section, tìm khung tablet/mobile, ghi `jobs/<section>.json`. Plan là `plan-<node>.md`, duyệt một lần. Sau `Xác nhận: có`, chạy lại `auto.mjs`: nó build hết section, so ảnh, rồi ghép trang. Không thấy khung thì để trống, không bịa link.
+Một trang: chat nhìn cây Figma, tách section, rồi từng section đi lệnh template. Không thấy khung breakpoint thì để trống, không bịa link.
 
 Số lấy từ cây Figma. Nhóm là gì thì nhìn hình (render Figma hoặc Playwright trong Docker) cùng cấu trúc con lặp. Tên layer (`tab`, `menu`, `nav`, `button`) chỉ là gợi ý. Một file fail là lỗ của rule chung, có test, không phải regex riêng cho file đó.
 
@@ -75,8 +72,7 @@ Adding or changing a rule: read [docs/AI-GUIDE.md](docs/AI-GUIDE.md).
 
 ## Run
 
-In Claude Code, a **page** is `/generate-page-from-figma <figma-url> [extra requirements]`
-([.claude/commands/generate-page-from-figma.md](../.claude/commands/generate-page-from-figma.md)). One **template** is `/generate-template-from-figma` (`node process/template.mjs`, no page). The page command runs the steps below, writes
+One **template** is `/generate-template-from-figma` (`node process/template.mjs`). A page is that command once per section. Before `build`, the chat writes `choices.json` (enums in `modules/missing-content/choices.mjs`). The run writes
 `overrides.json` for what the rules cannot decide, re-runs, and reports from `summary.md` (step 6: ✅ done, ✗ wrong, ❓ missing,
 ⚠ not supported, ⏭ skipped, ◌ not measured). By hand:
 
@@ -96,7 +92,7 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Workspace
 
-Scratch for a run is the OS temp folder `figma-to-bricks/<fileKey>/<node-id>/` (`os.tmpdir()`), not a folder in this project. `modules/maintenance/clean-work.mjs <fileKey> --apply` deletes it. Rules, `policy.json`, tests and docs stay in the repo. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`) are regenerated from the Figma link by `auto.mjs`.
+Scratch for a run is `history/runs/<fileKey>/<node-id>/` inside this repo. `history/runs/` and `history/notes/` are gitignored. `modules/maintenance/clean-work.mjs <fileKey> --apply` deletes one file. A miss during a run is appended to `history/notes/gaps.md`. The run does not edit `process/` or the theme. Rules, `policy.json`, tests and docs stay in the repo. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`) are regenerated from the Figma link by `auto.mjs`.
 
 `<temp>/figma-to-bricks/<fileKey>/<node-id>/` holds everything for one section:
 
@@ -121,7 +117,7 @@ Scratch for a run is the OS temp folder `figma-to-bricks/<fileKey>/<node-id>/` (
 a table of the sections and what each becomes, then one heading per group of questions, each with a Figma link per item and one line to fill. Only content the Figma file does
 not draw is asked: link URLs of buttons and menu items, alt text of content images, answers of the FAQ items drawn closed, content of the tabs not drawn, autoplay / loop of a slider,
 and "is this an accordion?" for a block that only looks like one. The run stops with exit code 3. Claude points to the file (nothing is asked in the chat); the owner fills it and changes the line `Xác nhận: không` to `Xác nhận: có`, then Claude runs
-`auto.mjs` again: everything is built in one go, signed off as `owner (plan)`, the fix loop runs and the page is assembled. A wrong value in a confirmed Plan stops the run and names it; a build resets the line to `không`,
+`auto.mjs` again: everything is built in one go, signed off as `owner (plan)`, and the page is assembled. The run does not edit `process/` or the theme. A wrong value in a confirmed Plan stops the run and names it; a build resets the line to `không`,
 so the next run of the same link shows the Plan again with the values filled in (`plan.mjs set / confirm` exist for scripts, the owner does not need them). Answers are keyed by the Figma node id and re-applied after `decide()` on every run (`decide()` rebuilds
 its own entries, so nothing the owner typed is stored in them). Blank = the safe default (`#`, empty alt, empty answer block). `--no-confirm` skips the Plan.
 
@@ -134,9 +130,8 @@ alt left empty and listed for the designer), `figma/discover.mjs` (the same sect
 `autopilot`, build / push / verify. Output per section: `scorecard.md` (frames, look vs Figma, image weight, other browsers, known limits),
 `decisions.md` (every decision taken by a rule, why, confidence), the designer list. `--first-section` makes the section title the page's `h1`.
 To change a decision: edit `detections.json` / `overrides.json` (or `policy.json` for a project-wide default) and re-run `run.mjs ... --from=build`.
-`/generate-page-from-figma <url>` runs this by default (owner decision 2026-10-27, written into `CLAUDE.md` and the command); `--interactive` keeps the old question-by-question flow. `/generate-template-from-figma` stops at one template. Its `read` writes `plan.md` in the desktop workspace: one heading per component, then the fields to fill. Build waits for `Xác nhận: có` in that file.
-The fix loop after a run is part of the workflow: `ops/triage.mjs <workspace>` (worst picture regions -> Figma nodes -> likely cause), a rule fix with a test,
-then `ops/regress.mjs <fileKey>` (rebuilds every section and compares with `baseline.json`; `--save` after a good round).
+`/generate-template-from-figma` stops at one template. Its `read` writes `plan.md` in the desktop workspace: one heading per component, then the fields to fill. The owner writes freely. The chat maps each line to an enum in `choices.json` before build. Build waits for `Xác nhận: có` in that file.
+A generate run records decisions and asks in the plan. It does not edit `process/` or the theme. `modules/maintenance/triage.mjs <workspace>` still lists likely causes when the owner asks for a rule change afterwards. `modules/maintenance/regress.mjs <fileKey>` compares a later rule change with `baseline.json`.
 A rule change in `decide/` or `auto.mjs` only reaches the sections by re-running `auto.mjs` (it regenerates every autopilot detection and override), then `regress.mjs <fileKey> --no-rebuild` compares; `regress.mjs` alone only rebuilds from the saved decisions.
 Components decided by rule: `button` (named button / btn / cta), `form` (>= 2 placeholder inputs + a submit; a field gets the text of the Figma frame `Error message / <same name>` found beside the page frames, never an invented one), menu items (`Menu Item` labels -> `text-link`, their container `ul > li`, no heading in a menu section).
 Network: Figma's render of a frame is cached per file version (`figma-render*.json` + `verify*.figma.png`); the images API is rate limited, requests time out after 2 minutes and are retried 4 times, a frame that still could not be fetched is `NOT MEASURED` in the guard.

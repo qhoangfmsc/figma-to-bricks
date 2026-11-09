@@ -83,7 +83,9 @@ export function detectCarousels(tree) {
     const last = slides.at(-1);
     // A few pixels past the frame is a label sticking out, not the next slide.
     const overflow = !!(last?.box && n.box && last.box.x + last.box.w > n.box.w + 40);
-    const row = n.layout?.mode === 'HORIZONTAL' && !n.layout.wrap && slides.length >= 3 && similar(slides) && (overflow || named || pag || arrows);
+    // The row itself may be "Frame 12". The repeated child component "Slider Item …" is the slider.
+    const slideNamed = slides.length >= 2 && slides.every((s) => NAME.test(`${s.componentSet ?? ''} ${s.component ?? ''}`));
+    const row = n.layout?.mode === 'HORIZONTAL' && !n.layout.wrap && slides.length >= 3 && similar(slides) && (overflow || named || pag || arrows || slideNamed);
     // Mobile draws one card plus the same arrows. Two cards and arrows is still that slider.
     const oneRow = n.layout?.mode === 'HORIZONTAL' && !n.layout.wrap && arrows && slides.length >= 1 && slides.length < 3 && (slides.length === 1 || similar(slides));
     // one drawn slide + arrows, stacked (the image, then the arrow row). A pagination that is a child of this frame cannot stay beside the slider (every child becomes a slide), so that shape is left as drawn.
@@ -105,6 +107,7 @@ export function detectCarousels(tree) {
           named && 'the layer is named like a slider',
           pag && `pagination "${pag.name}" (${Math.round(pag.box.w)}×${Math.round(pag.box.h)})`,
           arrows && `arrows "${arrows.prev.name}" and "${arrows.next.name}"`,
+          slideNamed && 'each item belongs to a Slider component',
         ].filter(Boolean).join('; '),
         params: {
           ...(pag && { pagination: pag.id }),

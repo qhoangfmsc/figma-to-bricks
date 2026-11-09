@@ -599,6 +599,55 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
 
 // A desktop px width that is still a px width at this screen, and is wider than the screen.
 // Percentage widths and a box pulled into the column (width 100% in the breakpoint css) are inside.
+// Our step-down runs first and keeps a pasted frame. A breakpoint that still has no frame, and a
+// box that is still a px width wider than that screen, takes the production width rule: 100% of
+// the parent, capped at the px Figma drew. The desktop key is not rewritten.
+const classesOfEl = (e) => `${e.settings?._cssClasses ?? ''} ${e.settings?._hidden?._cssClasses ?? ''}`;
+export function fitAnvRemainder(template, { keep = [] } = {}) {
+  const frozen = new Set(keep);
+  const open = FRAME_SCREENS.filter((screen) => !frozen.has(screen.key));
+  const content = template.content ?? [];
+  const byId = new Map(content.map((e) => [e.id, e]));
+  const inTabBar = (el) => {
+    let parent = byId.get(el.parent);
+    while (parent) {
+      if (/\btab-menu\b/.test(classesOfEl(parent))) return true;
+      parent = byId.get(parent.parent);
+    }
+    return false;
+  };
+  for (const screen of open) {
+    for (const el of content) {
+      if (el.settings?._position === 'absolute' || /\btab-title\b/.test(classesOfEl(el)) || inTabBar(el)) continue;
+      const settings = el.settings ??= {};
+      const desktop = pxNum(settings._width);
+      // Our step already switched this screen to 100%. The cap stops that 100% from growing past the px Figma drew.
+      if (settings[`_width:${screen.key}`] === '100%' && desktop != null && desktop > screen.width && settings[`_widthMax:${screen.key}`] == null && settings._widthMax !== '100%') {
+        settings[`_widthMax:${screen.key}`] = `${Math.round(desktop)}px`;
+      }
+    }
+    for (const id of pxPastScreen(template, screen.width)) {
+      const el = byId.get(id);
+      if (!el || el.settings?._position === 'absolute') continue;
+      if (/\btab-title\b/.test(classesOfEl(el)) || inTabBar(el)) continue;
+      const settings = el.settings ??= {};
+      const raw = settings[`_width:${screen.key}`] ?? settings._width;
+      const width = pxNum(raw);
+      if (width == null || width <= screen.width) continue;
+      settings[`_width:${screen.key}`] = '100%';
+      settings[`_widthMax:${screen.key}`] ??= `${Math.round(width)}px`;
+      const parent = byId.get(el.parent);
+      const parentSettings = parent?.settings;
+      if (!parentSettings || parentSettings._direction !== 'row' || parentSettings[`_direction:${screen.key}`]) continue;
+      const mates = content.filter((child) => child.parent === parent.id && child.settings?._position !== 'absolute');
+      if (mates.length >= 2 && !/\btab-menu\b/.test(classesOfEl(parent))) parentSettings[`_direction:${screen.key}`] = 'column';
+    }
+  }
+  return template;
+}
+
+// A desktop px width that is still a px width at this screen, and is wider than the screen.
+// Percentage widths and a box pulled into the column (width 100% in the breakpoint css) are inside.
 export function pxPastScreen(template, width) {
   const bp = width <= 478 ? 'mobile_portrait' : width <= 767 ? 'mobile_landscape' : 'tablet_portrait';
   const out = [];

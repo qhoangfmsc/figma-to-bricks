@@ -24,7 +24,7 @@ const components = [
 test('step 2 lists one block per component, with the field that block needs', () => {
   const parts = screenParts(tree, components, [], 'FILEKEY');
   assert.deepEqual(parts.filter((p) => p.fields.length).map((p) => [p.fields[0].title, p.fields[0].value]), [
-    ['Bấm Xem thêm thì hiện thêm chữ gì?', ''],
+    ['Bấm Xem thêm thì hiện thêm chữ gì?', '[Chưa có value]'],
     ['Bấm Xem thêm thì chuyện gì xảy ra?', 'Bấm để hiện hết chữ'],
     ['Khối Mục lặp giữ nguyên như bản vẽ', 'Dựng thành một khối tĩnh'],
   ]);
@@ -35,9 +35,9 @@ test('step 2 lists one block per component, with the field that block needs', ()
   assert.deepEqual(parts[1].fields[0].options, ['Bấm để hiện hết chữ', 'Bấm để mở một địa chỉ']);
   assert.equal(validateAnswers(Object.fromEntries(parts.flatMap((p) => p.fields.map((f) => [f.key, f.value])))).length, 0);
   assert.equal(validateAnswers({ 'act:b': 'mở phần chữ bị cắt', 'act:d': 'https://vietnix.vn/vps', 'expand:e': 'dùng chữ đang bị cắt', 'keep:k': 'giữ block' }).length, 0);
-  assert.equal(validateAnswers({ 'act:c': 'Bấm không làm gì' }).length, 1);
+  assert.equal(validateAnswers({ 'act:c': 'Bấm không làm gì' }).length, 0);
   assert.equal(validateAnswers({ 'act:b': 'https://www.figma.com/design/abc' }).length, 1);
-  assert.equal(validateAnswers({ 'act:b': 'Bấm để mở một địa chỉ' }).length, 1);
+  assert.equal(validateAnswers({ 'act:b': 'Bấm để mở một địa chỉ' }).length, 0);
   assert.equal(validateAnswers({ 'expand:full': 'Đoạn chữ thêm khi mở.' }).length, 0);
   assert.equal(validateAnswers({ 'expand:full': 'https://www.figma.com/design/FILE/x?node-id=9-9' }).length, 0);
   assert.equal(readExpand('https://www.figma.com/design/FILE/x').kind, 'bad');

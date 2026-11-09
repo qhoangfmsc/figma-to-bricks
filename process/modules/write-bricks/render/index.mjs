@@ -22,12 +22,18 @@
 //  anything with no Bricks equivalent is NOT guessed: it is listed in report.md as a warning.
 import { createHash } from 'node:crypto';
 import { addCustomCss, pct, px, r4 } from '../../write-bricks/render/utils/css.mjs';
+import { schemaTraps, sealThemeDefaults } from '../../write-bricks/render/utils/schema-traps.mjs';
 import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { applySize } from '../../write-bricks/render/size.mjs';
 import { applyLayout } from '../../write-bricks/render/layout.mjs';
 import { applyStyle } from '../../write-bricks/render/style.mjs';
 import { applyText } from '../../write-bricks/render/text.mjs';
 import { COMPONENTS } from '../../write-bricks/components/index.mjs';
+import { siblingStatePatches } from '../../write-bricks/components/states.mjs';
+import { closeMarkIds, popupCard } from '../../recognize-parts/rules/shape.mjs';
+import { isDomainLookup } from '../../recognize-parts/rules/layout-only.mjs';
+import { detectActionForms } from '../../recognize-parts/rules/form.mjs';
+import { resolvedRole } from '../../write-bricks/components/button.mjs';
 
 export { deepMerge };
 
@@ -43,7 +49,7 @@ export function overflowsSideways(frame) {
   return walk(frame, 0);
 }
 
-export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '' } = {}) {
+export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '', fileKey = '' } = {}) {
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
@@ -52,6 +58,10 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     const prev = approved.get(c.node);
     if (prev && c.component === 'semantic') continue;
     approved.set(c.node, c);
+  }
+  for (const found of detectActionForms(root)) {
+    if ([...approved.values()].some((d) => d.component === 'form' && d.node === found.node)) continue;
+    approved.set(found.node, { id: `action-${found.node}`, status: 'approved', source: 'rule', ...found });
   }
   const elements = [];
   const mapping = {};
@@ -95,6 +105,17 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const isCropFill = (f) => f?.scaleMode === 'CROP' || (f?.scaleMode === 'STRETCH' && hasTransform(f.imageTransform));
   const isImageLeaf = (node) => !(node.children?.length) && node.fills?.some((f) => f.type === 'IMAGE') && node.type !== 'TEXT';
 
+  const popup = overrides.template?.type === 'popup';
+  const stage = popup ? popupCard(root) : null;
+  const contentRoot = stage?.card ?? root;
+  const closing = new Set(popup ? closeMarkIds(contentRoot) : []);
+  const dismiss = !popup && [...approved.values()].some((det) => {
+    if (det.component !== 'button' || det.params?.popupId) return false;
+    const n = findNode(root, det.node);
+    const text = (n?.children ?? []).find((c) => c && c.visible !== false && c.type === 'TEXT' && !c.svg);
+    return resolvedRole(text?.text?.characters, det.params?.role) === 'action';
+  });
+
   // ---------- recursion ----------
   function mapNode(node, parent, parentBricksId, { isRoot = false, isSlide = false } = {}) {
     let ov = nodeOv[node.id] ?? {};
@@ -118,7 +139,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
     const s = {}; // Bricks settings
     const css = {}; // css the verify step expects to measure in the browser
-    const ctx = { node, parent, s, css, warn, kind, root, flats, readAsset, designTitle: overrides.template?.title, inner: comp?.wrap ? {} : undefined, skipStroke: patch?.skipStroke }; // inner: settings of the element a wrapping component puts inside the block. skipStroke: the active menu item's line is the class, not this element's own stroke. designTitle is "<Figma file> - <section>" when the template run wrote it. readAsset lets a component read the svg it was exported as.
+    const ctx = { node, parent, s, css, warn, kind, root, flats, readAsset, popup, fileKey, designTitle: overrides.template?.title, inner: comp?.wrap ? {} : undefined, skipStroke: patch?.skipStroke }; // inner: settings of the element a wrapping component puts inside the block. skipStroke: the active menu item's line is the class, not this element's own stroke. designTitle is "<Figma file> - <section>" when the template run wrote it. readAsset lets a component read the svg it was exported as.
     applySize(ctx, { isRoot, isSlide });
     // a page frame that does not clip, with a layer sticking out of its left / right edge: Figma's picture stops at the frame edge, a page would scroll sideways
     if (isRoot && !node.clip && overflowsSideways(node)) s._overflow = 'hidden'; // the Bricks attribute (Style > Layout > Overflow)
@@ -160,6 +181,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
     // svg as an uploaded file: Bricks "code" SVGs need a signature and render a placeholder without it
     if (kind === 'svg' && node.svg) s.file = { $asset: node.svg.file, size: 'full' };
+    if (closing.has(node.id)) s._attributes = [...(s._attributes ?? []), { name: 'data-f2b-close', value: '1' }];
 
     let wrapperSettings = null;
     if (imageLeaf) {
@@ -202,6 +224,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       applyStyle(ctx, { skipFill: node.type === 'TEXT' }); // a TEXT fill is the text color, not a background
     }
 
+    if (patch?.skipChildren) node.__skipChildren = true;
     const applied = comp?.apply?.(ctx, det) ?? null;
     if (patch?.settings) Object.assign(s, deepMerge(s, patch.settings));
     if (patch?.expectCss) Object.assign(css, patch.expectCss); // the value the browser will actually compute, when a component replaces a Figma spacing that never sat between two drawn children
@@ -213,7 +236,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
       addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
     }
-    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
   function bindSelectors(settings, id, name) {
@@ -234,6 +257,14 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     let settings = s;
     for (const k of ov.dropSettings ?? []) delete settings[k];
     if (ov.settings) settings = deepMerge(settings, ov.settings);
+    // A decorative-icon override replaces _attributes. The close mark is a control, so the close attribute is put back after that merge.
+    if (closing.has(node.id)) {
+      settings._attributes = [...(settings._attributes ?? []).filter((a) => a.name !== 'aria-hidden' && a.name !== 'data-f2b-close'), { name: 'data-f2b-close', value: '1' }];
+      addCustomCss(settings, 'cursor: pointer;');
+    }
+    if (dismiss && node.id === root.id) {
+      settings._attributes = [...(settings._attributes ?? []).filter((a) => a.name !== 'data-f2b-dismiss'), { name: 'data-f2b-dismiss', value: '1' }];
+    }
     if (ov.cssClasses) settings._cssClasses = ov.cssClasses;
     // The div sets the width and height. The image is always 100% × 100% of that div.
     if (kind === 'image') {
@@ -258,8 +289,10 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
         : { x: r4(node.box.absX - rootAbs.x), y: r4(node.box.absY - rootAbs.y), w: node.box.w, h: node.box.h, css, ...(component?.attrs && { attrs: component.attrs }) },
     };
     after?.(id);
-    if (inner) emitRaw(`${node.id}#inner`, inner.name, inner.settings, id, inner.name); // wrapping component: the block keeps the Figma frame, the real element sits inside
-    if (node.children) {
+    if (inner) emitRaw(`${node.id}#inner`, inner.name, inner.settings, id, inner.label || inner.name); // wrapping component: the block keeps the Figma frame, the real element sits inside
+    if (node.__skipChildren) {
+      for (const c of node.children ?? []) if (c) mapping[c.id] = { skipped: 'switch value is the form field' };
+    } else if (node.children) {
       for (const c of node.children) {
         if (component?.merges && c.visible !== false && !keep.has(c.id)) mapping[c.id] = { skipped: `merged into ${component.id} ${component.detection}` };
         else mapNode(c, node, id, { isSlide: kind === 'slider-nested' });
@@ -279,7 +312,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     return id;
   }
   const FIXED_HEIGHT = ['_height', '_heightMin', '_heightMax'];
-  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\r?\n/g, '<br>');
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/([^\s])\r?\n/g, '$1 <br>').replace(/\r?\n/g, '<br>');
   function resolveLike() {
     for (const { id, like, text, drop } of pendingLike) {
       const el = elements.find((e) => e.id === id), src = like && elements.find((e) => e.id === mapping[like]?.bricksId);
@@ -303,6 +336,25 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (!node) continue; // detect step reports stale nodes
     const comp = COMPONENTS[det.component];
     const isCrop = isImageLeaf(node) && node.fills.find((f) => f.type === 'IMAGE')?.scaleMode === 'CROP';
+    const actionHosts = [...approved.values()].filter((d) => d.component === 'form' && d.params?.kind === 'action');
+    const insideAction = (id) => actionHosts.some((d) => {
+      const host = findNode(root, d.node);
+      return host && host.id !== id && containsNode(host, id);
+    });
+    if ((det.component === 'switch' || det.component === 'checkbox') && insideAction(det.node)) continue;
+    if (det.component === 'button' && actionHosts.some((d) => d.params?.submit === det.node)) continue;
+    if (det.component === 'search' && isDomainLookup(node)) {
+      warn(node, 'domain lookup stays layout; the action is outside this project');
+      continue;
+    }
+    if (det.component === 'semantic' && det.params?.itemTag === 'li') {
+      const kids = (node.children ?? []).filter((c) => c && c.visible !== false);
+      const control = (id) => ['button', 'form', 'search', 'switch'].includes(approved.get(id)?.component);
+      if (kids.length > 0 && kids.every((c) => control(c.id))) {
+        warn(node, 'semantic ul > li skipped: these children are controls');
+        continue;
+      }
+    }
     const chk = !comp ? { ok: false, reason: 'unknown component' } : comp.status !== 'implemented' ? { ok: false, reason: `component "${det.component}" is ${comp.status}` } : isCrop ? { ok: false, reason: 'image crop nodes are not supported' } : comp.check(node, det, { root, flats });
     if (!chk.ok) { warn(node, `detection ${det.id} (${det.component}) approved but not applied, kept as block: ${chk.reason}`); continue; }
     plan.set(node.id, { det, comp });
@@ -311,11 +363,25 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     for (const id of comp.mergedNodes?.(det, node) ?? []) mergedInto.set(id, det);
   }
 
+  // Sibling variants of one component (Hover, Active, Open, …) share the resting look.
+  // Accordion, menu, and tabs already paint their own state, so their subtrees are skipped.
+  const stateOwners = [...plan.entries()].filter(([, { det }]) => ['accordion', 'menu', 'menu-slider', 'tabs', 'tab-switch'].includes(det.component)).map(([id]) => id);
+  for (const [id, extra] of Object.entries(siblingStatePatches(root, stateOwners))) {
+    const prev = patches.get(id) ?? {};
+    patches.set(id, {
+      ...prev,
+      css: [...(prev.css ?? []), ...(extra.css ?? [])],
+      dropSettings: [...(prev.dropSettings ?? []), ...(extra.dropSettings ?? [])],
+      expectCss: { ...(prev.expectCss ?? {}), ...(extra.expectCss ?? {}) },
+    });
+  }
+
   // text that FILLS a parent which itself hugs its content: Figma sizes such a parent from the other children and wraps the text inside it (a
   // 420px, two line paragraph in a 452px hugging card), while CSS sizes a hugging box from the text's one-line width. Marked here, capped in size.mjs.
   (function markHug(n, inHug) { n.__inHug = inHug; const h = inHug || n.sizing?.h === 'HUG'; for (const c of n.children ?? []) markHug(c, h); })(root, false);
 
-  mapNode(root, null, 0, { isRoot: true });
+  if (stage) mapping[root.id] = { skipped: 'popup backdrop' };
+  mapNode(contentRoot, null, 0, { isRoot: true });
   resolveLike();
 
   // The Bricks builder (not the frontend) gives every EMPTY element `min-width/min-height: 90px` through a zero-specificity rule
@@ -326,12 +392,23 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   }
 
   for (const id of Object.keys(nodeOv)) if (!(id in mapping) && !findNode(root, id)) warnings.push({ node: id, name: '?', msg: 'override refers to a node that is not in the tree' });
+  sealThemeDefaults(elements);
+  for (const hit of schemaTraps(elements)) warnings.push({ node: hit.id, name: hit.key, msg: hit.msg });
 
   return {
-    template: { title: overrides.template?.title ?? `${root.name} (figma ${root.id})`, type: overrides.template?.type ?? 'section', content: elements },
+    template: {
+      title: overrides.template?.title ?? `${root.name} (figma ${root.id})`,
+      type: overrides.template?.type ?? 'section',
+      content: elements,
+      ...(stage ? { popup: { width: stage.width, backdrop: stage.backdrop } } : {}),
+    },
     mapping,
     warnings,
   };
+}
+
+function containsNode(n, id) {
+  return n?.id === id || (n?.children ?? []).some((c) => containsNode(c, id));
 }
 
 function findNode(n, id) {

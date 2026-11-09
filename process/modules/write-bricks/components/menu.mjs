@@ -9,6 +9,7 @@
 // draws the hamburger and the open panel, nav-nested is the element to use (CATALOG.md).
 // params: links { textNodeId: url } (what the owner typed in the Plan; missing -> '#' and the Plan keeps asking)
 import { tagSettings, tagReset, linkSetting, visibleKids, rowId, MISSING_URL } from '../../write-bricks/components/helpers.mjs';
+import { ComponentState, componentState } from '../../write-bricks/components/states.mjs';
 import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 
 const textsOf = (n) => (n.visible === false ? [] : n.type === 'TEXT' && !n.svg && n.text?.characters?.trim() ? [n] : visibleKids(n).flatMap(textsOf));
@@ -28,7 +29,7 @@ function parentOf(root, id) {
   return null;
 }
 
-export const isActiveItem = (n) => /^active$/i.test(String(n.props?.State ?? n.props?.state ?? '')) || /state\s*=\s*active/i.test(n.component ?? '');
+export const isActiveItem = (n) => componentState(n) === ComponentState.ACTIVE;
 const solidFill = (n) => (n?.fills ?? []).find((f) => f.type === 'SOLID');
 export const menuClass = (node) => `vx-menu-${rowId(node.id)}`;
 

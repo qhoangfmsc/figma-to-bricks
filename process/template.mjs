@@ -16,10 +16,11 @@ import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
 import { discoverFormErrors } from './modules/read-figma/discover.mjs';
 import { signOff } from './modules/sign-off/index.mjs';
 import { figmaGet, enableRunCache, refreshRunCache } from './modules/read-figma/api.mjs';
-import { groupQuestions, GROUPS, keyOf, validateAnswers, filled, figmaLink, applyAnswers, shareAccordionAnswers, hearAnswers } from './modules/missing-content/index.mjs';
+import { groupQuestions, GROUPS, keyOf, figmaLink, applyAnswers, shareAccordionAnswers } from './modules/missing-content/index.mjs';
+import { resolvePlan } from './modules/missing-content/choices.mjs';
 import { runLines } from './modules/common/spawn-lines.mjs';
 import { parseFrameInput, SLOTS } from './modules/single-template/frames.mjs';
-import { planInventory, screenParts } from './modules/single-template/parts.mjs';
+import { planInventory, screenParts, sectionBlocks } from './modules/single-template/parts.mjs';
 import { writeTemplatePlan } from './modules/single-template/plan-doc.mjs';
 import { unclaimedRepeats } from './modules/recognize-parts/structure.mjs';
 import { reviewFrame } from './modules/single-template/review.mjs';
@@ -125,19 +126,27 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     figma: figmaLink(desktop.fileKey, item.node),
   })));
   const parts = screenParts(tree, det.components, questions, desktop.fileKey);
+  const blocks = sectionBlocks(tree, desktop.fileKey);
   const repeats = unclaimedRepeats(tree, det.components);
   const open = det.components.filter((c) => c.status === 'proposed').map((c) => ({
     component: c.component, node: c.node, confidence: c.confidence, evidence: c.evidence,
   }));
   const inventory = planInventory(tree, det.components, desktop.fileKey);
+  const typeQuestion = questions.find((q) => q.group === 'type');
   const shown = {
     title,
     name: tree.name,
     width: frameWidth(base),
     variants: variants.map((v) => ({ label: SLOTS.find((s) => s.key === v.key)?.label ?? v.key, width: v.width })),
     parts,
+    blocks,
     open: inventory.open,
     repeats: inventory.repeats,
+    templateType: {
+      key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
+      value: typeQuestion?.value || 'section',
+      reason: typeQuestion?.label || '',
+    },
   };
   const planFile = writeTemplatePlan(base.dir, shown);
   log(`Plan: ${planFile}`);
@@ -162,16 +171,16 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
 }
 
 export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}) {
-  const heard = hearAnswers(answers ?? {});
-  const problems = validateAnswers(heard);
-  if (problems.length) {
-    const err = new Error(problems.join('\n'));
-    err.problems = problems;
-    throw err;
-  }
   const base = resolveWorkspace(desktopUrl);
   if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Chạy read trước.');
-  const applied = applyAnswers(base, filled(heard));
+  const stored = base.has('choices.json') ? base.readJson('choices.json') : {};
+  const { ready, open } = resolvePlan(answers ?? {}, stored, (group) => GROUPS[group]?.value ?? '');
+  if (open.length) {
+    const err = new Error(open.map((row) => `${row.key}: "${row.text}" chưa có choice`).join('\n'));
+    err.open = open;
+    throw err;
+  }
+  const applied = applyAnswers(base, ready);
   const shared = shareAccordionAnswers(base);
   log(`Đã gắn ${applied.applied.length} giá trị${shared.copied ? `, chép ${shared.copied} nội dung sang khung khác` : ''}`);
   await attachFilledFrames(base, { log });
@@ -193,7 +202,7 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
   let verifyStatus = 0;
   for (let round = 1; round <= ROUNDS; round++) {
     if (round > 1) {
-      log('Kiểm tra còn lệch. Đang sửa đúng template này rồi kiểm lại.');
+      log('Kiểm tra còn lệch. Dựng lại đúng template này từ quyết định đã chốt.');
       const built = await pipe(['--only=build']);
       if (built.status) throw new Error(`${built.stderr}\n${built.stdout}`.trim().slice(-800) || 'Chưa sửa được template.');
       const next = bricksHash(base);
