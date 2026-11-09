@@ -190,43 +190,29 @@ final class F2B_Bridge {
 			if ( ! isset( $by_id[ $el['parent'] ] ) ) {
 				return new WP_Error( 'f2b_invalid', "element '{$el['id']}' has unknown parent '{$el['parent']}'", [ 'status' => 400 ] );
 			}
-
-			$elements[ $by_id[ $el['parent'] ] ]['children'][] = $el['id'];
 		}
 
-		return $elements;
+		self::load_bricks_store();
+		return F2B_Bricks_Store::link_children( $elements );
+	}
+
+	private static function load_bricks_store() {
+		if ( class_exists( 'F2B_Bricks_Store' ) ) {
+			return;
+		}
+		require_once WP_PLUGIN_DIR . '/f2b-mcp/includes/class-f2b-bricks-store.php';
 	}
 
 	private static function save_page_settings( $post_id, $settings ) {
 		if ( ! is_array( $settings ) ) {
 			return;
 		}
-		// Footer scripts are page settings. Popup controls and the condition that puts the
-		// popup in the footer are template settings (Helpers::get_template_settings).
-		$page_keys = [ 'customScriptsBodyFooter', 'template_interactions' ];
-		$template_keys = [ 'popupCloseOn', 'templateConditions', 'popupContentWidth', 'popupContentPadding', 'popupBackground' ];
-		$page = [];
-		$template = [];
-		foreach ( $page_keys as $key ) {
-			if ( array_key_exists( $key, $settings ) ) {
-				$page[ $key ] = $settings[ $key ];
-			}
-		}
-		foreach ( $template_keys as $key ) {
-			if ( array_key_exists( $key, $settings ) ) {
-				$template[ $key ] = $settings[ $key ];
-			}
-		}
-		if ( $page ) {
-			update_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, wp_slash( $page ) );
-		}
-		if ( $template ) {
-			$existing = get_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, true );
-			if ( ! is_array( $existing ) ) {
-				$existing = [];
-			}
-			update_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, wp_slash( array_merge( $existing, $template ) ) );
-		}
+		self::load_bricks_store();
+		$page     = get_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, true );
+		$template = get_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, true );
+		$split    = F2B_Bricks_Store::split_settings( $page, $template, $settings );
+		update_post_meta( $post_id, BRICKS_DB_PAGE_SETTINGS, wp_slash( $split['page'] ) );
+		update_post_meta( $post_id, BRICKS_DB_TEMPLATE_SETTINGS, wp_slash( $split['template'] ) );
 	}
 
 	private static function save_elements( $post_id, $type, $elements ) {

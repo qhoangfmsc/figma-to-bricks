@@ -1,6 +1,10 @@
-// Page settings for a popup template. Bricks stores these on the template post
-// (BRICKS_DB_PAGE_SETTINGS). The script calls bricksOpenPopup / bricksClosePopup
-// and writes one cookie named with the template id. It does not write theme styles.
+// Page settings for a popup template. Bricks stores these on the template post.
+// The script calls bricksOpenPopup / bricksClosePopup and writes one cookie named
+// with the template id. It does not write theme styles.
+//
+// customScriptsBodyFooter is echoed as HTML before </body> (frontend.php
+// add_body_footer_scripts). Bare JavaScript is painted as text, so the value
+// is one script element.
 //
 // Keys that exist on a popup in this theme (includes/popups.php set_controls).
 // A key is written only when this file or the plan has a value. Nothing below is invented.
@@ -30,7 +34,7 @@ export function popupPageSettings(templateId, stage = null) {
     // Entire website, hidden until a button runs show + templateId.
     // A popup with no condition is only in its own preview, so a button on another template cannot find it.
     templateConditions: [{ id: 'f2bany', main: 'any' }],
-    customScriptsBodyFooter: `(function () {
+    customScriptsBodyFooter: `<script>(function () {
   var id = ${JSON.stringify(id)};
   var cookie = ${JSON.stringify(cookie)};
   function hasCookie() {
@@ -48,7 +52,7 @@ export function popupPageSettings(templateId, stage = null) {
       if (window.bricksClosePopup) window.bricksClosePopup(id);
     }
   });
-})();`,
+})();</script>`,
   };
   if (stage?.width) {
     settings.popupContentWidth = `${Math.round(stage.width)}px`;

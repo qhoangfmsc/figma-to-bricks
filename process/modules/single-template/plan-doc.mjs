@@ -16,31 +16,40 @@ function stored(saved, key, fallback) {
   return Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : fallback;
 }
 
-function valueLine(key, saved, fallback) {
+function valueLine(key, saved, fallback, label = '') {
   const text = String(stored(saved, key, fallback) ?? '');
   const [first, ...rest] = text.split(/\r?\n/);
-  return [`- \`${key}\`: ${first ?? ''}`, ...rest.map((line) => `  ${line}`)].join('\n');
+  const lead = label ? `${label} ` : '';
+  return [`- ${lead}\`${key}\`: ${first ?? ''}`, ...rest.map((line) => `  ${line}`)].join('\n');
 }
 
-function pushPart(out, part, saved) {
-  out.push(`### ${part.kind} \`${part.name}\``, '');
-  out.push(`- Loại: ${part.kind}`);
-  if (part.figma) out.push(`- Figma: [Mở](${part.figma})`);
-  if (part.detail) out.push(`- ${part.detail}`);
-  out.push('');
-  if (part.node) {
-    out.push('Dựng', '', valueLine(`part:${part.node}`, saved, ''), '');
-  }
+function fieldTitle(field) {
+  if (field.group === 'answer' && field.caption) return clean(field.caption).replace(/^["«]+|["»]+$/g, '');
+  return clean(field.title) || field.field || field.group;
+}
+
+function componentLines(part, saved, index) {
+  const title = `${part.kind} \`${part.name}\``;
+  const lines = [index ? `### ${index}. ${title}` : `### ${title}`, `- Loại: ${part.kind}`];
+  if (part.figma) lines.push(`- Figma: [Mở](${part.figma})`);
+  if (part.detail) lines.push(`- ${part.detail}`);
+  if (part.node) lines.push(valueLine(`part:${part.node}`, saved, '', `Quyết định dựng ${part.kind}`));
   for (const field of part.fields ?? []) {
-    const title = field.group === 'answer' && field.caption
-      ? clean(field.caption).replace(/^["«]+|["»]+$/g, '')
-      : (clean(field.title) || field.field || field.group);
-    out.push(title, '');
-    if (field.figma) out.push(`- Figma: [Mở](${field.figma})`);
+    const titleText = fieldTitle(field);
+    if (titleText) lines.push(`- ${titleText}`);
+    if (field.figma) lines.push(`- Figma: [Mở](${field.figma})`);
     const fallback = field.value == null || field.value === '' ? MISSING : field.value;
-    out.push(valueLine(field.key, saved, fallback), '');
+    lines.push(valueLine(field.key, saved, fallback));
   }
-  if (part.node) out.push('Góp ý', '', valueLine(`expect:${part.node}`, saved, ''), '');
+  if (part.node) lines.push(valueLine(`expect:${part.node}`, saved, '', 'Kết quả mong muốn'));
+  return lines;
+}
+
+function blockLines(block, saved, index) {
+  const lines = [`### ${index}. Khối \`${block.name}\``, '- Loại: block'];
+  if (block.figma) lines.push(`- Figma: [Mở](${block.figma})`);
+  lines.push(valueLine(`expect:${block.id}`, saved, '', 'Kết quả mong muốn'));
+  return lines;
 }
 
 function rowsOf(model) {
@@ -78,50 +87,46 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
     '',
     'Xác nhận: không',
     '',
-    '## Loại',
-    '',
-    'section · header · footer · popup · content · archive · search · error',
-    '',
+    '## Loại Template',
     valueLine(typeKey, saved, typeFallback),
     '',
   );
   const rows = rowsOf(model);
   const kinds = rows.flatMap((row) => [row.self?.kind || (row.block ? 'Khối' : null), ...row.nested.map((part) => part.kind)].filter(Boolean));
   const tally = [...kinds.reduce((map, kind) => map.set(kind, (map.get(kind) ?? 0) + 1), new Map())].map(([kind, n]) => `${n} ${kind}`).join(', ');
-  out.push(`## Component Detected (${rows.length})`, '');
-  if (tally) out.push(tally, '');
-  if (!rows.length) out.push('Không nhận ra component nào.', '');
+  const detected = [];
+  const decisions = [];
+  const pushBlock = (lines, bucket) => { bucket.push(lines.join('\n')); };
   rows.forEach((row, index) => {
-    if (row.self && !row.block) {
-      out.push(`${index + 1}.`, '');
-      pushPart(out, row.self, saved);
-      return;
-    }
-    if (row.self) {
-      out.push(`${index + 1}.`, '');
-      pushPart(out, row.self, saved);
-    } else if (row.block) {
-      out.push(`${index + 1}.`, '', `### Khối \`${row.block.name}\``, '', '- Loại: block');
-      if (row.block.figma) out.push(`- Figma: [Mở](${row.block.figma})`);
-      out.push('', 'Góp ý', '', valueLine(`expect:${row.block.id}`, saved, ''), '');
-    }
-    for (const part of row.nested) pushPart(out, part, saved);
+    const n = index + 1;
     const ids = new Set(row.block?.ids ?? []);
     const hosts = [row.self, ...row.nested].filter(Boolean);
+    const extras = [];
     for (const item of (model.open ?? []).filter((guess) => ids.has(guess.node) && !hosts.some((part) => part.node !== guess.node && part.ids?.includes(guess.node)))) {
-      out.push(`### ${clean(item.label)}`, '');
-      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
-      if (clean(item.evidence)) out.push(`- ${clean(item.evidence)}`);
-      out.push('', valueLine(`guess:${item.node}`, saved, ''), '');
+      const lines = [`### ${clean(item.label)}`];
+      if (item.figma) lines.push(`- Figma: [Mở](${item.figma})`);
+      if (clean(item.evidence)) lines.push(`- ${clean(item.evidence)}`);
+      lines.push(valueLine(`guess:${item.node}`, saved, ''));
+      extras.push(lines.join('\n'));
     }
     for (const item of (model.repeats ?? []).filter((repeat) => ids.has(repeat.node))) {
       const name = clean(item.item || item.label);
       const sample = clean(item.sample);
-      out.push(item.count ? `${item.count} ô "${name}"${sample ? `, mẫu "${sample}"` : ''}` : clean(item.label), '');
-      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
-      out.push('', valueLine(`repeat:${item.node}`, saved, ''), '');
+      const lines = [item.count ? `${item.count} ô "${name}"${sample ? `, mẫu "${sample}"` : ''}` : clean(item.label)];
+      if (item.figma) lines.push(`- Figma: [Mở](${item.figma})`);
+      lines.push(valueLine(`repeat:${item.node}`, saved, ''));
+      extras.push(lines.join('\n'));
     }
+    if (row.block && !row.self) pushBlock([...blockLines(row.block, saved, n), ...extras], detected);
+    if (row.self) pushBlock([...componentLines(row.self, saved, n), ...extras], decisions);
+    for (const part of row.nested) pushBlock(componentLines(part, saved), decisions);
   });
+  out.push(`## Component Detected (${rows.length})`);
+  if (tally) out.push(tally);
+  if (!rows.length) out.push('Không nhận ra component nào.');
+  if (detected.length) out.push('', detected.join('\n\n'));
+  out.push('');
+  if (decisions.length) out.push('## Cần User quyết định', decisions.join('\n\n'), '');
   const placed = new Set(rows.flatMap((row) => [row.block?.id, row.self?.node, ...row.nested.map((part) => part.node), ...(row.block?.ids ?? [])].filter(Boolean)));
   const open = (model.open ?? []).filter((item) => !placed.has(item.node));
   if (open.length) {
@@ -144,7 +149,7 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
       out.push('', valueLine(`repeat:${item.node}`, saved, ''), '');
     }
   }
-  out.push('## Góp ý thêm', '', valueLine('note:plan', saved, ''), '');
+  out.push('## Kết quả cần đạt được', valueLine('note:plan', saved, ''), '');
   if (clean(note)) out.push(`Sửa: ${clean(note)}`, '');
   return out.join('\n');
 }

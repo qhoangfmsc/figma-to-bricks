@@ -1,8 +1,9 @@
 // Staging upload. The local template is already on WP_URL.
 // This file talks only to the f2b-mcp plugin. It does not run during build.
 // The phrase is the whole switch: any other text returns before a request is made.
-import { readFileSync } from 'node:fs';
-import { resolveWorkspace } from '../common/workspace.mjs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { resolveWorkspace, workRoot } from '../common/workspace.mjs';
 import { need } from '../common/env.mjs';
 import { popupPageSettings } from '../write-bricks/components/popup-settings.mjs';
 
@@ -14,6 +15,72 @@ export function assertStagingPhrase(text) {
     error.code = 'STAGING_PHRASE';
     throw error;
   }
+}
+
+// Bricks draws the structure panel from `children`. The local file only stores `parent`
+// because the local bridge fills `children` when it saves. The staging plugin stores the
+// payload as sent, so an empty children list shows only the root elements.
+export function linkChildren(elements) {
+  const copy = elements.map((el) => ({ ...el, children: [] }));
+  const indexOf = new Map(copy.map((el, index) => [String(el.id), index]));
+  for (const el of copy) {
+    if (el.parent === 0 || el.parent === '0' || el.parent == null || el.parent === '') continue;
+    const parentIndex = indexOf.get(String(el.parent));
+    if (parentIndex == null) {
+      const error = new Error(`element '${el.id}' has unknown parent '${el.parent}'`);
+      error.code = 'STAGING_TREE';
+      throw error;
+    }
+    copy[parentIndex].children.push(el.id);
+  }
+  return copy;
+}
+
+// A button that opens a local template id must name the staging id. The local file keeps
+// the local id. Popup is uploaded first, so its state.json already has stagingTemplateId.
+export function stagingTemplateIds(root = workRoot()) {
+  const ids = new Map();
+  let keys = [];
+  try { keys = readdirSync(root); } catch { return ids; }
+  for (const key of keys) {
+    const keyDir = join(root, key);
+    let nodes = [];
+    try {
+      if (!statSync(keyDir).isDirectory()) continue;
+      nodes = readdirSync(keyDir);
+    } catch { continue; }
+    for (const node of nodes) {
+      try {
+        const state = JSON.parse(readFileSync(join(keyDir, node, 'state.json'), 'utf8'));
+        if (state.templateId != null && state.stagingTemplateId != null) ids.set(String(state.templateId), String(state.stagingTemplateId));
+      } catch { /* this folder is not a workspace */ }
+    }
+  }
+  return ids;
+}
+
+export function pointButtonsAtStaging(elements, ids) {
+  if (!ids || !ids.size) return elements;
+  return elements.map((el) => {
+    const settings = el.settings;
+    if (!settings) return el;
+    const next = { ...settings };
+    if (Array.isArray(settings._interactions)) {
+      next._interactions = settings._interactions.map((row) => (
+        row && row.templateId != null && ids.has(String(row.templateId))
+          ? { ...row, templateId: ids.get(String(row.templateId)) }
+          : row
+      ));
+    }
+    if (Array.isArray(settings._attributes)) {
+      next._attributes = settings._attributes.map((attr) => (
+        attr && attr.name === 'data-f2b-open' && ids.has(String(attr.value))
+          ? { ...attr, value: ids.get(String(attr.value)) }
+          : attr
+      ));
+    }
+    return { ...el, settings: next };
+  });
 }
 
 async function mcpCall(name, args) {
@@ -67,7 +134,8 @@ export async function pushStaging(workspace, phrase, call = mcpCall) {
 
   const content = [];
   for (const element of template.content) content.push({ ...element, settings: await resolveAssets(element.settings) });
-  const elementsJson = JSON.stringify(content);
+  const linked = linkChildren(pointButtonsAtStaging(content, stagingTemplateIds()));
+  const elementsJson = JSON.stringify(linked);
   const type = template.type || 'section';
   let templateId = state.stagingTemplateId ?? null;
   let editUrl = state.stagingEditUrl ?? '';

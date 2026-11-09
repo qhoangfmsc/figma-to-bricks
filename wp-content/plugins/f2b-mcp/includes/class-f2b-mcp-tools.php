@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/class-f2b-bricks-store.php';
+
 class F2B_MCP_Tools {
 
 	/** Bricks element id: exactly 6 alphanumeric characters. */
@@ -531,18 +533,20 @@ class F2B_MCP_Tools {
 		$type        = $is_template ? (string) get_post_meta( $post_id, self::meta_key_template_type(), true ) : '';
 		$meta_key    = $is_template ? self::content_meta_key_for_type( $type ) : self::meta_key_content();
 		$elements    = get_post_meta( $post_id, $meta_key, true );
-		$page_settings = self::read_page_settings( $post_id );
+		$page_settings     = self::read_page_settings( $post_id );
+		$template_settings = get_post_meta( $post_id, self::meta_key_template_settings(), true );
 
 		return array(
-			'id'            => $post->ID,
-			'title'         => $post->post_title,
-			'post_type'     => $post->post_type,
-			'status'        => $post->post_status,
-			'template_type' => $type ? $type : null,
-			'url'           => get_permalink( $post ),
-			'edit_url'      => self::builder_edit_url( $post->ID ),
-			'elements'      => is_array( $elements ) ? $elements : array(),
-			'page_settings' => $page_settings,
+			'id'                => $post->ID,
+			'title'             => $post->post_title,
+			'post_type'         => $post->post_type,
+			'status'            => $post->post_status,
+			'template_type'     => $type ? $type : null,
+			'url'               => get_permalink( $post ),
+			'edit_url'          => self::builder_edit_url( $post->ID ),
+			'elements'          => is_array( $elements ) ? $elements : array(),
+			'page_settings'     => $page_settings,
+			'template_settings' => is_array( $template_settings ) ? $template_settings : array(),
 		);
 	}
 
@@ -724,6 +728,10 @@ class F2B_MCP_Tools {
 
 		$classes_added = $global_classes ? self::merge_global_classes( $global_classes ) : 0;
 
+		// Same tree the local bridge stores: children are rebuilt from parent, so a payload
+		// that only sets parent still opens in the structure panel.
+		$decoded = F2B_Bricks_Store::link_children( $decoded );
+
 		update_post_meta( $post_id, $meta_key, wp_slash( $decoded ) );
 
 		return array(
@@ -735,6 +743,10 @@ class F2B_MCP_Tools {
 
 	private static function meta_key_page_settings() {
 		return defined( 'BRICKS_DB_PAGE_SETTINGS' ) ? BRICKS_DB_PAGE_SETTINGS : '_bricks_page_settings';
+	}
+
+	private static function meta_key_template_settings() {
+		return defined( 'BRICKS_DB_TEMPLATE_SETTINGS' ) ? BRICKS_DB_TEMPLATE_SETTINGS : '_bricks_template_settings';
 	}
 
 	private static function read_page_settings( $post_id ) {
@@ -766,14 +778,23 @@ class F2B_MCP_Tools {
 			return new WP_Error( 'bad_page_settings', 'page_settings_json must be a JSON object.' );
 		}
 
-		$existing = self::read_page_settings( $post_id );
-		$merged   = array_merge( $existing, $decoded );
+		$page     = self::read_page_settings( $post_id );
+		$template = get_post_meta( $post_id, self::meta_key_template_settings(), true );
+		if ( ! is_array( $template ) ) {
+			$template = array();
+		}
 
-		update_post_meta( $post_id, self::meta_key_page_settings(), $merged );
+		$split    = F2B_Bricks_Store::split_settings( $page, $template, $decoded );
+		$page     = $split['page'];
+		$template = $split['template'];
+
+		update_post_meta( $post_id, self::meta_key_page_settings(), wp_slash( $page ) );
+		update_post_meta( $post_id, self::meta_key_template_settings(), wp_slash( $template ) );
 
 		return array(
-			'saved_page_settings' => $merged,
-			'meta_key'            => self::meta_key_page_settings(),
+			'saved_page_settings'     => $page,
+			'saved_template_settings' => $template,
+			'meta_key'                => self::meta_key_page_settings(),
 		);
 	}
 

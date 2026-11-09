@@ -86,9 +86,13 @@ test('a template plan names each component and says what an empty group means', 
     open: [],
     repeats: [],
   });
+  assert.match(md, /## Loại Template/);
   assert.match(md, /## Component Detected \(1\)/);
-  assert.match(md, /### Slider `_case-study-list`/);
-  assert.match(md, /`part:2172:3675`:\s*$/m);
+  assert.match(md, /## Cần User quyết định/);
+  assert.match(md, /### 1\. Slider `_case-study-list`/);
+  assert.match(md, /Quyết định dựng Slider `part:2172:3675`:\s*$/m);
+  assert.match(md, /Kết quả mong muốn `expect:2172:3675`:\s*$/m);
+  assert.match(md, /## Kết quả cần đạt được/);
   assert.doesNotMatch(md, /Đang có:/);
   assert.doesNotMatch(md, /Gõ số giây/);
   assert.match(md, /`autoplay:2172:3675`: tự chuyển mỗi 3 giây/);

@@ -50,8 +50,8 @@ The file, in this order:
 
 - Title, frame name, width. Then `Gộp` with each pasted variant and its width, or omit that line.
 - `Xác nhận: không`. The owner changes it to `Xác nhận: có`.
-- **Loại template.** One line `` `type:<node>`: section ``. section, header, footer, popup, content, archive, search, or error. A sure header, footer, or popup is already filled. A weak guess stays section and the line above says why.
-- **Component Detected.** One block per recognized component, including a plain block. Kind on its own line, then the Figma link, then each field on its own lines. A value Figma drew is filled. A value Figma does not have is `[Chưa có value]`. `expect:<id>` is the owner's override. `note:plan` is the free note. Tabs and tab-switch still list every pane.
+- **Loại Template.** One line `` `type:<node>`: section ``. section, header, footer, popup, content, archive, search, or error. A sure header, footer, or popup is already filled. A weak guess stays section and the line above says why.
+- **Component Detected.** One numbered block per plain block: kind, Figma link, then `Kết quả mong muốn` (`expect:<id>`). A component the owner keeps or drops is under **Cần User quyết định**: `Quyết định dựng <loại>` (`part:<id>`), then the same kết quả line. A value Figma drew is filled. A value Figma does not have is `[Chưa có value]`. `note:plan` is under **Kết quả cần đạt được**. Tabs and tab-switch still list every pane.
 - **Chưa chắc** and **Nhóm lặp** only when a row is not already inside a section above.
 - `Sửa:` only when the owner already typed one. Blank means keep the values shown.
 
@@ -69,7 +69,11 @@ Sign-off is `owner (chat)`. Then look at `verify.figma.png`, `verify.png`, and `
 
 Report: title, `Mở template trong Bricks` (`builderUrl`), one line per frame (`lệch N%` and the review notes), `Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.`, designer list. No page assemble.
 
-Then ask, in one line, whether this local template should go to staging. Stop. Do not upload in that turn.
+Then show the required sentence in the chat on its own line, so the owner can type it or copy it:
+
+`Xác nhận lên staging`
+
+A yes or no does not upload. Stop. Do not upload in that turn.
 
 ## 4. Staging — only the exact sentence
 

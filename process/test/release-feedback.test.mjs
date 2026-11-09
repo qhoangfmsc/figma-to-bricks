@@ -391,7 +391,17 @@ test('the bridge sets external CSS and does not write theme styles', () => {
   assert.match(verify, /method: 'HEAD'/);
   assert.doesNotMatch(verify, /regenerate_css/);
   assert.match(php, /BRICKS_DB_PAGE_SETTINGS/);
+  assert.match(php, /F2B_Bricks_Store::split_settings/);
+  assert.match(php, /F2B_Bricks_Store::link_children/);
   assert.match(push, /popupPageSettings/);
+  const store = readFileSync(fileURLToPath(new URL('../../wp-content/plugins/f2b-mcp/includes/class-f2b-bricks-store.php', import.meta.url)), 'utf8');
+  const tools = readFileSync(fileURLToPath(new URL('../../wp-content/plugins/f2b-mcp/includes/class-f2b-mcp-tools.php', import.meta.url)), 'utf8');
+  for (const key of ['headerWidth', 'templateConditions', 'passwordProtectionPassword', 'templatePreviewPostId', 'popupContentWidth', 'template_interactions']) {
+    assert.match(store, new RegExp(`'${key}'`));
+  }
+  assert.match(tools, /F2B_Bricks_Store::split_settings/);
+  assert.match(tools, /F2B_Bricks_Store::link_children/);
+  assert.doesNotMatch(tools, /function template_setting_keys/);
 });
 
 test('a dim overlay with one field and a button is a form', () => {
@@ -563,6 +573,8 @@ test('one text field on a card that sits on a dim frame is a form, and a switch 
 test('popup page settings call the Bricks popup API and set a cookie for that template', () => {
   const settings = popupPageSettings(42);
   assert.equal(settings.popupCloseOn, 'backdrop');
+  assert.match(settings.customScriptsBodyFooter, /^<script>[\s\S]*<\/script>$/);
+  assert.doesNotMatch(settings.customScriptsBodyFooter, /<\/script>[\s\S]/);
   assert.match(settings.customScriptsBodyFooter, /bricksOpenPopup/);
   assert.match(settings.customScriptsBodyFooter, /bricksClosePopup/);
   assert.match(settings.customScriptsBodyFooter, /f2b_popup_42/);
