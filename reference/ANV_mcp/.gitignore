@@ -1,0 +1,21 @@
+# ── Secrets — TUYỆT ĐỐI không commit ─────────────────────────────
+.env
+.mcp.json
+.claude/settings.local.json
+
+# ── Môi trường Python ────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+
+# ── Output phiên làm việc (bị CLEANUP.md xóa định kỳ) ────────────
+todo/plans/
+todo/bricks-json/
+todo/assets/
+todo/scratch/
+scratch/
+*.bak
+
+# ── Rác hệ điều hành ─────────────────────────────────────────────
+.DS_Store
+__MACOSX/

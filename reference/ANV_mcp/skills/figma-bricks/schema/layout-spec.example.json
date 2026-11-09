@@ -1,0 +1,258 @@
+{
+  "meta": {
+    "figmaFileKey": "M1jYQKqMc2wnSEuxOcDxR2",
+    "pageTitle": "LDP - template danh sách home",
+    "pageId": null,
+    "generatedAt": "2026-07-06T08:00:00+07:00",
+    "bricksVersion": "1.12.3",
+    "source": {
+      "desktop": {
+        "nodeId": "3827:60081",
+        "url": "https://www.figma.com/design/M1jYQKqMc2wnSEuxOcDxR2/Homepage?node-id=3827-60081&m=dev"
+      },
+      "mobile": {
+        "nodeId": "3944:60863",
+        "url": "https://www.figma.com/design/M1jYQKqMc2wnSEuxOcDxR2/Homepage?node-id=3944-60863&m=dev"
+      }
+    }
+  },
+
+  "tokens": {
+    "colors": {
+      "primary":    "#2563EB",
+      "primary-dark": "#1D4ED8",
+      "text-dark":  "#111827",
+      "text-muted": "#6B7280",
+      "bg-white":   "#FFFFFF",
+      "bg-light":   "#F9FAFB"
+    },
+    "typography": {
+      "heading-xl": {
+        "fontFamily": "Inter",
+        "fontSize": "56px",
+        "fontWeight": "700",
+        "lineHeight": "1.15",
+        "letterSpacing": "-0.02em"
+      },
+      "body-lg": {
+        "fontFamily": "Inter",
+        "fontSize": "18px",
+        "fontWeight": "400",
+        "lineHeight": "1.6"
+      },
+      "body-sm": {
+        "fontFamily": "Inter",
+        "fontSize": "14px",
+        "fontWeight": "400",
+        "lineHeight": "1.5"
+      }
+    },
+    "spacing": {
+      "section-v": "96px",
+      "section-v-mobile": "64px",
+      "container-max": "1200px",
+      "gap-lg": "48px",
+      "gap-md": "24px",
+      "gap-sm": "16px"
+    }
+  },
+
+  "assets": [
+    {
+      "id": "hero-image",
+      "role": "image",
+      "src": "http://localhost:3845/assets/hero-banner.png",
+      "alt": "Hero banner image",
+      "width": "640px",
+      "height": "560px"
+    },
+    {
+      "id": "logo-icon",
+      "role": "logo",
+      "src": "http://localhost:3845/assets/logo.svg",
+      "alt": "Company logo"
+    }
+  ],
+
+  "sections": [
+    {
+      "id": "sec-hero",
+      "name": "Hero — Banner chính",
+      "order": 1,
+      "templateOnly": false,
+      "postId": null,
+      "figma": {
+        "desktopNodeId": "3827:60082",
+        "mobileNodeId": "3944:60864"
+      },
+      "responsiveStrategy": "breakpoint-only",
+      "root": {
+        "type": "section",
+        "name": "sec-hero",
+        "settings": {
+          "_padding": {"top": "96px", "right": "0px", "bottom": "96px", "left": "0px"}
+        },
+        "responsive": {
+          "mobile_portrait": {
+            "_padding": {"top": "64px", "right": "0px", "bottom": "64px", "left": "0px"}
+          }
+        },
+        "children": [
+          {
+            "type": "container",
+            "name": "hero-wrapper",
+            "settings": {
+              "_width": "100%",
+              "_widthMax": "1200px",
+              "_direction": "row",
+              "_justifyContent": "space-between",
+              "_alignItems": "center",
+              "_columnGap": "48px",
+              "_padding": {"top": "0px", "right": "24px", "bottom": "0px", "left": "24px"}
+            },
+            "responsive": {
+              "mobile_portrait": {
+                "_direction": "column",
+                "_rowGap": "32px"
+              }
+            },
+            "children": [
+              {
+                "type": "block",
+                "name": "hero-copy",
+                "role": "copy-block",
+                "settings": {
+                  "_direction": "column",
+                  "_rowGap": "24px",
+                  "_width": "50%"
+                },
+                "responsive": {
+                  "mobile_portrait": {
+                    "_width": "100%",
+                    "_alignItems": "center",
+                    "_textAlign": "center"
+                  }
+                },
+                "children": [
+                  {
+                    "type": "heading",
+                    "name": "hero-heading",
+                    "tag": "h1",
+                    "text": "Giải pháp toàn diện cho doanh nghiệp của bạn",
+                    "settings": {
+                      "_typography": {
+                        "font-family": "Inter",
+                        "font-size": "56px",
+                        "font-weight": "700",
+                        "line-height": "1.15",
+                        "letter-spacing": "-0.02em",
+                        "color": { "hex": "#111827" }
+                      }
+                    },
+                    "responsive": {
+                      "tablet_portrait": {
+                        "_typography": { "font-size": "42px" }
+                      },
+                      "mobile_portrait": {
+                        "_typography": { "font-size": "32px" }
+                      }
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "name": "hero-subtitle",
+                    "text": "Chúng tôi cung cấp dịch vụ thiết kế và phát triển web chuyên nghiệp, giúp doanh nghiệp tăng trưởng bền vững.",
+                    "settings": {
+                      "_typography": {
+                        "font-family": "Inter",
+                        "font-size": "18px",
+                        "font-weight": "400",
+                        "line-height": "1.6",
+                        "color": { "hex": "#6B7280" }
+                      }
+                    },
+                    "responsive": {
+                      "mobile_portrait": {
+                        "_typography": { "font-size": "16px" }
+                      }
+                    }
+                  },
+                  {
+                    "type": "block",
+                    "name": "hero-actions",
+                    "settings": {
+                      "_direction": "row",
+                      "_columnGap": "16px",
+                      "_alignItems": "center"
+                    },
+                    "responsive": {
+                      "mobile_portrait": {
+                        "_direction": "column",
+                        "_width": "100%"
+                      }
+                    },
+                    "children": [
+                      {
+                        "type": "button",
+                        "name": "btn-primary",
+                        "role": "cta-primary",
+                        "text": "Bắt đầu ngay",
+                        "settings": {
+                          "_background": { "color": { "hex": "#2563EB" } },
+                          "_padding": {"top": "14px", "right": "28px", "bottom": "14px", "left": "28px"},
+                          "_border": { "radius": { "top": "8px", "right": "8px", "bottom": "8px", "left": "8px" } },
+                          "_typography": { "font-weight": "600", "font-size": "16px", "color": { "hex": "#FFFFFF" } }
+                        }
+                      },
+                      {
+                        "type": "button",
+                        "name": "btn-secondary",
+                        "role": "cta-secondary",
+                        "text": "Tìm hiểu thêm",
+                        "settings": {
+                          "_background": { "color": { "hex": "transparent" } },
+                          "_padding": {"top": "14px", "right": "28px", "bottom": "14px", "left": "28px"},
+                          "_border": {
+                            "width": { "top": "2px", "right": "2px", "bottom": "2px", "left": "2px" },
+                            "style": "solid",
+                            "color": { "hex": "#2563EB" },
+                            "radius": { "top": "8px", "right": "8px", "bottom": "8px", "left": "8px" }
+                          },
+                          "_typography": { "font-weight": "600", "font-size": "16px", "color": { "hex": "#2563EB" } }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "image",
+                "name": "hero-image",
+                "assetRef": "hero-image",
+                "settings": {
+                  "_width": "50%"
+                },
+                "responsive": {
+                  "mobile_portrait": {
+                    "_width": "100%"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sec-features",
+      "name": "Features — Tính năng nổi bật",
+      "order": 2,
+      "templateOnly": true,
+      "postId": null,
+      "figma": {
+        "desktopNodeId": "3827:60200",
+        "mobileNodeId": "3944:60900"
+      }
+    }
+  ]
+}

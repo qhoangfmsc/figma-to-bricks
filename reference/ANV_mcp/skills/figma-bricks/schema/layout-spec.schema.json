@@ -1,0 +1,263 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "layout-spec.schema.json",
+  "title": "Layout Spec IR",
+  "description": "Intermediate Representation (IR) bridging Figma design and Bricks Builder elements. Source of truth for all layout, content, and responsive data.",
+  "type": "object",
+  "required": ["meta", "sections"],
+  "additionalProperties": false,
+
+  "definitions": {
+    "breakpointKey": {
+      "type": "string",
+      "enum": ["tablet_landscape", "tablet_portrait", "mobile_landscape", "mobile_portrait"]
+    },
+
+    "colorValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["hex"],
+          "properties": {
+            "hex": { "type": "string", "description": "Hex or rgba string, e.g. '#2563EB' or 'rgba(0,0,0,0.5)'" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["raw"],
+          "properties": {
+            "raw": { "type": "string", "description": "CSS variable reference, e.g. 'var(--color-primary)'" }
+          }
+        }
+      ]
+    },
+
+    "typographyToken": {
+      "type": "object",
+      "properties": {
+        "fontFamily": { "type": "string" },
+        "fontSize": { "type": "string", "description": "e.g. '18px'" },
+        "fontWeight": { "type": "string", "description": "e.g. '600'" },
+        "lineHeight": { "type": "string", "description": "e.g. '28px' or '1.4'" },
+        "letterSpacing": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "nodeType": {
+      "type": "string",
+      "enum": [
+        "section", "container", "block", "div",
+        "heading", "text", "richtext", "button",
+        "image", "icon", "svg",
+        "list", "list-item",
+        "spacer", "divider",
+        "slider", "video", "custom"
+      ]
+    },
+
+    "node": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/definitions/nodeType" },
+        "name": {
+          "type": "string",
+          "description": "Human-readable label shown in Bricks panel"
+        },
+        "role": {
+          "type": "string",
+          "description": "Semantic role hint for generator (e.g. 'hero-heading', 'cta-button')"
+        },
+        "tag": {
+          "type": "string",
+          "description": "HTML tag override for heading/text (h1-h6, p, span, div...)"
+        },
+        "text": {
+          "type": "string",
+          "description": "Text content for heading, text, richtext, button"
+        },
+        "assetRef": {
+          "type": "string",
+          "description": "Reference to assets[].id for image/icon/svg nodes"
+        },
+        "settings": {
+          "type": "object",
+          "description": "Base (Desktop) Bricks settings. Keys must NOT contain ':' breakpoint suffixes — those go in responsive.",
+          "patternProperties": {
+            "^[^:]+$": {}
+          },
+          "additionalProperties": false
+        },
+        "responsive": {
+          "type": "object",
+          "description": "Breakpoint overrides. Each key is a Bricks breakpoint name.",
+          "properties": {
+            "tablet_landscape": { "type": "object", "description": "Override settings for tablet landscape (<1200px)" },
+            "tablet_portrait":  { "type": "object", "description": "Override settings for tablet portrait (<991px)" },
+            "mobile_landscape": { "type": "object", "description": "Override settings for mobile landscape (<767px)" },
+            "mobile_portrait":  { "type": "object", "description": "Override settings for mobile portrait (<478px)" }
+          },
+          "additionalProperties": {
+            "type": "object",
+            "description": "Custom breakpoint override (will trigger WARNING in validate-spec)"
+          }
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/node" }
+        }
+      }
+    },
+
+    "asset": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id":     { "type": "string", "description": "Unique reference key used in node.assetRef" },
+        "role":   { "type": "string", "enum": ["image", "icon", "background", "logo"], "description": "Asset usage hint" },
+        "src":    { "type": "string", "description": "URL or local path to the asset (e.g. http://localhost:3845/assets/...)" },
+        "alt":    { "type": "string", "description": "Alt text for accessibility" },
+        "width":  { "type": "string", "description": "e.g. '800px'" },
+        "height": { "type": "string", "description": "e.g. '600px'" }
+      }
+    },
+
+    "section": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Unique section identifier. Used to derive deterministic Bricks element IDs."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable section name (becomes Bricks template label)"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Top-to-bottom display order on page (1-indexed)"
+        },
+        "templateOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, create empty template placeholder only — skip deep node build"
+        },
+        "postId": {
+          "type": "integer",
+          "description": "Bricks template post ID (filled after Flow 1 scaffold step)"
+        },
+        "figma": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "desktopNodeId": { "type": "string", "description": "Figma node ID for desktop frame (A:B format)" },
+            "mobileNodeId":  { "type": "string", "description": "Figma node ID for mobile frame (A:B format)" }
+          }
+        },
+        "responsiveStrategy": {
+          "type": "string",
+          "enum": ["breakpoint-only", "slider-responsive", "carousel-dual", "dual-block", "n/a"],
+          "description": "Responsive approach derived from Figma desktop vs mobile comparison"
+        },
+        "root": {
+          "$ref": "#/definitions/node",
+          "description": "Root element of this section. Must be type:section. Required unless templateOnly=true."
+        }
+      }
+    }
+  },
+
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["figmaFileKey"],
+      "additionalProperties": false,
+      "description": "Metadata about this spec file",
+      "properties": {
+        "figmaFileKey": {
+          "type": "string",
+          "description": "Figma file key extracted from the design URL"
+        },
+        "pageTitle": {
+          "type": "string",
+          "description": "WordPress page / template title"
+        },
+        "pageId": {
+          "type": "integer",
+          "description": "WordPress page post ID (filled after Flow 1)"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when this spec was generated"
+        },
+        "bricksVersion": {
+          "type": "string",
+          "description": "Target Bricks Builder version, e.g. '1.12.3'"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "desktop": {
+              "type": "object",
+              "properties": {
+                "nodeId": { "type": "string" },
+                "url":    { "type": "string" }
+              }
+            },
+            "mobile": {
+              "type": "object",
+              "properties": {
+                "nodeId": { "type": "string" },
+                "url":    { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "tokens": {
+      "type": "object",
+      "description": "Design tokens extracted from Figma Variables / Style Manager",
+      "additionalProperties": false,
+      "properties": {
+        "colors": {
+          "type": "object",
+          "description": "Map of token name to CSS color string, e.g. { 'primary': '#2563EB' }",
+          "additionalProperties": { "type": "string" }
+        },
+        "typography": {
+          "type": "object",
+          "description": "Map of token name to typography object",
+          "additionalProperties": { "$ref": "#/definitions/typographyToken" }
+        },
+        "spacing": {
+          "type": "object",
+          "description": "Map of token name to spacing string, e.g. { 'md': '24px' }",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+
+    "assets": {
+      "type": "array",
+      "description": "All image/icon/svg assets used in this page",
+      "items": { "$ref": "#/definitions/asset" }
+    },
+
+    "sections": {
+      "type": "array",
+      "description": "Page sections in top-to-bottom order. Each maps to one Bricks template.",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/section" }
+    }
+  }
+}
