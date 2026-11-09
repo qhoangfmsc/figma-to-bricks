@@ -1,36 +1,37 @@
 # Figma → Bricks
 
-Máy local chạy WordPress + Bricks 1.12.3. Bạn làm trong chat Cursor. Phiên bản này chỉ có một lệnh: một template. Cả trang để sau.
-
-Site lấy từ `WP_URL` trong `.env`. Local và staging dùng cùng các khóa đó.
+Một frame Figma thành một template Bricks 1.12.3. Làm và xem trên local. Đẩy lên site khác chỉ khi cần.
 
 ## Stack
 
-| Phần | Phiên bản |
+| Phần | Ghi chú |
 |---|---|
-| Node.js | 22 trở lên. Pipeline không cài package. |
-| Docker | bản đang có trên máy. Site local: `node local/up.mjs` |
-| WordPress | image `wordpress:latest` |
-| MariaDB | image `mariadb:11` |
-| Bricks | 1.12.3, nằm sẵn trong `wp-content/themes/bricks`. Không nâng lên 2.x |
-| CSS | External files. Bricks mặc định là inline. Bridge ghi `cssLoading = file` rồi viết `post-{id}.min.css` sau mỗi lần lưu template, page preview và page ghép. Không regenerate cả site |
+| Node.js | 22 trở lên. Pipeline không cài package |
+| Docker | WordPress + MariaDB 11, chỉ cho máy local |
+| Bricks | 1.12.3, theme trong `wp-content/themes/bricks`. Không lên 2.x |
+| CSS | External files. Mỗi lần lưu template ghi `post-{id}.min.css` |
 
-Cài Node 22 nếu `node -v` chưa phải 22:
+Chưa có Node 22:
 
 ```bash
-# macOS, đã có nvm
 nvm install 22
 nvm use 22
-node -v
 ```
 
-Chưa có nvm thì tải bản 22 LTS tại https://nodejs.org và cài. Không chạy `yarn` hay `npm install` cho pipeline: `process/package.json` không có dependency.
-
-Cài Docker Desktop (https://www.docker.com/products/docker-desktop/) nếu chưa có lệnh `docker`.
+Không có nvm thì cài bản 22 LTS tại https://nodejs.org. Chưa có Docker thì cài Docker Desktop. Không chạy `yarn` hay `npm install` cho pipeline.
 
 ## Local
 
-Một lệnh, chỉ khi cần WordPress trên máy mình:
+`.env` ở gốc repo. Không commit, không dán vào chat. Bốn khóa này luôn trỏ máy mình để test:
+
+```text
+FIGMA_TOKEN
+WP_URL=http://localhost:8080
+WP_USER
+WP_APP_PASSWORD
+```
+
+`WP_USER` là user WordPress local. `WP_APP_PASSWORD` là application password của user đó. Docker đọc thêm `.env.local` (cổng, database).
 
 ```bash
 node local/up.mjs        # bật
@@ -38,15 +39,26 @@ node local/up.mjs stop   # dừng, giữ database
 node local/up.mjs down   # xóa container và database
 ```
 
-Lần đầu mở `WP_URL` và cài WordPress nếu trình duyệt còn hiện màn hình cài đặt. Staging thì đổi `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` trong `.env`, không chạy lệnh này.
+Lần đầu mở `WP_URL` và cài WordPress nếu còn màn hình cài đặt. Ảnh so với Figma do Playwright trong Docker chụp. Không cần Chrome trên máy.
 
-Ảnh so với Figma do Playwright chụp trong Docker. Không cần mở Chrome trên máy. Lần verify đầu sẽ dựng image, nên chậm hơn các lần sau.
+## Đẩy lên site khác
 
-## Chuẩn bị
+Không đổi bốn khóa local. Thêm hai khóa, trỏ staging hoặc site cần nhận template. Site đó phải cài và bật plugin `wp-content/plugins/f2b-mcp`.
 
-File `.env` ở gốc repo. Không commit, không dán vào chat. Bốn khóa: `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`. WordPress trên máy mình thêm `.env.local`.
+```text
+STAGING_MCP_URL
+STAGING_MCP_TOKEN
+```
 
-Link Figma phải có `node-id`. Trong Figma: chuột phải frame → Copy link to selection.
+`STAGING_MCP_URL` dạng `https://site/wp-json/f2b-mcp/v1/mcp`. Token lấy ở WordPress của site đó: Settings → F2B MCP.
+
+Trong chat, cả tin nhắn chỉ là câu này thì mới đẩy:
+
+```text
+Xác nhận lên staging
+```
+
+Câu khác không đẩy. Template trên local không bị sửa.
 
 ## Một template
 
@@ -56,23 +68,10 @@ Trong chat:
 /generate-template-from-figma
 ```
 
-Dán link Desktop. Có thêm Widescreen, Tablet portrait, Mobile landscape, Mobile portrait thì dán luôn. Thiếu link nào, chat hỏi một lần. Trả lời "không" cho link không có. Không đoán URL.
+Dán link Desktop, link phải có `node-id`. Có Widescreen, Tablet, Mobile thì dán thêm. Thiếu link nào, chat hỏi một lần. Trả lời "không" nếu không có.
 
-Chat ghi `plan.md` trong thư mục tạm của frame rồi dừng. Mở file đó, điền sau dấu `:` trên dòng có khóa:
+Chat ghi `plan.md` rồi dừng. Sửa file đó, đổi `Xác nhận: không` thành `Xác nhận: có`, nhắn chạy tiếp. Máy build, đẩy lên Bricks local, chụp và so với Figma. Bạn tự gắn template vào trang.
 
-- **Loại** — `section` (mặc định), `header`, `footer`, `popup`, `content`, `archive`, `search`, `error`.
-- **Component Detected** — danh sách component tool detect được, kể cả khối. Tool điền giá trị đọc được từ Figma. Chỗ Figma không có thì là `[Chưa có value]`.
-- **Góp ý** — mỗi phần một dòng. Muốn đổi khối thành slider, tab, menu, form, accordion hoặc button thì viết vào đó.
-- **Góp ý thêm** — một dòng cuối file.
-
-AI đọc câu trong plan, ghi enum vào `choices.json`, rồi mới build. Code không đối chiếu chữ "giữ" hay "bỏ".
-
-Đổi `Xác nhận: không` thành `Xác nhận: có`, rồi nhắn chạy tiếp. Máy build, đẩy template lên Bricks, chụp và so với ảnh Figma. Bạn tự gắn template vào trang.
-
-## Kết quả nằm ở đâu
-
-Plan, ảnh so (`verify.png`, `verify.figma.png`, `verify.diff.png`) và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`. Danh sách trang thử: `history/urls.md`. Template và trang nằm trên site trong `WP_URL`.
-
-`verify.md` ghi tên phần nằm trên từng vùng ảnh lệch.
+Plan, ảnh so và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`.
 
 Chi tiết cho người sửa code: [process/README.md](process/README.md).
