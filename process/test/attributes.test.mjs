@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const manifest = { images: {}, svgs: {} };

@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { fitFluid, fitSoloTemplate } from '../responsive/solo.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { fitFluid, fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 
 // The generate that reported 384px cards as 558.5px. The column is 1200px inside 382px of padding,
 // so it is wider than the content box and sits at x 352.5. Width 100% at that frame starts at the

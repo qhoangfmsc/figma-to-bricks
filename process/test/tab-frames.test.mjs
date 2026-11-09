@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyAnswers, readPane, paneQuestionLabel, shareFilledContent, validateAnswers } from '../plan/index.mjs';
-import { screenParts } from '../template/parts.mjs';
-import { graftTabPane, paneSource } from '../template/tab-frames.mjs';
-import { isLayoutRow, isSvgRoot } from '../figma/nodes.mjs';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { switchInventory } from '../bricks/components/tab-switch.mjs';
-import { tabInventory } from '../bricks/components/tabs.mjs';
-import { resolveWorkspace } from '../shared/workspace.mjs';
+import { applyAnswers, readPane, paneQuestionLabel, shareFilledContent, validateAnswers } from '../modules/missing-content/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
+import { graftTabPane, paneSource } from '../modules/single-template/tab-frames.mjs';
+import { isLayoutRow, isSvgRoot } from '../modules/read-figma/nodes.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { switchInventory } from '../modules/write-bricks/components/tab-switch.mjs';
+import { tabInventory } from '../modules/write-bricks/components/tabs.mjs';
+import { resolveWorkspace } from '../modules/common/workspace.mjs';
 
 const text = (id, value) => ({ id, name: id, type: 'TEXT', text: { characters: value }, children: [] });
 const row = (id, name, value) => ({ id, name, type: 'FRAME', children: [text(`${id}-t`, value)] });
@@ -38,15 +38,15 @@ test('typed text fills only a tab Figma did not draw; a link is stored for every
     ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
     ws.writeJson('overrides.json', { nodes: {} });
     applyAnswers(ws, {
-      'pane:tb1': 'gõ đè',
-      'pane:tb2': 'https://www.figma.com/design/Abcd/n?node-id=12-3',
+      'pane:tb1': { choice: 'text', text: 'gõ đè' },
+      'pane:tb2': { choice: 'figma', url: 'https://www.figma.com/design/Abcd/n?node-id=12-3', fileKey: 'Abcd', nodeId: '12:3' },
     });
     const params = ws.readJson('detections.json').components[0].params;
     assert.equal(params.content.panes, undefined);
     assert.equal(params.content.sources.tb2.nodeId, '12:3');
     assert.equal(params.content.sources.tb1, undefined);
     ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
-    applyAnswers(ws, { 'pane:tb2': 'Gói hai', 'pane:tb1': 'chưa có nội dung' });
+    applyAnswers(ws, { 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'pane:tb1': { choice: 'keep' } });
     const again = ws.readJson('detections.json').components[0].params;
     assert.equal(again.content.panes.tb2, 'Gói hai');
     assert.equal(again.content.panes.tb1, undefined);

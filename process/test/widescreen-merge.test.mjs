@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeResponsive } from '../responsive/merge.mjs';
+import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
 
 function section(bricksId, figmaId, settings) {
   return {

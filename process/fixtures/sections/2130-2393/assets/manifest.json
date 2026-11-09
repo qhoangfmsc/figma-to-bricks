@@ -1,0 +1,43 @@
+{
+  "images": {
+    "516ed3c141c9a2c7ddf07d00d496c2c0b0e9169a": {
+      "file": "images/516ed3c141c9a2c7ddf07d00d496c2c0b0e9169a.png",
+      "bytes": 1782265,
+      "sha256": "8cbbdaffd2a2a7a212dd5088561a1ee2648d9d936432c2143aee61e89427bf7b",
+      "ext": "png",
+      "width": 4096,
+      "height": 3828
+    }
+  },
+  "svgs": {
+    "2130_2415": {
+      "file": "svg/2130_2415.svg",
+      "bytes": 557,
+      "sha256": "63401ca5ba0ead56c45f9841666d2efd9ae137055eb50727c293d362c03ac680",
+      "width": 124,
+      "height": 22
+    },
+    "2134_2984": {
+      "file": "svg/2134_2984.svg",
+      "bytes": 550,
+      "sha256": "8dbfa678faac4fff759d7bef37aebbb21695a6b3bbdca1725ecaa9e28f1963e0",
+      "width": 124,
+      "height": 4
+    },
+    "I2130_2413_92_459": {
+      "file": "svg/I2130_2413_92_459.svg",
+      "bytes": 411,
+      "sha256": "fba4ff608f433cf80490d03a2dd3956440cc26c55a80f2f78f06296ccc678e88",
+      "width": 7,
+      "height": 12
+    },
+    "I2130_2414_92_465": {
+      "file": "svg/I2130_2414_92_465.svg",
+      "bytes": 398,
+      "sha256": "ea39c7cb70e9ba905788db93a9df2517fac23d18054237d9fb1a1c581b188ef8",
+      "width": 7,
+      "height": 12
+    }
+  },
+  "flats": {}
+}

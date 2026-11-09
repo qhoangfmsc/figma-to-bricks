@@ -1,0 +1,27 @@
+{
+  "images": {},
+  "svgs": {
+    "2134_3099": {
+      "file": "svg/2134_3099.svg",
+      "bytes": 550,
+      "sha256": "8dbfa678faac4fff759d7bef37aebbb21695a6b3bbdca1725ecaa9e28f1963e0",
+      "width": 124,
+      "height": 4
+    },
+    "I2134_3097_92_459": {
+      "file": "svg/I2134_3097_92_459.svg",
+      "bytes": 411,
+      "sha256": "fba4ff608f433cf80490d03a2dd3956440cc26c55a80f2f78f06296ccc678e88",
+      "width": 7,
+      "height": 12
+    },
+    "I2134_3098_92_465": {
+      "file": "svg/I2134_3098_92_465.svg",
+      "bytes": 398,
+      "sha256": "ea39c7cb70e9ba905788db93a9df2517fac23d18054237d9fb1a1c581b188ef8",
+      "width": 7,
+      "height": 12
+    }
+  },
+  "flats": {}
+}

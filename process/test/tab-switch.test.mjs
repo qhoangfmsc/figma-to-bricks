@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { detectTabs } from '../detect/rules/tabs.mjs';
-import { detectTabSwitches } from '../detect/rules/tab-switch.mjs';
-import { switchInventory, tabQuestions } from '../bricks/components/tab-switch.mjs';
-import { tabDataFrame } from '../template/tab-frames.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { decide } from '../decide/index.mjs';
-import { screenParts } from '../template/parts.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { detectTabs } from '../modules/recognize-parts/rules/tabs.mjs';
+import { detectTabSwitches } from '../modules/recognize-parts/rules/tab-switch.mjs';
+import { switchInventory, tabQuestions } from '../modules/write-bricks/components/tab-switch.mjs';
+import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { decide } from '../modules/approve-parts/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, rgb) => ({

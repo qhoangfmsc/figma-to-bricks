@@ -3,13 +3,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { normalizeRoot } from '../figma/normalize.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { collectSvgRoots } from '../figma/nodes.mjs';
-import { parseFigmaUrl } from '../figma/url.mjs';
-import { pickTwin, wordsOf } from '../responsive/twin.mjs';
-import { Progress, screenOf, screenOfWidth } from '../shared/progress.mjs';
-import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from '../figma/api.mjs';
+import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { collectSvgRoots } from '../modules/read-figma/nodes.mjs';
+import { parseFigmaUrl } from '../modules/read-figma/url.mjs';
+import { pickTwin, pairSections, wordsOf } from '../modules/breakpoints/twin.mjs';
+import { Progress, screenOf, screenOfWidth } from '../modules/common/progress.mjs';
+import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from '../modules/read-figma/api.mjs';
 
 const fx = (p) => fileURLToPath(new URL(`../fixtures/award/${p}`, import.meta.url));
 const raw = JSON.parse(readFileSync(fx('raw.json'), 'utf8'));
@@ -18,7 +18,11 @@ const manifest = {
   svgs: { '1586_403': { file: 'svg/1586_403.svg', bytes: 1 } },
 };
 const tree = normalizeRoot(raw, '1586:393', manifest);
-const overrides = JSON.parse(readFileSync(fileURLToPath(new URL('../work/4Fg9060CBIg7qeFxJzWiru/1586-393/overrides.json', import.meta.url)), 'utf8'));
+const overrides = { nodes: {
+  '1586:398': { tag: 'h2', label: 'Heading text', reason: 'the text style says H4; the page heading is h2' },
+  '1586:402': { element: 'slider-nested', reason: 'the award row is a slider', settings: { perPage: 5 } },
+  '1586:403': { skip: true, reason: 'pagination is the slider dots' },
+} };
 const build = (ov = {}) => buildTemplate(tree, { overrides: ov, salt: 'x' });
 const find = (b, figmaId) => b.template.content.find((e) => e.id === b.mapping[figmaId].bricksId);
 
@@ -167,19 +171,25 @@ test('gradient text fill -> background-clip:text on the text element', () => {
   const [root, text] = buildMini({ children: [{ id: 't', name: 't', type: 'TEXT', characters: 'x', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' }, fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0, b: 0, a: 1 } }, { position: 1, color: { r: 1, g: 1, b: 1, a: 1 } }] }] }] });
   assert.equal(text.settings._gradient.applyTo, 'text'); // Bricks writes background-clip: text and the transparent fill for this option
   assert.equal(text.settings._cssCustom, undefined);
+  const shadowed = buildMini({ children: [{ id: 'g', name: 'g', type: 'TEXT', characters: 'x', absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' }, fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 1, g: 1, b: 1, a: 1 } }, { position: 1, color: { r: 0.44, g: 0.87, b: 0.98, a: 1 } }] }], effects: [{ type: 'DROP_SHADOW', visible: true, color: { r: 0, g: 0, b: 0, a: 0.25 }, offset: { x: 0, y: 4 }, radius: 4, spread: 0 }] }] });
+  assert.match(shadowed[1].settings._cssCustom, /filter: drop-shadow\(0px 4px 4px rgba\(0, 0, 0, 0\.25\)\);/);
+  assert.doesNotMatch(shadowed[1].settings._cssCustom, /text-shadow/);
 });
 
 // ---- detect step + components (approved detections change the build, nothing else does)
-import { mergeDetections, runRules, validate, emptyDetections } from '../detect/index.mjs';
-import { COMPONENTS } from '../bricks/components/index.mjs';
-import { matchTrees } from '../responsive/match.mjs';
-import { mergeResponsive } from '../responsive/merge.mjs';
-import { decide } from '../decide/index.mjs';
-import { detectForms } from '../detect/rules/form.mjs';
-import { detectButtons } from '../detect/rules/button.mjs';
-import { tierOf, verdictOf } from '../shared/severity.mjs';
+import { mergeDetections, runRules, validate, emptyDetections } from '../modules/recognize-parts/index.mjs';
+import { COMPONENTS } from '../modules/write-bricks/components/index.mjs';
+import { matchTrees } from '../modules/breakpoints/match.mjs';
+import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
+import { decide } from '../modules/approve-parts/index.mjs';
+import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
+import { detectButtons } from '../modules/recognize-parts/rules/button.mjs';
+import { tierOf, verdictOf } from '../modules/common/severity.mjs';
 
-const txt = (id, characters, extra = {}) => ({ id, name: id, type: 'TEXT', characters, absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT', ...extra.style }, fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }] });
+const txt = (id, characters, extra = {}) => {
+  const { style, fills, ...rest } = extra;
+  return { id, name: id, type: 'TEXT', characters, absoluteBoundingBox: { x: 0, y: 0, width: 100, height: 20 }, ...rest, style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT', ...style }, fills: fills ?? [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }] };
+};
 const withIcons = () => mini({
   children: [
     kid('row', { name: 'Row', layoutMode: 'HORIZONTAL', children: [
@@ -265,7 +275,7 @@ test('approved but not applicable (form without fields) stays a block and says w
 });
 
 test('components README lists every registered component', () => {
-  const readme = readFileSync(fileURLToPath(new URL('../bricks/components/README.md', import.meta.url)), 'utf8');
+  const readme = readFileSync(fileURLToPath(new URL('../modules/write-bricks/components/README.md', import.meta.url)), 'utf8');
   for (const id of Object.keys(COMPONENTS)) assert.ok(readme.includes(`\`${id}\``), `bricks/components/README.md is missing ${id}`);
 });
 
@@ -330,10 +340,10 @@ test('flat-image approved: one image element, subtree merged, alt = unique texts
 });
 
 // ---- source grounding + review gate
-import { checkCites } from '../detect/cite.mjs';
-import { buildFacts } from '../facts/index.mjs';
-import { gate, signOff, requireSignOff } from '../review/index.mjs';
-import { resolveWorkspace } from '../shared/workspace.mjs';
+import { checkCites } from '../modules/recognize-parts/cite.mjs';
+import { buildFacts } from '../modules/tree-inventory/index.mjs';
+import { gate, signOff, requireSignOff } from '../modules/sign-off/index.mjs';
+import { resolveWorkspace } from '../modules/common/workspace.mjs';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -425,7 +435,7 @@ test('carousel: row of identical cards + a thin strip under it -> slider-nested,
   const b = buildWith(tree, det);
   const slider = byFigma(b, 'row');
   assert.equal(slider.name, 'slider-nested');
-  assert.deepEqual([slider.settings.type, slider.settings.perPage, slider.settings.gap, slider.settings.pagination], ['slide', 3, 20, true]);
+  assert.deepEqual([slider.settings.type, slider.settings.perPage, slider.settings.gap, slider.settings.pagination], ['loop', 3, 20, true]);
   assert.equal(b.mapping.pag.skipped, 'merged into carousel ' + det.components[0].id);
   assert.equal(b.template.content.filter((e) => e.parent === slider.id).length, 3); // the slides
   assert.equal(runRules(mini({ children: [kid('r2', { layoutMode: 'HORIZONTAL', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 60 }, children: [0, 1, 2].map(card) })] })).components.some((c) => c.component === 'carousel'), false); // 3 cards that fit = a grid
@@ -615,7 +625,7 @@ test('semantic: figure takes its figcaption and the image alt from the caption t
   const b = buildWith(tree2, detOf({ component: 'semantic', node: 'fig', params: { tag: 'figure', caption: 'cap' } }));
   assert.equal(byFigma(b, 'fig').settings.tag, 'figure');
   assert.equal(byFigma(b, 'cap').settings.customTag, 'figcaption');
-  assert.equal(byFigma(b, 'img').settings.altText, 'Top 5 Thuong Hieu');
+  assert.equal(b.template.content.find((e) => e.id === b.mapping['img#image']?.bricksId).settings.altText, 'Top 5 Thuong Hieu');
 });
 
 test('alt policy: never the layer name; empty alt is reported; brand-logo variant name is the alt', () => {
@@ -623,8 +633,9 @@ test('alt policy: never the layer name; empty alt is reported; brand-logo varian
   const raw = { nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'VERTICAL', children: [img('plain'), { ...kid('logo', { name: 'brand-logo', type: 'INSTANCE', componentProperties: { 'Property 1': { type: 'VARIANT', value: 'Ivivu' } }, children: [img('lg')] }) }] } } } };
   const tree = normalizeRoot(raw, 'r', { images: { x: { file: 'images/x.png', width: 10, height: 10, sha256: 'z' } }, svgs: {} });
   const b = buildWith(tree, null);
-  assert.equal(byFigma(b, 'plain').settings.altText, '');
-  assert.equal(byFigma(b, 'lg').settings.altText, 'Ivivu');
+  const picture = (id) => b.template.content.find((e) => e.id === b.mapping[`${id}#image`]?.bricksId);
+  assert.equal(picture('plain').settings.altText, '');
+  assert.equal(picture('lg').settings.altText, 'Ivivu');
   assert.match(b.warnings.map((w) => w.msg).join(), /no alt text/);
 });
 
@@ -822,6 +833,20 @@ test('responsive match: same-name children pair in order, aliases win, a node mo
   assert.deepEqual(unmatchedBase.map((x) => x.id), ['b5']); // the wrapper has no partner
 });
 
+test('responsive match: a renamed frame pairs by its text, and same-shape leftovers pair in order', () => {
+  const n = (id, name, children = []) => ({ id, name, type: 'FRAME', children });
+  const text = (id, chars) => ({ id, name: id, type: 'TEXT', characters: chars, text: { characters: chars }, children: [] });
+  const card = (id, name, chars) => n(id, name, [text(`${id}t`, chars), n(`${id}i`, 'Icon')]);
+  const base = n('b0', 'Section', [card('b1', 'Service Card', 'MaxSpeed'), card('b2', 'Service Card', 'Pro'), n('b3', 'Note', [text('bt', 'Hello')]), n('b4', 'Badge')]);
+  const variant = n('v0', 'Section', [card('v2', 'Frame 12', 'Pro'), card('v1', 'Frame 99', 'MaxSpeed'), n('v3', 'Group 4', [text('vt', 'Hello')]), n('v4', 'Frame 7')]);
+  const { pairs, unmatchedVariant } = matchTrees(base, variant);
+  assert.equal(pairs.get('v1'), 'b1');
+  assert.equal(pairs.get('v2'), 'b2');
+  assert.equal(pairs.get('v3'), 'b3');
+  assert.equal(pairs.get('v4'), 'b4');
+  assert.deepEqual(unmatchedVariant, []);
+});
+
 
 test('responsive merge: breakpoint keys for changed values, unset for dropped css, split on content, hide / contents / variant-only elements', () => {
   const node = (id, name, children = []) => ({ id, name, type: 'FRAME', children });
@@ -913,7 +938,7 @@ test('policy: line-height is written as Figma lays it out (whole pixels), exact 
   const raw = { id: 'tx', name: 'Cap', type: 'TEXT', characters: 'a\nb\nc', style: { fontFamily: 'Inter', fontSize: 16, fontWeight: 600, lineHeightPx: 19.3636 }, fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }], absoluteBoundingBox: { x: 0, y: 0, width: 60, height: 57 } };
   const [, text] = buildMini({ children: [raw] });
   assert.equal(text.settings._typography['line-height'], '19px');
-  const { lineHeightPx } = await import('../bricks/policy.mjs');
+  const { lineHeightPx } = await import('../modules/write-bricks/policy.mjs');
   assert.equal(lineHeightPx(17.5), 18);
   assert.equal(lineHeightPx(23.75), 24);
   assert.equal(lineHeightPx(12.24), 12);
@@ -1113,8 +1138,10 @@ test('phase 3 detection: a CTA that is an instance of the Button component is a 
   assert.equal(f.params.fields[0].placeholder, 'Họ và Tên*'); // kept as drawn: Bricks must not append its own " *"
   assert.equal(f.params.fields.at(-1).labelNode, 'cstt'.replace('cstt', 'cst')); // the consent statement carries the label typography
   assert.ok(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [cta] }).some((b) => b.node === 'cta'));
-  // a word that merely contains "cta" is not a button ("Unpredictable costs")
-  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [{ ...cta, id: 'card', name: 'Problem card / 05 Unpredictable costs', componentSet: undefined }] }).length, 0);
+  // a bare text frame is a label; the same frame with a fill and no Button name is still a button, at low confidence
+  const bare = { ...cta, id: 'card', name: 'Problem card / 05 Unpredictable costs', componentSet: undefined };
+  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [bare] }).length, 0);
+  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [{ ...bare, fills: [{ type: 'SOLID' }] }] })[0]?.confidence, 'low');
   // decide: the form is approved and its submit button is not a second button
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }, { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'cta', params: {} }] }, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
@@ -1178,6 +1205,12 @@ test('breakpoint twin: unique name wins, repeated or renamed sections pair by th
   assert.equal(pickTwin(base[2], base, cand).id, 'm2');
   assert.equal(pickTwin(base[3], base, cand), null); // nothing shares enough text: no twin, never a guess
   assert.equal(wordsOf({ type: 'TEXT', visible: false, characters: 'hidden text' }).size, 0);
+  const pairs = pairSections(base, cand);
+  assert.equal(pairs.get('b1').id, 'm1');
+  assert.equal(pairs.get('b2').id, 'm3');
+  assert.equal(pairs.get('b4').id, 'm4'); // the one leftover keeps its place in the frame
+  const shorter = cand.slice(0, 3);
+  assert.equal(pairSections(base, shorter).get('b4'), undefined); // a missing section does not shift the others onto it
 });
 
 test('an empty frame that hugs has nothing to hug in the browser: it keeps the Figma box', () => {
@@ -1265,7 +1298,7 @@ test('figma run cache: the same structure lookup is fetched once, a new file ver
 });
 
 test('writePlan creates the work folder of a Figma file that was never run before', async () => {
-  const { writePlan, plansFile } = await import('../shared/deliverable.mjs');
+  const { writePlan, plansFile } = await import('../modules/common/deliverable.mjs');
   const { rmSync, existsSync: exists } = await import('node:fs');
   const { dirname } = await import('node:path');
   const key = `__test_new_file_${process.pid}`;
@@ -1379,7 +1412,7 @@ test('an svg of a frame with no height keeps the size Figma exported, centred on
 });
 
 test('verify: a node cut away by a clipping ancestor in Figma is not expected on top at its center', async () => {
-  const { clippedAway } = await import('../scripts/07-verify.mjs');
+  const { clippedAway } = await import('../modules/build-steps/07-verify.mjs');
   const n = (id, x, y, w, h, extra = {}) => ({ id, box: { absX: x, absY: y, w, h }, children: [], ...extra });
   const inside = n('in', 0, 10, 100, 20), below = n('below', 0, 400, 100, 20);
   const clipper = n('clipper', 0, 0, 100, 300, { clip: true, children: [inside, below] });
@@ -1388,7 +1421,7 @@ test('verify: a node cut away by a clipping ancestor in Figma is not expected on
 });
 
 test('verify: layers Figma paints above a node are expected on top of it (strikethrough over an old price), others are not', async () => {
-  const { paintedAbove } = await import('../scripts/07-verify.mjs');
+  const { paintedAbove } = await import('../modules/build-steps/07-verify.mjs');
   const n = (id, x, y, w, h, extra = {}) => ({ id, box: { absX: x, absY: y, w, h }, children: [], ...extra });
   const price = n('price', 0, 0, 60, 28, { type: 'TEXT' });
   const line = n('line', 0, 10, 58, 8, { fills: [{ type: 'SOLID' }] });
@@ -1410,7 +1443,7 @@ test('relayout: a hugging instance node respects its own minWidth (period-bar it
 });
 
 test('breakpoint merge: a changed box-shadow is written whole (values + color + inset), not as the changed sub-key alone (f-w 1 mobile: transparent shadow)', async () => {
-  const { mergeResponsive } = await import('../responsive/merge.mjs');
+  const { mergeResponsive } = await import('../modules/breakpoints/merge.mjs');
   const stroke = (w) => ({ strokes: [{ type: 'SOLID', color: { r: 0, g: 0.5, b: 0.99, a: 1 } }], strokeWeight: w, strokeAlign: 'INSIDE', children: [] });
   const make = (w) => { const tree = mini(stroke(w)); const b = buildTemplate(tree, { overrides: {}, salt: 'x' }); return { tree, template: b.template, mapping: b.mapping }; };
   const base = make(0.7353), mob = make(0.3153);
@@ -1433,7 +1466,7 @@ test('a rotated node exported as svg is placed by its bounding box and not turne
 });
 
 test('breakpoint merge: dropping align-self stretch also resets the width: 100% that the Bricks control writes (Certificate mobile counter)', async () => {
-  const { mergeResponsive } = await import('../responsive/merge.mjs');
+  const { mergeResponsive } = await import('../modules/breakpoints/merge.mjs');
   const child = (extra) => kid('num', { layoutMode: 'VERTICAL', children: [kid('c', {})], ...extra }); // a child with content to hug
   const make = (extra) => { const tree = mini({ children: [child(extra)] }); const b = buildTemplate(tree, { overrides: {}, salt: 'x' }); return { tree, template: b.template, mapping: b.mapping }; };
   const base = make({ layoutSizingHorizontal: 'FILL', layoutAlign: 'STRETCH' }), mob = make({ layoutSizingHorizontal: 'HUG' });
@@ -1445,9 +1478,9 @@ test('breakpoint merge: dropping align-self stretch also resets the width: 100% 
 
 // ---- the reference of the pipeline: what Figma can send, and what is done with each property (schema/)
 test('schema: the YAML reader reads Figma\'s OpenAPI file completely (independent counts from the raw text)', async () => {
-  const { parseYaml } = await import('../schema/yaml-lite.mjs');
+  const { parseYaml } = await import('../modules/property-coverage/yaml-lite.mjs');
   const { readdirSync } = await import('node:fs');
-  const dir = fileURLToPath(new URL('../schema/source/', import.meta.url));
+  const dir = fileURLToPath(new URL('../modules/property-coverage/source/', import.meta.url));
   const txt = readFileSync(dir + readdirSync(dir).find((f) => f.endsWith('.yaml')), 'utf8');
   const doc = parseYaml(txt);
   const count = (key) => { let n = 0; (function w(y) { if (Array.isArray(y)) y.forEach(w); else if (y && typeof y === 'object') { if (key in y) n++; Object.values(y).forEach(w); } })(doc); return n; };
@@ -1458,13 +1491,13 @@ test('schema: the YAML reader reads Figma\'s OpenAPI file completely (independen
 });
 
 test('schema: the committed node schema is what the spec file produces', async () => {
-  const { buildSchema, SCHEMA_FILE } = await import('../schema/build-schema.mjs');
+  const { buildSchema, SCHEMA_FILE } = await import('../modules/property-coverage/build-schema.mjs');
   assert.deepEqual(JSON.parse(JSON.stringify(buildSchema())), JSON.parse(readFileSync(SCHEMA_FILE, 'utf8')));
 });
 
 test('handling: every property Figma can send on a node or a text run is classified, with a reason when it is not read', async () => {
-  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../schema/figma-nodes.schema.json', import.meta.url)), 'utf8'));
-  const { HANDLING } = await import('../schema/handling.mjs');
+  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../modules/property-coverage/figma-nodes.schema.json', import.meta.url)), 'utf8'));
+  const { HANDLING } = await import('../modules/property-coverage/handling.mjs');
   const nodeProps = new Set(Object.values(schema.nodeTypes).flatMap((n) => Object.keys(n.properties)));
   const textProps = new Set(Object.keys(schema.objects.TypeStyle.properties));
   assert.deepEqual([...nodeProps].filter((k) => !HANDLING.node[k]), [], 'node properties without a status in schema/handling.json');
@@ -1479,7 +1512,7 @@ test('handling: every property Figma can send on a node or a text run is classif
 });
 
 test('handling: a limit / gap property is reported only when the node really uses it', async () => {
-  const { nodeFlag, textFlag } = await import('../schema/handling.mjs');
+  const { nodeFlag, textFlag } = await import('../modules/property-coverage/handling.mjs');
   assert.equal(nodeFlag('strokeCap', 'NONE'), null);
   assert.match(nodeFlag('strokeCap', 'ROUND'), /strokeCap=ROUND \[limit\]/);
   assert.equal(nodeFlag('lineTypes', ['UNORDERED']), null);              // read: built as ul / li
@@ -1498,7 +1531,7 @@ test('handling: the real design in the fixture produces no unclassified property
 
 // ---- node state: what is left to do after a verify
 test('node state: ok / minor / limit / fail, and an accepted limit holds only for the value it was accepted at', async () => {
-  const { computeStates, frameDone, fingerprintOf, summarize } = await import('../shared/node-state.mjs');
+  const { computeStates, frameDone, fingerprintOf, summarize } = await import('../modules/common/node-state.mjs');
   const items = ['a', 'b', 'c', 'd', 'e'].map((figmaId) => ({ figmaId, element: 'block' }));
   const row = (id, check, want, got, extra = {}) => ({ id, label: id, check, want, got, ok: false, tier: 2, ...extra });
   const rows = [
@@ -1535,7 +1568,7 @@ test('node state: ok / minor / limit / fail, and an accepted limit holds only fo
 });
 
 test('node state: nodes that moved by exactly the amount of an accepted root node are its consequence, and only while the root stays accepted', async () => {
-  const { computeStates } = await import('../shared/node-state.mjs');
+  const { computeStates } = await import('../modules/common/node-state.mjs');
   const items = ['h', 'a', 'b', 'c'].map((figmaId) => ({ figmaId, element: 'block' }));
   const row = (id, check, want, got) => ({ id, label: id, check, want, got, ok: false, tier: 2 });
   const rows = [row('h', 'h', '72', '108'), row('a', 'y', '136', '172'), row('b', 'h', '552', '588'), row('c', 'y', '100', '150')]; // c moved by 50, not 36
@@ -1569,18 +1602,18 @@ test('relayout: when a parent\'s FILL resizes a node, that node\'s own children 
 });
 
 test('handling: an enum value that no rule maps is reported when a node has it, and a mapped one is not', async () => {
-  const { enumFlag, HANDLING } = await import('../schema/handling.mjs');
+  const { enumFlag, HANDLING } = await import('../modules/property-coverage/handling.mjs');
   assert.equal(enumFlag('textCase', 'SMALL_CAPS'), null);
   assert.match(enumFlag('textAutoResize', 'TRUNCATE'), /\[gap\]/);
   assert.equal(enumFlag('textCase', 'UPPER'), null);
   // every entry must name a value that the schema knows, so that a typo cannot hide a real value
-  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../schema/figma-nodes.schema.json', import.meta.url)), 'utf8'));
+  const schema = JSON.parse(readFileSync(fileURLToPath(new URL('../modules/property-coverage/figma-nodes.schema.json', import.meta.url)), 'utf8'));
   const values = (k) => { for (const n of Object.values(schema.nodeTypes)) if (n.properties[k]?.enum) return n.properties[k].enum; return schema.objects.TypeStyle.properties[k]?.enum ?? []; };
   for (const [k, vals] of Object.entries(HANDLING.enums)) for (const v of Object.keys(vals)) assert.ok(values(k).includes(v), `${k}=${v} is not a value of the schema`);
 });
 
-// ---- the Plan (process/plan/index.mjs): the document the owner fills before the build
-import { renderPlan, parsePlan, validateAnswers, applyAnswers as applyPlanAnswers, writePlan as writePlanDoc, confirmPlan, loadConfirmed, planProblems, groupQuestions as groupPlanQuestions, keyOf } from '../plan/index.mjs';
+// ---- the Plan (process/modules/missing-content/index.mjs): the document the owner fills before the build
+import { renderPlan, parsePlan, validateAnswers, applyAnswers as applyPlanAnswers, writePlan as writePlanDoc, confirmPlan, loadConfirmed, planProblems, groupQuestions as groupPlanQuestions, keyOf } from '../modules/missing-content/index.mjs';
 import { readFileSync as readSync2 } from 'node:fs';
 
 const planModel = () => ({
@@ -1599,10 +1632,37 @@ test('plan: one heading per group, a Figma link per line, the key of every value
   assert.deepEqual(parsePlan(md), { 'link:1:10': '', 'link:I1:11;5:6': '', 'alt:1:12': '' });
 });
 
+test('plan: lists what was detected, what is only a shape, and a repeated group the rules did not name', () => {
+  const model = planModel();
+  model.sections[0].found = [{ node: '1:10', label: 'Nút "Đăng ký"' }];
+  model.sections[0].open = [{ node: '1:20', label: 'Tab "Giá"' }];
+  model.sections[0].repeats = [{ node: '1:30', label: '3 mục "Card", mẫu "MaxSpeed"' }];
+  const md = renderPlan(model);
+  assert.match(md, /### Đã nhận/);
+  assert.match(md, /`part:1:10`:\s*$/m);
+  assert.match(md, /`guess:1:20`:\s*$/m);
+  assert.match(md, /`repeat:1:30`:\s*$/m);
+  assert.deepEqual(validateAnswers({ 'part:1:10': 'giữ', 'guess:1:20': 'chưa gắn', 'repeat:1:30': 'slider' }), []);
+  const files = {
+    'tree.json': { id: 'r', children: [{ id: '1:10' }, { id: '1:20' }, { id: '1:30' }] },
+    'detections.json': { components: [
+      { id: 'd1', component: 'button', node: '1:10', status: 'approved', params: {} },
+      { id: 'd2', component: 'tabs', node: '1:20', status: 'proposed', params: {} },
+    ] },
+    'overrides.json': { nodes: {} },
+  };
+  const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
+  applyPlanAnswers(ws, { 'part:1:10': { choice: 'drop' }, 'guess:1:20': { choice: 'attach' }, 'repeat:1:30': { choice: 'slider' } });
+  const comps = files['detections.json'].components;
+  assert.equal(comps.find((c) => c.node === '1:10').status, 'rejected');
+  assert.equal(comps.find((c) => c.node === '1:20').status, 'approved');
+  assert.equal(comps.find((c) => c.component === 'carousel' && c.node === '1:30').status, 'approved');
+});
+
 test('plan: values are validated (a link needs a scheme, # or /; a blank value is fine) and a multi-line value is kept', () => {
   assert.deepEqual(validateAnswers({ 'link:a': '', 'link:b': '#', 'link:c': '/gia', 'link:d': 'https://x.vn/a?b=1', 'link:e': 'mailto:a@b.vn', 'alt:f': 'Cúp vàng' }), []);
-  assert.equal(validateAnswers({ 'link:a': 'x.vn/gia' }).length, 1);
-  assert.equal(validateAnswers({ 'link:a': 'two words' }).length, 1);
+  assert.equal(validateAnswers({ 'link:a': 'x.vn/gia' }).length, 0);
+  assert.equal(validateAnswers({ 'link:a': 'two words' }).length, 0);
   const md = renderPlan(planModel()).replace('`alt:1:12`: ', '`alt:1:12`: Cúp vàng\n  giải thưởng 2024');
   assert.equal(parsePlan(md)['alt:1:12'], 'Cúp vàng\ngiải thưởng 2024');
 });
@@ -1619,13 +1679,14 @@ test('plan: generating the file again keeps what the owner typed; the confirmati
   // the owner edits the line by hand, no command
   writeFileSync(file, readSync2(file, 'utf8').replace('Xác nhận: không', 'Xác nhận: có'));
   assert.deepEqual(loadConfirmed(dir, '1-2'), { 'link:1:10': 'https://x.vn/dang-ky' });
-  // marked confirmed with a wrong value: nothing is built on it, the problem is named
+  // a free sentence is kept; the reader interprets it. Only a value past the length cap blocks.
   writeFileSync(file, readSync2(file, 'utf8').replace('https://x.vn/dang-ky', 'khong hop le'));
+  assert.deepEqual(loadConfirmed(dir, '1-2'), { 'link:1:10': 'khong hop le' });
+  writeFileSync(file, readSync2(file, 'utf8').replace('khong hop le', 'x'.repeat(501)));
   assert.equal(loadConfirmed(dir, '1-2'), null);
   assert.equal(planProblems(dir, '1-2').length, 1);
   assert.throws(() => confirmPlan(dir, '1-2'), /cannot confirm/);
-  // the command does the same as editing the line
-  writeFileSync(file, readSync2(file, 'utf8').replace('khong hop le', '/dang-ky').replace('Xác nhận: có', 'Xác nhận: không'));
+  writeFileSync(file, readSync2(file, 'utf8').replace('x'.repeat(501), '/dang-ky').replace('Xác nhận: có', 'Xác nhận: không'));
   assert.equal(confirmPlan(dir, '1-2').answered, 1);
   assert.match(readSync2(file, 'utf8'), /^Xác nhận: có$/m);
 });
@@ -1640,7 +1701,7 @@ test('plan: a confirmed value reaches the button / text link and the image alt; 
     'overrides.json': { nodes: { '1:12': { alt: '', reason: 'autopilot: image, alt left empty until the designer provides it' } } },
   };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  const r = applyPlanAnswers(ws, { [keyOf('link', '1:10')]: '/dang-ky', [keyOf('link', '1:11')]: 'https://x.vn', [keyOf('alt', '1:12')]: 'Cúp vàng', [keyOf('link', '1:13')]: '/x', [keyOf('alt', '9:9')]: 'gone' });
+  const r = applyPlanAnswers(ws, { [keyOf('link', '1:10')]: { choice: 'url', href: '/dang-ky' }, [keyOf('link', '1:11')]: { choice: 'url', href: 'https://x.vn' }, [keyOf('alt', '1:12')]: { choice: 'text', text: 'Cúp vàng' }, [keyOf('link', '1:13')]: { choice: 'url', href: '/x' }, [keyOf('alt', '9:9')]: { choice: 'text', text: 'gone' } });
   assert.equal(files['detections.json'].components[0].params.link, '/dang-ky');
   assert.equal(files['detections.json'].components[1].params.link, 'https://x.vn');
   assert.equal(files['overrides.json'].nodes['1:12'].alt, 'Cúp vàng');
@@ -1664,16 +1725,18 @@ test('plan: decide records a question for every button, menu label and content i
   ] };
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
-  assert.deepEqual(out.questions.map((q) => keyOf(q.group, q.node)).sort(), ['alt:img', 'link:b1']);
+  assert.deepEqual(out.questions.map((q) => keyOf(q.group, q.node)).sort(), ['alt:img', 'link:b1', 'type:r']);
   assert.equal(out.questions.find((q) => q.node === 'b1').label, 'Nút "Đăng ký"');
+  assert.match(out.questions.find((q) => q.node === 'img').label, /Photo/);
+  assert.equal(out.questions.find((q) => q.node === 'img').value, undefined);
 });
 
 // ---- usable widgets (2026-10-29): accordion / tabs / menu detection, their content from the Plan, decide's structural approval
-import { detectAccordions } from '../detect/rules/accordion.mjs';
-import { readSync, syncNotes } from '../bricks/components/accordion.mjs';
-import { detectTabs } from '../detect/rules/tabs.mjs';
-import { detectMenus } from '../detect/rules/menu.mjs';
-import { detectCarousels } from '../detect/rules/carousel.mjs';
+import { detectAccordions } from '../modules/recognize-parts/rules/accordion.mjs';
+import { readSync, syncNotes } from '../modules/write-bricks/components/accordion.mjs';
+import { detectTabs } from '../modules/recognize-parts/rules/tabs.mjs';
+import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
+import { detectCarousels } from '../modules/recognize-parts/rules/carousel.mjs';
 
 // hand-made NORMALIZED nodes for the rule tests
 const nn = (id, name, type, extra = {}) => ({ id, name, type, visible: true, box: { x: 0, y: 0, w: 100, h: 30, absX: 0, absY: 0 }, children: [], ...extra });
@@ -1701,14 +1764,14 @@ test('detect accordion: designer variants (State=Collapsed / Expand) are E1 high
   assert.deepEqual(detectAccordions(nn('root3', 'x', 'FRAME', { children: [card] })), []);
 });
 
-test('detect tabs: a horizontal tab bar of >= 2 titles above a content frame, only with a hint (variant or name)', () => {
+test('detect tabs: a horizontal tab bar of >= 2 titles above a content frame; a name or variant is high confidence, the shape alone stays low', () => {
   const tab = (i, active) => nn(`tab${i}`, 'Tab', 'FRAME', { componentSet: 'Tab', props: { Active: active }, children: [nt(`tt${i}`, `Tab ${i}`)] });
   const make = (bar) => nn('wrap', 'Period', 'FRAME', { children: [bar, nn('content', 'Content', 'FRAME', { box: { x: 0, y: 60, w: 300, h: 100, absX: 0, absY: 60 }, children: [nt('c1', 'Pane')] })] });
   const bar = nn('bar', 'Tab List', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [tab(1, true), tab(2, false)] });
   const [t] = detectTabs(make(bar));
   assert.deepEqual([t.component, t.node, t.level], ['tabs', 'wrap', 'E1']);
   const plain = nn('bar2', 'Bar', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [nn('a', 'Item', 'FRAME', { children: [nt('ta', 'A')] }), nn('b', 'Item', 'FRAME', { children: [nt('tb', 'B')] })] });
-  assert.deepEqual(detectTabs(make(plain)), []); // two frames in a column are everywhere: no hint, no tabs
+  assert.equal(detectTabs(make(plain))[0]?.confidence, 'low');
 });
 
 test('detect menu: a row of links named like a menu is a menu and not a carousel, also when the frame cuts it off; a row of cards is still a carousel candidate', () => {
@@ -1720,7 +1783,7 @@ test('detect menu: a row of links named like a menu is a menu and not a carousel
   const card = (i) => nn(`c${i}`, 'card', 'FRAME', { box: { x: i * 120, y: 0, w: 100, h: 60, absX: i * 120, absY: 0 }, children: [nt(`ct${i}`, `Card ${i}`)] });
   const cards = nn('row2', 'Awards', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 250, h: 60, absX: 0, absY: 0 }, children: [0, 1, 2, 3].map(card) });
   const t2 = nn('root2', 'x', 'FRAME', { children: [cards] });
-  assert.deepEqual(detectMenus(t2), []); // no menu name anywhere
+  assert.equal(detectMenus(t2).length, 0); // cards are taller than a menu row
   assert.equal(detectCarousels(t2)[0]?.node, 'row2');
 });
 
@@ -1740,7 +1803,7 @@ test('accordion: an answer typed in the Plan becomes a content block with the se
   assert.deepEqual(mine.settings._padding, drawn.settings._padding); // the look of the drawn answer block
   const text = b.template.content.find((e) => e.parent === mine.id);
   assert.equal(text.name, 'text-basic');
-  assert.equal(text.settings.text, 'Có, chuyển miễn phí.<br>Liên hệ để được hỗ trợ.');
+  assert.equal(text.settings.text, 'Có, chuyển miễn phí. <br>Liên hệ để được hỗ trợ.');
   assert.deepEqual(text.settings._typography['font-size'], byFigma(b, 'an1').settings._typography['font-size']);
   assert.equal(text.settings._height, undefined);
   // item 3 has no answer: an empty block, still warned
@@ -1803,7 +1866,10 @@ test('decide: accordion / tabs / menu / carousel are approved by structure and a
   assert.deepEqual(status, { 'accordion:list': 'approved', 'menu:menu': 'approved', 'accordion:stack': 'proposed' });
   const keys = out.questions.map((q) => `${q.group}:${q.node}`).sort();
   // faq-list: items 1 and 3 are drawn closed (title only); the guessed stack: both rows closed; the menu: one URL per label
-  assert.deepEqual(keys, ['answer:it1', 'answer:it3', 'answer:s1', 'answer:s2', 'confirm:stack', 'link:ml0', 'link:ml1', 'link:ml2']);
+  assert.deepEqual(keys, ['answer:it1', 'answer:it2', 'answer:it3', 'answer:s1', 'answer:s2', 'confirm:stack', 'link:ml0', 'link:ml1', 'link:ml2', 'type:root']);
+  const drawn = out.questions.find((q) => q.node === 'it2');
+  assert.equal(drawn.value, 'Answer 2');
+  assert.equal(out.questions.find((q) => q.node === 'it1').value, '[Chưa có value]');
 });
 
 test('plan: answers reach the accordion, the tabs, the menu links, the slider options; "có" on a guessed accordion approves it and drops the list that was on it', () => {
@@ -1820,7 +1886,7 @@ test('plan: answers reach the accordion, the tabs, the menu links, the slider op
     { id: 'd5', component: 'accordion', node: 'guess', status: 'proposed', params: {} }, { id: 'd6', component: 'semantic', node: 'guess', status: 'approved', params: { tag: 'ul' } },
   ] } };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  const r = applyPlanAnswers(ws, { 'answer:it2': 'Trả lời hai', 'pane:tb2': 'Gói hai', 'link:ml1': '/gioi-thieu', 'autoplay:sl': '5', 'loop:sl': 'có', 'confirm:guess': 'có', 'answer:ghost': 'x' });
+  const r = applyPlanAnswers(ws, { 'answer:it2': { choice: 'text', text: 'Trả lời hai' }, 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'link:ml1': { choice: 'url', href: '/gioi-thieu' }, 'autoplay:sl': { choice: 'on', seconds: 5 }, 'loop:sl': { choice: 'wrap' }, 'confirm:guess': { choice: 'accordion' }, 'answer:ghost': { choice: 'text', text: 'x' } });
   const c = (id) => files['detections.json'].components.find((x) => x.id === id);
   assert.equal(c('d1').params.content.answers.it2, 'Trả lời hai');
   assert.equal(c('d2').params.content.panes.tb2, 'Gói hai');
@@ -1874,34 +1940,65 @@ test('accordion: a closed item drops the gap Figma stores while the answer is hi
   assert.equal(content.settings._display, undefined);
 });
 
-test('accordion: an icon a strict majority shares is used on every item, a tie leaves each icon as drawn', () => {
+test('accordion: the open glyph and the closed glyph swap with .brx-open, a same-state odd icon still follows the majority', () => {
   const icon = (id, glyph) => txt(id, glyph, {});
   const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 124, children: [
     kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
     ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
   ] });
   const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus'), item(4, false, 'plus')] })] });
-  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus' || n.text?.characters === 'star')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
   const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
   const file = (id) => byFigma(b, id).settings.file.$asset;
-  assert.equal(file('ic2'), 'svg/plus.svg');
+  assert.equal(file('ic2'), 'svg/minus.svg');
   assert.equal(file('ic1'), 'svg/plus.svg');
-  const tied = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus')] })] });
-  walk(tied);
-  const b2 = buildWith(tied, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
-  assert.equal(byFigma(b2, 'ic2').settings.file.$asset, 'svg/minus.svg');
+  assert.equal(byFigma(b, 'ic2').settings._cssClasses, 'acc-icon-open');
+  assert.equal(byFigma(b, 'ic1').settings._cssClasses, 'acc-icon-closed');
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open \.acc-icon-open \{ display: block !important; \}/);
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /\.brx-open \.acc-icon-closed \{ display: none !important; \}/);
+  assert.equal(b.template.content.filter((e) => e.label === 'Open icon').length, 3);
+  assert.equal(b.template.content.filter((e) => e.label === 'Closed icon').length, 1);
+  const odd = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, false, 'star'), item(3, false, 'plus')] })] });
+  walk(odd);
+  const b3 = buildWith(odd, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  assert.equal(byFigma(b3, 'ic2').settings.file.$asset, 'svg/plus.svg');
 });
 
-test('accordion sync: a blank answer shares every item, "không sửa" keeps them as drawn, a sentence can turn one part off', () => {
+test('accordion: a Hover variant fill is :hover on every item, and that item has no resting background', () => {
+  const icon = (id, glyph) => txt(id, glyph, {});
+  const item = (i, open, glyph) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', itemSpacing: open ? 0 : 16, children: [
+    kid(`ti${i}`, { name: 'Title', layoutMode: 'HORIZONTAL', children: [txt(`tt${i}`, `Q${i}`), icon(`ic${i}`, glyph)] }),
+    ...(open ? [kid(`co${i}`, { name: 'Content', layoutMode: 'VERTICAL', children: [txt(`an${i}`, 'A')] })] : []),
+  ] });
+  const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus')] })] });
+  const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 24, height: 24 }; for (const c of n.children ?? []) walk(c); };
+  walk(tree);
+  const rows = tree.children[0].children;
+  rows[0].props = { State: 'Default' };
+  rows[1].props = { State: 'Expand' };
+  rows[2].props = { State: 'Hover' };
+  rows[2].fills = [{ type: 'SOLID', hex: '#007cfc', alpha: 0.04 }];
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const hover = byFigma(b, 'it3');
+  assert.equal(hover.settings._background, undefined);
+  assert.equal(b.mapping.it3.expect.css['background-color'], 'rgba(0, 0, 0, 0)');
+  assert.match(hover.settings._cssCustom, /:hover \{ background-color: rgba\(0, 124, 252, 0\.04\); \}/);
+  assert.match(byFigma(b, 'it1').settings._cssCustom, /:hover \{ background-color: rgba\(0, 124, 252, 0\.04\); \}/);
+  assert.equal(byFigma(b, 'ic2').settings.file.$asset, 'svg/minus.svg');
+  assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('rê chuột')));
+  assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon mở')));
+});
+
+test('accordion sync switches on all, unchanged, text, and no-icon', () => {
   assert.equal(readSync('').icon, true);
-  assert.deepEqual([readSync('đồng bộ').icon, readSync('đồng bộ').title, readSync('đồng bộ').gap], [true, true, true]);
-  assert.deepEqual([readSync('làm các mục giống nhau').icon, readSync('làm các mục giống nhau').title, readSync('làm các mục giống nhau').gap], [true, true, true]);
-  assert.equal(readSync('không sửa gì cả').gap, false);
-  assert.equal(readSync('đừng đổi icon').icon, false);
-  assert.equal(readSync('đừng đổi icon').title, true);
-  assert.deepEqual([readSync('chỉ đồng bộ chữ').title, readSync('chỉ đồng bộ chữ').icon, readSync('chỉ đồng bộ chữ').gap], [true, false, false]);
-  assert.equal(validateAnswers({ 'sync:acc': 'làm gì đó lạ' }).length, 1);
+  assert.deepEqual([readSync('all').icon, readSync('all').title, readSync('all').gap], [true, true, true]);
+  assert.equal(readSync('unchanged').gap, false);
+  assert.equal(readSync('no-icon').icon, false);
+  assert.equal(readSync('no-icon').title, true);
+  assert.deepEqual([readSync('text').title, readSync('text').icon, readSync('text').gap], [true, false, false]);
+  assert.equal(readSync('đừng đổi icon').ok, false);
+  assert.equal(validateAnswers({ 'sync:acc': 'làm gì đó lạ' }).length, 0);
   assert.deepEqual(validateAnswers({ 'sync:acc': 'giữ nguyên' }), []);
   assert.deepEqual(validateAnswers({ 'sync:acc': 'làm các mục giống nhau', 'autoplay:sl': 'không tự chuyển', 'link:b': 'chưa có địa chỉ', 'loop:sl': 'dừng ở slide cuối', 'confirm:g': 'giữ nguyên khối' }), []);
   const icon = (id, glyph) => txt(id, glyph, {});
@@ -1913,13 +2010,13 @@ test('accordion sync: a blank answer shares every item, "không sửa" keeps the
   const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: 17 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
   assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon')));
-  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'không sửa' } }] });
+  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'unchanged' } }] });
   assert.equal(byFigma(kept, 'it1').settings._rowGap, '124px');
   assert.equal(byFigma(kept, 'ic2').settings.file.$asset, 'svg/minus.svg');
   const files = { 'detections.json': { components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] }, 'overrides.json': { nodes: {} }, 'tree.json': tree };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
-  applyPlanAnswers(ws, { 'sync:acc': 'đừng đổi icon' });
-  assert.equal(files['detections.json'].components[0].params.sync, 'đừng đổi icon');
+  applyPlanAnswers(ws, { 'sync:acc': { choice: 'no-icon' } });
+  assert.equal(files['detections.json'].components[0].params.sync, 'no-icon');
 });
 
 test('accordion: a typed answer follows the same rule: the new content block has no display of its own and the item opens it with the drawn block\'s display', () => {
@@ -1937,7 +2034,7 @@ test('tabs: a pane with a flex layout gets its display back only while it is ope
   const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
   assert.equal(byFigma(b, 'pane1').settings._display, undefined);
   assert.match(byFigma(b, 'pane1').settings._cssCustom, /\.brx-open \{ display: flex; \}/);
-  assert.equal(byFigma(b, 'tabs').settings._cssCustom, undefined); // vertical tabs: the theme's root is already a column
+  assert.match(byFigma(b, 'tabs').settings._cssCustom, /\.tab-pane \{ display: none; \}/);
 });
 
 test('responsive merge: an element Bricks needs that Figma does not draw ("<node>#extra0") is shared by the base and the variant frame, not doubled', () => {
@@ -1954,7 +2051,7 @@ test('responsive merge: an element Bricks needs that Figma does not draw ("<node
 });
 
 test('plan: a confirmation is used up by one build, the values typed stay in the file for the next Plan', async () => {
-  const { consumeConfirmation } = await import('../plan/index.mjs');
+  const { consumeConfirmation } = await import('../modules/missing-content/index.mjs');
   const dir = mkdtempSync(join(tmpdir(), 'f2b-plan-'));
   const file = writePlanDoc(dir, '1-2', planModel());
   writeFileSync(file, readSync2(file, 'utf8').replace('`link:1:10`: ', '`link:1:10`: https://x.vn/dang-ky'));
@@ -1967,7 +2064,7 @@ test('plan: a confirmation is used up by one build, the values typed stay in the
 });
 
 // ---- read more ("Xem thêm")
-import { detectReadMore } from '../detect/rules/readmore.mjs';
+import { detectReadMore } from '../modules/recognize-parts/rules/readmore.mjs';
 
 test('detect read more: a clipped frame whose content runs past its height + a "Xem thêm" button; a clipped frame alone, or a button alone, is nothing', () => {
   const para = (id, y) => nn(id, 'Typography', 'FRAME', { box: { x: 0, y, w: 800, h: 150, absX: 0, absY: y }, children: [nt(`${id}t`, 'Text')] });
@@ -2036,7 +2133,7 @@ test('read more: the class is the same in every breakpoint frame (it comes from 
 });
 
 // ---- svg exported with its drop shadow: the svg is bigger than the node box (Pagepeed vnx-service bubbles drew 13.6% too small)
-import { svgBleed } from '../bricks/render/utils/svg-bleed.mjs';
+import { svgBleed } from '../modules/write-bricks/render/utils/svg-bleed.mjs';
 test('svg bleed: drop shadow extent from the numbers of 5 measured svgs', () => {
   const n = (w, h, svgW, svgH, e) => ({ box: { w, h }, svg: { width: svgW, height: svgH }, effects: [{ type: 'DROP_SHADOW', x: 0, ...e }] });
   const near = (a, b) => assert.ok(Math.abs(a - b) < 0.05, `${a} vs ${b}`);

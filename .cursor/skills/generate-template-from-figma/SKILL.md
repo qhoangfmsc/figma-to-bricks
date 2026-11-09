@@ -1,18 +1,22 @@
 ---
 name: generate-template-from-figma
-description: Build one Bricks 1.12.3 template from a Desktop Figma URL, with optional Widescreen, Tablet portrait, Mobile landscape and Mobile portrait URLs. Use when the user runs /generate-template-from-figma, asks for a single template, or mentions the Vietnix Tools screen. Does not assemble a WordPress page.
+description: Build one Bricks 1.12.3 template from a Desktop Figma URL, with optional Widescreen, Tablet portrait, Mobile landscape and Mobile portrait URLs. Use when the user runs /generate-template-from-figma or asks for a single template. Asks for missing breakpoint links, writes plan.md for the owner to fill, and builds only after Xác nhận: có. Does not assemble a WordPress page.
 ---
 
 # Generate one template from Figma
 
-The procedure is `.claude/commands/generate-template-from-figma.md`. Read that file and follow it.
+The procedure is `.claude/commands/generate-template-from-figma.md`. Read that file and follow it. Component choice follows `.cursor/skills/pipeline/SKILL.md` and `process/modules/write-bricks/components/README.md`. Which doc to open is `process/docs/INDEX.md`. One component is `process/docs/widget-components/<id>.md`. The installed Bricks 1.12.3 theme decides the setting key.
 
-Desktop is required. Widescreen, Tablet portrait, Mobile landscape and Mobile portrait are optional and are the URLs the user pasted, not frames discovered from the file. A blank slot is skipped. A filled slot is merged. The template is pushed. The user attaches it. Do not assemble a page.
+Reply in Vietnamese. Short. Do the step, then stop.
 
-Every generate, including desktop-only, keeps undesigned widths inside the window. Layout changes at sm 640, md 768, lg 1024, xl 1280 and 2xl 1536. A pasted phone frame holds until 768. That lives in `process/scripts/05-build.mjs`, not in one template.
+Desktop is required. If widescreen, tablet, landscape, or mobile is missing, ask once and wait. Do not invent a URL.
 
-A Figma link the owner pastes on the confirm screen is read again with the same structure rules as the desktop frame. Keep the part that matches the question. Do not paste the whole link. If that read still finds a tab bar, or two item groups of the same size, stop.
+`read` is engine steps 1–3. It writes `plan.md` in the desktop workspace. Point to that file and stop. Do not paste the form into the chat. The plan headings are **Loại Template**, **Component Detected**, **Cần User quyết định**, and **Kết quả cần đạt được**. A plain block lists kind, Figma link, and `Kết quả mong muốn` (`expect:<id>`). A component the owner keeps or drops is under Cần User quyết định: `Quyết định dựng <loại>` (`part:<id>`), then the same kết quả line. Fields Figma drew are filled. `[Chưa có value]` is where Figma has no value. `note:plan` is the free comment. The owner writes any words on the `` `key`: value `` lines and sets `Xác nhận: có`. Before build, read those words and write `choices.json` with one enum per line. A Figma value already on an answer or pane line becomes `{ choice: 'text', text }` with that text. `[Chưa có value]` and a blank line are the default. "xóa" on a component line is drop. `expect` `slider` (or tab, menu, form, accordion, button, block) is that component. The build reads the enum, not the sentence. `build` is steps 4–8 and stays on the local site (`WP_URL`). Then look at the verify pictures once.
 
-A component follows `process/bricks/components/README.md` and `CATALOG.md`. Check each image on every pasted frame. Another file with the same crop is `sources` at that breakpoint. A crop that moves keeps that frame's own picture.
+After that local report, show this sentence alone in the chat so the owner can type it or copy it: `Xác nhận lên staging`. A yes or no does not upload. Then stop. Do not call the staging plugin in that turn. A later message uploads only when the whole message is exactly `Xác nhận lên staging`. Run `node process/modules/staging/push.mjs "<workspace>" "Xác nhận lên staging"`. Any other wording does not upload. Do not call the f2b-mcp tools yourself.
 
-Do not follow `reference/Brick-Build-Page` skills. Do not call `get_design_context`. Do not hand-write Bricks JSON.
+Name regex is a hint. A repeated shape plus the frame picture is the evidence. Figma's render or the Docker Playwright shot says what the group is. `tree.md` supplies the numbers. Do not measure pixels off the picture.
+
+During `read` and `build`, do not edit `process/` or the theme. A miss or a doubt is a question in `plan.md`. A rule change is a later task the owner asks for. The owner still confirms the plan once.
+
+A component follows `process/modules/write-bricks/components/README.md` and `CATALOG.md`. Do not follow `reference/Brick-Build-Page`. Do not call `get_design_context`. Do not hand-write Bricks JSON.

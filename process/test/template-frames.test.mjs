@@ -1,7 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFrameInput } from '../template/frames.mjs';
-import { describeTiming, formatDuration } from '../template/timing.mjs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { parseFrameInput } from '../modules/single-template/frames.mjs';
+import { renderTemplatePlan, writeTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { itemHeading, parsePlan } from '../modules/missing-content/index.mjs';
+import { readFlag } from '../template.mjs';
+import { describeTiming, formatDuration } from '../modules/single-template/timing.mjs';
 
 const desktop = 'https://www.figma.com/design/AbC/x?node-id=112-1369';
 const tablet = 'https://www.figma.com/design/AbC/x?node-id=200-1';
@@ -59,6 +65,94 @@ test('timing follows the measured per-frame medians and counts every filled slot
   const five = describeTiming({ desktop: 'a', widescreen: 'b', tablet: 'c', landscape: 'd', mobile: 'e' });
   assert.equal(five.frames, 5);
   assert.match(describeTiming({}).plan, /Desktop/);
+});
+
+test('a template plan names each component and says what an empty group means', () => {
+  const md = renderTemplatePlan({
+    title: 'VPS Linux 2025 - Certificate',
+    name: 'Certificate',
+    width: 1440,
+    variants: [{ label: 'Mobile portrait', width: 375 }],
+    parts: [{
+      kind: 'Slider',
+      name: '_case-study-list',
+      node: '2172:3675',
+      figma: 'https://www.figma.com/design/FK/x?node-id=2172-3675',
+      fields: [
+        { title: '_case-study-list tự chạy không?', key: 'autoplay:2172:3675', value: 'tự chuyển mỗi 3 giây', placeholder: 'Gõ số giây, hoặc đừng tự chạy.' },
+        { title: '_case-study-list lấy các mục ở đâu?', key: 'items:2172:3675', value: '', placeholder: 'Để trống là dùng các mục đang vẽ.' },
+      ],
+    }],
+    open: [],
+    repeats: [],
+  });
+  assert.match(md, /## Loại Template/);
+  assert.match(md, /## Component Detected \(1\)/);
+  assert.match(md, /## Cần User quyết định/);
+  assert.match(md, /### 1\. Slider `_case-study-list`/);
+  assert.match(md, /Quyết định dựng Slider `part:2172:3675`:\s*$/m);
+  assert.match(md, /Kết quả mong muốn `expect:2172:3675`:\s*$/m);
+  assert.match(md, /## Kết quả cần đạt được/);
+  assert.doesNotMatch(md, /Đang có:/);
+  assert.doesNotMatch(md, /Gõ số giây/);
+  assert.match(md, /`autoplay:2172:3675`: tự chuyển mỗi 3 giây/);
+  assert.match(md, /`items:2172:3675`: \[Chưa có value\]/);
+  assert.doesNotMatch(md, /Đoán, chưa gắn/);
+  assert.doesNotMatch(md, /Ô cùng hình/);
+  assert.doesNotMatch(md, /^Sửa:/m);
+  assert.equal(parsePlan(md)['autoplay:2172:3675'], 'tự chuyển mỗi 3 giây');
+  assert.equal(parsePlan(md)['items:2172:3675'], '[Chưa có value]');
+});
+
+test('a guess shows its link and evidence, a same-shape group shows what was seen', () => {
+  const md = renderTemplatePlan({
+    title: 'Demo', name: 'Hero', width: 1440, variants: [], parts: [],
+    open: [{ node: '1:20', label: 'Tab "Giá"', evidence: '4 nhãn một hàng', figma: 'https://www.figma.com/design/FK/x?node-id=1-20' }],
+    repeats: [{ node: '1:30', count: 3, item: 'Card', sample: 'MaxSpeed', figma: 'https://www.figma.com/design/FK/x?node-id=1-30' }],
+  });
+  assert.match(md, /## Chưa chắc/);
+  assert.match(md, /Tab "Giá"/);
+  assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-20\)/);
+  assert.match(md, /4 nhãn một hàng/);
+  assert.match(md, /`guess:1:20`:\s*$/m);
+  assert.match(md, /## Nhóm lặp/);
+  assert.match(md, /3 ô "Card", mẫu "MaxSpeed"/);
+  assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-30\)/);
+  assert.match(md, /`repeat:1:30`:\s*$/m);
+});
+
+test('writing the plan again keeps a value the owner typed and resets the confirmation', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'f2b-template-plan-'));
+  const model = {
+    title: 'Demo', name: 'Hero', width: 1440, variants: [],
+    parts: [{ kind: 'Nút', name: 'Đăng ký', node: '1:10', figma: 'https://www.figma.com/design/FK/x?node-id=1-10', fields: [
+      { title: 'Bấm nút Đăng ký thì mở trang nào?', key: 'link:1:10', value: 'chưa có địa chỉ', placeholder: 'Viết địa chỉ.' },
+    ] }],
+    open: [{ node: '1:20', label: 'Tab "Giá"' }],
+    repeats: [{ node: '1:30', label: '3 mục "Card", mẫu "MaxSpeed"' }],
+  };
+  const file = writeTemplatePlan(dir, model);
+  writeFileSync(file, `${readFileSync(file, 'utf8')
+    .replace('`link:1:10`: chưa có địa chỉ', '`link:1:10`: https://vietnix.vn/dang-ky')
+    .replace('Xác nhận: không', 'Xác nhận: có')}\nSửa: bỏ nút\n`);
+  writeTemplatePlan(dir, model);
+  const next = readFileSync(file, 'utf8');
+  assert.equal(parsePlan(next)['link:1:10'], 'https://vietnix.vn/dang-ky');
+  assert.match(next, /^Xác nhận: không$/m);
+  assert.match(next, /^Sửa: bỏ nút$/m);
+  assert.match(next, /`guess:1:20`:\s*$/m);
+  assert.match(next, /`repeat:1:30`:\s*$/m);
+});
+
+test('several images keep the quoted layer name in the question', () => {
+  assert.equal(itemHeading('alt', 'Ảnh "image 15"', 'Slider'), 'Ghi alt cho ảnh "image 15"');
+});
+
+test('read accepts a link after the flag or after an equals sign', () => {
+  const url = 'https://www.figma.com/design/AbC/x?node-id=1-2';
+  assert.equal(readFlag(['--desktop', url, '--mobile', 'm'], 'desktop'), url);
+  assert.equal(readFlag(['--desktop=' + url], 'desktop'), url);
+  assert.equal(readFlag(['read'], 'desktop'), '');
 });
 
 test('a bad link names the slot and a blank optional slot is skipped', () => {

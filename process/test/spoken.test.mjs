@@ -1,27 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hearAnswers, validateAnswers, readPane } from '../plan/index.mjs';
+import { hearAnswers } from '../modules/missing-content/index.mjs';
+import { choiceOf, resolvePlan } from '../modules/missing-content/choices.mjs';
 
-test('a normal sentence is read as the value the field needs', () => {
+test('a sentence stays a sentence until the chat writes a choice', () => {
   const heard = hearAnswers({
     'link:a': 'bấm vào vietnix.vn/bang-gia nhé',
-    'link:b': 'chưa có',
-    'alt:c': 'đây là logo Vietnix',
-    'alt:d': 'ảnh trang trí thôi',
-    'autoplay:e': 'đừng tự chạy, chỉ khi bấm',
-    'autoplay:f': 'chạy mỗi 5 giây',
-    'count:g': 'khoảng 8 cái',
-    'pane:h': 'lấy khung https://www.figma.com/design/Abcd/n?node-id=12-3',
-    'act:i': 'mở trang vietnix.vn/lien-he',
+    'repeat:b': 'cái này là slider',
+    'type:c': 'Single',
   });
-  assert.equal(heard['link:a'], 'https://vietnix.vn/bang-gia');
-  assert.equal(heard['link:b'], 'chưa có địa chỉ');
-  assert.equal(heard['alt:c'], 'đây là logo Vietnix');
-  assert.equal(heard['alt:d'], 'ảnh chỉ để trang trí');
-  assert.equal(heard['autoplay:e'], 'không tự chuyển');
-  assert.equal(heard['autoplay:f'], '5');
-  assert.equal(heard['count:g'], '8');
-  assert.equal(heard['act:i'], 'https://vietnix.vn/lien-he');
-  assert.equal(readPane(heard['pane:h']).nodeId, '12:3');
-  assert.equal(validateAnswers(heard).length, 0);
+  assert.equal(heard['link:a'], 'bấm vào vietnix.vn/bang-gia nhé');
+  assert.equal(heard['repeat:b'], 'cái này là slider');
+  assert.equal(choiceOf('repeat', heard['repeat:b']), null);
+  assert.equal(choiceOf('type', 'popup', 'section').choice, 'popup');
+  const open = resolvePlan(heard, {
+    'link:a': { choice: 'url', href: 'https://vietnix.vn/bang-gia' },
+    'repeat:b': { choice: 'slider' },
+  }, () => '');
+  assert.equal(open.open.length, 1);
+  assert.equal(open.open[0].key, 'type:c');
+  assert.equal(open.ready['repeat:b'].choice, 'slider');
+  assert.equal(open.ready['link:a'].href, 'https://vietnix.vn/bang-gia');
 });

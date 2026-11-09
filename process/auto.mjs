@@ -5,37 +5,36 @@
 // -> sign-off (autopilot) -> export -> build (merge breakpoints) -> push -> verify (Playwright: boxes, look vs Figma, covered, scroll, weight, engines).
 // Owner decision 2026-10-27: "one Figma link and Bricks comes out"; review happens afterwards on scorecard.md + decisions.md, not before.
 // It stops only for a real blocker (no token, no node, Docker down, citations the code cannot verify). Never touches git.
-import { runLines } from './shared/spawn-lines.mjs';
-import { Progress, screenOf } from './shared/progress.mjs';
+import { runLines } from './modules/common/spawn-lines.mjs';
+import { Progress, screenOf } from './modules/common/progress.mjs';
 import { dirname, join } from 'node:path';
-import { resolveWorkspace } from './shared/workspace.mjs';
-import { fetchStep } from './scripts/01-fetch.mjs';
-import { treeStep } from './scripts/02-tree.mjs';
-import { detectStep } from './scripts/03-detect.mjs';
-import { decide, writeDecisionReport } from './decide/index.mjs';
-import { discoverVariants, discoverFormErrors } from './figma/discover.mjs';
-import { signOff, gate } from './review/index.mjs';
-import { parseFigmaUrl } from './figma/url.mjs';
-import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './figma/api.mjs';
-import { writePlan, assemblePage, plansFile, sectionTitles } from './shared/deliverable.mjs';
-import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, shareAccordionAnswers, groupQuestions, consumeConfirmation, planProblems } from './plan/index.mjs';
-import { attachFilledFrames } from './template/filled.mjs';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-
-import { writeFileSync } from 'node:fs';
-import { discoverSections } from './figma/discover.mjs';
+import { resolveWorkspace } from './modules/common/workspace.mjs';
+import { fetchStep } from './modules/build-steps/01-fetch.mjs';
+import { treeStep } from './modules/build-steps/02-tree.mjs';
+import { detectStep } from './modules/build-steps/03-detect.mjs';
+import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
+import { planInventory } from './modules/single-template/parts.mjs';
+import { discoverVariants, discoverFormErrors, discoverSections } from './modules/read-figma/discover.mjs';
+import { signOff, gate } from './modules/sign-off/index.mjs';
+import { parseFigmaUrl } from './modules/read-figma/url.mjs';
+import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './modules/read-figma/api.mjs';
+import { writePlan, assemblePage, plansFile, sectionTitles } from './modules/common/deliverable.mjs';
+import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, shareAccordionAnswers, groupQuestions, consumeConfirmation, planProblems } from './modules/missing-content/index.mjs';
+import { attachFilledFrames } from './modules/single-template/filled.mjs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { sectionJob, writeSectionJob, writeJobIndex } from './modules/section-jobs/jobs.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--'));
 const responsive = !args.includes('--no-responsive');
 const planOnly = args.includes('--plan');
 const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerCase();
-// one section at a time (owner's decision 2026-10-29): --gate stops at the first section that is not DONE (a failing node left, see scripts/todo.mjs), so its rule bugs are
-// fixed before the next section is built; --resume skips the sections that are DONE already. Fix the rules, run scripts/rebuild-diff.mjs --apply for the finished sections,
+// one section at a time (owner's decision 2026-10-29): --gate stops at the first section that is not DONE (a failing node left, see ops/todo.mjs), so its rule bugs are
+// fixed before the next section is built; --resume skips the sections that are DONE already. Fix the rules, run ops/rebuild-diff.mjs --apply for the finished sections,
 // then run again with --resume --gate.
 const stopAtUndone = args.includes('--gate'), resume = args.includes('--resume');
 // the Plan (owner decision 2026-10-29): before anything is built the sections are read, a plan-<node>.md with only the questions the build really needs is written
-// and the run stops (exit code 3) until the owner filled it and ran `node process/scripts/plan.mjs "<url>" confirm`. --no-confirm = the old behaviour (no questions);
+// and the run stops (exit code 3) until the owner filled it and ran `node process/modules/maintenance/plan.mjs "<url>" confirm`. --no-confirm = the old behaviour (no questions);
 // The plan is shown even when there is nothing to fill (then the owner only says "ok").
 const askOwner = !args.includes('--no-confirm');
 let confirmedAnswers = null; // the values of a confirmed plan, applied to every section after decide()
@@ -89,17 +88,24 @@ async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, ti
       progress.prepared(idx, v.key);
       progress.report(idx, v.key, 2);
       context.bg[v.key] = v.bg ?? bg;
-      variants.push({ key: v.key, workspace: ws.dir.split('/').pop(), maxWidth: v.maxWidth, aliases: {}, ws });
+      variants.push({ key: v.key, id: v.id, width: v.width, workspace: ws.dir.split('/').pop(), maxWidth: v.maxWidth, aliases: {}, ws });
     }
-    if (variants.length) base.writeJson('responsive.json', { note: 'written by process/auto.mjs (breakpoint frames of the same section found in the Figma file)', variants: variants.map(({ ws, ...v }) => v) });
+    if (variants.length) base.writeJson('responsive.json', { note: 'written by process/auto.mjs (breakpoint frames of the same section found in the Figma file)', variants: variants.map(({ ws, id, width, ...v }) => v) });
   }
+  const job = sectionJob({
+    fileKey: ref.fileKey,
+    section: { id: sectionId, name: base.readJson('tree.json').name, firstSection },
+    title,
+    variants,
+  });
+  writeSectionJob(dirname(base.dir), job);
   base.writeJson('context.json', context); // what shows behind a transparent section, per frame: verify lays Figma's render over it
   const shared = shareAccordionAnswers(base);
   if (shared.copied) console.log(`  content: ${shared.copied} value(s) copied onto the other frames`);
   const frameLog = (line) => console.log(`  ${line}`);
   await attachFilledFrames(base, { log: frameLog });
   for (const v of variants) await attachFilledFrames(v.ws, { log: frameLog });
-  const ctx = { base, result, variants, sectionUrl, sectionId, idx, title };
+  const ctx = { base, result, variants, sectionUrl, sectionId, idx, title, job };
   if (sign) signAll(ctx);
   return ctx;
 }
@@ -205,11 +211,14 @@ if (askOwner && !confirmedAnswers && sections.length) {
       const ctx = await prepareSection(urlOf(s.id), s.id, { firstSection: s.firstSection, bg: plan.base.bg, idx, title: titleOf(s), sign: false });
       const det = ctx.base.readJson('detections.json');
       const count = (rows, f) => Object.entries(rows.reduce((a, r) => (a[f(r)] = (a[f(r)] ?? 0) + 1, a), {})).map(([k, n]) => `${k} ×${n}`);
+      const listed = planInventory(ctx.base.readJson('tree.json'), det.components);
       model.sections.push({
         name: s.name, id: s.id,
         build: [...count(det.components.filter((c) => c.status === 'approved'), (c) => c.component), 'còn lại là block'].join(', '),
         decided: count(ctx.result.decisions, (d) => d.kind),
         questions: groupQuestions(ctx.result.questions ?? []),
+        ...listed,
+        job: ctx.job,
       });
     } catch (e) {
       console.error(`\n✋ ${s.name} [${s.id}] could not be read for the plan: ${e.message.slice(0, 300)}`);
@@ -217,8 +226,10 @@ if (askOwner && !confirmedAnswers && sections.length) {
     }
   }
   const file = writePlanDoc(planDir, nodeKey, model);
+  const jobs = model.sections.map((s) => s.job).filter(Boolean);
+  const index = writeJobIndex(planDir, jobs);
   const asked = model.sections.reduce((a, s) => a + s.questions.length, 0);
-  console.log(`\n== PLAN written: ${file}\n   ${sections.length} section(s) · ${asked} group(s) of questions`);
+  console.log(`\n== PLAN written: ${file}\n   ${sections.length} section(s) · ${asked} group(s) of questions\n   jobs: ${index} (${jobs.length})`);
   // the owner always sees the plan before a build, also when there is nothing to fill (then it is one "ok")
   console.log(`   ${asked ? 'Fill the values (blank = safe default)' : 'Nothing to fill'}, set the line "Xác nhận: không" to "Xác nhận: có", then run again:\n     node process/auto.mjs "${url}"`);
   process.exit(3);
@@ -241,7 +252,7 @@ for (const [idx, s] of sections.entries()) {
     console.log(`[báo cáo] ${idx + 1}/${sections.length} ✓ "${titleOf(s)}": xong giai đoạn 1,2,3,4,5,6 ở mọi màn hình (giai đoạn 7 sửa lỗi và 8 ghép page chạy khi cả trang xong)`);
     const st = sectionState(s);
     if (stopAtUndone && st && !st.done) {
-      console.log(`\n[CỔNG] "${titleOf(s)}" chưa xong: ${st.failing} node còn sai. Sửa rule rồi chạy: node process/scripts/todo.mjs ${ref.fileKey} --only=${JSON.stringify(s.name)} · node process/scripts/rebuild-diff.mjs ${ref.fileKey} --apply · node process/auto.mjs "<url>" --resume --gate`);
+      console.log(`\n[CỔNG] "${titleOf(s)}" chưa xong: ${st.failing} node còn sai. Sửa rule rồi chạy: node process/modules/maintenance/todo.mjs ${ref.fileKey} --only=${JSON.stringify(s.name)} · node process/modules/maintenance/rebuild-diff.mjs ${ref.fileKey} --apply · node process/auto.mjs "<url>" --resume --gate`);
       break;
     }
   } catch (e) {
@@ -274,5 +285,5 @@ const page = [
 const out = join(dirname(done.find((d) => d.dir)?.dir ?? '.'), `page-${ref.nodeId.replace(':', '-')}${wholePage ? '' : '.partial'}.md`);
 writeFileSync(out, page.join('\n'));
 console.log(`\n== done: ${out}`);
-if (wholePage) await assemblePage(ref.fileKey, ref.nodeId); // stage 8 (the HOÀN TẤT message comes after the fix loop: scripts/assemble-page.mjs <fileKey> <node> --final)
+if (wholePage) await assemblePage(ref.fileKey, ref.nodeId); // stage 8 (the HOÀN TẤT message comes after the fix loop: ops/assemble-page.mjs <fileKey> <node> --final)
 process.exitCode = done.some((d) => d.error) ? 2 : 0;

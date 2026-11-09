@@ -1,15 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { detectCarousels } from '../detect/rules/carousel.mjs';
-import { checkCites } from '../detect/cite.mjs';
-import carousel, { paginationMarks } from '../bricks/components/carousel.mjs';
-import { buildTemplate } from '../bricks/render/index.mjs';
-import { validateAnswers } from '../plan/index.mjs';
-import { graftSlides } from '../template/slides.mjs';
+import { detectCarousels } from '../modules/recognize-parts/rules/carousel.mjs';
+import { checkCites } from '../modules/recognize-parts/cite.mjs';
+import carousel, { paginationMarks } from '../modules/write-bricks/components/carousel.mjs';
+import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { applyAnswers, validateAnswers } from '../modules/missing-content/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
+import { graftSlides } from '../modules/single-template/slides.mjs';
 
-const treeOf = (id) => JSON.parse(readFileSync(new URL(`../work/NcaLAzM0EyDXVnHwqAjOR0/${id}/tree.json`, import.meta.url), 'utf8'));
-const svgOf = (id, file) => readFileSync(new URL(`../work/NcaLAzM0EyDXVnHwqAjOR0/${id}/assets/${file}`, import.meta.url), 'utf8');
+const treeOf = (id) => JSON.parse(readFileSync(new URL(`../fixtures/sections/${id}/tree.json`, import.meta.url), 'utf8'));
+const svgOf = (id, file) => readFileSync(new URL(`../fixtures/sections/${id}/assets/${file}`, import.meta.url), 'utf8');
 
 const card = (id, x) => ({ id, name: 'card', type: 'FRAME', box: { x, y: 0, w: 100, h: 60, absX: x, absY: 0 }, children: [{ id: id + 't', type: 'TEXT', text: { characters: 'Card' } }] });
 const rowOf = (children, extra = {}) => ({ id: 'r', name: 'root', children: [{ id: 'row', name: 'Row', layout: { mode: 'HORIZONTAL', wrap: false, gap: 20 }, box: { x: 0, y: 0, w: 400, h: 60, absX: 0, absY: 0 }, children, ...extra }] });
@@ -110,10 +111,26 @@ test('one clipped image with arrow buttons is a slider, and a review grid of two
   assert.equal(mobile?.params.prev, '2134:3097');
 });
 
-test('slider questions accept a count, the autoplay default and a Figma link, and reject a sentence', () => {
-  assert.deepEqual(validateAnswers({ 'count:a': '5', 'autoplay:a': 'tự chuyển mỗi 3 giây', 'autoplay:b': 'không tự chuyển', 'autoplay:c': '5', 'items:a': 'https://www.figma.com/design/FILE/x?node-id=1-2' }), []);
-  assert.equal(validateAnswers({ 'items:a': 'thêm vài cái nữa' }).length, 1);
-  assert.equal(validateAnswers({ 'count:a': 'không' }).length, 1);
+test('slider questions accept a count, the autoplay default, a Figma link, and a free sentence', () => {
+  assert.deepEqual(validateAnswers({ 'count:a': '5', 'autoplay:a': 'tự chuyển mỗi 3 giây', 'autoplay:b': 'không tự chuyển', 'autoplay:c': '5', 'items:a': 'https://www.figma.com/design/FILE/x?node-id=1-2', 'mobileform:a': 'mobile vẫn là slider' }), []);
+  assert.equal(validateAnswers({ 'items:a': 'thêm vài cái nữa' }).length, 0);
+  assert.equal(validateAnswers({ 'count:a': 'không' }).length, 0);
+  assert.equal(validateAnswers({ 'mobileform:a': 'làm hàng kéo' }).length, 0);
+});
+
+test('a desktop slider stays a slider on mobile unless a mobile frame draws something else', () => {
+  const tree = { id: 'row', name: 'Slider', children: [] };
+  const questions = [{ group: 'mobileform', node: 'row', label: 'Slider "Slider"', value: 'mobile vẫn là slider' }];
+  const parts = screenParts(tree, [{ component: 'carousel', node: 'row', status: 'approved', params: {} }], questions, 'FILE');
+  assert.match(parts[0].note, /Không tự đổi/);
+  assert.equal(parts[0].fields[0].value, 'mobile vẫn là slider');
+  const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [{ id: 'd1', component: 'carousel', node: 'row', status: 'approved', params: {} }] } };
+  const missed = applyAnswers({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { 'mobileform:row': 'làm hàng kéo ở điện thoại' });
+  assert.deepEqual(missed.unused, ['mobileform:row']);
+  applyAnswers({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { 'mobileform:row': { choice: 'slider', note: 'làm hàng kéo ở điện thoại' } });
+  assert.equal(files['detections.json'].components[0].component, 'carousel');
+  assert.equal(files['detections.json'].components[0].params.mobileForm, 'slider');
+  assert.match(files['detections.json'].components[0].params.mobileNote, /hàng kéo/);
 });
 
 test('a Figma frame of items replaces the drawn slides and keeps the arrow', () => {

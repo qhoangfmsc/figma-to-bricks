@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tabDataFrame } from '../template/tab-frames.mjs';
-import { slideChildren } from '../template/slides.mjs';
-import { rejectAmbiguousItems, rejectTabBar, rejectTabButtons } from '../template/recheck.mjs';
+import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
+import { slideChildren } from '../modules/single-template/slides.mjs';
+import { rejectAmbiguousItems, rejectTabBar, rejectTabButtons } from '../modules/single-template/recheck.mjs';
 
 const tab = (id, label, x) => ({
   id, name: 'Linux tab', type: 'FRAME', box: { x, y: 0, w: 80, h: 36, absX: x, absY: 0 },

@@ -1,0 +1,2087 @@
+{
+  "id": "2121:2699",
+  "type": "FRAME",
+  "name": "Award",
+  "box": {
+    "x": 0,
+    "y": 0,
+    "w": 1440,
+    "h": 425,
+    "absX": -599,
+    "absY": -8416
+  },
+  "sizing": {
+    "h": "FILL",
+    "v": "HUG"
+  },
+  "layout": {
+    "mode": "VERTICAL",
+    "wrap": false,
+    "gap": 0,
+    "padding": {
+      "top": 48,
+      "right": 0,
+      "bottom": 48,
+      "left": 0
+    },
+    "primaryAlign": "MIN",
+    "counterAlign": "CENTER"
+  },
+  "selfAlign": "STRETCH",
+  "fills": [
+    {
+      "type": "SOLID",
+      "hex": "#ffffff",
+      "alpha": 1
+    }
+  ],
+  "variables": {
+    "paddingTop": {
+      "type": "VARIABLE_ALIAS",
+      "id": "VariableID:d3a24812129b8d43d848961bda3dd17f66b256fa/10631:1101"
+    },
+    "paddingBottom": {
+      "type": "VARIABLE_ALIAS",
+      "id": "VariableID:d3a24812129b8d43d848961bda3dd17f66b256fa/10631:1101"
+    }
+  },
+  "unhandled": [
+    "explicitVariableModes={\"VariableCollectionId:4e2ac47d3cb307... [limit]: variable mode picked for a frame (mobile / desktop values of font size etc.): the REST node holds values of ONE mode, the render of the other can differ (Banner mobile button 14px, REST says 16)"
+  ],
+  "children": [
+    {
+      "id": "2121:2700",
+      "type": "FRAME",
+      "name": "_Title",
+      "box": {
+        "x": 150,
+        "y": 48,
+        "w": 1140,
+        "h": 88,
+        "absX": -449,
+        "absY": -8368
+      },
+      "sizing": {
+        "h": "FIXED",
+        "v": "HUG"
+      },
+      "layout": {
+        "mode": "VERTICAL",
+        "wrap": false,
+        "gap": 0,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 40,
+          "left": 0
+        },
+        "primaryAlign": "MIN",
+        "counterAlign": "CENTER"
+      },
+      "place": "FLOW",
+      "variables": {
+        "paddingBottom": {
+          "type": "VARIABLE_ALIAS",
+          "id": "VariableID:bccced36ba50ff79179b132f993d9689f598ef40/10631:981"
+        }
+      },
+      "children": [
+        {
+          "id": "2121:2701",
+          "type": "FRAME",
+          "name": "Content Item/Header",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "w": 1140,
+            "h": 48,
+            "absX": -449,
+            "absY": -8368
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "HUG"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "primaryAlign": "CENTER",
+            "counterAlign": "MIN"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "children": [
+            {
+              "id": "2121:2702",
+              "type": "FRAME",
+              "name": "Pading Top",
+              "visible": false,
+              "box": {
+                "x": 0,
+                "y": 0,
+                "w": 250,
+                "h": 24,
+                "absX": -449,
+                "absY": -8368
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "VERTICAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "MIN",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "2121:2703",
+                  "type": "INSTANCE",
+                  "name": "Measure + Spacing Guide",
+                  "visible": false,
+                  "box": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 250,
+                    "h": 24,
+                    "absX": -449,
+                    "absY": -8368
+                  },
+                  "sizing": {
+                    "h": "FIXED",
+                    "v": "FIXED"
+                  },
+                  "layout": {
+                    "mode": "HORIZONTAL",
+                    "wrap": false,
+                    "gap": 8,
+                    "padding": {
+                      "top": 0,
+                      "right": 0,
+                      "bottom": 0,
+                      "left": 0
+                    },
+                    "primaryAlign": "MIN",
+                    "counterAlign": "CENTER"
+                  },
+                  "place": "FLOW",
+                  "component": "Property 1=Left",
+                  "componentSet": "Measure + Spacing Guide",
+                  "props": {
+                    "Property 1": "Left"
+                  },
+                  "children": [
+                    {
+                      "id": "I2121:2703;45:890",
+                      "type": "FRAME",
+                      "name": "Frame 52",
+                      "box": {
+                        "x": 0,
+                        "y": 5,
+                        "w": 25,
+                        "h": 14,
+                        "absX": -449,
+                        "absY": -8363
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "HUG"
+                      },
+                      "layout": {
+                        "mode": "HORIZONTAL",
+                        "wrap": false,
+                        "gap": 10,
+                        "padding": {
+                          "top": 0,
+                          "right": 0,
+                          "bottom": 0,
+                          "left": 0
+                        },
+                        "primaryAlign": "CENTER",
+                        "counterAlign": "CENTER"
+                      },
+                      "place": "FLOW",
+                      "children": [
+                        {
+                          "id": "I2121:2703;45:891",
+                          "type": "TEXT",
+                          "name": "24px",
+                          "box": {
+                            "x": 1.5,
+                            "y": 0,
+                            "w": 22,
+                            "h": 14,
+                            "absX": -447.5,
+                            "absY": -8363
+                          },
+                          "sizing": {
+                            "h": "HUG",
+                            "v": "HUG"
+                          },
+                          "place": "FLOW",
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "hex": "#f14c2e",
+                              "alpha": 1
+                            }
+                          ],
+                          "text": {
+                            "characters": "24px",
+                            "fontFamily": "Roboto",
+                            "fontStyle": "Regular",
+                            "fontWeight": 400,
+                            "italic": false,
+                            "fontSize": 10,
+                            "lineHeightPx": 14,
+                            "lineHeightUnit": "PIXELS",
+                            "letterSpacing": 0,
+                            "align": "LEFT",
+                            "valign": "TOP",
+                            "case": "ORIGINAL",
+                            "decoration": "NONE",
+                            "autoResize": "WIDTH_AND_HEIGHT"
+                          },
+                          "styleRefs": {
+                            "fill": "Text/Error"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "I2121:2703;45:889",
+                      "type": "LINE",
+                      "name": "Line 1",
+                      "box": {
+                        "x": 33,
+                        "y": 0,
+                        "w": 0,
+                        "h": 24,
+                        "absX": -416,
+                        "absY": -8368
+                      },
+                      "rotation": 1.5707963705062848,
+                      "rotate": {
+                        "w": 24,
+                        "h": 0,
+                        "x": 33,
+                        "y": 0,
+                        "m": [
+                          -4.371138828673793e-8,
+                          1,
+                          -1,
+                          -4.371138828673793e-8
+                        ]
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 0.5,
+                        "align": "OUTSIDE",
+                        "inLayout": false
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    },
+                    {
+                      "id": "I2121:2703;45:892",
+                      "type": "RECTANGLE",
+                      "name": "Rectangle 1",
+                      "box": {
+                        "x": 41,
+                        "y": 0,
+                        "w": 209,
+                        "h": 24,
+                        "absX": -408,
+                        "absY": -8368
+                      },
+                      "sizing": {
+                        "h": "FILL",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "grow": 1,
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 1,
+                        "weights": {
+                          "top": 0.5,
+                          "right": 0,
+                          "bottom": 0.5,
+                          "left": 0
+                        },
+                        "align": "INSIDE",
+                        "inLayout": false,
+                        "dashes": [
+                          2,
+                          2
+                        ]
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "2121:2704",
+              "type": "TEXT",
+              "name": "Heading text",
+              "box": {
+                "x": 0,
+                "y": 0,
+                "w": 1140,
+                "h": 48,
+                "absX": -449,
+                "absY": -8368
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "fills": [
+                {
+                  "type": "SOLID",
+                  "hex": "#282829",
+                  "alpha": 1
+                }
+              ],
+              "text": {
+                "characters": "GIẢI THƯỞNG VÀ DANH  HIỆU VIETNIX ĐÃ ĐẠT ĐƯỢC",
+                "fontFamily": "Inter",
+                "fontStyle": "Bold",
+                "fontWeight": 700,
+                "italic": false,
+                "fontSize": 36,
+                "lineHeightPx": 48,
+                "lineHeightUnit": "PIXELS",
+                "letterSpacing": 0,
+                "align": "CENTER",
+                "valign": "TOP",
+                "case": "ORIGINAL",
+                "decoration": "NONE",
+                "autoResize": "HEIGHT"
+              },
+              "styleRefs": {
+                "text": "H4/Bold"
+              },
+              "variables": {
+                "fills": [
+                  {
+                    "type": "VARIABLE_ALIAS",
+                    "id": "VariableID:cee61786c45144ef4f17a799cfab2523f61c8ab3/15604:288"
+                  }
+                ],
+                "lineHeight": [
+                  {
+                    "type": "VARIABLE_ALIAS",
+                    "id": "VariableID:219339aa091d25597b74a375d06929bd89b17b42/15637:183"
+                  }
+                ],
+                "fontWeight": [
+                  {
+                    "type": "VARIABLE_ALIAS",
+                    "id": "VariableID:db7a0dabe34b87f4513da0d6439e0440ffb9dade/15637:203"
+                  }
+                ],
+                "fontFamily": [
+                  {
+                    "type": "VARIABLE_ALIAS",
+                    "id": "VariableID:4e443ef77859dfa25df4178ba38763140b20627e/15637:211"
+                  }
+                ],
+                "fontSize": [
+                  {
+                    "type": "VARIABLE_ALIAS",
+                    "id": "VariableID:a327d736d35458da53dd717b79042a707d38b1e3/15637:201"
+                  }
+                ]
+              }
+            },
+            {
+              "id": "2121:2705",
+              "type": "FRAME",
+              "name": "Padding Bottom",
+              "visible": false,
+              "box": {
+                "x": 0,
+                "y": 32,
+                "w": 250,
+                "h": 12,
+                "absX": -449,
+                "absY": -8336
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "VERTICAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "MIN",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "2121:2706",
+                  "type": "INSTANCE",
+                  "name": "Measure + Spacing Guide",
+                  "visible": false,
+                  "box": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 250,
+                    "h": 12,
+                    "absX": -449,
+                    "absY": -8336
+                  },
+                  "sizing": {
+                    "h": "FIXED",
+                    "v": "FIXED"
+                  },
+                  "layout": {
+                    "mode": "HORIZONTAL",
+                    "wrap": false,
+                    "gap": 8,
+                    "padding": {
+                      "top": 0,
+                      "right": 0,
+                      "bottom": 0,
+                      "left": 0
+                    },
+                    "primaryAlign": "MIN",
+                    "counterAlign": "CENTER"
+                  },
+                  "place": "FLOW",
+                  "component": "Property 1=Left",
+                  "componentSet": "Measure + Spacing Guide",
+                  "props": {
+                    "Property 1": "Left"
+                  },
+                  "children": [
+                    {
+                      "id": "I2121:2706;45:890",
+                      "type": "FRAME",
+                      "name": "Frame 52",
+                      "box": {
+                        "x": 0,
+                        "y": -1,
+                        "w": 25,
+                        "h": 14,
+                        "absX": -449,
+                        "absY": -8337
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "HUG"
+                      },
+                      "layout": {
+                        "mode": "HORIZONTAL",
+                        "wrap": false,
+                        "gap": 10,
+                        "padding": {
+                          "top": 0,
+                          "right": 0,
+                          "bottom": 0,
+                          "left": 0
+                        },
+                        "primaryAlign": "CENTER",
+                        "counterAlign": "CENTER"
+                      },
+                      "place": "FLOW",
+                      "children": [
+                        {
+                          "id": "I2121:2706;45:891",
+                          "type": "TEXT",
+                          "name": "24px",
+                          "box": {
+                            "x": 1.5,
+                            "y": 0,
+                            "w": 22,
+                            "h": 14,
+                            "absX": -447.5,
+                            "absY": -8337
+                          },
+                          "sizing": {
+                            "h": "HUG",
+                            "v": "HUG"
+                          },
+                          "place": "FLOW",
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "hex": "#f14c2e",
+                              "alpha": 1
+                            }
+                          ],
+                          "text": {
+                            "characters": "8px",
+                            "fontFamily": "Roboto",
+                            "fontStyle": "Regular",
+                            "fontWeight": 400,
+                            "italic": false,
+                            "fontSize": 10,
+                            "lineHeightPx": 14,
+                            "lineHeightUnit": "PIXELS",
+                            "letterSpacing": 0,
+                            "align": "LEFT",
+                            "valign": "TOP",
+                            "case": "ORIGINAL",
+                            "decoration": "NONE",
+                            "autoResize": "WIDTH_AND_HEIGHT"
+                          },
+                          "styleRefs": {
+                            "fill": "Text/Error"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "I2121:2706;45:889",
+                      "type": "LINE",
+                      "name": "Line 1",
+                      "box": {
+                        "x": 33,
+                        "y": 0,
+                        "w": 0,
+                        "h": 12,
+                        "absX": -416,
+                        "absY": -8336
+                      },
+                      "rotation": 1.5707963705062848,
+                      "rotate": {
+                        "w": 24,
+                        "h": 0,
+                        "x": 33,
+                        "y": 0,
+                        "m": [
+                          -4.371138828673793e-8,
+                          1,
+                          -1,
+                          -4.371138828673793e-8
+                        ]
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 0.5,
+                        "align": "OUTSIDE",
+                        "inLayout": false
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    },
+                    {
+                      "id": "I2121:2706;45:892",
+                      "type": "RECTANGLE",
+                      "name": "Rectangle 1",
+                      "box": {
+                        "x": 41,
+                        "y": 0,
+                        "w": 209,
+                        "h": 12,
+                        "absX": -408,
+                        "absY": -8336
+                      },
+                      "sizing": {
+                        "h": "FILL",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "grow": 1,
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 1,
+                        "weights": {
+                          "top": 0.5,
+                          "right": 0,
+                          "bottom": 0.5,
+                          "left": 0
+                        },
+                        "align": "INSIDE",
+                        "inLayout": false,
+                        "dashes": [
+                          2,
+                          2
+                        ]
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2121:2707",
+          "type": "INSTANCE",
+          "name": "Content Item/Paragraph",
+          "visible": false,
+          "box": {
+            "x": 0,
+            "y": 64,
+            "w": 1200,
+            "h": 140,
+            "absX": -449,
+            "absY": -8304
+          },
+          "sizing": {
+            "h": "FIXED",
+            "v": "HUG"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 0,
+              "bottom": 0,
+              "left": 0
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "MIN"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "component": "Type=Paragraph, Breakpoint=Desktop, Font Size=18px, Padding Bottom=false, Padding Guide=false",
+          "componentSet": "Content Item/Paragraph",
+          "props": {
+            "Type": "Paragraph",
+            "Breakpoint": "Desktop",
+            "Font Size": "18px",
+            "Padding Bottom": "false",
+            "Padding Guide": "false"
+          },
+          "children": [
+            {
+              "id": "I2121:2707;45:3841",
+              "type": "FRAME",
+              "name": "Paragraph",
+              "box": {
+                "x": 0,
+                "y": 0,
+                "w": 1200,
+                "h": 140,
+                "absX": -449,
+                "absY": -8304
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "CENTER"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "clip": true,
+              "children": [
+                {
+                  "id": "I2121:2707;45:3842",
+                  "type": "TEXT",
+                  "name": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ullamcorper mattis lorem non. Ultrices praesent amet ipsum justo massa. Eu dolor aliquet risus gravida nunc at feugiat consequat purus. Non massa enim vitae duis mattis. Vel in ultricies vel fringilla.",
+                  "box": {
+                    "x": 347.5,
+                    "y": 0,
+                    "w": 505,
+                    "h": 140,
+                    "absX": -101.5,
+                    "absY": -8304
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ullamcorper mattis lorem non. Ultrices praesent amet ipsum justo massa. Eu dolor aliquet risus gravida nunc at feugiat consequat purus. Non massa enim vitae duis mattis. Vel in ultricies vel fringilla.",
+                    "fontFamily": "Roboto",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 18,
+                    "lineHeightPx": 28,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT",
+                    "paragraphSpacing": 14
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Paragraph/P-lg-18/18-400"
+                  },
+                  "variables": {
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:de5688f625c52ba345c0b54f1c7b646e9cfb0c7c/1491:107"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "I2121:2707;45:3843",
+              "type": "FRAME",
+              "name": "Pading bottom",
+              "visible": false,
+              "box": {
+                "x": 0,
+                "y": 80,
+                "w": 505,
+                "h": 14,
+                "absX": -449,
+                "absY": -8224
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "VERTICAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "MIN",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2707;45:3844",
+                  "type": "INSTANCE",
+                  "name": "Measure + Spacing Guide",
+                  "box": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 505,
+                    "h": 14,
+                    "absX": -449,
+                    "absY": -8224
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "FIXED"
+                  },
+                  "layout": {
+                    "mode": "HORIZONTAL",
+                    "wrap": false,
+                    "gap": 8,
+                    "padding": {
+                      "top": 0,
+                      "right": 0,
+                      "bottom": 0,
+                      "left": 0
+                    },
+                    "primaryAlign": "MIN",
+                    "counterAlign": "CENTER"
+                  },
+                  "place": "FLOW",
+                  "selfAlign": "STRETCH",
+                  "component": "Property 1=Left",
+                  "componentSet": "Measure + Spacing Guide",
+                  "props": {
+                    "Property 1": "Left"
+                  },
+                  "children": [
+                    {
+                      "id": "I2121:2707;45:3844;45:890",
+                      "type": "FRAME",
+                      "name": "Frame 52",
+                      "box": {
+                        "x": 0,
+                        "y": 0,
+                        "w": 25,
+                        "h": 14,
+                        "absX": -449,
+                        "absY": -8224
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "HUG"
+                      },
+                      "layout": {
+                        "mode": "HORIZONTAL",
+                        "wrap": false,
+                        "gap": 10,
+                        "padding": {
+                          "top": 0,
+                          "right": 0,
+                          "bottom": 0,
+                          "left": 0
+                        },
+                        "primaryAlign": "CENTER",
+                        "counterAlign": "CENTER"
+                      },
+                      "place": "FLOW",
+                      "children": [
+                        {
+                          "id": "I2121:2707;45:3844;45:891",
+                          "type": "TEXT",
+                          "name": "24px",
+                          "box": {
+                            "x": 1.5,
+                            "y": 0,
+                            "w": 22,
+                            "h": 14,
+                            "absX": -447.5,
+                            "absY": -8224
+                          },
+                          "sizing": {
+                            "h": "HUG",
+                            "v": "HUG"
+                          },
+                          "place": "FLOW",
+                          "fills": [
+                            {
+                              "type": "SOLID",
+                              "hex": "#f14c2e",
+                              "alpha": 1
+                            }
+                          ],
+                          "text": {
+                            "characters": "14px",
+                            "fontFamily": "Roboto",
+                            "fontStyle": "Regular",
+                            "fontWeight": 400,
+                            "italic": false,
+                            "fontSize": 10,
+                            "lineHeightPx": 14,
+                            "lineHeightUnit": "PIXELS",
+                            "letterSpacing": 0,
+                            "align": "LEFT",
+                            "valign": "TOP",
+                            "case": "ORIGINAL",
+                            "decoration": "NONE",
+                            "autoResize": "WIDTH_AND_HEIGHT"
+                          },
+                          "styleRefs": {
+                            "fill": "Text/Error"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "I2121:2707;45:3844;45:889",
+                      "type": "LINE",
+                      "name": "Line 1",
+                      "box": {
+                        "x": 33,
+                        "y": 0,
+                        "w": 0,
+                        "h": 14,
+                        "absX": -416,
+                        "absY": -8224
+                      },
+                      "rotation": 1.5707963705062848,
+                      "rotate": {
+                        "w": 14,
+                        "h": 0,
+                        "x": 33,
+                        "y": 0,
+                        "m": [
+                          -4.371138828673793e-8,
+                          1,
+                          -1,
+                          -4.371138828673793e-8
+                        ]
+                      },
+                      "sizing": {
+                        "h": "FIXED",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 0.5,
+                        "align": "OUTSIDE",
+                        "inLayout": false
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    },
+                    {
+                      "id": "I2121:2707;45:3844;45:892",
+                      "type": "RECTANGLE",
+                      "name": "Rectangle 1",
+                      "box": {
+                        "x": 41,
+                        "y": 0,
+                        "w": 464,
+                        "h": 14,
+                        "absX": -408,
+                        "absY": -8224
+                      },
+                      "sizing": {
+                        "h": "FILL",
+                        "v": "FILL"
+                      },
+                      "place": "FLOW",
+                      "selfAlign": "STRETCH",
+                      "grow": 1,
+                      "stroke": {
+                        "paints": [
+                          {
+                            "type": "SOLID",
+                            "hex": "#f14c2e",
+                            "alpha": 1
+                          }
+                        ],
+                        "weight": 1,
+                        "weights": {
+                          "top": 0.5,
+                          "right": 0,
+                          "bottom": 0.5,
+                          "left": 0
+                        },
+                        "align": "INSIDE",
+                        "inLayout": false,
+                        "dashes": [
+                          2,
+                          2
+                        ]
+                      },
+                      "styleRefs": {
+                        "stroke": "Text/Error"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2121:2708",
+      "type": "INSTANCE",
+      "name": "award-vnx",
+      "box": {
+        "x": 150,
+        "y": 136,
+        "w": 1140,
+        "h": 237,
+        "absX": -449,
+        "absY": -8280
+      },
+      "sizing": {
+        "h": "FIXED",
+        "v": "HUG"
+      },
+      "layout": {
+        "mode": "HORIZONTAL",
+        "wrap": false,
+        "gap": 20,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 24,
+          "left": 0
+        },
+        "primaryAlign": "MIN",
+        "counterAlign": "MIN"
+      },
+      "place": "FLOW",
+      "component": "Flip=Vertical, Breakpoint=Desktop",
+      "componentSet": "award-vnx",
+      "props": {
+        "Flip": "Vertical",
+        "Breakpoint": "Desktop"
+      },
+      "variables": {
+        "paddingBottom": {
+          "type": "VARIABLE_ALIAS",
+          "id": "VariableID:cec045bac8f7352ae4c16194b23cfe4a352ac3c2/10631:963"
+        }
+      },
+      "children": [
+        {
+          "id": "I2121:2708;1095:30398",
+          "type": "FRAME",
+          "name": "_award-card 1",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "w": 212,
+            "h": 213,
+            "absX": -449,
+            "absY": -8280
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "HUG"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 12,
+              "bottom": 0,
+              "left": 12
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "CENTER"
+          },
+          "place": "FLOW",
+          "grow": 1,
+          "radius": [
+            12,
+            12,
+            12,
+            12
+          ],
+          "clip": true,
+          "children": [
+            {
+              "id": "I2121:2708;1095:30399",
+              "type": "FRAME",
+              "name": "Frame 61",
+              "box": {
+                "x": 75.4294,
+                "y": 0,
+                "w": 61.1413,
+                "h": 125,
+                "absX": -373.5706,
+                "absY": -8280
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "FIXED"
+              },
+              "place": "FLOW",
+              "fills": [
+                {
+                  "type": "IMAGE",
+                  "imageRef": "1b32f35dc55c5d726477ec6aec83a60ccc6726f6",
+                  "scaleMode": "FILL",
+                  "alpha": 1,
+                  "asset": {
+                    "file": "images/1b32f35dc55c5d726477ec6aec83a60ccc6726f6.png",
+                    "width": 263,
+                    "height": 150,
+                    "sha256": "d6016cb11bd6def7887c9cd182d5581c11bdee57728da0dab05ea084239d62c3"
+                  }
+                }
+              ],
+              "clip": true
+            },
+            {
+              "id": "I2121:2708;1095:30400",
+              "type": "FRAME",
+              "name": "Title",
+              "box": {
+                "x": 12,
+                "y": 125,
+                "w": 188,
+                "h": 88,
+                "absX": -437,
+                "absY": -8155
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2708;1095:30401",
+                  "type": "TEXT",
+                  "name": "Top 10 Thương hiệu hàng đầu Việt Nam 2023",
+                  "box": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 188,
+                    "h": 72,
+                    "absX": -437,
+                    "absY": -8139
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Top 10 Thương hiệu hàng đầu Việt Nam 2023",
+                    "fontFamily": "Inter",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 16,
+                    "lineHeightPx": 24,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT"
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Body-text-lg/Regular"
+                  },
+                  "variables": {
+                    "lineHeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:273f4e55884fe61e8c587eda122a3b9fae105d96/15639:16"
+                      }
+                    ],
+                    "fontWeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:b5838d06a6423dd48a2a5da1025187e589fbb0e9/15637:215"
+                      }
+                    ],
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:2af4d590622568ea738647eecba7823b49633cbf/15637:205"
+                      }
+                    ],
+                    "fontSize": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:14db0309d54a572b184289c9074942382b907790/15637:209"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "I2121:2708;1095:30406",
+          "type": "FRAME",
+          "name": "_award-card 2",
+          "box": {
+            "x": 232,
+            "y": 0,
+            "w": 212,
+            "h": 213,
+            "absX": -217,
+            "absY": -8280
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "FILL"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 12,
+              "bottom": 0,
+              "left": 12
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "CENTER"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "grow": 1,
+          "radius": [
+            12,
+            12,
+            12,
+            12
+          ],
+          "clip": true,
+          "children": [
+            {
+              "id": "I2121:2708;1095:30407",
+              "type": "RECTANGLE",
+              "name": "Vietnix-iso-27001-16-9 1",
+              "box": {
+                "x": 61.2042,
+                "y": 0,
+                "w": 89.5916,
+                "h": 125,
+                "absX": -155.7958,
+                "absY": -8280
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "FIXED"
+              },
+              "place": "FLOW",
+              "fills": [
+                {
+                  "type": "IMAGE",
+                  "imageRef": "75fb4bb84e9dc6fb0bb47bf3cff9403a0b79ef99",
+                  "scaleMode": "STRETCH",
+                  "alpha": 1,
+                  "imageTransform": [
+                    [
+                      0.3399999737739563,
+                      0,
+                      0.5943750143051147
+                    ],
+                    [
+                      0,
+                      0.84333336353302,
+                      0.07222222536802292
+                    ]
+                  ],
+                  "asset": {
+                    "file": "images/75fb4bb84e9dc6fb0bb47bf3cff9403a0b79ef99.jpg",
+                    "width": 1600,
+                    "height": 900,
+                    "sha256": "3cf5f979924f9fa9699e8314aaed9940ae41d9feb33b92dd15e2cd7fff1f1ed3"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "I2121:2708;1095:30408",
+              "type": "FRAME",
+              "name": "Title",
+              "box": {
+                "x": 12,
+                "y": 125,
+                "w": 188,
+                "h": 40,
+                "absX": -205,
+                "absY": -8155
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2708;1095:30409",
+                  "type": "TEXT",
+                  "name": "Chứng Nhận Bảo Mật",
+                  "box": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 188,
+                    "h": 24,
+                    "absX": -205,
+                    "absY": -8139
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Chứng Nhận Bảo Mật",
+                    "fontFamily": "Inter",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 16,
+                    "lineHeightPx": 24,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT"
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Body-text-lg/Regular"
+                  },
+                  "variables": {
+                    "lineHeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:273f4e55884fe61e8c587eda122a3b9fae105d96/15639:16"
+                      }
+                    ],
+                    "fontWeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:b5838d06a6423dd48a2a5da1025187e589fbb0e9/15637:215"
+                      }
+                    ],
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:2af4d590622568ea738647eecba7823b49633cbf/15637:205"
+                      }
+                    ],
+                    "fontSize": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:14db0309d54a572b184289c9074942382b907790/15637:209"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "I2121:2708;1095:30394",
+          "type": "FRAME",
+          "name": "_award-card 3",
+          "box": {
+            "x": 464,
+            "y": 0,
+            "w": 212,
+            "h": 213,
+            "absX": 15,
+            "absY": -8280
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "FILL"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 12,
+              "bottom": 0,
+              "left": 12
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "CENTER"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "grow": 1,
+          "radius": [
+            12,
+            12,
+            12,
+            12
+          ],
+          "clip": true,
+          "children": [
+            {
+              "id": "I2121:2708;1095:30395",
+              "type": "FRAME",
+              "name": "Frame 61",
+              "box": {
+                "x": 75.4294,
+                "y": 0,
+                "w": 61.1413,
+                "h": 125,
+                "absX": 90.4294,
+                "absY": -8280
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "FIXED"
+              },
+              "place": "FLOW",
+              "fills": [
+                {
+                  "type": "IMAGE",
+                  "imageRef": "c6ae48c10d230c90d301b4d9b5e2f1d14ba44423",
+                  "scaleMode": "FILL",
+                  "alpha": 1,
+                  "asset": {
+                    "file": "images/c6ae48c10d230c90d301b4d9b5e2f1d14ba44423.png",
+                    "width": 263,
+                    "height": 150,
+                    "sha256": "f8eaff1ec6f8be686c8f16613158474c7c59baa3c1612322270a7c885f86896b"
+                  }
+                }
+              ],
+              "clip": true
+            },
+            {
+              "id": "I2121:2708;1095:30396",
+              "type": "FRAME",
+              "name": "Title",
+              "box": {
+                "x": 12,
+                "y": 125,
+                "w": 188,
+                "h": 64,
+                "absX": 27,
+                "absY": -8155
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2708;1095:30397",
+                  "type": "TEXT",
+                  "name": "Top 10 Thương hiệu uy tín thời đại kinh tế số",
+                  "box": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 188,
+                    "h": 48,
+                    "absX": 27,
+                    "absY": -8139
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Top 10 Thương hiệu uy tín thời đại kinh tế số",
+                    "fontFamily": "Inter",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 16,
+                    "lineHeightPx": 24,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT"
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Body-text-lg/Regular"
+                  },
+                  "variables": {
+                    "lineHeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:273f4e55884fe61e8c587eda122a3b9fae105d96/15639:16"
+                      }
+                    ],
+                    "fontWeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:b5838d06a6423dd48a2a5da1025187e589fbb0e9/15637:215"
+                      }
+                    ],
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:2af4d590622568ea738647eecba7823b49633cbf/15637:205"
+                      }
+                    ],
+                    "fontSize": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:14db0309d54a572b184289c9074942382b907790/15637:209"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "I2121:2708;1373:57",
+          "type": "FRAME",
+          "name": "_award-card 4",
+          "box": {
+            "x": 696,
+            "y": 0,
+            "w": 212,
+            "h": 213,
+            "absX": 247,
+            "absY": -8280
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "FILL"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 12,
+              "bottom": 0,
+              "left": 12
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "CENTER"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "grow": 1,
+          "radius": [
+            12,
+            12,
+            12,
+            12
+          ],
+          "clip": true,
+          "children": [
+            {
+              "id": "I2121:2708;1373:58",
+              "type": "RECTANGLE",
+              "name": "Vietnix-iso-27001-16-9 1",
+              "box": {
+                "x": 61.2042,
+                "y": 0,
+                "w": 89.5916,
+                "h": 125,
+                "absX": 308.2042,
+                "absY": -8280
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "FIXED"
+              },
+              "place": "FLOW",
+              "fills": [
+                {
+                  "type": "IMAGE",
+                  "imageRef": "9f7484a5fe110f5974045dfeb704af9fa2872cb0",
+                  "scaleMode": "FILL",
+                  "alpha": 1,
+                  "asset": {
+                    "file": "images/9f7484a5fe110f5974045dfeb704af9fa2872cb0.png",
+                    "width": 90,
+                    "height": 125,
+                    "sha256": "825421b310c8288119c3a1ffdcada70e069ef803897dccc9a7dec26c0228d8bd"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "I2121:2708;1373:59",
+              "type": "FRAME",
+              "name": "Title",
+              "box": {
+                "x": 12,
+                "y": 125,
+                "w": 188,
+                "h": 40,
+                "absX": 259,
+                "absY": -8155
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2708;1373:60",
+                  "type": "TEXT",
+                  "name": "Chứng Nhận Chất Lượng",
+                  "box": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 188,
+                    "h": 24,
+                    "absX": 259,
+                    "absY": -8139
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Chứng Nhận Chất Lượng",
+                    "fontFamily": "Inter",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 16,
+                    "lineHeightPx": 24,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT"
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Body-text-lg/Regular"
+                  },
+                  "variables": {
+                    "lineHeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:273f4e55884fe61e8c587eda122a3b9fae105d96/15639:16"
+                      }
+                    ],
+                    "fontWeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:b5838d06a6423dd48a2a5da1025187e589fbb0e9/15637:215"
+                      }
+                    ],
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:2af4d590622568ea738647eecba7823b49633cbf/15637:205"
+                      }
+                    ],
+                    "fontSize": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:14db0309d54a572b184289c9074942382b907790/15637:209"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "I2121:2708;1095:30402",
+          "type": "FRAME",
+          "name": "_award-card",
+          "box": {
+            "x": 928,
+            "y": 0,
+            "w": 212,
+            "h": 213,
+            "absX": 479,
+            "absY": -8280
+          },
+          "sizing": {
+            "h": "FILL",
+            "v": "FILL"
+          },
+          "layout": {
+            "mode": "VERTICAL",
+            "wrap": false,
+            "gap": 0,
+            "padding": {
+              "top": 0,
+              "right": 12,
+              "bottom": 0,
+              "left": 12
+            },
+            "primaryAlign": "MIN",
+            "counterAlign": "CENTER"
+          },
+          "place": "FLOW",
+          "selfAlign": "STRETCH",
+          "grow": 1,
+          "radius": [
+            12,
+            12,
+            12,
+            12
+          ],
+          "clip": true,
+          "children": [
+            {
+              "id": "I2121:2708;1095:30403",
+              "type": "FRAME",
+              "name": "Frame 61",
+              "box": {
+                "x": 75.4293,
+                "y": 0,
+                "w": 61.1413,
+                "h": 125,
+                "absX": 554.4293,
+                "absY": -8280
+              },
+              "sizing": {
+                "h": "FIXED",
+                "v": "FIXED"
+              },
+              "place": "FLOW",
+              "fills": [
+                {
+                  "type": "IMAGE",
+                  "imageRef": "14413a8d17f431f8b1825f14968859428f55c5d9",
+                  "scaleMode": "FILL",
+                  "alpha": 1,
+                  "asset": {
+                    "file": "images/14413a8d17f431f8b1825f14968859428f55c5d9.png",
+                    "width": 263,
+                    "height": 150,
+                    "sha256": "fcd744f568d8a29954bf3dca6c5bbef16670b72a2b21e360a91409a6f735beed"
+                  }
+                }
+              ],
+              "clip": true
+            },
+            {
+              "id": "I2121:2708;1095:30404",
+              "type": "FRAME",
+              "name": "Title",
+              "box": {
+                "x": 12,
+                "y": 125,
+                "w": 188,
+                "h": 64,
+                "absX": 491,
+                "absY": -8155
+              },
+              "sizing": {
+                "h": "FILL",
+                "v": "HUG"
+              },
+              "layout": {
+                "mode": "HORIZONTAL",
+                "wrap": false,
+                "gap": 10,
+                "padding": {
+                  "top": 16,
+                  "right": 0,
+                  "bottom": 0,
+                  "left": 0
+                },
+                "primaryAlign": "CENTER",
+                "counterAlign": "MIN"
+              },
+              "place": "FLOW",
+              "selfAlign": "STRETCH",
+              "children": [
+                {
+                  "id": "I2121:2708;1095:30405",
+                  "type": "TEXT",
+                  "name": "Top 5 Thương Hiệu Uy Tín",
+                  "box": {
+                    "x": 0,
+                    "y": 16,
+                    "w": 188,
+                    "h": 48,
+                    "absX": 491,
+                    "absY": -8139
+                  },
+                  "sizing": {
+                    "h": "FILL",
+                    "v": "HUG"
+                  },
+                  "place": "FLOW",
+                  "grow": 1,
+                  "fills": [
+                    {
+                      "type": "SOLID",
+                      "hex": "#525666",
+                      "alpha": 1
+                    }
+                  ],
+                  "text": {
+                    "characters": "Top 5\nThương Hiệu Uy Tín",
+                    "fontFamily": "Inter",
+                    "fontStyle": "Regular",
+                    "fontWeight": 400,
+                    "italic": false,
+                    "fontSize": 16,
+                    "lineHeightPx": 24,
+                    "lineHeightUnit": "PIXELS",
+                    "letterSpacing": 0,
+                    "align": "CENTER",
+                    "valign": "TOP",
+                    "case": "ORIGINAL",
+                    "decoration": "NONE",
+                    "autoResize": "HEIGHT"
+                  },
+                  "styleRefs": {
+                    "fill": "Gray Cold/500",
+                    "text": "Body-text-lg/Regular"
+                  },
+                  "variables": {
+                    "lineHeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:273f4e55884fe61e8c587eda122a3b9fae105d96/15639:16"
+                      }
+                    ],
+                    "fontWeight": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:b5838d06a6423dd48a2a5da1025187e589fbb0e9/15637:215"
+                      }
+                    ],
+                    "fontFamily": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:2af4d590622568ea738647eecba7823b49633cbf/15637:205"
+                      }
+                    ],
+                    "fontSize": [
+                      {
+                        "type": "VARIABLE_ALIAS",
+                        "id": "VariableID:14db0309d54a572b184289c9074942382b907790/15637:209"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2121:2709",
+      "type": "INSTANCE",
+      "name": "Pagination",
+      "box": {
+        "x": 620,
+        "y": 373,
+        "w": 200,
+        "h": 4,
+        "absX": 21,
+        "absY": -8043
+      },
+      "sizing": {
+        "h": "HUG",
+        "v": "HUG"
+      },
+      "layout": {
+        "mode": "HORIZONTAL",
+        "wrap": false,
+        "gap": 8,
+        "padding": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "primaryAlign": "MIN",
+        "counterAlign": "MIN"
+      },
+      "place": "FLOW",
+      "component": "Breakpoint=Desktop, Type=Dash, Mode=Light",
+      "componentSet": "Pagination",
+      "props": {
+        "Last item": true,
+        "Dash 05": true,
+        "Dash 07": true,
+        "Dash 02": true,
+        "Dash 06": true,
+        "Dash 04": true,
+        "Dash 03": true,
+        "Dash 01": true,
+        "Breakpoint": "Desktop",
+        "Type": "Dash",
+        "Mode": "Light"
+      },
+      "variables": {
+        "itemSpacing": {
+          "type": "VARIABLE_ALIAS",
+          "id": "VariableID:143440d3832e60ae978d1b6f0a7dc921dc62c3bb/10631:1069"
+        }
+      },
+      "svg": {
+        "file": "svg/2121_2709.svg",
+        "bytes": 1864,
+        "width": 200,
+        "height": 4
+      },
+      "unhandled": [
+        "explicitVariableModes={\"VariableCollectionId:4e2ac47d3cb307... [limit]: variable mode picked for a frame (mobile / desktop values of font size etc.): the REST node holds values of ONE mode, the render of the other can differ (Banner mobile button 14px, REST says 16)"
+      ],
+      "svgOfChildren": 7
+    }
+  ]
+}

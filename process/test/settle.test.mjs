@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { settleMeasuredRows } from '../qa/settle.mjs';
+import { settleMeasuredRows } from '../modules/visual-check/settle.mjs';
 
 const row = (id, check, want, got) => ({ id, check, want: String(want), got: String(got), ok: false });
 

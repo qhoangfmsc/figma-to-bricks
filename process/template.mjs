@@ -8,22 +8,24 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolveWorkspace } from './shared/workspace.mjs';
-import { fetchStep } from './scripts/01-fetch.mjs';
-import { treeStep } from './scripts/02-tree.mjs';
-import { detectStep } from './scripts/03-detect.mjs';
-import { decide, writeDecisionReport } from './decide/index.mjs';
-import { discoverFormErrors } from './figma/discover.mjs';
-import { signOff } from './review/index.mjs';
-import { figmaGet, enableRunCache, refreshRunCache } from './figma/api.mjs';
-import { groupQuestions, GROUPS, keyOf, validateAnswers, filled, figmaLink, applyAnswers, shareAccordionAnswers, hearAnswers } from './plan/index.mjs';
-import { runLines } from './shared/spawn-lines.mjs';
-import { parseFrameInput, SLOTS } from './template/frames.mjs';
-import { screenParts } from './template/parts.mjs';
-import { reviewFrame } from './template/review.mjs';
-import { attachFilledFrames } from './template/filled.mjs';
-import { outcomeOf, readyForUser } from './template/outcome.mjs';
-import { applyFeedback, describedParts } from './template/feedback.mjs';
+import { resolveWorkspace } from './modules/common/workspace.mjs';
+import { fetchStep } from './modules/build-steps/01-fetch.mjs';
+import { treeStep } from './modules/build-steps/02-tree.mjs';
+import { detectStep } from './modules/build-steps/03-detect.mjs';
+import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
+import { discoverFormErrors } from './modules/read-figma/discover.mjs';
+import { signOff } from './modules/sign-off/index.mjs';
+import { figmaGet, enableRunCache, refreshRunCache } from './modules/read-figma/api.mjs';
+import { groupQuestions, GROUPS, keyOf, figmaLink, applyAnswers, shareAccordionAnswers } from './modules/missing-content/index.mjs';
+import { resolvePlan } from './modules/missing-content/choices.mjs';
+import { runLines } from './modules/common/spawn-lines.mjs';
+import { parseFrameInput, SLOTS } from './modules/single-template/frames.mjs';
+import { planInventory, screenParts, sectionBlocks } from './modules/single-template/parts.mjs';
+import { writeTemplatePlan } from './modules/single-template/plan-doc.mjs';
+import { unclaimedRepeats } from './modules/recognize-parts/structure.mjs';
+import { reviewFrame } from './modules/single-template/review.mjs';
+import { attachFilledFrames } from './modules/single-template/filled.mjs';
+import { outcomeOf, readyForUser } from './modules/single-template/outcome.mjs';
 
 const ROUNDS = 3;
 const runner = join(dirname(new URL(import.meta.url).pathname), 'run.mjs');
@@ -42,10 +44,13 @@ function measuredFrames(base, responsive, verified) {
   return frames;
 }
 
-const flag = (args, name) => {
+export function readFlag(args, name) {
   const hit = args.find((a) => a.startsWith(`--${name}=`));
-  return hit ? hit.slice(name.length + 3) : '';
-};
+  if (hit) return hit.slice(name.length + 3);
+  const i = args.indexOf(`--${name}`);
+  if (i >= 0 && args[i + 1] && !args[i + 1].startsWith('--')) return args[i + 1];
+  return '';
+}
 
 async function prepareFrame(url, { variant, formErrors }) {
   const ws = await fetchStep(url);
@@ -103,7 +108,7 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     };
   });
   base.writeJson('responsive.json', {
-    note: 'breakpoint frames pasted on Vietnix Tools (process/template.mjs). A blank slot is not a variant. Widescreen is min-width from that frame\'s width.',
+    note: 'breakpoint frames pasted on /generate-template-from-figma (process/template.mjs). A blank slot is not a variant. Widescreen is min-width from that frame\'s width.',
     variants: variants.map(({ width, ...v }) => v),
   });
   base.writeJson('context.json', { bg: { base: null } });
@@ -120,7 +125,31 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
     figma: figmaLink(desktop.fileKey, item.node),
   })));
-  const parts = screenParts(base.readJson('tree.json'), det.components, questions, desktop.fileKey);
+  const parts = screenParts(tree, det.components, questions, desktop.fileKey);
+  const blocks = sectionBlocks(tree, desktop.fileKey);
+  const repeats = unclaimedRepeats(tree, det.components);
+  const open = det.components.filter((c) => c.status === 'proposed').map((c) => ({
+    component: c.component, node: c.node, confidence: c.confidence, evidence: c.evidence,
+  }));
+  const inventory = planInventory(tree, det.components, desktop.fileKey);
+  const typeQuestion = questions.find((q) => q.group === 'type');
+  const shown = {
+    title,
+    name: tree.name,
+    width: frameWidth(base),
+    variants: variants.map((v) => ({ label: SLOTS.find((s) => s.key === v.key)?.label ?? v.key, width: v.width })),
+    parts,
+    blocks,
+    open: inventory.open,
+    repeats: inventory.repeats,
+    templateType: {
+      key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
+      value: typeQuestion?.value || 'section',
+      reason: typeQuestion?.label || '',
+    },
+  };
+  const planFile = writeTemplatePlan(base.dir, shown);
+  log(`Plan: ${planFile}`);
   return {
     fileKey: desktop.fileKey,
     nodeId: desktop.nodeId,
@@ -130,54 +159,39 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     name: tree.name,
     width: frameWidth(base),
     dir: base.dir,
+    planFile,
     becomes: Object.entries(counts).map(([k, n]) => `${k} ×${n}`).join(', ') || 'block',
     questions,
     parts,
+    repeats,
+    open,
     variants: variants.map((v) => ({ key: v.key, width: v.width })),
     designer: [...new Set(prepared.desktop.result.designer)],
   };
 }
 
-export async function buildTemplate(desktopUrl, answers, { log = () => {}, feedback = '' } = {}) {
-  const heard = hearAnswers(answers ?? {});
-  const problems = validateAnswers(heard);
-  if (problems.length) {
-    const err = new Error(problems.join('\n'));
-    err.problems = problems;
+export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}) {
+  const base = resolveWorkspace(desktopUrl);
+  if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Chạy read trước.');
+  const stored = base.has('choices.json') ? base.readJson('choices.json') : {};
+  const { ready, open } = resolvePlan(answers ?? {}, stored, (group) => GROUPS[group]?.value ?? '');
+  if (open.length) {
+    const err = new Error(open.map((row) => `${row.key}: "${row.text}" chưa có choice`).join('\n'));
+    err.open = open;
     throw err;
   }
-  const base = resolveWorkspace(desktopUrl);
-  if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Bấm Đọc Figma trước.');
-  const applied = applyAnswers(base, filled(heard));
+  const applied = applyAnswers(base, ready);
   const shared = shareAccordionAnswers(base);
   log(`Đã gắn ${applied.applied.length} giá trị${shared.copied ? `, chép ${shared.copied} nội dung sang khung khác` : ''}`);
   await attachFilledFrames(base, { log });
-  const note = 'the owner confirmed the values on the Vietnix Tools screen';
+  const note = 'the owner confirmed the values in the chat';
   const responsive = base.readJson('responsive.json', { variants: [] });
   const variants = responsive.variants.map((v) => resolveWorkspace(join(dirname(base.dir), v.workspace)));
-  const hint = String(feedback ?? '').trim();
-  if (hint) {
-    const changed = [];
-    let unknown = false;
-    for (const ws of [base, ...variants]) {
-      const out = applyFeedback(ws.readJson('tree.json'), ws.readJson('detections.json', { components: [] }), hint);
-      unknown = unknown || out.unknown;
-      if (!out.applied.length) continue;
-      ws.writeJson('detections.json', out.detections);
-      changed.push(...out.applied);
-      log(`Góp ý: ${out.applied.map((a) => (a.detail ? `${a.name} → ${a.detail}` : `${a.name} → ${a.component}`)).join(', ')}.`);
-    }
-    if (!changed.length) {
-      const err = new Error(unknown ? 'Chưa nhận ra phần nào cần đổi.' : 'Không khớp phần nào trong khung với góp ý này.');
-      err.expose = true;
-      throw err;
-    }
-  }
   for (const variant of variants) {
     await attachFilledFrames(variant, { log });
-    signOff(variant, { by: 'owner (vietnix tools)', note });
+    signOff(variant, { by: 'owner (chat)', note });
   }
-  signOff(base, { by: 'owner (vietnix tools)', note });
+  signOff(base, { by: 'owner (chat)', note });
   const pipe = (args) => runLines('node', [runner, desktopUrl, ...args, '--no-cross'], (line) => {
     if (line.trim()) log(line.trim().slice(0, 180));
   });
@@ -188,7 +202,7 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {}, feedb
   let verifyStatus = 0;
   for (let round = 1; round <= ROUNDS; round++) {
     if (round > 1) {
-      log('Kiểm tra còn lệch. Đang sửa đúng template này rồi kiểm lại.');
+      log('Kiểm tra còn lệch. Dựng lại đúng template này từ quyết định đã chốt.');
       const built = await pipe(['--only=build']);
       if (built.status) throw new Error(`${built.stderr}\n${built.stdout}`.trim().slice(-800) || 'Chưa sửa được template.');
       const next = bricksHash(base);
@@ -199,7 +213,7 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {}, feedb
     } else {
       log('Đang tạo template, đẩy lên WordPress và kiểm tra.');
     }
-    const run = await pipe([round === 1 ? (hint ? '--from=build' : '--from=export') : '--from=push']);
+    const run = await pipe([round === 1 ? '--from=export' : '--from=push']);
     verifyStatus = run.status;
     const stateNow = base.readJson('state.json', {});
     const outcome = outcomeOf({ status: run.status, stdout: run.stdout, stderr: run.stderr, templateId: stateNow.templateId });
@@ -221,7 +235,6 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {}, feedb
       review: reviewFrame(f.verify, f.key),
     })),
     verifyStatus,
-    parts: describedParts(base.readJson('tree.json'), base.readJson('detections.json', { components: [] })),
   };
 }
 
@@ -229,7 +242,7 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 if (isMain) {
   const args = process.argv.slice(2);
   const cmd = args[0];
-  const input = { desktop: flag(args, 'desktop'), widescreen: flag(args, 'widescreen'), tablet: flag(args, 'tablet'), landscape: flag(args, 'landscape'), mobile: flag(args, 'mobile') };
+  const input = { desktop: readFlag(args, 'desktop'), widescreen: readFlag(args, 'widescreen'), tablet: readFlag(args, 'tablet'), landscape: readFlag(args, 'landscape'), mobile: readFlag(args, 'mobile') };
   const parsed = parseFrameInput(input);
   if (!cmd || !parsed.ok) {
     if (!parsed.ok) for (const e of parsed.errors) console.error(e);
@@ -241,7 +254,7 @@ if (isMain) {
     if (cmd === 'read') {
       console.log(JSON.stringify(await readTemplate(parsed.frames, { log }), null, 2));
     } else if (cmd === 'build') {
-      const raw = flag(args, 'answers');
+      const raw = readFlag(args, 'answers');
       const answers = raw ? JSON.parse(raw) : {};
       console.log(JSON.stringify(await buildTemplate(parsed.frames.desktop.url, answers, { log }), null, 2));
     } else {
