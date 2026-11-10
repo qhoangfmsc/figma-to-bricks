@@ -26,6 +26,7 @@ const KIND = {
   button: 'Nút', checkbox: 'Checkbox', switch: 'Switch', readmore: 'Xem thêm', semantic: 'Khối', accordion: 'Accordion', tabs: 'Tab', 'tab-switch': 'Tabs Component', menu: 'Menu',
   'menu-slider': 'Menu slider', carousel: 'Slider', form: 'Form', link: 'Link', 'flat-image': 'Ảnh', 'icon-list': 'Danh sách icon',
   breadcrumbs: 'Breadcrumb', counter: 'Số', countdown: 'Đếm ngược', tooltip: 'Tooltip', 'tooltip-style': 'Tooltip',
+  scroll: 'Scroll',
 };
 const TAB_NOTE = 'Mỗi nút là một tab. Phần bên dưới là nội dung của tab đang mở. Tab chưa vẽ thì dán link khung đó, hoặc viết nội dung vào. Để trống là giữ như bản vẽ.';
 const SLIDER_NOTE = 'Chỉ có khung desktop thì mobile vẫn là slider. Có link mobile thì dựng đúng thứ khung đó vẽ, kể cả khi không phải slider. Không tự đổi slider thành hàng kéo.';

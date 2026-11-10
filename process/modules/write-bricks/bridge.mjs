@@ -110,7 +110,11 @@ export async function bridge(method, path, body = {}) {
     const saved = await mcp('set_page_content', {
       page_id: page.id,
       elements_json: JSON.stringify(current.elements ?? []),
-      page_settings_json: JSON.stringify({ headerDisabled: true, footerDisabled: true }),
+      page_settings_json: JSON.stringify({
+        headerDisabled: true,
+        footerDisabled: true,
+        ...(current.page_settings?.customScriptsBodyFooter ? { customScriptsBodyFooter: current.page_settings.customScriptsBodyFooter } : {}),
+      }),
       sync_css: true,
     });
     const url = new URL(saved.url);

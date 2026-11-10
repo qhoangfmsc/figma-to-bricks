@@ -23,7 +23,7 @@ export const Choice = {
   keep: ['static'],
   tabopen: ['unset', 'title'],
   tabdata: ['unset', 'name'],
-  expect: ['unset', 'block', 'slider', 'tab', 'menu', 'form', 'accordion', 'button'],
+  expect: ['unset', 'block', 'slider', 'tab', 'menu', 'form', 'accordion', 'button', 'scroll'],
 };
 
 export const MISSING = '[Chưa có value]';

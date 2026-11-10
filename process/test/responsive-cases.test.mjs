@@ -446,6 +446,30 @@ test('a phone row wider than the phone breakpoint stacks there, a row that fits 
   assert.equal(fits.content[0].settings['_direction:mobile_portrait'], undefined);
 });
 
+test('three similar cards past the phone scroll sideways', () => {
+  const gallery = {
+    content: [
+      el('row', 0, 'block', { _direction: 'row', _width: '1140px', _columnGap: '16px' }),
+      el('a', 'row', 'block', { _width: '371px', '_width:mobile_portrait': '280px' }),
+      el('b', 'row', 'block', { _width: '280px' }),
+      el('c', 'row', 'block', { _width: '280px' }),
+      el('d', 'row', 'block', { _width: '280px' }),
+      el('e', 'row', 'block', { _width: '280px' }),
+      el('grid', 'row', 'block', { _width: '750px', '_display:mobile_portrait': 'none' }),
+    ],
+  };
+  fitFluid(gallery, { frameWidth: 1440, coveredUntil: 478, keep: ['mobile_portrait'] });
+  const row = gallery.content[0].settings;
+  assert.equal(row['_direction:mobile_portrait'], 'row');
+  assert.equal(row['_flexWrap:mobile_portrait'], 'nowrap');
+  assert.equal(row['_width:mobile_portrait'], '100%');
+  assert.equal(row['_widthMax:mobile_portrait'], '100%');
+  assert.equal(row['_overflow:mobile_portrait'], 'auto');
+  assert.equal(gallery.content.find((e) => e.id === 'a').settings['_flexShrink:mobile_portrait'], 0);
+  assert.doesNotMatch(row._cssCustom ?? '', /flex-wrap:\s*wrap/);
+  assert.equal(row['_direction:tablet_portrait'], 'column');
+});
+
 test('a full-bleed picture covers the section off the frame, and the content column caps per band', () => {
   const template = {
     content: [

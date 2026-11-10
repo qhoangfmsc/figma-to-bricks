@@ -58,6 +58,9 @@ export async function pushStep(urlOrDir) {
   }
 
   const body = { title: template.title, content, type: template.type || 'section' };
+  if (Array.isArray(template.scripts) && template.scripts.length) {
+    body.page_settings = { customScriptsBodyFooter: template.scripts.join('\n') };
+  }
   // A different template title means a NEW version: the old template stays untouched (owner decision 2026-10-26, "Pagespeed - Landing v2").
   if (state.templateId) {
     let oldTitle = state.templateTitle;

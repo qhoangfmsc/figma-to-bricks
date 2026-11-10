@@ -21,6 +21,7 @@ import { detectChoices } from '../recognize-parts/rules/choice.mjs';
 import { detectDividers } from '../recognize-parts/rules/divider.mjs';
 import { detectMedia } from '../recognize-parts/rules/media.mjs';
 import { detectProduction } from '../recognize-parts/rules/production-widgets.mjs';
+import { detectScrollLists } from '../recognize-parts/rules/scroll.mjs';
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
 import { partRule } from '../recognize-parts/kinds.mjs';
 import { checkCites, findNode } from '../recognize-parts/cite.mjs';
@@ -39,7 +40,7 @@ export function nodePath(tree, id, trail = []) {
 }
 
 export function runRules(tree) {
-  const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
+  const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree), ...detectScrollLists(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
   const claimed = new Set();
   for (const c of components) {
     if (c.component !== 'search') continue;

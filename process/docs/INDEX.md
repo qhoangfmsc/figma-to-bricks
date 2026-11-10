@@ -40,6 +40,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 | [tooltip](widget-components/tooltip.md) | chú thích |
 | [flat-image](widget-components/flat-image.md) | ảnh gộp |
 | [gallery](widget-components/gallery.md) | lưới ảnh |
+| [scroll](widget-components/scroll.md) | list cuộn |
 | [progress](widget-components/progress.md) | thanh % |
 | [rating](widget-components/rating.md) | sao |
 | [alert](widget-components/alert.md) | thanh báo |

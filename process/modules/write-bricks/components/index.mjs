@@ -28,5 +28,6 @@ import divider from '../../write-bricks/components/divider.mjs';
 import search from '../../write-bricks/components/search.mjs';
 import video from '../../write-bricks/components/video.mjs';
 import { PRODUCTION } from '../../write-bricks/components/production.mjs';
+import scroll from '../../write-bricks/components/scroll.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, ...PRODUCTION].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, scroll, ...PRODUCTION].map((c) => [c.id, c]));

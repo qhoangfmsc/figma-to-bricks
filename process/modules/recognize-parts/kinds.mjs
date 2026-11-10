@@ -28,6 +28,7 @@ export const PartKind = {
   HAMBURGER: 'hamburger',
   DROPDOWN: 'dropdown',
   OFFCANVAS: 'offcanvas',
+  SCROLL: 'scroll',
 };
 
 // shape is the rule. hint only raises confidence. anv is a note of the copy the idea came from. The build does not read it.
@@ -156,6 +157,11 @@ export const PART_RULES = {
     shape: 'A tall panel against the left or right edge, with a close mark.',
     hint: 'none',
     anv: 'offcanvas',
+  },
+  [PartKind.SCROLL]: {
+    shape: 'A darker block lying on a lighter block, both in one frame, beside repeated items that run past the container. That bar is the scroll.',
+    hint: 'none',
+    anv: 'not a gallery. A native overflow row was a hand-written recipe',
   },
 };
 

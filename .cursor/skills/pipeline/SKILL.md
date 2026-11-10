@@ -39,7 +39,9 @@ The shelf in `history/notes/components.md` is closed. Do not open `reference/ANV
 
 ## Widgets already here
 
-`gallery`, `progress`, `rating`, `alert`, `logo`, `hamburger`, `dropdown`, `offcanvas`. Shape: `process/modules/recognize-parts/rules/production-widgets.mjs`. Output: `process/modules/write-bricks/components/production.mjs`. The readable card for each one is `process/docs/widget-components/<id>.md`.
+`gallery`, `progress`, `rating`, `alert`, `logo`, `hamburger`, `dropdown`, `offcanvas`, `scroll`. Shape: `process/modules/recognize-parts/rules/production-widgets.mjs` and `rules/scroll.mjs`. Output: `process/modules/write-bricks/components/production.mjs` and `components/scroll.mjs`. The readable card for each one is `process/docs/widget-components/<id>.md`.
+
+A component is done when a fresh `detections.json` (no earlier `expect`) goes through detect, then decide, then the plan lists it. A test that only calls the detector is not that check. `process/test/scroll-list.test.mjs` renders that plan for the horizontal bar.
 
 The generate pipeline stays on the `f2b` mu-plugin and `WP_URL`. One `.env` is one site: `WP_URL`, `WP_USER`, `WP_PASSWORD`, and `MCP_TOKEN` all belong to that site. Point them at local, staging, or production. There is no second upload to another site. Do not put the token in a committed file.
 

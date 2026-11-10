@@ -231,6 +231,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     for (const k of patch?.dropSettings ?? []) delete s[k]; // e.g. `_display` of an accordion content block: the theme's open / closed rule must decide it (see components/accordion.mjs)
     for (const [k, v] of Object.entries(patch?.defaults ?? {})) s[k] ??= v; // an ancestor's component gives defaults that never override what the build wrote
     for (const c of patch?.css ?? []) addCustomCss(s, c.decl, c.suffix ?? ''); // css an ancestor's component writes on this element (e.g. the shared tooltip look on the root)
+    if (patch?.rawCss) s._cssCustom = [s._cssCustom, patch.rawCss].filter(Boolean).join('\n');
     if (node.openRoot) {
       s._cssClasses = [s._cssClasses, 'read-more-full'].filter(Boolean).join(' ');
       s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
@@ -365,6 +366,14 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
 
   // Sibling variants of one component (Hover, Active, Open, …) share the resting look.
   // Accordion, menu, and tabs already paint their own state, so their subtrees are skipped.
+  const scripts = [];
+  const scriptIds = new Set();
+  for (const { comp } of plan.values()) {
+    if (typeof comp.pageScript !== 'function' || scriptIds.has(comp.id)) continue;
+    scriptIds.add(comp.id);
+    const src = comp.pageScript();
+    if (src) scripts.push(src);
+  }
   const stateOwners = [...plan.entries()].filter(([, { det }]) => ['accordion', 'menu', 'menu-slider', 'tabs', 'tab-switch'].includes(det.component)).map(([id]) => id);
   for (const [id, extra] of Object.entries(siblingStatePatches(root, stateOwners))) {
     const prev = patches.get(id) ?? {};
@@ -401,6 +410,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       type: overrides.template?.type ?? 'section',
       content: elements,
       ...(stage ? { popup: { width: stage.width, backdrop: stage.backdrop } } : {}),
+      ...(scripts.length ? { scripts } : {}),
     },
     mapping,
     warnings,

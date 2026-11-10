@@ -158,6 +158,16 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     for (const c of kids.get(el.id) ?? []) inner = Math.max(inner, spanOf(c, seen));
     return Math.max(own, inner);
   };
+  const insideScroll = (el) => {
+    let cur = byId.get(el.parent);
+    const seen = new Set();
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      if (cur.settings?._overflow === 'auto') return true;
+      cur = byId.get(cur.parent);
+    }
+    return false;
+  };
   const sidePad = (el) => {
     let n = 0;
     let cur = el;
@@ -172,13 +182,18 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
   };
   // Any row whose pieces do not fit the window becomes a column there. A hug child counts as the
   // width drawn inside it. A row already drawn under 480px is a small frame and stays as drawn.
+  // A pasted phone frame that draws three or more cards of one width past 478px is a horizontal
+  // list: the row stays a row and scrolls. Two cards still stack. The next file with that row does too.
   const shrinkAt = new Map();
+  const scrollRows = new Set();
   // Full drawn width of a row that can shrink. Below that width, nowrap wins over wrap so the
   // last card stays on the line. The column rule, when it exists, starts at the 160px floor.
   const holdAt = new Map();
   for (const e of content) {
     const s = e.settings ??= {};
     if (s._direction !== 'row' || isTabBar(e) || e.name === 'slider-nested' || s._position === 'absolute') continue;
+    // The clip frame already scrolls this row. Stacking it would drop the items into a column.
+    if (s._overflow === 'auto' || byId.get(e.parent)?.settings?._overflow === 'auto') continue;
     const rowWidth = pxNum(s._width) ?? (s._widthMax === 'none' ? null : pxNum(s._widthMax));
     if (rowWidth != null && rowWidth < 480) continue;
     const children = (kids.get(e.id) ?? []).filter((c) => c.settings?._position !== 'absolute');
@@ -201,6 +216,27 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     if (shrinkable && full > sum) holdAt.set(e.id, snapBelow(full, frameWidth));
     // The phone breakpoint is max-width 478. A row wider than that does not fit the pasted
     // phone frame, so that frame stacks it. A row that fits the frame keeps the direction it drew.
+    // Three or more cards of one width are the list the phone drew past the frame: scroll, do not stack.
+    const atPhone = (c) => pxNum(c.settings?.['_width:mobile_portrait']) ?? spanOf(c);
+    const cards = flowing
+      .filter((c) => c.settings?.['_display:mobile_portrait'] !== 'none')
+      .map((c) => ({ c, w: atPhone(c) }))
+      .filter((card) => card.w >= 160);
+    const widest = Math.max(0, ...cards.map((card) => card.w));
+    const narrowest = cards.length ? Math.min(...cards.map((card) => card.w)) : 0;
+    const cardSum = cards.reduce((n, card) => n + card.w, 0) + gap * Math.max(0, cards.length - 1);
+    // A card that can shrink stays in the wrap rules below. Only a fixed card past the phone scrolls.
+    const gallery = !shrinkable && keep.includes('mobile_portrait') && cards.length >= 3 && widest > 0 && (widest - narrowest) / widest <= 0.2 && cardSum > 478;
+    if (gallery) {
+      scrollRows.add(e.id);
+      s['_direction:mobile_portrait'] = 'row';
+      s['_flexWrap:mobile_portrait'] = 'nowrap';
+      s['_width:mobile_portrait'] = '100%';
+      s['_widthMax:mobile_portrait'] = '100%';
+      s['_overflow:mobile_portrait'] = 'auto';
+      for (const card of cards) card.c.settings['_flexShrink:mobile_portrait'] = 0;
+      continue;
+    }
     if (keep.includes('mobile_portrait') && !keep.includes('mobile_landscape') && full > 478) s['_direction:mobile_portrait'] ??= 'column';
     const stackAt = snapBelow(sum, frameWidth);
     const query = band(stackAt);
@@ -239,6 +275,8 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       }
       continue;
     }
+    // A card inside a scroll list keeps the width it drew. max-width 100% would squash it into the window.
+    if (insideScroll(e)) continue;
     const width = pxNum(s._width);
     // size.mjs sets max-width none when the fixed box is wider than the parent's content room.
     // Every other wide px width also stays on the desktop key. The shrink lives under the frame,
@@ -290,6 +328,7 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
   for (const e of content) {
     const s = e.settings ??= {};
     if (s._direction !== 'row' || isTabBar(e) || e.name === 'slider-nested') continue;
+    if (s._overflow === 'auto' || byId.get(e.parent)?.settings?._overflow === 'auto') continue;
     const children = (kids.get(e.id) ?? []).filter((c) => c.settings?._position !== 'absolute');
     const widths = children.map((c) => itemWidth(c.settings)).filter((w) => w >= 80);
     const rowWidth = pxNum(s._width) ?? pxNum(s._widthMax);
@@ -301,6 +340,8 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       stackRow(s, open);
       for (const child of wide) pinStackedCard(child, open);
     }
+    // A scrolling card list keeps one line. Wrap would drop each card under the one before it.
+    if (scrollRows.has(e.id)) continue;
     if (rowWidth != null && rowWidth < 480) continue;
     if (widths.length < 2 || widths.reduce((sum, w) => sum + w, 0) < 480) continue;
     // Wrap and shrink only below the frame. At the frame, nowrap keeps a 384px card from growing.

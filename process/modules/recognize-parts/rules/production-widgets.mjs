@@ -82,7 +82,16 @@ function barOf(n) {
   };
 }
 
+function besideScroll(n) {
+  if (!n?.box) return false;
+  const thin = kids(n).filter((c) => c.box && ((c.box.h <= 28 && c.box.w >= 80) || (c.box.w <= 28 && c.box.h >= 80)));
+  if (!thin.length) return false;
+  return kids(n).some((c) => c.box && !thin.includes(c) && textsOf(c).length > 0 && (c.box.x + c.box.w > n.box.w + 40 || c.box.y + c.box.h > n.box.h + 40));
+}
+
 function detectProgress(n) {
+  // A thin bar beside a list that runs past the frame is a scrollbar, not a percent.
+  if (besideScroll(n)) return null;
   const direct = kids(n).map(barOf).filter(Boolean);
   const own = barOf(n);
   const bars = direct.length ? direct : own ? [own] : [];
