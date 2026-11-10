@@ -1,0 +1,15 @@
+.hidden.brxe-block {position: absolute; width: 100%; height: 100%}.btn_tawk.brxe-block {cursor: pointer; color: var(--bricks-color-xqrjdb); font-size: 20px; font-weight: 700}@media (max-width: 991px) {.btn_tawk.brxe-block {font-size: 12px}}@media (max-width: 767px) {.btn_tawk.brxe-block {font-size: 12px; width: 100%}}
+/* BREAKPOINT: Desktop (BASE) */
+.btn_tawk.brxe-button {cursor: pointer; color: var(--bricks-color-xqrjdb); font-size: 20px; font-weight: 700}
+
+/* BREAKPOINT: Tablet portrait */
+@media (max-width: 991px) {
+.btn_tawk.brxe-button {font-size: 12px}
+}
+/* BREAKPOINT: Mobile landscape */
+@media (max-width: 767px) {
+.btn_tawk.brxe-button {font-size: 12px; width: 100%}
+}
+
+/* BREAKPOINT: Desktop (BASE) */
+.is_rich_text p, .is_rich_text figure, .is_rich_text ol, .is_rich_text ul {	margin-top: 1rem; margin-bottom: 1rem;} .is_rich_text li {	margin-top: .5rem; margin-bottom: .5rem;} .is_rich_text p:first-child, .is_rich_text figure:first-child, .is_rich_text ol:first-child, .is_rich_text ul:first-child, .is_rich_text li:first-child {	margin-top: 0;} .is_rich_text p:last-child, .is_rich_text figure:last-child, .is_rich_text ol:last-child, .is_rich_text ul:last-child, .is_rich_text li:last-child {	margin-bottom: 0;} .is_rich_text td, .is_rich_text th {  border: 1px solid;  padding: 0.5em;} .is_rich_text ul {	list-style: disc;} .is_rich_text ol, .is_rich_text ul {	padding-left: 30px;}

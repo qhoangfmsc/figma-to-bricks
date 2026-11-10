@@ -1,13 +1,13 @@
 # Backlog: what is NOT done after the "usable widgets + Plan" work (2026-10-29)
 
 Done: the Plan (`plan-<node>.md`, asked in the chat), FAQ = `accordion-nested`, tabs = `tabs-nested`, menu = `nav > ul > li > text-link`, slider approved by structure,
-`ops/interact.mjs` (clicks a built page in Docker). Details: `process/README.md` (Autopilot), `process/modules/write-bricks/components/CATALOG.md` section 11, `process/docs/AI-GUIDE.md` (lessons).
+`ops/interact.mjs` (clicks a built page with headless Playwright). Details: `process/README.md` (Autopilot), `process/modules/write-bricks/components/CATALOG.md` section 11, `process/docs/AI-GUIDE.md` (lessons).
 Everything below is **not built**, in the order the owner is likely to care about.
 
 ## 1. "Xem thêm" (read more) on the SEO Text sections: BUILT (2026-10-29), limits
 
 Component `readmore` (`detect/rules/readmore.mjs`, `bricks/components/readmore.mjs`): the clipped frame gets a class, the button becomes a real `<button>` with a Bricks click interaction
-(`toggleAttribute` on `class`, no JS) and one css rule gives the open frame `height: auto`; the fade over the bottom edge hides while open. Clicked in the Docker browser on 2 sections:
+(`toggleAttribute` on `class`, no JS) and one css rule gives the open frame `height: auto`; the fade over the bottom edge hides while open. Clicked with headless Playwright on 2 sections:
 desktop 300px -> 790px and back; mobile 300px -> 886px and back (NcaL 2209-5171). Limits: the label does not change to "Thu gọn", the caret does not turn; two read-more frames with the same section,
 frame and button names on one page share a class and open together; the other two SEO Text sections (4Fg9 1606-18276 is the mobile frame of 1604-18648, NcaL 2209-5882 of 2209-5171) are built with their section.
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseFrameInput } from '../modules/single-template/frames.mjs';
+import { caseAt, parseFrameInput } from '../modules/single-template/frames.mjs';
 import { renderTemplatePlan, writeTemplatePlan } from '../modules/single-template/plan-doc.mjs';
 import { itemHeading, parsePlan } from '../modules/missing-content/index.mjs';
 import { readFlag } from '../template.mjs';
@@ -35,6 +35,22 @@ test('desktop is required and the optional frames keep their breakpoint keys', (
   assert.equal(withLandscape.ok, true);
   assert.equal(withLandscape.frames.landscape.key, 'mobile_landscape');
   assert.equal(withLandscape.frames.landscape.maxWidth, 767);
+});
+
+test('every width belongs to one rank and that rank has a frame to show', () => {
+  const phone = new Set(['desktop', 'mobile_portrait']);
+  const expect = [
+    [320, 'mobile_portrait'], [478, 'mobile_portrait'], [479, 'mobile_portrait'], [767, 'mobile_portrait'],
+    [768, 'desktop'], [991, 'desktop'], [992, 'desktop'], [1440, 'desktop'], [1700, 'desktop'], [2504, 'desktop'],
+  ];
+  for (const [width, rank] of expect) assert.equal(caseAt(width, phone), rank, String(width));
+  const all = new Set(['widescreen', 'desktop', 'tablet_portrait', 'mobile_landscape', 'mobile_portrait']);
+  assert.equal(caseAt(2504, all), 'widescreen');
+  assert.equal(caseAt(1440, all), 'desktop');
+  assert.equal(caseAt(800, all), 'tablet_portrait');
+  assert.equal(caseAt(700, all), 'mobile_landscape');
+  assert.equal(caseAt(375, all), 'mobile_portrait');
+  for (let width = 320; width <= 2504; width += 17) assert.ok(caseAt(width, phone));
 });
 
 test('frames must be one Figma file and different nodes', () => {

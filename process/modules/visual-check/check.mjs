@@ -1,5 +1,5 @@
-// QA runner. Runs INSIDE the f2b-qa Docker image (Playwright + chromium / firefox / webkit + pngjs), never on the owner's machine.
-//   node /qa/check.mjs /job/job.json        -> writes /job/out/result.json (+ screenshots, diffs)
+// QA runner. Headless Playwright on this machine (chromium / firefox / webkit + pngjs).
+//   node process/modules/visual-check/check.mjs <job.json>   -> writes <job.outDir>/result.json
 // One job = one Bricks page rendered at one or more frame widths. Per frame it measures, in a frozen, animation-free page:
 //   boxes      x / y / w / h and the computed css the tree demands (the numeric verify of the pipeline)
 //   visual     the screenshot against Figma's own render of that frame (mean abs RGB difference per cell, masks for live parts)
@@ -8,26 +8,16 @@
 //   network    every image the page really downloaded, weight, and the ones that were hidden (display:none) but still loaded
 //   console    page errors and failed requests
 // With `crossBrowsers` the base frame is also rendered in the other engines and compared with chromium.
-import net from 'node:net';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
-const require = createRequire('/qa/');
+const require = createRequire(import.meta.url);
 const { chromium, firefox, webkit } = require('playwright');
 const { PNG } = require('pngjs');
 
 const jobFile = process.argv[2];
 const job = JSON.parse(readFileSync(jobFile, 'utf8'));
-const out = '/job/out';
+const out = job.outDir;
 mkdirSync(out, { recursive: true });
-
-// hostPort is set only when WP_URL is on the Docker host. Staging is fetched by its own host name.
-if (job.hostPort) {
-  for (const host of ['0.0.0.0', '::1']) {
-    const srv = net.createServer((c) => { const t = net.connect(Number(job.hostPort), 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
-    srv.on('error', () => {});
-    srv.listen(Number(job.hostPort), host);
-  }
-}
 
 const decode = (buf) => PNG.sync.read(buf);
 
@@ -165,7 +155,7 @@ const FIT_MEASURE = () => {
 const T0 = Date.now();
 async function renderFrame(browserType, frame, { name }) {
   const t = { start: Date.now() }; // phase timing (ms), written to result.json: where the time of a verify goes
-  const browser = await browserType.launch({ args: browserType === chromium ? ['--no-sandbox', '--font-render-hinting=none'] : [] });
+  const browser = await browserType.launch({ headless: true, args: browserType === chromium ? ['--no-sandbox', '--font-render-hinting=none'] : [] });
   const context = await browser.newContext({ viewport: { width: frame.width, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce', locale: 'vi-VN', timezoneId: 'Asia/Ho_Chi_Minh' });
   const page = await context.newPage();
   const log = { console: [], failed: [], bytes: new Map() };
@@ -243,7 +233,7 @@ for (const frame of job.frames) {
     }
   }
 }
-result.timing.total_in_container = Date.now() - T0;
+result.timing.total = Date.now() - T0;
 writeFileSync(`${out}/result.json`, JSON.stringify(result));
 console.log('qa done');
 process.exit(0);

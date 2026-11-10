@@ -1,0 +1,35 @@
+{
+  "origin": "https://stag.vietnix.dev",
+  "fetchedAt": "2026-11-10T02:15:34.436Z",
+  "palette": {
+    "declarations": 192,
+    "unique": 141
+  },
+  "files": [
+    {
+      "snapshot": "color-palettes.css",
+      "local": "color-palettes.min.css",
+      "remote": "color-palettes.min.css"
+    },
+    {
+      "snapshot": "global-variables.css",
+      "local": "global-variables.min.css",
+      "remote": "global-variables.min.css"
+    },
+    {
+      "snapshot": "global-elements.css",
+      "local": "global-elements.min.css",
+      "remote": "global-elements.min.css"
+    },
+    {
+      "snapshot": "global-classes.css",
+      "local": "global-custom-css.min.css",
+      "remote": null
+    }
+  ],
+  "classStyleIds": [
+    "bricks-global-classes-inline-inline-css",
+    "bricks-frontend-inline-inline-css"
+  ],
+  "limit": "bricks_global_classes is not on the staging MCP. A class id that only appears inside one template stays in that template CSS."
+}

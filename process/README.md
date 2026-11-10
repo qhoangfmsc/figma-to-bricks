@@ -8,7 +8,7 @@ Template: Desktop bắt buộc. Thiếu link Widescreen, Tablet, Mobile landscap
 
 Một trang: chat nhìn cây Figma, tách section, rồi từng section đi lệnh template. Không thấy khung breakpoint thì để trống, không bịa link.
 
-Số lấy từ cây Figma. Nhóm là gì thì nhìn hình (render Figma hoặc Playwright trong Docker) cùng cấu trúc con lặp. Tên layer (`tab`, `menu`, `nav`, `button`) chỉ là gợi ý. Một file fail là lỗ của rule chung, có test, không phải regex riêng cho file đó.
+Số lấy từ cây Figma. Nhóm là gì thì nhìn hình (render Figma hoặc Playwright headless) cùng cấu trúc con lặp. Tên layer (`tab`, `menu`, `nav`, `button`) chỉ là gợi ý. Một file fail là lỗ của rule chung, có test, không phải regex riêng cho file đó.
 
 ## Tám bước
 
@@ -35,7 +35,7 @@ Figma URL
    │ 6 push     upload images (sha256 de-dupe), create/update the template             (code)
    ▼
  WordPress / Bricks template
-   │ 7 verify   Playwright IN DOCKER at every frame width: boxes, LOOK vs Figma's own render, covered layers,
+   │ 7 verify   headless Playwright on this machine at every frame width: boxes, LOOK vs Figma's own render, covered layers,
    ▼          horizontal scroll, image weight, hidden images, WebKit + Firefox                  (code)
  verify.md · verify.png · verify.diff.png   ← pass = the values match AND the picture matches Figma, not "looks right"
    │ 8 summary  one report: done, wrong, missing, not supported
@@ -62,7 +62,7 @@ process/
   modules/write-bricks/render/       số trên cây thành settings Bricks
   modules/single-template/       khung breakpoint, plan một template, kiểm lại link
   modules/breakpoints/           ghép khung tablet và mobile
-  modules/visual-check/          chụp và so bằng Playwright trong Docker
+  modules/visual-check/          chụp và so bằng Playwright headless trên máy này
   modules/property-coverage/     property Figma nào đã đọc, cái nào chưa
   modules/common/                env, đường dẫn, tiến độ
   docs/  test/  fixtures/
@@ -87,7 +87,7 @@ npm test --prefix process                             # offline unit tests
 Each step is also a standalone script (`modules/build-steps/01-fetch.mjs` … `modules/build-steps/08-summary.mjs`). Lệnh tay (plan, triage, regress, assemble) nằm trong `modules/maintenance/`.
 
 Needs in `.env`: `FIGMA_TOKEN` (Figma → Settings → Security → Personal access tokens, scope `file_content:read`),
-plus `WP_URL`, `WP_USER`, `WP_APP_PASSWORD` in `.env`. The same four keys point at a local site or at staging. The local WordPress stack reads `.env.local` and starts with `node local/up.mjs`.
+plus `WP_URL`, `WP_USER`, `WP_PASSWORD`, and `MCP_TOKEN` in `.env`. Those keys are one site: staging or local. The run creates the template on that `WP_URL`. No upload confirmation.
 The URL must contain `node-id`: in Figma, right click the frame → *Copy link to selection*.
 
 ## Workspace
@@ -116,12 +116,12 @@ Scratch for a run is `history/runs/<fileKey>/<node-id>/` inside this repo. `hist
 **The Plan (owner's decision 2026-10-29).** Before anything is built, `auto.mjs` reads every section and writes one `plan-<node>.md` next to the section workspaces (`process/modules/missing-content/index.mjs`):
 a table of the sections and what each becomes, then one heading per group of questions, each with a Figma link per item and one line to fill. Only content the Figma file does
 not draw is asked: link URLs of buttons and menu items, alt text of content images, answers of the FAQ items drawn closed, content of the tabs not drawn, autoplay / loop of a slider,
-and "is this an accordion?" for a block that only looks like one. The run stops with exit code 3. Claude points to the file (nothing is asked in the chat); the owner fills it and changes the line `Xác nhận: không` to `Xác nhận: có`, then Claude runs
-`auto.mjs` again: everything is built in one go, signed off as `owner (plan)`, and the page is assembled. The run does not edit `process/` or the theme. A wrong value in a confirmed Plan stops the run and names it; a build resets the line to `không`,
+and "is this an accordion?" for a block that only looks like one. A filled plan is applied when the line says `Xác nhận: có`. A missing line does not stop the upload. The template is created on `WP_URL`.
+`auto.mjs` builds in one go, signed off as `owner (plan)` when the plan was confirmed, and the page is assembled. The run does not edit `process/` or the theme. A wrong value in a confirmed Plan stops the run and names it; a build resets the line to `không`,
 so the next run of the same link shows the Plan again with the values filled in (`plan.mjs set / confirm` exist for scripts, the owner does not need them). Answers are keyed by the Figma node id and re-applied after `decide()` on every run (`decide()` rebuilds
 its own entries, so nothing the owner typed is stored in them). Blank = the safe default (`#`, empty alt, empty answer block). `--no-confirm` skips the Plan.
 
-After a build, `node process/modules/maintenance/interact.mjs "<preview page url>"` clicks the built page in the Docker browser: accordion items toggle, tabs show only their own pane,
+After a build, `node process/modules/maintenance/interact.mjs "<preview page url>"` clicks the built page with headless Playwright: accordion items toggle, tabs show only their own pane,
 a slider's next arrow moves the track. "Looks like Figma" (verify) and "works" (interact) are two different checks.
 
 `node process/auto.mjs "<figma url of a section frame>" [--first-section] [--no-responsive] [--no-cross]` runs the whole pipeline without questions:
@@ -130,7 +130,7 @@ alt left empty and listed for the designer), `figma/discover.mjs` (the same sect
 `autopilot`, build / push / verify. Output per section: `scorecard.md` (frames, look vs Figma, image weight, other browsers, known limits),
 `decisions.md` (every decision taken by a rule, why, confidence), the designer list. `--first-section` makes the section title the page's `h1`.
 To change a decision: edit `detections.json` / `overrides.json` (or `policy.json` for a project-wide default) and re-run `run.mjs ... --from=build`.
-`/generate-template-from-figma` stops at one template. Its `read` writes `plan.md` in the desktop workspace: one heading per component, then the fields to fill. The owner writes freely. The chat maps each line to an enum in `choices.json` before build. Build waits for `Xác nhận: có` in that file.
+`/generate-template-from-figma` stops at one template. Its `read` writes `plan.md` in the desktop workspace: one heading per component, then the fields to fill. The chat maps each line to an enum in `choices.json`, then build creates the template on `WP_URL`. There is no upload confirmation.
 A generate run records decisions and asks in the plan. It does not edit `process/` or the theme. `modules/maintenance/triage.mjs <workspace>` still lists likely causes when the owner asks for a rule change afterwards. `modules/maintenance/regress.mjs <fileKey>` compares a later rule change with `baseline.json`.
 A rule change in `decide/` or `auto.mjs` only reaches the sections by re-running `auto.mjs` (it regenerates every autopilot detection and override), then `regress.mjs <fileKey> --no-rebuild` compares; `regress.mjs` alone only rebuilds from the saved decisions.
 Components decided by rule: `button` (named button / btn / cta), `form` (>= 2 placeholder inputs + a submit; a field gets the text of the Figma frame `Error message / <same name>` found beside the page frames, never an invented one), menu items (`Menu Item` labels -> `text-link`, their container `ul > li`, no heading in a menu section).
@@ -138,13 +138,13 @@ Network: Figma's render of a frame is cached per file version (`figma-render*.js
 
 ## Checks (step 7) and the QA image
 
-Step 7 runs Playwright (Chromium, Firefox, WebKit) **inside Docker** (`modules/common/qa.mjs` + `modules/visual-check/check.mjs`; the first run builds the image named by `QA_IMAGE` in `.env`; the pipeline itself still has no npm dependency). A `WP_URL` on localhost is proxied to the Docker host. A staging URL is opened as written. The page is rendered at the width of each Figma frame with the clock frozen and
+Step 7 runs Playwright (Chromium, Firefox, WebKit) **headless on this machine** (`modules/common/qa.mjs` + `modules/visual-check/check.mjs`; `yarn --cwd process` then `yarn --cwd process playwright install chromium firefox webkit`). The page is `WP_URL`, opened as written. It is rendered at the width of each Figma frame with the clock frozen and
 animations off, and compared with **Figma's own render of that frame** (REST export). A mismatch is any of: a box / css value off by more than 1px, a
 region of the picture clearly different from Figma (80px cells, both pictures blurred 3x3 first, live parts masked), a text / button / image with an alt
 that is not on top at its own center, horizontal scroll, images heavier than `qa/budgets.json`, an image hidden by CSS that is still downloaded,
-a failed request, more than one visible `h1`. Differences in the width / x of text (and of boxes that hug text) up to 2.5px, and picture regions lying on such text, are the "text-engine" class: Figma and the browser lay text out slightly differently (measured -1.2..+1.6px on 6 strings); they are listed in their own table and do not fail the run. Heights and line breaks never fall in that class. `--no-cross` skips WebKit / Firefox. `shared/cdp.mjs` is the older CDP client and is no longer used by verify.
+a failed request, more than one visible `h1`. Differences in the width / x of text (and of boxes that hug text) up to 2.5px, and picture regions lying on such text, are the "text-engine" class: Figma and the browser lay text out slightly differently (measured -1.2..+1.6px on 6 strings); they are listed in their own table and do not fail the run. Heights and line breaks never fall in that class. `--no-cross` skips WebKit / Firefox.
 
-Images are pushed as **WebP** (`shared/qa.mjs` `optimizeAssets`, cached in `assets/optimized/`; photos capped at 1600px, flat exports keep their size).
+Images are pushed as **WebP** (`modules/common/qa.mjs` `optimizeAssets`, cached in `assets/optimized/`; photos capped at 1600px, flat exports keep their size).
 Project-wide defaults with their reasons live in `policy.json` (e.g. line heights are written as Figma lays them out, whole pixels).
 Motion is never built while painting: `node process/modules/maintenance/animations.mjs <workspace> [--page=<page workspace>]` writes `animations.md` (the
 designer's motion spec verbatim + prototype interactions), a backlog for the last pass.
@@ -230,6 +230,17 @@ the summary table, never silently approximated. (Enforced by [CLAUDE.md](../CLAU
 2. Write or edit `overrides.json` for the warnings and semantics the rules cannot decide.
 3. Run `--from=build`, read `verify.md`, fix with overrides. Never edit `bricks.json` by hand and never create Bricks elements
    with the MCP tools for pipeline work: the output must be reproducible from `raw.json` + `overrides.json`.
+
+## Staging CSS
+
+Shared CSS of the site in `WP_URL` lives in `modules/staging/site-css/`. It is the color palette, the site variables, the global elements, and the global classes the homepage inlines. Apply copies those four files into `wp-content/uploads/bricks/css/`, which the local Bricks site loads when CSS loading is External files.
+
+```bash
+node process/modules/staging/site-css.mjs pull    # read WP_URL again into the snapshot
+node process/modules/staging/site-css.mjs apply   # copy the snapshot into this repo's uploads
+```
+
+The class registry is not on the MCP. A class id that only lives inside one template stays in that template's CSS.
 
 ## Known limits (be aware)
 

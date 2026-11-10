@@ -496,9 +496,16 @@ final class F2B_Bridge {
 	}
 
 	/**
-	 * Preview page for measuring a template at real width: a Bricks page whose only element is that template.
-	 * ONE shared page (slug f2b-preview), rewritten for every template: the deliverable of a run is the templates plus one page with all of them
-	 * in order (assemble_page), so the preview page is moved to the trash when the run ends (preview_cleanup).
+	 * URL of the builder toolbar "View on frontend" for this template.
+	 * Same shape as Builder::previewUrl: the template permalink plus bricks_preview.
+	 * bricks=run is the editor canvas and is not this URL.
+	 */
+	public static function frontend_url( $post_id ) {
+		return add_query_arg( 'bricks_preview', (string) time(), get_permalink( $post_id ) );
+	}
+
+	/**
+	 * The page a visitor gets from View on frontend. Verify compares this URL with Figma.
 	 */
 	public static function preview( $req ) {
 		$tpl = self::find( $req['id'] );
@@ -506,35 +513,17 @@ final class F2B_Bridge {
 			return new WP_Error( 'f2b_not_found', 'template not found', [ 'status' => 404 ] );
 		}
 
-		$slug = 'f2b-preview';
-		$page = get_page_by_path( $slug, OBJECT, 'page' );
-		if ( $page && $page->post_status === 'trash' ) {
-			wp_untrash_post( $page->ID );
+		$type = (string) get_post_meta( $tpl->ID, BRICKS_DB_TEMPLATE_TYPE, true );
+		$content_type = in_array( $type, [ 'header', 'footer' ], true ) ? $type : 'content';
+		$elements = get_post_meta( $tpl->ID, self::meta_key( $content_type ), true );
+		if ( ! is_array( $elements ) ) {
+			$elements = [];
 		}
-		$id = $page ? $page->ID : wp_insert_post( [
-			'post_type'   => 'page',
-			'post_status' => 'publish',
-			'post_title'  => 'f2b preview',
-			'post_name'   => $slug,
-		] );
-		if ( $page && $page->post_status !== 'publish' ) {
-			wp_update_post( [ 'ID' => $id, 'post_status' => 'publish' ] );
-		}
-
-		update_post_meta( $id, BRICKS_DB_EDITOR_MODE, 'bricks' );
-		$elements = [ [
-			'id'       => 'f2bprv',
-			'name'     => 'template',
-			'parent'   => 0,
-			'children' => [],
-			'settings' => [ 'template' => $tpl->ID ],
-		] ];
-		update_post_meta( $id, BRICKS_DB_PAGE_CONTENT, $elements );
-		$file_name = self::external_css_file( $id, 'content', $elements );
+		$file_name = self::external_css_file( $tpl->ID, $content_type, $elements );
 
 		return [
-			'pageId'      => $id,
-			'url'         => add_query_arg( 'page_id', $id, home_url( '/' ) ),
+			'pageId'      => $tpl->ID,
+			'url'         => self::frontend_url( $tpl->ID ),
 			'css_loading' => 'file',
 			'file_name'   => $file_name ? $file_name : null,
 		];

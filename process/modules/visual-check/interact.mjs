@@ -1,29 +1,19 @@
-// Behaviour check of the widgets of a built page: "usable", not only "looks like Figma". Runs INSIDE the f2b-qa Docker image.
-//   node /qa/interact.mjs <url> [<width>]   -> prints one JSON result on the last line
+// Behaviour check of the widgets of a built page. Headless Playwright on this machine.
+//   node process/modules/visual-check/interact.mjs <url> [<width>]   -> one JSON result on the last line
 //   accordion-nested  every title is clicked twice: the content toggles (an item drawn open starts open, so the first click closes it)
 //   tabs-nested       every tab title is clicked: its pane is the one that shows
 //   slider-nested     the next arrow (when there is one) is clicked: the track moves
 //   read more         the "Xem thêm" button (a click interaction on a class): the clipped frame grows to its full height, the second click closes it
 // A widget the page does not have is not reported. An empty content block (an answer the owner did not give) is reported as "empty", never as a pass.
-import net from 'node:net';
 import { createRequire } from 'node:module';
-const require = createRequire('/qa/');
+const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 const [url, width = '1440'] = process.argv.slice(2);
-const target = new URL(url);
-const localHost = target.hostname === 'localhost' || target.hostname === '127.0.0.1' || target.hostname === 'host.docker.internal';
-if (localHost) {
-  const port = Number(target.port || (target.protocol === 'https:' ? 443 : 80));
-  for (const host of ['0.0.0.0', '::1']) {
-    const srv = net.createServer((c) => { const t = net.connect(port, 'host.docker.internal'); c.pipe(t); t.pipe(c); c.on('error', () => t.destroy()); t.on('error', () => c.destroy()); });
-    srv.on('error', () => {}); srv.listen(port, host);
-  }
-}
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: Number(width), height: 900 } });
-await page.goto(url.replace('host.docker.internal', 'localhost'), { waitUntil: 'networkidle' });
+await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(500);
 const report = { url, width: Number(width), accordions: [], tabs: [], sliders: [], readMore: [] };
 const shown = (loc) => loc.evaluate((el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden' && r.height > 1; });

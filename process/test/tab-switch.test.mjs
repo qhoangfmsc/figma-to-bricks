@@ -211,6 +211,29 @@ test('a linked frame keeps the repeated items and drops a caption', () => {
   assert.deepEqual(data.children.map((n) => n.id), ['a', 'b', 'c']);
 });
 
+test('an unnamed row with one selected control and the cards under it is a tab', () => {
+  const control = (id, label, selected) => frame(id, 'Frame 2147225719', [0, 0, 200, 48], [text(`${id}t`, label, selected ? [1, 0.43, 0] : [0.2, 0.25, 0.33])], {
+    layoutMode: 'HORIZONTAL',
+    fills: [{ type: 'SOLID', color: selected ? { r: 1, g: 0.96, b: 0.96, a: 1 } : { r: 1, g: 1, b: 1, a: 1 } }],
+    componentProperties: { 'Property 1': { type: 'VARIANT', value: selected ? 'Selected' : 'Default' } },
+  });
+  const card = (id, title) => frame(id, 'ServiceCard', [0, 0, 260, 180], [text(`${id}t`, title, [0.1, 0.1, 0.1])], { layoutMode: 'VERTICAL' });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('host', '_Title', [0, 0, 1140, 600], [
+    frame('head', 'Header', [0, 0, 1140, 80], [text('h', 'VPS', [0.1, 0.1, 0.1])], { layoutMode: 'VERTICAL' }),
+    frame('bar', 'Frame 2147225732', [0, 220, 1140, 66], [control('linux', 'LINUX', false), control('win', 'WINDOWS', true)], { layoutMode: 'HORIZONTAL' }),
+    frame('data', 'Service Section', [0, 300, 1140, 260], [card('c1', 'NVME'), card('c2', 'SSD')], { layoutMode: 'HORIZONTAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectTabs(tree).length, 0);
+  const found = detectTabSwitches(tree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].node, 'host');
+  const rows = switchInventory(tree);
+  assert.equal(rows[1].label, 'WINDOWS');
+  assert.equal(rows[1].active, true);
+  assert.match(rows[1].drawn, /2 item/);
+  assert.equal(rows[0].drawn, '');
+});
+
 test('stacked tab titles on a mobile frame are not a tab switch', () => {
   const tab = (id, label, y) => frame(id, 'Linux tab', [16, y, 200, 36], [text(`${id}t`, label, [1, 1, 1])], { layoutMode: 'HORIZONTAL' });
   const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'OPERATING SYSTEM', [0, 0, 375, 700], [

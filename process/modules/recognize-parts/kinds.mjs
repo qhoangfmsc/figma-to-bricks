@@ -83,7 +83,7 @@ export const PART_RULES = {
     anv: 'not in the layout table; same bar-plus-pane shape',
   },
   [PartKind.TAB_SWITCH]: {
-    shape: 'Tab buttons, one of them active, then the repeated items of that tab.',
+    shape: 'A row of controls, one drawn open, and the data frame under that row. The layer name is only a hint.',
     hint: 'tab',
     anv: 'same as tabs when the pane is a repeated list',
   },

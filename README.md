@@ -1,77 +1,50 @@
 # Figma → Bricks
-
-Một frame Figma thành một template Bricks 1.12.3. Làm và xem trên local. Đẩy lên site khác chỉ khi cần.
+Một frame Figma thành một template Bricks 1.12.3. Một lúc một site. Trỏ `.env` vào site đó rồi làm. Người làm tự chịu trách nhiệm trên site mình trỏ.
 
 ## Stack
-
 | Phần | Ghi chú |
 |---|---|
-| Node.js | 22 trở lên. Pipeline không cài package |
-| Docker | WordPress + MariaDB 11, chỉ cho máy local |
-| Bricks | 1.12.3, theme trong `wp-content/themes/bricks`. Không lên 2.x |
-| CSS | External files. Mỗi lần lưu template ghi `post-{id}.min.css` |
+| Node.js | 22 trở lên. `yarn` trong `process/` cho Playwright và sharp |
+| Bricks | 1.12.3 trong `wp-content/themes/bricks`. Không lên 2.x |
+| CSS | External files. Lưu template ghi `post-{id}.min.css` |
 
-Chưa có Node 22:
+Chưa có Node 22: `nvm install 22` rồi `nvm use 22`. Không có nvm thì cài bản 22 LTS tại https://nodejs.org.
 
-```bash
-nvm install 22
-nvm use 22
-```
-
-Không có nvm thì cài bản 22 LTS tại https://nodejs.org. Chưa có Docker thì cài Docker Desktop. Không chạy `yarn` hay `npm install` cho pipeline.
-
-## Local
-
-`.env` ở gốc repo. Không commit, không dán vào chat. Bốn khóa này luôn trỏ máy mình để test:
-
+## Setup
 ```text
 FIGMA_TOKEN
-WP_URL=http://localhost:8080
+WP_URL
 WP_USER
-WP_APP_PASSWORD
+WP_PASSWORD
+MCP_TOKEN
 ```
 
-`WP_USER` là user WordPress local. `WP_APP_PASSWORD` là application password của user đó. Docker đọc thêm `.env.local` (cổng, database).
+`WP_URL` là site đang làm. `WP_USER` và `WP_PASSWORD` là user WordPress và application password của user đó. `MCP_TOKEN` lấy ở site đó: WordPress → Settings → F2B MCP. `FIGMA_TOKEN` là personal access token, scope `file_content:read`. Thiếu một trong năm khóa này thì lệnh và MCP dừng, không lấy site khác.
 
-```bash
-node local/up.mjs        # bật
-node local/up.mjs stop   # dừng, giữ database
-node local/up.mjs down   # xóa container và database
-```
+Site phải cài theme Bricks 1.12.3, mu-plugin `figma-to-bricks-bridge`, và plugin `f2b-mcp`.
 
-Lần đầu mở `WP_URL` và cài WordPress nếu còn màn hình cài đặt. Ảnh so với Figma do Playwright trong Docker chụp. Không cần Chrome trên máy.
+`WP_URL` là site đang làm. Staging hay local đều là file này. Workflow tạo template trên site đó, không hỏi xác nhận upload.
 
-## Đẩy lên site khác
-
-Không đổi bốn khóa local. Thêm hai khóa, trỏ staging hoặc site cần nhận template. Site đó phải cài và bật plugin `wp-content/plugins/f2b-mcp`.
-
-```text
-STAGING_MCP_URL
-STAGING_MCP_TOKEN
-```
-
-`STAGING_MCP_URL` dạng `https://site/wp-json/f2b-mcp/v1/mcp`. Token lấy ở WordPress của site đó: Settings → F2B MCP.
-
-Trong chat, cả tin nhắn chỉ là câu này thì mới đẩy:
-
-```text
-Xác nhận lên staging
-```
-
-Câu khác không đẩy. Template trên local không bị sửa.
-
-## Một template
-
+## Workflow
 Trong chat:
-
 ```text
 /generate-template-from-figma
 ```
 
 Dán link Desktop, link phải có `node-id`. Có Widescreen, Tablet, Mobile thì dán thêm. Thiếu link nào, chat hỏi một lần. Trả lời "không" nếu không có.
 
-Chat ghi `plan.md` rồi dừng. Sửa file đó, đổi `Xác nhận: không` thành `Xác nhận: có`, nhắn chạy tiếp. Máy build, đẩy lên Bricks local, chụp và so với Figma. Bạn tự gắn template vào trang.
+Chat ghi `plan.md` rồi tạo template trên `WP_URL`. Không hỏi xác nhận upload. Bước so với Figma mở nút View on frontend của template đó (`?bricks_preview=`), không mở canvas `?bricks=run`. Bạn tự gắn template vào trang.
 
-Plan, ảnh so và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git). Ghi chú lệch nằm ở `history/notes/`.
+Plan, ảnh so và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git).
 
+## MCP
+Cursor chạy `node mcp/f2b-mcp.mjs`. File này đọc `WP_URL` và `MCP_TOKEN` trong `.env`, gọi `WP_URL/wp-json/f2b-mcp/v1/mcp`. Đổi site thì sửa `.env` rồi reload MCP.
+
+## CSS dùng chung
+Bản CSS của site trong `WP_URL` nằm ở `process/modules/staging/site-css/`: palette màu, biến site, global element, và class trang chủ đang inline.
+```bash
+node process/modules/staging/site-css.mjs pull    # đọc lại WP_URL
+node process/modules/staging/site-css.mjs apply   # chép vào wp-content/uploads/bricks/css
+```
+`apply` chỉ ghi file trong repo. Máy local nạp các file đó. Class id chỉ nằm trong một template thì vẫn ở CSS của template đó.
 Chi tiết cho người sửa code: [process/README.md](process/README.md).

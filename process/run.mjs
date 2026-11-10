@@ -16,6 +16,9 @@ import { summaryStep } from './modules/build-steps/08-summary.mjs';
 import { dirname, join } from 'node:path';
 import { resolveWorkspace } from './modules/common/workspace.mjs';
 import { gate } from './modules/sign-off/index.mjs';
+import { requireSiteEnv } from './modules/common/env.mjs';
+
+requireSiteEnv();
 
 const args = process.argv.slice(2);
 const flag = (name) => (args.find((a) => a.startsWith(`--${name}=`)) ?? '').split('=')[1];

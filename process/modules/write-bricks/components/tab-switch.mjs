@@ -113,11 +113,11 @@ function classicInspect(node, list = listsIn(node)[0]) {
   return { list, titles, panels: found.panels, active };
 }
 
-// A horizontal bar of frames named "tab", with the content frame under it (Operating System on desktop).
-// Stacked title + content rows are not a switch: a mobile frame that draws them in the flow stays blocks.
+// A horizontal row of controls, one of them drawn open, with the data frame under it.
+// The layer name is not required. Stacked title + content rows stay blocks.
 function looseInspect(node) {
   const kids = visibleKids(node);
-  const bar = kids.find(isNamedTabBar);
+  const bar = kids.find(isActionBar);
   if (!bar) return null;
   const content = kids[kids.findIndex((c) => c.id === bar.id) + 1];
   const below = content && content.box && bar.box && content.box.absY >= bar.box.absY + bar.box.h - 1;
@@ -142,8 +142,22 @@ function looseInspect(node) {
   return { list: bar, titles, panels: [], paneParent: content, active: active.index, activeClear: active.clear };
 }
 
-// One tab is open. A bottom stroke, else one solid fill. Two marks, or none, is not a guess: the screen asks.
+const SELECTED = /^(selected|active|current|on|true)$/i;
+
+function markedOpen(title) {
+  for (const [key, value] of Object.entries(title.props ?? {})) {
+    if (!/state|active|selected|property\s*1/i.test(key)) continue;
+    if (value === true || SELECTED.test(String(value))) return true;
+  }
+  return false;
+}
+
+// One tab is open. A selected variant, else a bottom stroke, else one solid fill.
+// Two of the same mark, or none, is not a guess: the screen asks.
 export function activeTitle(titles) {
+  const marked = titles.map((t, i) => (markedOpen(t) ? i : -1)).filter((i) => i >= 0);
+  if (marked.length === 1) return { index: marked[0], clear: true };
+  if (marked.length > 1) return { index: null, clear: false, reason: 'nhiều tab đang chọn' };
   const lined = titles.map((t, i) => ((t.stroke?.weights?.bottom ?? 0) > 0 ? i : -1)).filter((i) => i >= 0);
   if (lined.length === 1) return { index: lined[0], clear: true };
   if (lined.length > 1) return { index: null, clear: false, reason: 'nhiều tab có gạch chân' };
@@ -151,6 +165,16 @@ export function activeTitle(titles) {
   if (filled.length === 1) return { index: filled[0], clear: true };
   if (filled.length > 1) return { index: null, clear: false, reason: 'nhiều tab có nền' };
   return { index: null, clear: false, reason: 'không thấy tab nào đang mở' };
+}
+
+// The row the visitor clicks. A name that says "tab" is a hint. The row is the control when one title is drawn open.
+export function isActionBar(n) {
+  const kids = visibleKids(n);
+  if (!n || n.layout?.mode !== 'HORIZONTAL' || kids.length < 2) return false;
+  if (!kids.every((k) => BOX.has(k.type) && hasText(k))) return false;
+  if (isTabList(n) || isNamedTabBar(n)) return true;
+  const active = activeTitle(kids);
+  return active.clear === true && Number.isInteger(active.index);
 }
 
 function activeOf(titles) {
@@ -201,6 +225,10 @@ export function inspect(node, list = listsIn(node)[0]) {
   return classicInspect(node, list) ?? looseInspect(node);
 }
 
+export function inspectClassic(node, list = listsIn(node)[0]) {
+  return classicInspect(node, list);
+}
+
 export function tabTitles(node) {
   return inspect(node)?.titles ?? [];
 }
@@ -246,7 +274,7 @@ export default {
   id: 'tab-switch',
   status: 'implemented',
   label: 'Tab switch',
-  figma: 'a Tab List of >= 2 titles and a Tab Panel that is not the list\'s sibling (a period bar or a title can sit between them)',
+  figma: 'a row of controls with one drawn open, and the data frame under that row',
   bricks: '`tabs-nested` on the frame that holds both; the list is the tab menu, each Tab is a title, each Tab Panel is a pane',
   limits: 'The drawn open title is openTab (1.12.3, index from 0) and gets brx-open. A panel Figma does not draw comes from the Plan, blank stays empty. The moving pill is the solid fill and the text color of the drawn titles',
   kind: () => 'tabs-nested',

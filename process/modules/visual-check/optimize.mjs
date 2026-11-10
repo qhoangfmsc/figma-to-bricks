@@ -1,20 +1,24 @@
-// Image optimizer, runs INSIDE the f2b-qa image (sharp):  node /qa/optimize.mjs /job/optimize.json
-// job: { files: [{ src: '/assets/images/x.png', dst: '/assets/optimized/<sha>.webp', maxEdge: 1600, quality: 86 }] }
-// Photos / artwork -> WebP (alpha kept). Never upscales. SVG is not touched (not in the job).
-import { readFileSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-const require = createRequire('/qa/');
-const sharp = require('sharp');
-const job = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const out = [];
-for (const f of job.files) {
-  const img = sharp(f.src, { limitInputPixels: false });
-  const meta = await img.metadata();
-  let p = img;
-  const edge = Math.max(meta.width, meta.height);
-  if (f.maxEdge && edge > f.maxEdge) p = p.resize({ width: meta.width >= meta.height ? f.maxEdge : undefined, height: meta.height > meta.width ? f.maxEdge : undefined, withoutEnlargement: true });
-  const info = await p.webp({ quality: f.quality ?? 86, alphaQuality: 100, effort: 5, smartSubsample: true }).toBuffer({ resolveWithObject: true });
-  writeFileSync(f.dst, info.data);
-  out.push({ src: f.src, dst: f.dst, from: [meta.width, meta.height], to: [info.info.width, info.info.height], bytes: info.data.length });
+// png / jpg -> webp on this machine (sharp). Never upscales. SVG is not in the job.
+import { writeFileSync } from 'node:fs';
+import sharp from 'sharp';
+
+export async function writeOptimized(files) {
+  const out = [];
+  for (const file of files) {
+    const img = sharp(file.src, { limitInputPixels: false });
+    const meta = await img.metadata();
+    let pipeline = img;
+    const edge = Math.max(meta.width, meta.height);
+    if (file.maxEdge && edge > file.maxEdge) {
+      pipeline = pipeline.resize({
+        width: meta.width >= meta.height ? file.maxEdge : undefined,
+        height: meta.height > meta.width ? file.maxEdge : undefined,
+        withoutEnlargement: true,
+      });
+    }
+    const info = await pipeline.webp({ quality: file.quality ?? 86, alphaQuality: 100, effort: 5, smartSubsample: true }).toBuffer({ resolveWithObject: true });
+    writeFileSync(file.dst, info.data);
+    out.push({ src: file.src, dst: file.dst, from: [meta.width, meta.height], to: [info.info.width, info.info.height], bytes: info.data.length });
+  }
+  return out;
 }
-writeFileSync(process.argv[2].replace(/\.json$/, '.out.json'), JSON.stringify(out));

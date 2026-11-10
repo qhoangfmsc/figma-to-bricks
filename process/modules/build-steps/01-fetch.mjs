@@ -78,6 +78,8 @@ export async function fetchStep(urlOrDir, { fixture } = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  const { requireSiteEnv } = await import('../common/env.mjs');
+  requireSiteEnv();
   const args = process.argv.slice(2);
   const fx = args.indexOf('--fixture');
   const fixture = fx >= 0 ? args.splice(fx, 2)[1] : undefined;

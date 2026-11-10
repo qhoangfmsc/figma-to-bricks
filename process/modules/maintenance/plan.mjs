@@ -3,7 +3,7 @@
 //   node process/modules/maintenance/plan.mjs "<figma url>" status                 where the file is, how many values are filled, confirmed or not
 //   node process/modules/maintenance/plan.mjs "<figma url>" set <key> "<value>"    fill one value without opening the file (key as written in the file, e.g. link:1587:2968)
 //   node process/modules/maintenance/plan.mjs "<figma url>" confirm                validates every value and sets the line `Xác nhận: có` (the owner can also edit that line by hand)
-// <figma url> is the same link that was given to auto.mjs. auto.mjs builds only a plan whose line says `Xác nhận: có`; a build resets it to `không`.
+// <figma url> is the same link that was given to auto.mjs. A plan marked `Xác nhận: có` is applied. A missing mark does not stop the upload to WP_URL.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { parseFigmaUrl } from '../read-figma/url.mjs';

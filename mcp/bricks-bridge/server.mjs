@@ -2,11 +2,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { env } from '../../process/modules/common/env.mjs';
+import { env, requireSiteEnv } from '../../process/modules/common/env.mjs';
 
-const { WP_URL, WP_USER, WP_APP_PASSWORD } = env;
-if (!WP_URL || !WP_USER || !WP_APP_PASSWORD) throw new Error('Set WP_URL, WP_USER and WP_APP_PASSWORD in .env');
-const auth = 'Basic ' + Buffer.from(`${WP_USER}:${WP_APP_PASSWORD}`).toString('base64');
+requireSiteEnv();
+const { WP_URL, WP_USER, WP_PASSWORD } = env;
+const auth = 'Basic ' + Buffer.from(`${WP_USER}:${WP_PASSWORD}`).toString('base64');
 
 // ?rest_route= works without pretty permalinks
 async function api(method, path, body) {

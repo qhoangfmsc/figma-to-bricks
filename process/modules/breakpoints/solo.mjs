@@ -199,10 +199,14 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     const sum = (shrinkable ? flowing.reduce((n, c) => n + Math.min(spanOf(c), 160), 0) : full - extras) + extras;
     if (sum <= 320) continue;
     if (shrinkable && full > sum) holdAt.set(e.id, snapBelow(full, frameWidth));
+    // The phone breakpoint is max-width 478. A row wider than that does not fit the pasted
+    // phone frame, so that frame stacks it. A row that fits the frame keeps the direction it drew.
+    if (keep.includes('mobile_portrait') && !keep.includes('mobile_landscape') && full > 478) s['_direction:mobile_portrait'] ??= 'column';
     const stackAt = snapBelow(sum, frameWidth);
     const query = band(stackAt);
     if (!query) continue;
-    appendCss(s, e.id, 'fluid-stack', `${query} { #brxe-${e.id} { flex-direction: column; width: 100%; max-width: 100%; } }`);
+    // body #id beats the breakpoint row Bricks prints later, so this stack still wins inside that band.
+    appendCss(s, e.id, 'fluid-stack', `${query} { body #brxe-${e.id} { flex-direction: column; width: 100%; max-width: 100%; } }`);
     for (const child of children) {
       if (spanOf(child) < 80) continue;
       shrinkAt.set(child.id, stackAt);
@@ -397,15 +401,34 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
   return template;
 }
 
-// Bricks has no 768 breakpoint. A pasted phone frame is max-width 478 and the pasted tablet
-// frame then owns everything up to 991, so 640 was the tablet drawing plus a one-column stack.
-// The phone drawing holds through 767. Tablet starts at 768. A pasted landscape frame is left alone.
+// Five ranks cover every width: widescreen, then desktop, then tablet (768–991), then mobile.
+// Bricks has no breakpoint at 768. A pasted phone frame is max-width 478, so it also fills the
+// landscape rank through 767. Tablet starts at 768. A pasted landscape frame is left alone.
 export function holdMobileBand(template, { keep = [] } = {}) {
   if (!keep.includes('mobile_portrait') || keep.includes('mobile_landscape')) return template;
   const content = template.content ?? [];
-  const widen = (css) => String(css)
-    .replaceAll('@media (max-width: 478px)', '@media (max-width: 767px)')
-    .replaceAll('@media (min-width: 479px) and (max-width: 991px)', '@media (min-width: 768px) and (max-width: 991px)');
+  // The phone frame owns every width through 767. A stack query keeps its 479 floor, so the
+  // pasted frame is not restyled and the open band above it still matches. Raising that floor
+  // to 768 made a max-width 639 query match nothing.
+  const widen = (css) => {
+    const kept = [];
+    const out = String(css)
+      .replaceAll('@media (max-width: 478px)', '@media (max-width: 767px)')
+      .replaceAll('@media (min-width: 479px) and (max-width: 991px)', '@media (min-width: 768px) and (max-width: 991px)')
+      .replaceAll(/@media \(max-width: (\d+)px\) and \(min-width: 479px\) \{((?:[^{}]|\{[^{}]*\})*)\}/g, (all, max, body) => {
+        const cap = Number(max);
+        // The 479 floor is the pasted phone frame. A stack keeps it, so 375 stays the row Figma drew
+        // and 479–639 is the step down. Raising that floor to 768 made the query match nothing.
+        if (/flex-direction:\s*column/.test(body)) {
+          kept.push(all);
+          return `\u0000STACK${kept.length - 1}\u0000`;
+        }
+        if (cap < 768) return `@media (max-width: ${cap}px) {${body}}`;
+        return `@media (max-width: ${cap}px) and (min-width: 768px) {${body}}`;
+      })
+      .replaceAll('(min-width: 479px)', '(min-width: 768px)');
+    return out.replaceAll(/\u0000STACK(\d+)\u0000/g, (_, i) => kept[Number(i)]);
+  };
   for (const e of content) {
     const s = e.settings;
     if (!s) continue;

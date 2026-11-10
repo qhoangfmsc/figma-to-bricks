@@ -25,7 +25,7 @@ Trạng thái:
 | `references/theme-styles-and-globals.md` | không viết theme style | Không lấy |
 | `references/external-assets.md` | upload Media Library trong bước push | Không lấy hotlink và URL mẫu |
 | `references/json-formats.md`, `patterns/` | không có | Không lấy. Mình không dán JSON tay |
-| `references/novamira-verification.md`, `review-skill/` | `process/modules/visual-check/` | Không lấy cách verify của kệ. Mình dùng Playwright trong Docker |
+| `references/novamira-verification.md`, `review-skill/` | `process/modules/visual-check/` | Không lấy cách verify của kệ. Mình dùng Playwright headless trên máy này |
 | `snippets/widget-map.md` | `process/docs/widget-components/`, `kinds.mjs` | Đã vào ngày 2026-11-09. Không lấy `_gap`, URL localhost, ticker, và slider thành hàng kéo |
 | `snippets/css-custom.md` | `render/utils/schema-traps.mjs` | Đã vào các bẫy CSS đã ghi trong `history/notes/components.md` |
 | `references/query-loop.md` | `process/modules/standby/query.mjs`, `widget-components/posts.md` | Đã dựng module riêng 2026-11-09. Không vào detect. Key `query` |

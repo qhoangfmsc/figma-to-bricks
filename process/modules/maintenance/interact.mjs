@@ -1,28 +1,31 @@
 #!/usr/bin/env node
-// Host side of qa/interact.mjs: do the widgets of a built page work when a user clicks them (accordion opens, tab switches, slider moves)?
-//   node process/modules/maintenance/interact.mjs [<url>] [<width>]     default url = the shared preview page of the verify step (WP_URL/?page_id=<preview page>)
-// Runs in the f2b-qa Docker image, never on the owner's machine. Run it right after a run: the preview page holds the last verified section.
+// Clicks the widgets of a built page on WP_URL (accordion, tabs, slider, read more).
+//   node process/modules/maintenance/interact.mjs <url> [<width>]
+// Headless Playwright on this machine. The url is opened as written.
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ensureQaImage } from '../common/qa.mjs';
-import { env, isLocalSite, siteUrl } from '../common/env.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../visual-check/interact.mjs', import.meta.url));
 const [urlArg, width = '1440'] = process.argv.slice(2);
-if (!urlArg) { console.error('usage: interact.mjs <url of the page to click through> [width]  (the preview page of the last verify is printed in verify.md: "Rendered with Playwright … <url>")'); process.exit(1); }
-ensureQaImage();
-const wp = siteUrl();
-const localPort = wp.port || (wp.protocol === 'https:' ? '443' : '80');
-const target = isLocalSite(wp) ? urlArg.replace(wp.origin, `http://host.docker.internal:${localPort}`) : urlArg;
-const r = spawnSync('docker', ['run', '--rm', '--ipc=host', '--add-host=host.docker.internal:host-gateway', '-v', `${SCRIPT}:/qa/interact.mjs:ro`, env.QA_IMAGE || 'f2b-qa:1', 'node', '/qa/interact.mjs', target, width], { encoding: 'utf8', maxBuffer: 1 << 26 });
-if (r.status !== 0) { console.error((r.stderr || r.stdout).slice(-800)); process.exit(1); }
-const rep = JSON.parse(r.stdout.trim().split('\n').at(-1));
-const yes = (b) => (b ? 'yes' : 'NO');
-for (const [i, acc] of rep.accordions.entries()) {
-  console.log(`accordion ${i + 1}: ${acc.length} item(s)`);
-  for (const it of acc) console.log(`  ${it.item}. "${it.title}": ${it.hasContent ? 'has content' : 'EMPTY (no answer: opens nothing)'} · open at load ${yes(it.openAtLoad)} · toggles on click ${yes(it.toggles)}`);
+if (!urlArg) {
+  console.error('usage: interact.mjs <url of the page to click through> [width]');
+  process.exit(1);
 }
-for (const [i, t] of rep.tabs.entries()) { console.log(`tabs ${i + 1}:`); for (const x of t) console.log(`  ${x.tab}. "${x.title}": panes shown ${JSON.stringify(x.panesShown)} · only its own pane ${yes(x.onlyItsPane)}`); }
-for (const [i, s] of rep.sliders.entries()) console.log(`slider ${i + 1}: ${s.slides} slide(s) · next arrow ${yes(s.hasNextArrow)}${s.hasNextArrow ? ` · track moves on click ${yes(s.trackMovesOnNext)}` : ' (none drawn in Figma)'}`);
-for (const [i, r] of rep.readMore.entries()) console.log(`read more ${i + 1} "${r.label}": closed ${r.closedHeight}px -> open ${r.openHeight}px · opens ${yes(r.opens)} · closes on 2nd click ${yes(r.closesAgain)}`);
-if (!rep.accordions.length && !rep.tabs.length && !rep.sliders.length && !rep.readMore.length) console.log('no accordion / tabs / slider on this page');
+const run = spawnSync(process.execPath, [SCRIPT, urlArg, width], { encoding: 'utf8', maxBuffer: 1 << 26 });
+if (run.status !== 0) {
+  console.error((run.stderr || run.stdout).slice(-800));
+  process.exit(1);
+}
+const report = JSON.parse(run.stdout.trim().split('\n').at(-1));
+const yes = (value) => (value ? 'yes' : 'NO');
+for (const [i, accordion] of report.accordions.entries()) {
+  console.log(`accordion ${i + 1}: ${accordion.length} item(s)`);
+  for (const item of accordion) console.log(`  ${item.item}. "${item.title}": ${item.hasContent ? 'has content' : 'EMPTY (no answer: opens nothing)'} · open at load ${yes(item.openAtLoad)} · toggles on click ${yes(item.toggles)}`);
+}
+for (const [i, tabs] of report.tabs.entries()) {
+  console.log(`tabs ${i + 1}:`);
+  for (const tab of tabs) console.log(`  ${tab.tab}. "${tab.title}": panes shown ${JSON.stringify(tab.panesShown)} · only its own pane ${yes(tab.onlyItsPane)}`);
+}
+for (const [i, slider] of report.sliders.entries()) console.log(`slider ${i + 1}: ${slider.slides} slide(s) · next arrow ${yes(slider.hasNextArrow)}${slider.hasNextArrow ? ` · track moves on click ${yes(slider.trackMovesOnNext)}` : ' (none drawn in Figma)'}`);
+for (const [i, more] of report.readMore.entries()) console.log(`read more ${i + 1} "${more.label}": closed ${more.closedHeight}px -> open ${more.openHeight}px · opens ${yes(more.opens)} · closes on 2nd click ${yes(more.closesAgain)}`);
+if (!report.accordions.length && !report.tabs.length && !report.sliders.length && !report.readMore.length) console.log('no accordion / tabs / slider on this page');

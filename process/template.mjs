@@ -26,6 +26,7 @@ import { unclaimedRepeats } from './modules/recognize-parts/structure.mjs';
 import { reviewFrame } from './modules/single-template/review.mjs';
 import { attachFilledFrames } from './modules/single-template/filled.mjs';
 import { outcomeOf, readyForUser } from './modules/single-template/outcome.mjs';
+import { requireSiteEnv } from './modules/common/env.mjs';
 
 const ROUNDS = 3;
 const runner = join(dirname(new URL(import.meta.url).pathname), 'run.mjs');
@@ -240,6 +241,7 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
+  try { requireSiteEnv(); } catch (e) { console.error(e.message); process.exit(1); }
   const args = process.argv.slice(2);
   const cmd = args[0];
   const input = { desktop: readFlag(args, 'desktop'), widescreen: readFlag(args, 'widescreen'), tablet: readFlag(args, 'tablet'), landscape: readFlag(args, 'landscape'), mobile: readFlag(args, 'mobile') };

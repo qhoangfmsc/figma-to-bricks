@@ -30,7 +30,7 @@ Desktop is required and needs `node-id`. Widescreen, Tablet portrait, Mobile lan
 
 If any optional slot is absent from the message, ask once, in one line, which of those four links they have. Wait. A "không" is a blank slot. Do not invent a URL. Do not start `read` before that answer.
 
-Pre-flight: `.env` has `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_APP_PASSWORD`. Local WordPress, when used, is `node local/up.mjs`. Playwright stays in Docker. No browser on this machine.
+Pre-flight: `.env` has `FIGMA_TOKEN`, `WP_URL`, `WP_USER`, `WP_PASSWORD`, `MCP_TOKEN`. That `WP_URL` is the site. The run creates the template there. No upload confirmation. Playwright is headless on this machine. No browser window.
 
 Then run:
 
@@ -42,14 +42,14 @@ A link changed after this read makes the plan stale. Read again. Do not build on
 
 `read` writes `plan.md` in the desktop workspace (`planFile`). That file is the form. Do not paste the form into the chat. Point to the file, then stop. Do not build in the same turn.
 
-Look before you point at the file. Order: `repeats[]` (same child shape), then the frame picture (Figma render under `assets/`, or a Docker Playwright shot), then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay as that component. Leave it as a block with an empty `expect` line and do not edit the rule in this run. Do not measure pixels off the picture. Do not approve a component the picture does not support.
+Look before you point at the file. Order: `repeats[]` (same child shape), then the frame picture (Figma render under `assets/`, or a headless Playwright shot), then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay as that component. Leave it as a block with an empty `expect` line and do not edit the rule in this run. Do not measure pixels off the picture. Do not approve a component the picture does not support.
 
-During this run, do not edit `process/` or the theme. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task. The owner confirms once, then build. Never write Bricks theme styles. CSS loading stays External files.
+During this run, do not edit `process/` or the theme. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task. Build creates the template on `WP_URL` without an upload confirmation. Never write Bricks theme styles. CSS loading stays External files.
 
 The file, in this order:
 
 - Title, frame name, width. Then `Gộp` with each pasted variant and its width, or omit that line.
-- `Xác nhận: không`. The owner changes it to `Xác nhận: có`.
+- `Xác nhận: không`. The line does not block the upload.
 - **Loại Template.** One line `` `type:<node>`: section ``. section, header, footer, popup, content, archive, search, or error. A sure header, footer, or popup is already filled. A weak guess stays section and the line above says why.
 - **Component Detected.** One numbered block per plain block: kind, Figma link, then `Kết quả mong muốn` (`expect:<id>`). A component the owner keeps or drops is under **Cần User quyết định**: `Quyết định dựng <loại>` (`part:<id>`), then the same kết quả line. A value Figma drew is filled. A value Figma does not have is `[Chưa có value]`. `note:plan` is under **Kết quả cần đạt được**. Tabs and tab-switch still list every pane.
 - **Chưa chắc** and **Nhóm lặp** only when a row is not already inside a section above.
@@ -59,29 +59,15 @@ A new `read` keeps typed values and resets `Xác nhận` to `không`.
 
 Blank stays the safe default. Never invent content. The owner writes any words. Before build, read `plan.md` and write `choices.json`. Map each sentence to one enum in `process/modules/missing-content/choices.mjs` by what it means. `part` and `guess` are keep or drop: "xóa", "bỏ", "đừng dựng" are drop. A blank line is the default, not a sentence. Do not add those words to the code. A sentence you cannot map is a question in the same turn. Do not edit `process/` because the words differ. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run. A miss during the run goes to `history/notes/gaps.md`.
 
-## 3. Build — only after `Xác nhận: có`
+## 3. Build
 
-Read `plan.md`. If the line is still `Xác nhận: không`, point at the file and stop. Parse the `` `key`: value `` lines. Apply `Sửa:` when it is not blank: `detections.json` with `source: "ai"` and a cite that exists in `tree.md`, or `overrides.json` with a `reason` quoting them. Do not add a name regex for this file.
+Read `plan.md`. Parse the `` `key`: value `` lines. Blank stays the default. Do not wait for an upload confirmation. The template is created on `WP_URL`. Apply `Sửa:` when it is not blank: `detections.json` with `source: "ai"` and a cite that exists in `tree.md`, or `overrides.json` with a `reason` quoting them. Do not add a name regex for this file.
 
 `node process/template.mjs build --desktop "<url>" --answers '<json>'`
 
 Sign-off is `owner (chat)`. Then look at `verify.figma.png`, `verify.png`, and `verify.diff.png` for each frame. One wrong component: fix that detection and build this template once more. Then stop.
 
-Report: title, `Mở template trong Bricks` (`builderUrl`), one line per frame (`lệch N%` and the review notes), `Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.`, designer list. No page assemble.
-
-Then show the required sentence in the chat on its own line, so the owner can type it or copy it:
-
-`Xác nhận lên staging`
-
-A yes or no does not upload. Stop. Do not upload in that turn.
-
-## 4. Staging — only the exact sentence
-
-A later message uploads only when the whole message is `Xác nhận lên staging`. Run:
-
-`node process/modules/staging/push.mjs "<desktop workspace>" "Xác nhận lên staging"`
-
-The script calls the `f2b-mcp` plugin (`STAGING_MCP_URL`, `STAGING_MCP_TOKEN` in `.env`). Any other wording, including a shorter or longer sentence, does not upload. Do not call those MCP tools from the chat.
+Report: title, `Mở template trong Bricks` (`builderUrl`), one line per frame (`lệch N%` and the review notes), `Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.`, designer list. No page assemble. The template is on the site in `WP_URL`. Do not offer a second upload to another site.
 
 ## Pixels
 

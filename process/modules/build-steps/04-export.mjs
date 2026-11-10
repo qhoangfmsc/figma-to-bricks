@@ -49,4 +49,8 @@ export async function exportStep(urlOrDir) {
   return ws;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await exportStep(process.argv[2]);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { requireSiteEnv } = await import('../common/env.mjs');
+  requireSiteEnv();
+  await exportStep(process.argv[2]);
+}

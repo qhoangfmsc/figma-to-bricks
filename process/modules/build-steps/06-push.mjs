@@ -20,7 +20,7 @@ export async function pushStep(urlOrDir) {
   const uploaded = {};
   // bitmaps go to the site as optimized webp (page weight is part of the acceptance, qa/budgets.json); svg stays as it is
   const assetFiles = [...new Set([...JSON.stringify(template).matchAll(/"\$asset":"([^"]+)"/g)].map((m) => m[1]))];
-  const optimized = optimizeAssets(ws, assetFiles);
+  const optimized = await optimizeAssets(ws, assetFiles);
 
   // Resolve { $asset: 'images/x.png' } placeholders anywhere in the settings
   async function resolveAssets(value) {
@@ -103,4 +103,8 @@ export async function pushStep(urlOrDir) {
   return ws;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) await pushStep(process.argv[2]);
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { requireSiteEnv } = await import('../common/env.mjs');
+  requireSiteEnv();
+  await pushStep(process.argv[2]);
+}

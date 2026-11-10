@@ -10,7 +10,7 @@ Read `process/docs/AI-GUIDE.md` before editing these files.
 
 - Fix the module that maps the Figma property. Do not patch generated `bricks.json`.
 - A component the layer name does not say is still a candidate when its children share a shape (`process/modules/recognize-parts/structure.mjs`). Name regex stays a hint. Do not add a file-specific name regex.
-- No whack-a-mole. A failed file is not a new regex. Check the same shape in the catalog and in another section, then change the shared rule and add a test. Picture (Figma render or Docker Playwright) plus tree. The next file has to pass without another special case.
+- No whack-a-mole. A failed file is not a new regex. Check the same shape in the catalog and in another section, then change the shared rule and add a test. Picture (Figma render or headless Playwright) plus tree. The next file has to pass without another special case.
 - A new or changed rule gets a test in `process/test/` that uses the real Figma number. Then `npm test --prefix process`.
 - A constant comes from `tree.md` or `raw.json`. Put the measurement next to it in a comment. No guessed default.
 - A Figma property that is not in `process/modules/property-coverage/handling.json` is classified there first (`read`, `ignored`, `limit`, or `gap`).

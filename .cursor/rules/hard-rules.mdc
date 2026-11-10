@@ -17,16 +17,16 @@ While a workflow runs: reply in Vietnamese, short, do the step, then stop. Ask f
 
 Plan text is free. Before build, write `choices.json` with one enum per line (`process/modules/missing-content/choices.mjs`). A sentence you cannot map is a question in the same turn. Code switches on that enum. It does not match the sentence.
 
-Eight engine steps stay in code: fetch, tree, detect, export, build, push, verify, summary. A template `read` stops after detect and writes `plan.md` in the frame folder. The chat only points to that file. Build starts after the owner sets `Xác nhận: có`.
+Eight engine steps stay in code: fetch, tree, detect, export, build, push, verify, summary. A template run writes `plan.md`, then creates the template on `WP_URL`. There is no upload confirmation.
 
 The picture and the tree decide what a group is. A repeated child shape counts (the Figma hover: selected layer = highlighted box). A layer name matching `tab` / `menu` / `nav` / `button` is a hint, not a gate. Layer names in these files are inconsistent. Do not add a name regex for one file.
 
-No whack-a-mole. A miss is a gap in the shared rule, not a patch for that file. Before changing detect or render, read the catalog, `process/modules/recognize-parts/structure.mjs`, and one other section with the same shape. The change has to serve the next Figma file and still pass the existing tests. Recognize from two inputs together: the tree, and a picture (Figma's own frame render, or the Playwright shot from Docker verify). The picture says what the group is. The tree supplies the numbers. Do not measure pixels off a screenshot. The owner reviews the plan once, so do that work before showing it, then wait.
+No whack-a-mole. A miss is a gap in the shared rule, not a patch for that file. Before changing detect or render, read the catalog, `process/modules/recognize-parts/structure.mjs`, and one other section with the same shape. The change has to serve the next Figma file and still pass the existing tests. Recognize from two inputs together: the tree, and a picture (Figma's own frame render, or the headless Playwright shot). The picture says what the group is. The tree supplies the numbers. Do not measure pixels off a screenshot. Do that look before the build, then create the template on `WP_URL`. Do not wait for an upload confirmation.
 
 # Never
 
 - No git writes: commit, add, push, branch, tag, stash, reset, checkout, PR. Read-only git is fine. Say when a change is ready and stop.
 - Do not hand-write or patch `bricks.json`. A wrong look is fixed in `process/modules/write-bricks/render/`, `process/modules/approve-parts/`, `policy.json`, or `overrides.json`, with a test.
 - Do not invent pixels, URLs, alt text, tooltip copy, or FAQ answers. Report the Figma value and what Bricks does. Do not loosen a check to make it pass.
-- Do not open a browser or GUI on this machine. Verify with Playwright in Docker (`process/modules/common/qa.mjs`).
+- Do not open a browser window or GUI on this machine. Verify with headless Playwright (`process/modules/common/qa.mjs`) against `WP_URL`.
 - Do not print `.env`.

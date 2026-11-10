@@ -16,7 +16,7 @@ export const SCREENS = ['desktop', 'tablet', 'mobile', 'widescreen'];
 const LABEL = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile', widescreen: 'Widescreen' };
 // breakpoint key / frame width -> screen
 export const screenOf = (key) => (key === 'base' || key === 'desktop' ? 'desktop' : /^tablet/.test(key) ? 'tablet' : /^mobile/.test(key) ? 'mobile' : /^wide/.test(key) ? 'widescreen' : key);
-export const screenOfWidth = (w) => (w >= 1701 ? 'widescreen' : w >= 992 ? 'desktop' : w >= 479 ? 'tablet' : 'mobile');
+export const screenOfWidth = (w) => (w >= 1701 ? 'widescreen' : w >= 992 ? 'desktop' : w >= 768 ? 'tablet' : 'mobile');
 
 const fmt = (ms) => { const m = Math.round(ms / 60000); return m < 1 ? '<1 phút' : m < 60 ? `${m} phút` : `${Math.floor(m / 60)} giờ ${m % 60} phút`; };
 const clock = (t) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });

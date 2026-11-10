@@ -1229,7 +1229,9 @@ test('progress: units per screen, a missing screen is not counted, percentage, e
   assert.equal(screenOf('mobile_portrait'), 'mobile');
   assert.equal(screenOf('base'), 'desktop');
   assert.equal(screenOfWidth(2504), 'widescreen');
+  assert.equal(screenOfWidth(1440), 'desktop');
   assert.equal(screenOfWidth(768), 'tablet');
+  assert.equal(screenOfWidth(500), 'mobile');
   assert.equal(p.units().total, 2 * (2 + 2 * 2)); // 2 sections x (build+push, desktop, mobile) x 2
   p.begin(0); p.found(0, ['mobile_portrait']);
   p.prepared(0, 'desktop'); p.prepared(0, 'mobile_portrait'); p.at(0, 'mobile_portrait', 'verify');

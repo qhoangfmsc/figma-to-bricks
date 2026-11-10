@@ -1,13 +1,5 @@
-# Local
+# Site
 
-Chỉ dùng khi dev muốn một WordPress trên máy mình. Staging không chạy folder này.
+Một site một lần. Site đó là `WP_URL` trong `.env`.
 
-```bash
-node local/up.mjs        # bật
-node local/up.mjs stop   # dừng, giữ database
-node local/up.mjs down   # xóa container và database
-```
-
-Site nằm trong `.env`. Stack máy mình nằm trong `.env.local`. `WP_URL` phải trùng cổng `WP_PORT`.
-
-Pipeline và verify đọc `WP_URL`. Đổi `WP_URL` sang staging thì không cần bật folder này.
+Staging hay local đều là bộ khóa đó: `WP_URL`, `WP_USER`, `WP_PASSWORD`, `MCP_TOKEN`, `FIGMA_TOKEN`. Workflow tạo template trên site này, không hỏi xác nhận upload.

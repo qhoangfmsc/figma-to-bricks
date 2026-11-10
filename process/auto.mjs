@@ -4,7 +4,7 @@
 // fetch -> tree -> detect -> decide (rules + policy.json, decisions.md) -> find the tablet / mobile frames of the same section -> the same for each
 // -> sign-off (autopilot) -> export -> build (merge breakpoints) -> push -> verify (Playwright: boxes, look vs Figma, covered, scroll, weight, engines).
 // Owner decision 2026-10-27: "one Figma link and Bricks comes out"; review happens afterwards on scorecard.md + decisions.md, not before.
-// It stops only for a real blocker (no token, no node, Docker down, citations the code cannot verify). Never touches git.
+// It stops only for a real blocker (no token, no node, citations the code cannot verify). The template is created on WP_URL. Never touches git.
 import { runLines } from './modules/common/spawn-lines.mjs';
 import { Progress, screenOf } from './modules/common/progress.mjs';
 import { dirname, join } from 'node:path';
@@ -13,16 +13,18 @@ import { fetchStep } from './modules/build-steps/01-fetch.mjs';
 import { treeStep } from './modules/build-steps/02-tree.mjs';
 import { detectStep } from './modules/build-steps/03-detect.mjs';
 import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
-import { planInventory } from './modules/single-template/parts.mjs';
 import { discoverVariants, discoverFormErrors, discoverSections } from './modules/read-figma/discover.mjs';
 import { signOff, gate } from './modules/sign-off/index.mjs';
 import { parseFigmaUrl } from './modules/read-figma/url.mjs';
 import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './modules/read-figma/api.mjs';
 import { writePlan, assemblePage, plansFile, sectionTitles } from './modules/common/deliverable.mjs';
-import { writePlan as writePlanDoc, loadConfirmed, applyAnswers, shareAccordionAnswers, groupQuestions, consumeConfirmation, planProblems } from './modules/missing-content/index.mjs';
+import { loadConfirmed, applyAnswers, shareAccordionAnswers, consumeConfirmation, planProblems } from './modules/missing-content/index.mjs';
 import { attachFilledFrames } from './modules/single-template/filled.mjs';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { sectionJob, writeSectionJob, writeJobIndex } from './modules/section-jobs/jobs.mjs';
+import { sectionJob, writeSectionJob } from './modules/section-jobs/jobs.mjs';
+import { requireSiteEnv } from './modules/common/env.mjs';
+
+requireSiteEnv();
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--'));
@@ -63,7 +65,7 @@ async function prepare(u, opts) {
 }
 
 // one section frame -> a verified template (and its tablet / mobile frames merged in), in two halves so that they can overlap:
-//   prepareSection: reads Figma (network), decides, signs off      finishSection: export, build, push, verify (WordPress + Docker)
+//   prepareSection: reads Figma (network), decides, signs off      finishSection: export, build, push, verify on WP_URL
 // While section k is in finishSection, section k+1 is already in prepareSection (owner's decision 2026-10-28: two at a time, never two verifies at once:
 // one shared preview page, and Figma's rate limit stays as it is).
 async function prepareSection(sectionUrl, sectionId, { firstSection, bg, idx, title, sign = true }) {
@@ -180,7 +182,7 @@ const planned = wholePage ? writePlan(ref.fileKey, ref.nodeId, designName, plan.
 const titleOf = (s) => planned?.sections.find((x) => x.id === s.id)?.title ?? sectionTitles(designName, [s])[0];
 const done = [];
 const progress = new Progress({ dir: resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, ''), node: ref.nodeId.replace(':', '-'), title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, sections, screens: plan.screens });
-// section k+1 is prepared (Figma, network) while section k is finished (WordPress + Docker); a failure of either stops only that section
+// section k+1 is prepared (Figma, network) while section k is finished on WP_URL; a failure of either stops only that section
 const sectionState = (s) => { const f = join(resolveWorkspace(urlOf(s.id)).dir, 'nodes.state.json'); if (!existsSync(f)) return null; const fr = Object.values(JSON.parse(readFileSync(f, 'utf8')).frames); return { frames: fr.length, done: fr.length > 0 && fr.every((x) => x.done), failing: fr.reduce((a, x) => a + (x.summary?.fail ?? 0), 0) }; };
 // a section that is DONE already still belongs in the page report: its frames, template and designer list come from the files of the earlier run
 function resumedEntry(s) {
@@ -195,44 +197,13 @@ function resumedEntry(s) {
 const startPrepare = (i) => prepared[i] = resume && sectionState(sections[i])?.done ? Promise.resolve({ skip: true }) : prepareSection(urlOf(sections[i].id), sections[i].id, { firstSection: sections[i].firstSection, bg: plan.base.bg, idx: i, title: titleOf(sections[i]) }).then((ctx) => ({ ctx }), (err) => ({ err }));
 const prepared = [];
 
-// ---- THE PLAN GATE: read every section first, write plan-<node>.md, stop until the owner has filled and confirmed it
+// A filled plan is applied. A missing confirmation does not stop the upload: the template is created on WP_URL.
 const nodeKey = ref.nodeId.replace(':', '-');
 const planDir = resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, '');
 if (askOwner) {
   const bad = planProblems(planDir, nodeKey);
   if (bad.length) { console.log(`\n== PLAN marked "Xác nhận: có" but a value is wrong, nothing was built:\n${bad.map((p) => `   - ${p}`).join('\n')}\n   Fix it in plan-${nodeKey}.md and run again.`); process.exit(3); }
   confirmedAnswers = loadConfirmed(planDir, nodeKey);
-}
-if (askOwner && !confirmedAnswers && sections.length) {
-  console.log('\n== PLAN: reading every section before anything is built');
-  const model = { title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, fileKey: ref.fileKey, nodeId: ref.nodeId, url, sections: [] };
-  for (const [idx, s] of sections.entries()) {
-    try {
-      const ctx = await prepareSection(urlOf(s.id), s.id, { firstSection: s.firstSection, bg: plan.base.bg, idx, title: titleOf(s), sign: false });
-      const det = ctx.base.readJson('detections.json');
-      const count = (rows, f) => Object.entries(rows.reduce((a, r) => (a[f(r)] = (a[f(r)] ?? 0) + 1, a), {})).map(([k, n]) => `${k} ×${n}`);
-      const listed = planInventory(ctx.base.readJson('tree.json'), det.components);
-      model.sections.push({
-        name: s.name, id: s.id,
-        build: [...count(det.components.filter((c) => c.status === 'approved'), (c) => c.component), 'còn lại là block'].join(', '),
-        decided: count(ctx.result.decisions, (d) => d.kind),
-        questions: groupQuestions(ctx.result.questions ?? []),
-        ...listed,
-        job: ctx.job,
-      });
-    } catch (e) {
-      console.error(`\n✋ ${s.name} [${s.id}] could not be read for the plan: ${e.message.slice(0, 300)}`);
-      model.sections.push({ name: s.name, id: s.id, build: `lỗi khi đọc: ${e.message.slice(0, 80)}`, decided: [], questions: [] });
-    }
-  }
-  const file = writePlanDoc(planDir, nodeKey, model);
-  const jobs = model.sections.map((s) => s.job).filter(Boolean);
-  const index = writeJobIndex(planDir, jobs);
-  const asked = model.sections.reduce((a, s) => a + s.questions.length, 0);
-  console.log(`\n== PLAN written: ${file}\n   ${sections.length} section(s) · ${asked} group(s) of questions\n   jobs: ${index} (${jobs.length})`);
-  // the owner always sees the plan before a build, also when there is nothing to fill (then it is one "ok")
-  console.log(`   ${asked ? 'Fill the values (blank = safe default)' : 'Nothing to fill'}, set the line "Xác nhận: không" to "Xác nhận: có", then run again:\n     node process/auto.mjs "${url}"`);
-  process.exit(3);
 }
 if (sections.length) startPrepare(0);
 for (const [idx, s] of sections.entries()) {

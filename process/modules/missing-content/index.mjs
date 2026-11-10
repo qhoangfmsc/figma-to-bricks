@@ -20,6 +20,8 @@ import { parseFigmaUrl } from '../read-figma/url.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { choiceOf, MISSING, REPEAT_COMPONENT } from './choices.mjs';
+import tabsComponent from '../write-bricks/components/tabs.mjs';
+import tabSwitch from '../write-bricks/components/tab-switch.mjs';
 
 export const keyOf = (group, node) => `${group}:${node}`;
 export const figmaLink = (fileKey, node) => `https://www.figma.com/design/${fileKey}/x?node-id=${String(node).replaceAll(':', '-')}`;
@@ -465,6 +467,7 @@ export function loadConfirmed(dir, nodeKey) {
 }
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
+const tabKind = (node) => (node && tabsComponent.check(node, { params: {} }).ok ? 'tabs' : node && tabSwitch.check(node, { params: {} }).ok ? 'tab-switch' : 'tabs');
 const hasDescendant = (n, id) => kids(n).some((c) => c.id === id || hasDescendant(c, id));
 const deep = (o, path, v) => { let t = o; path.slice(0, -1).forEach((k) => { t = t[k] ??= {}; }); t[path.at(-1)] = v; };
 
@@ -490,7 +493,7 @@ export function applyAnswers(ws, answers) {
         break;
       case 'expect': {
         if (!findIn(node) || picked.choice === 'unset' || picked.choice === 'block') { ok = !!findIn(node); break; }
-        const name = REPEAT_COMPONENT[picked.choice] ?? picked.choice;
+        const name = picked.choice === 'tab' ? tabKind(findIn(node)) : (REPEAT_COMPONENT[picked.choice] ?? picked.choice);
         let c = det.components.find((x) => x.node === node && x.status !== 'rejected');
         if (!c) det.components.push({ id: `e${node.replace(/\W/g, '').slice(0, 8)}`, status: 'approved', source: 'plan', component: name, node, confidence: 'low', params: {}, note: 'plan: owner expected this component' });
         else { c.component = name; c.status = 'approved'; c.note = 'plan: owner expected this component'; }
@@ -684,7 +687,7 @@ export function applyAnswers(ws, answers) {
           case 'form':
           case 'accordion':
           case 'button': {
-            const kind = REPEAT_COMPONENT[picked.choice];
+            const kind = picked.choice === 'tab' ? tabKind(findIn(node)) : REPEAT_COMPONENT[picked.choice];
             if (!findIn(node)) break;
             const existing = det.components.find((x) => x.node === node && x.component === kind);
             if (existing) { existing.status = 'approved'; existing.source = existing.source || 'human'; existing.note = 'the owner named this group in the Plan'; }

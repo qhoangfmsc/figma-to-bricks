@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// STEP 7  Check the REAL render against Figma, with Playwright in Docker (shared/qa.mjs, qa/check.mjs).  Pure code, no AI, no eyeballing.
+// STEP 7  Check the REAL render against Figma, with headless Playwright on this machine (qa.mjs, visual-check/check.mjs). The page is WP_URL.
 //   node process/modules/build-steps/07-verify.mjs <figma-url | workspace-dir> [--tol=1] [--no-cross]
 // One run renders the template at the width of every Figma frame (the base frame and each breakpoint variant of responsive.json), in a frozen,
 // animation-free page, and checks per frame:
@@ -21,10 +21,28 @@ import { settleMeasuredRows } from '../visual-check/settle.mjs';
 import { computeStates, fingerprintOf, frameDone, summarize } from '../common/node-state.mjs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { screensToProve } from '../breakpoints/solo.mjs';
-import { need } from '../common/env.mjs';
+import { need, requireSiteEnv } from '../common/env.mjs';
+
+// View on frontend is the template path plus bricks_preview. The host is the WP_URL in .env.
+export function frontendCheckUrl(permalink, site) {
+  if (!site) throw new Error('Missing WP_URL. Set WP_URL in .env to the site you are on.');
+  const page = new URL(permalink);
+  const home = new URL(site);
+  page.protocol = home.protocol;
+  page.hostname = home.hostname;
+  page.port = home.port;
+  if (page.searchParams.get('bricks') === 'run' || page.searchParams.has('brickspreview')) {
+    throw new Error('Check URL is the Bricks editor. Compare View on frontend.');
+  }
+  if (!page.searchParams.get('bricks_preview')) {
+    throw new Error('Check URL is not View on frontend. It needs bricks_preview.');
+  }
+  return page.toString();
+}
 
 export function externalCssUrl(origin, fileName) {
-  return `${String(origin ?? '').replace(/\/$/, '')}/wp-content/uploads/bricks/css/${fileName}`;
+  if (!origin) throw new Error('Missing WP_URL. Set WP_URL in .env to the site you are on.');
+  return `${String(origin).replace(/\/$/, '')}/wp-content/uploads/bricks/css/${fileName}`;
 }
 
 export function externalCssReady(css) {
@@ -115,7 +133,10 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     const id = f.mapping[f.tree.id]?.bricksId;
     return id ? `brxe-${id}` : rootId;
   };
-  const { url } = await bridge('POST', `/preview/${state.templateId}`);
+  const preview = await bridge('POST', `/preview/${state.templateId}`);
+  const url = frontendCheckUrl(preview.url, need('WP_URL'));
+  state.frontendUrl = url;
+  ws.writeJson('state.json', state);
   // Push already writes the file. Verify asks again, then checks the file is actually served.
   // A missing file means the page fell back to inline styles.
   const css = await bridge('POST', '/css-file', { template_id: state.templateId });
@@ -258,7 +279,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
     anyBad ||= bad.some((x) => x.tier <= 2);
     const md = [
       `# Verify: ${f.tree.name} [${f.tree.id}]${f.key === 'base' ? '' : ` · breakpoint ${f.key}`}`, '',
-      `Rendered with Playwright (Chromium, in Docker) at ${Math.round(f.tree.box.w)}px · ${url} · time frozen at ${FREEZE}`, '',
+      `View on frontend, compared with Figma, at ${Math.round(f.tree.box.w)}px · ${url} · time frozen at ${FREEZE}`, '',
       `**Verdict: ${verdictOf(tiers)}** · tier 1 blocker ${tiers[1]} · tier 2 major ${tiers[2]} · tier 3 minor ${tiers[3]} · tier 4 negligible ${tiers[4]} (listed below, not counted)`, '',
       `**${rows.length - bad.length - soft.length}/${rows.length} checks match** (position/size tolerance ${tol}px)${soft.length ? ` · **${soft.length} text-engine difference(s)** within ${SOFT_PX}px listed below, not counted as failures` : ''}`, '',
       ...(f.nClipped ? [`**Not hit-tested:** ${f.nClipped} content node(s) are cut away by a clipping parent in Figma too (collapsed list, carousel track): "on top at its center" is not expected of them`] : []),
@@ -318,6 +339,7 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  requireSiteEnv();
   const args = process.argv.slice(2);
   const tol = Number((args.find((a) => a.startsWith('--tol=')) ?? '--tol=1').split('=')[1]);
   await verifyStep(args.find((a) => !a.startsWith('--')), { tol, cross: !args.includes('--no-cross') });

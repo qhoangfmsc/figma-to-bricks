@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // OFFLINE REBUILD + DIFF: what does a rule change do to every section, before anything is pushed or measured?
-//   node process/modules/maintenance/rebuild-diff.mjs <fileKey>            tree + build of every section from the saved Figma data (no Figma API, no WordPress, no Docker),
+//   node process/modules/maintenance/rebuild-diff.mjs <fileKey>            tree + build of every section from the saved Figma data (no Figma API, no WordPress),
 //                                                              then a diff of every Bricks element against the previous bricks.json -> rebuild-diff.md
 //   node process/modules/maintenance/rebuild-diff.mjs <fileKey> --apply    then push + verify ONLY the sections whose template changed (run.mjs --from=push),
 //                                                              afterwards: node process/modules/maintenance/regress.mjs <fileKey> --no-rebuild

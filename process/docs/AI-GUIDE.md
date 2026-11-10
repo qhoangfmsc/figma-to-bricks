@@ -19,11 +19,11 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `modules/write-bricks/components/` | one file per Bricks component (`button.mjs`, `tabs.mjs`, `form.mjs`, …) | a pattern must become a real Bricks element |
 | `modules/write-bricks/render/` | **the rules**: `tree.json` → Bricks elements | adding/fixing how a Figma property is rendered |
 | `modules/breakpoints/` | breakpoint variants of one design: `match.mjs` pairs the nodes of two frames, `merge.mjs` writes the variant's values as `<key>:<breakpoint>` settings, `@media` css, hide / `display: contents` | a variant frame needs a new rule (a setting that cannot be made responsive, a pairing case). Config: `<temp>/figma-to-bricks/<file>/<base>/responsive.json` (variants, aliases for renamed nodes); `modules/maintenance/carry.mjs` copies the owner's decisions to a variant workspace by node name |
-| `modules/visual-check/` | the QA image: `Dockerfile` (Playwright + 3 browsers + pngjs + sharp), `check.mjs` (render, measure, visual diff, hit-test, network), `optimize.mjs` (webp), `budgets.json` | a new kind of check; run through `shared/qa.mjs`, never a browser on the owner's machine |
+| `modules/visual-check/` | headless Playwright on this machine: `check.mjs` (render, measure, visual diff, hit-test, network), `optimize.mjs` (webp via sharp), `budgets.json` | a new kind of check; run through `modules/common/qa.mjs`. No browser window. The page is `WP_URL` |
 | `policy.json` + `modules/write-bricks/policy.mjs` | project-wide defaults with their reason (line-height rounding…) | a global choice that changes how Figma numbers are written |
 | `modules/approve-parts/` | the autopilot decision engine: judgment calls as rules over tree + facts + policy, with a decisions report | the owner keeps making the same decision by hand: turn it into a rule + test here |
 | `auto.mjs`, `figma/discover.mjs` | one link -> Bricks (see README "Autopilot"); discover finds the other breakpoint frames of a section | |
-| `modules/common/` | `env.mjs` (.env), `workspace.mjs` (work paths), `image-info.mjs`, `cdp.mjs` (headless Chromium in a Docker container, never a browser on the owner's machine) | small cross-cutting helpers |
+| `modules/common/` | `env.mjs` (`.env` is the one site), `workspace.mjs` (work paths), `image-info.mjs`, `qa.mjs` (headless Playwright and webp) | small cross-cutting helpers |
 | `test/`, `fixtures/` | offline tests (`npm test --prefix process`) | every rule change gets a test |
 | `history/runs/<fileKey>/<node-id>/` | generated data per section; deleted by `maintenance/clean-work.mjs`. A miss during a run is `history/notes/gaps.md` | per task |
 

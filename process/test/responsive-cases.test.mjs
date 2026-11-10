@@ -239,7 +239,7 @@ test('a desktop form beside a column stacks once the window cannot hold both', (
   assert.equal(by('form')._width, '481px');
   assert.equal(by('form')._widthMax, 'none');
   assert.equal(by('row')._direction, 'row');
-  assert.match(by('row')._cssCustom, /@media \(max-width: 1279px\) \{ #brxe-row \{ flex-direction: column; width: 100%; max-width: 100%; \}/);
+  assert.match(by('row')._cssCustom, /@media \(max-width: 1279px\) \{ body #brxe-row \{ flex-direction: column; width: 100%; max-width: 100%; \}/);
   assert.match(by('left')._cssCustom, /@media \(max-width: 1279px\)/);
   assert.doesNotMatch(by('left')._cssCustom, /max-width: 1904px/);
   assert.match(by('form')._cssCustom, /@media \(max-width: 639px\) \{ #brxe-form \{ max-width: 100%; \}/);
@@ -259,7 +259,7 @@ test('a row of pieces that cannot fit a phone stacks, and a pasted phone frame i
   fitFluid(pieces, { frameWidth: 1440 });
   const row = pieces.content[0].settings;
   assert.equal(row._direction, 'row');
-  assert.match(row._cssCustom, /@media \(max-width: 639px\) \{ #brxe-row \{ flex-direction: column; width: 100%; max-width: 100%; \}/);
+  assert.match(row._cssCustom, /@media \(max-width: 639px\) \{ body #brxe-row \{ flex-direction: column; width: 100%; max-width: 100%; \}/);
   const narrow = {
     content: [
       el('row', 0, 'block', { _width: 'auto', _direction: 'row' }),
@@ -343,7 +343,7 @@ test('shrinking cards stay one row above a pasted tablet frame, and an inset pan
   };
   fitFluid(open, { frameWidth: 1440 });
   const openRow = open.content[0].settings._cssCustom;
-  assert.match(openRow, /@media \(max-width: 767px\) \{ #brxe-row \{ flex-direction: column/);
+  assert.match(openRow, /@media \(max-width: 767px\) \{ body #brxe-row \{ flex-direction: column/);
   assert.match(openRow, /@media \(max-width: 1279px\) \{ #brxe-row \{ flex-wrap: nowrap/);
 });
 
@@ -361,7 +361,7 @@ test('a pasted phone frame holds until the tablet frame', () => {
         '_width:mobile_landscape': '250px', '_flexGrow:mobile_landscape': 0, '_flexBasis:mobile_landscape': 'auto',
       }),
       el('phoneOnly', 0, 'text-basic', {
-        _cssCustom: '@media (min-width: 479px) and (max-width: 991px) { body #brxe-phoneOnly { display: none; } }',
+        _cssCustom: '@media (min-width: 479px) and (max-width: 991px) { body #brxe-phoneOnly { display: none; } } @media (min-width: 479px) { body #brxe-phoneOnly { display: none; } }',
       }),
       el('tabletOnly', 0, 'block', { '_display:mobile_portrait': 'none' }),
     ],
@@ -376,10 +376,74 @@ test('a pasted phone frame holds until the tablet frame', () => {
   assert.equal(by('card')['_flexBasis:mobile_landscape'], 'auto');
   assert.equal(by('card')['_flexGrow:mobile_landscape'], 0);
   assert.match(by('phoneOnly')._cssCustom, /min-width: 768px\) and \(max-width: 991px\)/);
+  assert.match(by('phoneOnly')._cssCustom, /@media \(min-width: 768px\) \{ body #brxe-phoneOnly \{ display: none; \}/);
+  assert.doesNotMatch(by('phoneOnly')._cssCustom, /min-width: 479px/);
   assert.equal(by('tabletOnly')['_display:mobile_landscape'], 'none');
   const landscapeFrame = { content: [el('row', 0, 'block', { '_direction:mobile_landscape': 'row', '_direction:mobile_portrait': 'column' })] };
   holdMobileBand(landscapeFrame, { keep: ['mobile_portrait', 'mobile_landscape'] });
   assert.equal(landscapeFrame.content[0].settings['_direction:mobile_landscape'], 'row');
+});
+
+test('every width shows the desktop version or the phone version, and a row stacks only while it does not fit', () => {
+  const template = {
+    content: [
+      el('desk', 0, 'block', { _display: 'flex', '_display:mobile_portrait': 'none' }),
+      el('phone', 0, 'block', { _display: 'flex', _cssCustom: '@media (min-width: 479px) { body #brxe-phone { display: none; } }' }),
+      el('row', 'phone', 'block', {
+        _direction: 'row',
+        '_direction:tablet_portrait': 'column',
+        '_direction:mobile_landscape': 'column',
+        '_width:mobile_portrait': 'auto',
+        _cssCustom: '@media (max-width: 639px) and (min-width: 479px) { body #brxe-row { flex-direction: column; width: 100%; max-width: 100%; } }',
+      }),
+    ],
+  };
+  holdMobileBand(template, { keep: ['mobile_portrait'] });
+  const by = (id) => template.content.find((e) => e.id === id).settings;
+  const hidden = (settings, width) => {
+    const bp = width <= 478 ? ['mobile_portrait', 'mobile_landscape', 'tablet_portrait']
+      : width <= 767 ? ['mobile_landscape', 'tablet_portrait']
+        : width <= 991 ? ['tablet_portrait'] : [];
+    if (bp.some((key) => settings[`_display:${key}`] === 'none')) return true;
+    return [...String(settings._cssCustom ?? '').matchAll(/@media \(([^)]+)\) \{[^}]*display:\s*none/g)].some((match) => {
+      const min = /min-width:\s*(\d+)/.exec(match[1]);
+      const max = /max-width:\s*(\d+)/.exec(match[1]);
+      if (min && width < Number(min[1])) return false;
+      if (max && width > Number(max[1])) return false;
+      return true;
+    });
+  };
+  for (const width of [320, 478, 479, 640, 767, 768, 991, 992, 1440]) {
+    const desk = hidden(by('desk'), width);
+    const phone = hidden(by('phone'), width);
+    assert.equal(desk === phone, false, `${width}px hides desk ${desk} and phone ${phone}`);
+  }
+  assert.match(by('row')._cssCustom, /@media \(max-width: 639px\) and \(min-width: 479px\) \{ body #brxe-row \{ flex-direction: column/);
+  assert.doesNotMatch(by('row')._cssCustom, /max-width: 639px\) and \(min-width: 768px\)/);
+  assert.equal(by('row')['_direction:mobile_landscape'], 'column');
+  assert.equal(by('desk')['_display:mobile_landscape'], 'none');
+});
+
+test('a phone row wider than the phone breakpoint stacks there, a row that fits stays as drawn', () => {
+  const wide = {
+    content: [
+      el('row', 0, 'block', { _direction: 'row', _width: 'auto', _columnGap: '16px' }),
+      el('a', 'row', 'block', { _width: '280px' }),
+      el('b', 'row', 'block', { _width: '280px' }),
+    ],
+  };
+  fitFluid(wide, { frameWidth: 1440, coveredUntil: 478, keep: ['mobile_portrait'] });
+  assert.equal(wide.content[0].settings['_direction:mobile_portrait'], 'column');
+  assert.match(wide.content[0].settings._cssCustom, /max-width: 639px\) and \(min-width: 479px\)/);
+  const fits = {
+    content: [
+      el('row', 0, 'block', { _direction: 'row', _width: '343px', _columnGap: '8px' }),
+      el('icon', 'row', 'svg', { _width: '24px' }),
+      el('label', 'row', 'block', { _width: '241px' }),
+    ],
+  };
+  fitFluid(fits, { frameWidth: 1440, coveredUntil: 478, keep: ['mobile_portrait'] });
+  assert.equal(fits.content[0].settings['_direction:mobile_portrait'], undefined);
 });
 
 test('a full-bleed picture covers the section off the frame, and the content column caps per band', () => {
@@ -732,7 +796,7 @@ test('a pasted phone keeps its slider count through the open band', () => {
   assert.equal(drawn.content[0].settings['perPage:mobile_portrait'], 1);
 });
 
-test('clip keeps a child that crosses the padding and stays inside the frame', () => {
+test('a clipped frame hides overflow the way Figma clips it', () => {
   const frame = {
     clip: true,
     box: { x: 0, y: 0, w: 1905, h: 400 },
@@ -741,7 +805,10 @@ test('clip keeps a child that crosses the padding and stays inside the frame', (
   };
   const kept = {};
   applyAppearance({ node: frame, s: kept, css: {}, warn() {} });
-  assert.equal(kept._overflow, undefined);
+  assert.equal(kept._overflow, 'hidden');
+  const open = {};
+  applyAppearance({ node: { ...frame, clip: false }, s: open, css: {}, warn() {} });
+  assert.equal(open._overflow, undefined);
   const outside = { ...frame, children: [{ box: { x: -20, y: 0, w: 100, h: 40 } }] };
   const cut = {};
   applyAppearance({ node: outside, s: cut, css: {}, warn() {} });
@@ -750,4 +817,16 @@ test('clip keeps a child that crosses the padding and stays inside the frame', (
   const normal = {};
   applyAppearance({ node: inset, s: normal, css: {}, warn() {} });
   assert.equal(normal._overflow, 'hidden');
+  const sticker = {
+    clip: true,
+    box: { x: 0, y: 0, w: 562, h: 264, absX: 100, absY: 200 },
+    layout: { padding: { top: 24, right: 24, bottom: 24, left: 24 } },
+    children: [
+      { box: { x: 0, y: 0, w: 562, h: 264, absX: 100, absY: 200 } },
+      { box: { x: 0, y: 0, w: 562, h: 263, absX: 100, absY: 201 }, children: [{ box: { x: 352, y: 181, w: 210, h: 153, absX: 452, absY: 382 } }] },
+    ],
+  };
+  const cutSticker = {};
+  applyAppearance({ node: sticker, s: cutSticker, css: {}, warn() {} });
+  assert.equal(cutSticker._overflow, 'hidden');
 });

@@ -56,7 +56,8 @@ export function summaryStep(urlOrDir) {
   const md = [
     `# Summary: ${tree.name} [${tree.id}]`, '',
     `**${verdict}**`, '',
-    `Template: ${state.builderUrl ?? 'not pushed'}`, '',
+    `View on frontend: ${state.frontendUrl ?? 'not checked'}`,
+    `Builder: ${state.builderUrl ?? 'not pushed'}`, '',
     '## Overview', '',
     table(['', 'count'], [
       ['Figma nodes', st.nodes],
