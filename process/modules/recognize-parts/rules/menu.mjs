@@ -4,6 +4,7 @@
 // A row of short links with no menu name is still proposed, at low confidence. A taller row of cards is not a menu. Vertical link lists are lists (rules in decide).
 // Items that fit the frame stay a plain menu. Items that run past the clip (or start before it) become a slider of those items: the arrows drawn
 // beside the row (angle-left / angle-right, often inside a Navigation frame) are that slider's arrows.
+import { hasDivider, isActionBar } from '../../write-bricks/components/tab-switch.mjs';
 import { isLinkRow } from '../../recognize-parts/rules/links.mjs';
 import { containsChoice, isPressable, textsOf } from './shape.mjs';
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
@@ -55,11 +56,38 @@ function overflows(row, parent) {
   return kids.some((k) => k.box.x < left - 1 || k.box.x + k.box.w > right + 1);
 }
 
+function holds(n, id) {
+  return n?.id === id || visibleKids(n).some((c) => holds(c, id));
+}
+
+// The pane of a line tab is the region under the row, or peer panes that follow it.
+// A hero plus a later section is the rest of the page, so the underlined row stays a menu.
+function paneFollows(row, trail) {
+  for (const parent of trail) {
+    const kids = visibleKids(parent);
+    const index = kids.findIndex((k) => k.id === row.id || holds(k, row.id));
+    if (index < 0) continue;
+    const rest = kids.slice(index + 1);
+    const below = rest[0]?.box && row.box && rest[0].box.absY >= row.box.absY + row.box.h - 1;
+    if (!below) continue;
+    if (rest.length === 1) return true;
+    const key = (item) => visibleKids(item).map((c) => c.type).join('+') || item.type;
+    if (new Set(rest.map(key)).size === 1) return true;
+  }
+  return false;
+}
+
 export function detectMenus(tree) {
   const found = [];
   (function walk(n, trail) {
     if (n.visible === false) return;
     const kids = visibleKids(n);
+    // The row is a tab when a pane follows it, or a divider splits the triggers.
+    // One underlined or Active link, with no pane, stays a menu.
+    if (isActionBar(n) && (paneFollows(n, trail) || hasDivider(n))) {
+      kids.forEach((c) => walk(c, [n, ...trail]));
+      return;
+    }
     const chip = (k) => {
       if ((k.box?.h ?? 0) > 28 || (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45 || textsOf(k).length !== 1) return false;
       if ((k.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5)) return true;

@@ -84,7 +84,7 @@ export const PART_RULES = {
     anv: 'not in the layout table; same bar-plus-pane shape',
   },
   [PartKind.TAB_SWITCH]: {
-    shape: 'A row of controls, one drawn open, and the data frame under that row. The layer name is only a hint.',
+    shape: 'A horizontal row of one-label triggers, one drawn open (variant, fill, a different paint, or a line under it). A divider between the triggers is optional evidence. The data frame sits under that row, or peer panes follow the row. Height and the layer name do not decide.',
     hint: 'tab',
     anv: 'same as tabs when the pane is a repeated list',
   },

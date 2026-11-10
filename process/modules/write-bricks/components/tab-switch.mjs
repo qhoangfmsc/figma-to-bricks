@@ -8,6 +8,8 @@
 import { visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
 import { cssColor } from '../../write-bricks/render/utils/css.mjs';
+import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
+import { activeLook, markSettings, nodeAt } from '../../write-bricks/components/states.mjs';
 
 const LIST = /tab\s*list/i;
 const PANEL = /tab\s*panel/i;
@@ -26,9 +28,60 @@ export function isSingleTab(n) {
 }
 
 // A horizontal row whose children are those tab frames. "Tab List" stays with isTabList.
-export function isNamedTabBar(n) {
+// A line or a hairline vector between titles is a divider, not a title.
+function isSeparator(n) {
+  if (!n || n.visible === false || hasText(n)) return false;
+  if (n.type === 'LINE') return true;
+  const w = n.box?.w ?? 0;
+  const h = n.box?.h ?? 0;
+  if (n.type === 'VECTOR' || n.type === 'ELLIPSE') return w <= 16 || h <= 2;
+  return w <= 2 || h <= 2;
+}
+
+function labelCount(n) {
+  let count = 0;
+  (function walk(x) {
+    if (!x || x.visible === false) return;
+    if (x.type === 'TEXT' && !x.svg && x.text?.characters?.trim()) count += 1;
+    for (const c of x.children ?? []) walk(c);
+  })(n);
+  return count;
+}
+
+// A trigger carries one label. A price card carries a title, a price and a feature list, so it is not a trigger.
+function isTrigger(n) {
+  return !!n && BOX.has(n.type) && labelCount(n) === 1;
+}
+
+// Titles are the boxes that carry one label. Dividers stay in the row and are not titles.
+export function rowTitles(n) {
+  return visibleKids(n).filter(isTrigger);
+}
+
+// A divider sits between two triggers. It is optional. When it is there, the row is a segmented control.
+export function dividerOf(n, titles = rowTitles(n)) {
+  const ids = new Set(titles.map((t) => t.id));
   const kids = visibleKids(n);
-  return !!n && n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && kids.every(isSingleTab) && !isTabList(n);
+  let seen = false;
+  for (let i = 0; i < kids.length; i++) {
+    if (ids.has(kids[i].id)) { seen = true; continue; }
+    if (seen && isSeparator(kids[i]) && kids.slice(i + 1).some((c) => ids.has(c.id))) return kids[i];
+  }
+  return null;
+}
+
+export function hasDivider(n, titles = rowTitles(n)) {
+  return !!dividerOf(n, titles);
+}
+
+function gapsAreSeparators(n, titles) {
+  const ids = new Set(titles.map((t) => t.id));
+  return visibleKids(n).filter((k) => !ids.has(k.id)).every(isSeparator);
+}
+
+export function isNamedTabBar(n) {
+  const titles = rowTitles(n);
+  return !!n && n.layout?.mode === 'HORIZONTAL' && titles.length >= 2 && titles.every(isSingleTab) && gapsAreSeparators(n, titles) && !isTabList(n);
 }
 
 function parentIn(root, id) {
@@ -66,10 +119,9 @@ function underlineDecl(title) {
 }
 
 export function isTabList(n) {
-  const kids = visibleKids(n);
-  if (n.layout?.mode !== 'HORIZONTAL' || kids.length < 2) return false;
-  if (!kids.every((k) => BOX.has(k.type) && hasText(k))) return false;
-  return LIST.test(n.name ?? '') || kids.every((k) => /^tab$/i.test(String(k.name ?? '').trim()));
+  const titles = rowTitles(n);
+  if (!n || n.layout?.mode !== 'HORIZONTAL' || titles.length < 2 || !gapsAreSeparators(n, titles)) return false;
+  return LIST.test(n.name ?? '') || titles.every((k) => /^tab$/i.test(String(k.name ?? '').trim()));
 }
 
 function collectPanels(n, listId, out) {
@@ -113,18 +165,61 @@ function classicInspect(node, list = listsIn(node)[0]) {
   return { list, titles, panels: found.panels, active };
 }
 
+function barInside(node, depth = 0) {
+  if (!node || node.visible === false || depth > 8) return null;
+  if (isActionBar(node)) return node;
+  for (const child of visibleKids(node)) {
+    const hit = barInside(child, depth + 1);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// After the bar, one region is the open pane. Several regions of the same structure are one pane each.
+// A hero, then a features block, then a price block, are later sections of the page.
+function followingContent(kids, index) {
+  const rest = kids.slice(index + 1);
+  if (!rest.length) return null;
+  if (rest.length === 1) return { content: rest[0], panels: null };
+  if (rest.every((n) => BOX.has(n.type)) && new Set(rest.map(shapeKey)).size === 1) return { content: null, panels: rest };
+  return null;
+}
+
+// The bar may sit inside the title block. The pane is the region under that block, not a sibling of the chips.
+function pickBar(node) {
+  const kids = visibleKids(node);
+  for (let i = 0; i < kids.length; i++) {
+    const bar = barInside(kids[i]);
+    const follow = followingContent(kids, i);
+    if (!bar || !follow) continue;
+    const content = follow.content;
+    if (content && (isSingleTab(content) || isNamedTabBar(content) || isActionBar(content))) continue;
+    const below = content ?? follow.panels[0];
+    if (!below?.box || !bar.box || below.box.absY < bar.box.absY + bar.box.h - 1) continue;
+    if (content && !visibleKids(content).length && !(content.box.h > 0)) continue;
+    const titles = rowTitles(bar);
+    const active = activeTitle(titles, bar);
+    const named = isNamedTabBar(bar) || isTabList(bar);
+    const asked = /nhiều tab/.test(active.reason ?? '');
+    if (!active.clear && !named && !asked) continue;
+    return { bar, content, panels: follow.panels };
+  }
+  return null;
+}
+
 // A horizontal row of controls, one of them drawn open, with the data frame under it.
 // The layer name is not required. Stacked title + content rows stay blocks.
 function looseInspect(node) {
-  const kids = visibleKids(node);
-  const bar = kids.find(isActionBar);
-  if (!bar) return null;
-  const content = kids[kids.findIndex((c) => c.id === bar.id) + 1];
-  const below = content && content.box && bar.box && content.box.absY >= bar.box.absY + bar.box.h - 1;
-  if (!below || isSingleTab(content) || isNamedTabBar(content)) return null;
+  const picked = pickBar(node);
+  if (!picked) return null;
+  const { bar, content, panels: directPanels } = picked;
+  const titles = rowTitles(bar);
+  const active = activeTitle(titles, bar);
+  if (directPanels) {
+    return { list: bar, titles, panels: directPanels, paneParent: node, active: active.index ?? 0, activeClear: active.clear };
+  }
+  if (isSingleTab(content) || isNamedTabBar(content)) return null;
   const inner = visibleKids(content);
-  const titles = visibleKids(bar);
-  const active = activeTitle(titles);
   const named = inner.filter((n) => PANEL.test(n.name ?? ''));
   if (named.length) return { list: bar, titles, panels: named, paneParent: content, active: active.index ?? 0, activeClear: active.clear };
   const data = repeatedSet(inner);
@@ -136,7 +231,10 @@ function looseInspect(node) {
   if (data.items.length >= 2) {
     return { list: bar, titles, panels: [], dataItems: data.items, paneParent: content, active: active.index, activeClear: active.clear };
   }
-  if (inner.length === titles.length && inner.length > 0) {
+  // Two peer frames, one per title, are panes. A card plus a button under the open title is one region.
+  const peers = inner.map(shapeKey);
+  const onePaneEach = peers.length === inner.length && new Set(peers).size === 1;
+  if (inner.length === titles.length && inner.length > 0 && onePaneEach) {
     return { list: bar, titles, panels: inner, paneParent: null, active: active.index ?? 0, activeClear: active.clear };
   }
   return { list: bar, titles, panels: [], paneParent: content, active: active.index, activeClear: active.clear };
@@ -152,43 +250,116 @@ function markedOpen(title) {
   return false;
 }
 
-// One tab is open. A selected variant, else a bottom stroke, else one solid fill.
-// Two of the same mark, or none, is not a guess: the screen asks.
-export function activeTitle(titles) {
+// The open trigger and the resting triggers are the same control. One extra badge is still that control.
+// The layer name is not the comparison. A submit button with an icon is a different structure.
+function samePeers(titles) {
+  const counts = new Map();
+  for (const title of titles) {
+    const key = shapeKey(title);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const best = Math.max(0, ...counts.values());
+  return best >= titles.length - 1 && best >= 2;
+}
+
+function similarWidth(titles) {
+  const widths = titles.map((t) => t.box?.w ?? 0);
+  if (widths.some((w) => w <= 0)) return false;
+  return Math.max(...widths) / Math.min(...widths) <= 1.4;
+}
+
+function paintKey(n) {
+  const fills = (n.fills ?? []).filter((f) => f.visible !== false);
+  const fill = fills.map((f) => {
+    if (f.type === 'SOLID') return `s:${f.hex}:${f.alpha ?? 1}`;
+    if (String(f.type).startsWith('GRADIENT')) return `g:${(f.stops ?? []).map((s) => `${s.hex}:${s.position}`).join(',')}`;
+    return f.type ?? '';
+  }).join('|') || 'none';
+  const ink = solid(firstText(n));
+  return `${fill}/${ink ? `${ink.hex}:${ink.alpha ?? 1}` : ''}`;
+}
+
+function paintRank(title) {
+  const fills = (title.fills ?? []).filter((f) => f.visible !== false);
+  if (fills.some((f) => String(f.type).startsWith('GRADIENT'))) return 2;
+  const solidFill = fills.find((f) => f.type === 'SOLID');
+  return solidFill ? (solidFill.alpha ?? 1) : 0;
+}
+
+function majorityShape(nodes) {
+  const counts = new Map();
+  for (const n of nodes) {
+    const key = shapeKey(n);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+// One trigger uses another fill while the rest share one look.
+// Two triggers need a divider between them. A primary button beside a secondary button has no divider.
+function paintedOpen(titles, { min = 3 } = {}) {
+  if (titles.length < min || !samePeers(titles)) return null;
+  if (titles.length > 2 && !similarWidth(titles)) return null;
+  const groups = new Map();
+  titles.forEach((title, i) => {
+    const key = paintKey(title);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(i);
+  });
+  const sizes = [...groups.values()].sort((a, b) => b.length - a.length);
+  if (titles.length === 2 && sizes.length === 2) {
+    const [a, b] = titles.map(paintRank);
+    if (a === b) return null;
+    const index = a > b ? 0 : 1;
+    if (shapeKey(titles[index]) !== shapeKey(titles[index === 0 ? 1 : 0])) return null;
+    return { index, clear: true, reason: 'paint' };
+  }
+  if (sizes.length === 2 && sizes[0].length === titles.length - 1 && sizes[1].length === 1) {
+    const index = sizes[1][0];
+    const resting = sizes[0].map((i) => titles[i]);
+    if (shapeKey(titles[index]) !== majorityShape(resting)) return null;
+    return { index, clear: true, reason: 'paint' };
+  }
+  return null;
+}
+
+// One tab is open. A selected variant, else a bottom stroke, else one solid fill, else one peer painted differently.
+// A divider lets two peers count. Two of the same mark, or none, is not a guess: the screen asks.
+export function activeTitle(titles, row = null) {
   const marked = titles.map((t, i) => (markedOpen(t) ? i : -1)).filter((i) => i >= 0);
-  if (marked.length === 1) return { index: marked[0], clear: true };
+  if (marked.length === 1) return { index: marked[0], clear: true, reason: 'variant' };
   if (marked.length > 1) return { index: null, clear: false, reason: 'nhiều tab đang chọn' };
   const lined = titles.map((t, i) => ((t.stroke?.weights?.bottom ?? 0) > 0 ? i : -1)).filter((i) => i >= 0);
-  if (lined.length === 1) return { index: lined[0], clear: true };
+  if (lined.length === 1) return { index: lined[0], clear: true, reason: 'stroke' };
   if (lined.length > 1) return { index: null, clear: false, reason: 'nhiều tab có gạch chân' };
-  const filled = titles.map((t, i) => (solid(t) ? i : -1)).filter((i) => i >= 0);
-  if (filled.length === 1) return { index: filled[0], clear: true };
+  const paintedAt = (title) => (title.fills ?? []).some((f) => f.visible !== false && (f.type === 'SOLID' || String(f.type).startsWith('GRADIENT')));
+  const filled = titles.map((t, i) => (paintedAt(t) ? i : -1)).filter((i) => i >= 0);
+  if (filled.length === 1 && samePeers(titles)) return { index: filled[0], clear: true, reason: 'fill' };
+  const painted = paintedOpen(titles);
+  if (painted) return painted;
+  if (row && hasDivider(row, titles)) {
+    const split = paintedOpen(titles, { min: 2 });
+    if (split) return split;
+  }
   if (filled.length > 1) return { index: null, clear: false, reason: 'nhiều tab có nền' };
   return { index: null, clear: false, reason: 'không thấy tab nào đang mở' };
 }
 
 // The row the visitor clicks. A name that says "tab" is a hint. The row is the control when one title is drawn open.
 export function isActionBar(n) {
-  const kids = visibleKids(n);
-  if (!n || n.layout?.mode !== 'HORIZONTAL' || kids.length < 2) return false;
-  if (!kids.every((k) => BOX.has(k.type) && hasText(k))) return false;
+  const titles = rowTitles(n);
+  if (!n || n.layout?.mode !== 'HORIZONTAL' || titles.length < 2 || !gapsAreSeparators(n, titles)) return false;
   if (isTabList(n) || isNamedTabBar(n)) return true;
-  const active = activeTitle(kids);
+  const active = activeTitle(titles, n);
   return active.clear === true && Number.isInteger(active.index);
 }
-
-function activeOf(titles) {
-  return activeTitle(titles).index ?? 0;
-}
-
-const itemName = (n) => String(n?.name ?? '').trim().toLowerCase();
 
 function shapeKey(n) {
   const kids = visibleKids(n).map((c) => (c.type === 'TEXT' ? 'text' : c.svg ? 'svg' : c.type));
   return kids.join('+') || n.type;
 }
 
-// Siblings that share a structure. The same name wins (five frames named "os").
+// Siblings that share a structure. The layer name is not the group.
 // A strictly larger group is the data. Two groups of the same size are not a guess.
 export function repeatedSet(nodes) {
   const kids = (nodes ?? []).filter((n) => n && n.visible !== false);
@@ -198,15 +369,6 @@ export function repeatedSet(nodes) {
     if (sized.length > 1 && sized[0].length === sized[1].length) return { items: [], groups: sized, ambiguous: true };
     return { items: sized[0], groups: sized, ambiguous: false, name: sized[0][0].name };
   };
-  const byName = new Map();
-  for (const n of kids) {
-    const name = itemName(n);
-    if (!name) continue;
-    if (!byName.has(name)) byName.set(name, []);
-    byName.get(name).push(n);
-  }
-  const named = rank(byName);
-  if (named) return named;
   const byShape = new Map();
   for (const n of kids) {
     const key = shapeKey(n);
@@ -244,6 +406,9 @@ export function switchInventory(node) {
       return { title, label, drawn: itemSummary(found.dataItems), active: true };
     }
     if (found.dataItems?.length) return { title, label, drawn: '', active: false };
+    if (!found.panels.length && found.paneParent && found.activeClear && i === found.active) {
+      return { title, label, drawn: drawnOf(found.paneParent), active: true };
+    }
     return { title, label, drawn: drawnOf(found.panels[i]), active: i === found.active && found.activeClear };
   });
 }
@@ -276,7 +441,7 @@ export default {
   label: 'Tab switch',
   figma: 'a row of controls with one drawn open, and the data frame under that row',
   bricks: '`tabs-nested` on the frame that holds both; the list is the tab menu, each Tab is a title, each Tab Panel is a pane',
-  limits: 'The drawn open title is openTab (1.12.3, index from 0) and gets brx-open. A panel Figma does not draw comes from the Plan, blank stays empty. The moving pill is the solid fill and the text color of the drawn titles',
+  limits: 'The drawn open title is openTab (1.12.3, index from 0) and gets brx-open. A panel Figma does not draw comes from the Plan, blank stays empty. The open title carries every paint difference from the resting title (fill, text colour, stroke, a checked control and its mark). Bricks moves brx-open; the footer script sets aria-checked and input.checked from that class',
   kind: () => 'tabs-nested',
 
   check(node, det) {
@@ -299,6 +464,13 @@ export default {
     const idleColor = solid(firstText(idle));
     const onColor = solid(firstText(on));
     const line = underlineDecl(on);
+    const backgroundDecl = (title, suffix) => {
+      const gradient = (title?.fills ?? []).filter((f) => f.visible !== false && f.type === 'GRADIENT_LINEAR').at(-1);
+      if (gradient?.stops?.length && title.box?.w && title.box?.h) {
+        return { decl: `background-image: ${linearGradientCss(gradient, title.box.w, title.box.h)}; background-color: transparent;`, suffix };
+      }
+      return { decl: `background-color: ${solid(title) ? cssColor(solid(title)) : 'transparent'};`, suffix };
+    };
     const parent = (id) => {
       const walk = (n) => { for (const c of visibleKids(n)) { if (c.id === id) return n; const hit = walk(c); if (hit) return hit; } return null; };
       return walk(node);
@@ -307,8 +479,8 @@ export default {
     const sample = panels[0];
     const sampleText = sample && firstText(sample);
     const titleCss = [
-      { decl: `background-color: ${solid(idle) ? cssColor(solid(idle)) : 'transparent'};`, suffix: ' .tab-title' },
-      { decl: `background-color: ${solid(on) ? cssColor(solid(on)) : 'transparent'};`, suffix: ' .tab-title.brx-open' },
+      backgroundDecl(idle, ' .tab-title'),
+      backgroundDecl(on, ' .tab-title.brx-open'),
       ...(idleColor ? [{ decl: `color: ${cssColor(idleColor)};`, suffix: ' .tab-title :is(.brxe-text-basic, .brxe-heading)' }] : []),
       ...(onColor ? [{ decl: `color: ${cssColor(onColor)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' }] : []),
       ...(line ? [{ decl: line, suffix: ' .tab-title.brx-open' }] : []),
@@ -327,7 +499,7 @@ export default {
     if (!list && missing.length && (!paneParent || paneParent.id === node.id)) out[node.id].extraChildren = extraChildren;
     if (list) out[list.id] = { settings: hidden('tab-menu'), css: titleCss };
     titles.forEach((title, i) => {
-      out[title.id] = { settings: hidden(i === openAt ? 'tab-title brx-open' : 'tab-title'), dropSettings: line ? ['_background', '_border', '_boxShadow'] : ['_background'] };
+      out[title.id] = { settings: hidden(i === openAt ? 'tab-title brx-open' : 'tab-title'), dropSettings: line ? ['_background', '_gradient', '_border', '_boxShadow'] : ['_background', '_gradient'] };
     });
     panels.forEach((pane, i) => {
       const text = !drawnOf(pane) ? det?.params?.content?.panes?.[titles[i]?.id] : '';
@@ -338,6 +510,7 @@ export default {
         ...(text ? { extraChildren: [{ name: 'text-basic', label: 'Content', settings: {}, text }] } : {}),
       };
     });
+    stampActive(out, titles, openAt);
     if (paneParent && paneParent.id !== node.id) {
       // The content frame is the pane parent. It has to be a block: an empty frame exported as svg does not render its children.
       out[paneParent.id] = { ...(out[paneParent.id] ?? {}), kind: 'block', settings: { ...(out[paneParent.id]?.settings ?? {}), ...hidden('tab-content') }, ...(missing.length ? { extraChildren } : {}) };
@@ -346,4 +519,66 @@ export default {
     }
     return out;
   },
+
+  pageScript() {
+    return '(function(){function sync(root){root.querySelectorAll("[data-f2b-check]").forEach(function(el){var title=el.closest(".tab-title");var on=!!(title&&title.classList.contains("brx-open"));el.setAttribute("aria-checked",on?"true":"false");var input=el.matches("input")?el:el.querySelector("input[type=radio],input[type=checkbox]");if(input)input.checked=on;});}document.querySelectorAll(".brxe-tabs-nested").forEach(function(root){sync(root);var obs=new MutationObserver(function(){sync(root);});root.querySelectorAll(".tab-title").forEach(function(title){obs.observe(title,{attributes:true,attributeFilter:["class"]});});});})();';
+  },
 };
+
+function mergePatch(out, id, patch) {
+  const prev = out[id] ?? {};
+  const settings = { ...(prev.settings ?? {}) };
+  if (patch.settings) Object.assign(settings, patch.settings);
+  if (prev.settings?._cssClasses || patch.settings?._cssClasses) {
+    settings._cssClasses = [prev.settings?._cssClasses, patch.settings?._cssClasses].filter(Boolean).join(' ');
+  }
+  if (prev.settings?._attributes || patch.settings?._attributes) {
+    settings._attributes = [...(prev.settings?._attributes ?? []), ...(patch.settings?._attributes ?? [])];
+  }
+  out[id] = {
+    ...prev,
+    settings,
+    css: [...(prev.css ?? []), ...(patch.css ?? [])],
+    extraChildren: [...(prev.extraChildren ?? []), ...(patch.extraChildren ?? [])],
+  };
+}
+
+// The resting title and the open title differ in more than the pill fill. Those differences
+// follow brx-open, and a checked control is aria-checked only while its title is open.
+function stampActive(out, titles, openAt) {
+  const on = titles[openAt];
+  const idle = titles.find((_, i) => i !== openAt);
+  if (!on || !idle) return;
+  const look = activeLook(idle, on, '.brx-open');
+  if (!look.css.length && !look.controls.length && !look.clones.length) return;
+  for (const title of titles) {
+    mergePatch(out, title.id, { css: look.css });
+    const open = title.id === on.id;
+    for (const slot of look.classes) {
+      const hit = nodeAt(title, slot.path);
+      if (hit) mergePatch(out, hit.id, { settings: { _cssClasses: slot.className } });
+    }
+    for (const clone of look.clones) {
+      if (nodeAt(title, clone.path)) continue;
+      const parent = nodeAt(title, clone.parentPath);
+      if (!parent) continue;
+      mergePatch(out, parent.id, {
+        settings: { _position: 'relative' },
+        extraChildren: [{ name: clone.name, label: clone.label, like: clone.like, settings: markSettings(clone) }],
+      });
+    }
+    for (const control of look.controls) {
+      const hit = nodeAt(title, control.path);
+      if (!hit) continue;
+      mergePatch(out, hit.id, {
+        settings: {
+          _attributes: [
+            { name: 'role', value: control.role },
+            { name: 'aria-checked', value: open ? 'true' : 'false' },
+            { name: 'data-f2b-check', value: control.role },
+          ],
+        },
+      });
+    }
+  }
+}

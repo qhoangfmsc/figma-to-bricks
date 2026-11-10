@@ -38,11 +38,21 @@ Then run:
 
 A link changed after this read makes the plan stale. Read again. Do not build on the old read.
 
-## 2. Plan — stop
+## 2. Ảnh, nhận dạng, tín hiệu — rồi mới plan
 
-`read` writes `plan.md` in the desktop workspace (`planFile`). That file is the form. Do not paste the form into the chat. Point to the file, then stop. Do not build in the same turn.
+`read` writes `look.png` (Figma's render of the section), `look.json` (the signals), and a `plan.md` that says it is not ready. Do not point the owner at that file yet. Do not build in the same turn.
 
-Look before you point at the file. Order: `repeats[]` (same child shape), then the frame picture (Figma render under `assets/`, or a headless Playwright shot), then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay as that component. Leave it as a block with an empty `expect` line and do not edit the rule in this run. Do not measure pixels off the picture. Do not approve a component the picture does not support.
+Read `look.png`. For every signal in `look.json`, write one line `{ "node", "kind", "see" }`. `kind` is what the picture shows (`PART_RULES`, or `block`). `see` is one sentence. A group the picture shows that no signal claimed is a line with that `kind` and the node you can point at, or no node. Do not measure pixels. Do not copy the signal's kind unless the picture shows that kind.
+
+Write that list to `look-ai.json` in the desktop workspace, then:
+
+`node process/template.mjs look --desktop "<url>" --ai "<workspace>/look-ai.json"`
+
+That rewrites `plan.md`. Each component then has the picture, the reading, the signal, and one conclusion. The same kind is built. A different kind is `drop` and stays a block. A picture group with no signal stays a block. A plan whose Chứng cứ says the reading is missing is not the plan to confirm.
+
+Order when reading the picture: `repeats[]` (same child shape), then `look.png`, then a layer name. Compare picture and tree the way a Figma hover does: the selected layer is the box on the canvas. A row that shares a child shape is one component even when the layer is `Frame 12` or `Service Card`. A name match the picture contradicts does not stay as that component. Do not edit the rule in this run.
+
+Point to `plan.md` only after `look` says `ready: true`. Then stop.
 
 During this run, do not edit `process/` or the theme. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task. Build creates the template on `WP_URL` without an upload confirmation. Never write Bricks theme styles. CSS loading stays External files.
 
@@ -50,6 +60,7 @@ The file, in this order:
 
 - Title, frame name, width. Then `Gộp` with each pasted variant and its width, or omit that line.
 - `Xác nhận: không`. The line does not block the upload.
+- **Chứng cứ.** The section picture, then for each component: AI reading, tree signal, conclusion. `drop` and `attach` on a key line are already the enum. Copy them. A blank part line of an agreed component stays keep.
 - **Loại Template.** One line `` `type:<node>`: section ``. section, header, footer, popup, content, archive, search, or error. A sure header, footer, or popup is already filled. A weak guess stays section and the line above says why.
 - **Component Detected.** One numbered block per plain block: kind, Figma link, then `Kết quả mong muốn` (`expect:<id>`). A component the owner keeps or drops is under **Cần User quyết định**: `Quyết định dựng <loại>` (`part:<id>`), then the same kết quả line. A value Figma drew is filled. A value Figma does not have is `[Chưa có value]`. `note:plan` is under **Kết quả cần đạt được**. Tabs and tab-switch still list every pane.
 - **Chưa chắc** and **Nhóm lặp** only when a row is not already inside a section above.

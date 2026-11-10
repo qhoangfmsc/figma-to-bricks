@@ -19,9 +19,11 @@ Plan text is free. Before build, write `choices.json` with one enum per line (`p
 
 Eight engine steps stay in code: fetch, tree, detect, export, build, push, verify, summary. A template run writes `plan.md`, then creates the template on `WP_URL`. There is no upload confirmation.
 
-The picture and the tree decide what a group is. A repeated child shape counts (the Figma hover: selected layer = highlighted box). A layer name matching `tab` / `menu` / `nav` / `button` is a hint, not a gate. Layer names in these files are inconsistent. Do not add a name regex for one file.
+The picture, the reading of that picture, and the tree decide what a group is. A repeated child shape counts (the Figma hover: selected layer = highlighted box). A layer name matching `tab` / `menu` / `nav` / `button` is a hint, not a gate. Layer names in these files are inconsistent. Do not add a name regex for one file.
 
-No whack-a-mole. A miss is a gap in the shared rule, not a patch for that file. Before changing detect or render, read the catalog, `process/modules/recognize-parts/structure.mjs`, and one other section with the same shape. The change has to serve the next Figma file and still pass the existing tests. Recognize from two inputs together: the tree, and a picture (Figma's own frame render, or the headless Playwright shot). The picture says what the group is. The tree supplies the numbers. Do not measure pixels off a screenshot. Do that look before the build, then create the template on `WP_URL`. Do not wait for an upload confirmation.
+`read` saves `look.png` and the detection signals. The plan is not the copy to confirm until the picture has been read and `node process/template.mjs look` has written the conclusion. The same kind is built. A different kind, or a picture group with no signal, stays a block. Do not measure pixels off the screenshot.
+
+No whack-a-mole. A miss is a gap in the shared rule, not a patch for that file. Before changing detect or render, read the catalog, `process/modules/recognize-parts/structure.mjs`, and one other section with the same shape. The change has to serve the next Figma file and still pass the existing tests. The picture is Figma's own frame render. The tree supplies the numbers. Do that look before the plan is confirmed, then create the template on `WP_URL`. Do not wait for an upload confirmation.
 
 # Never
 

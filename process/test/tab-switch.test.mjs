@@ -1,13 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { detectTabs } from '../modules/recognize-parts/rules/tabs.mjs';
 import { detectTabSwitches } from '../modules/recognize-parts/rules/tab-switch.mjs';
+import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
+import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
 import { switchInventory, tabQuestions } from '../modules/write-bricks/components/tab-switch.mjs';
 import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
+import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs';
+import { detectStep } from '../modules/build-steps/03-detect.mjs';
+import { groupQuestions, GROUPS, keyOf } from '../modules/missing-content/index.mjs';
+import { planInventory, screenParts, sectionBlocks } from '../modules/single-template/parts.mjs';
+import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, rgb) => ({
@@ -234,6 +242,191 @@ test('an unnamed row with one selected control and the cards under it is a tab',
   assert.equal(rows[0].drawn, '');
 });
 
+test('the open title moves the radio check with the background', () => {
+  const radio = (id, on) => frame(id, 'Radio', [0, 0, 20, 20], on ? [frame(`${id}c`, 'Check', [6, 6, 8, 8], [], { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] })] : [], {
+    strokes: [{ type: 'SOLID', color: on ? { r: 1, g: 0.525, b: 0.161, a: 1 } : { r: 0.9, g: 0.91, b: 0.92, a: 1 } }],
+    strokeWeight: 1,
+    ...(on ? { fills: [{ type: 'SOLID', color: { r: 1, g: 0.525, b: 0.161, a: 1 } }] } : {}),
+    componentProperties: { Checked: { type: 'VARIANT', value: on ? 'True' : 'False' } },
+  });
+  const control = (id, label, on) => frame(id, 'Frame 2147225719', [0, 0, 200, 64], [
+    text(`${id}t`, label, on ? [1, 0.435, 0] : [0.2, 0.255, 0.333]),
+    radio(`${id}r`, on),
+  ], {
+    layoutMode: 'HORIZONTAL',
+    fills: [{ type: 'SOLID', color: on ? { r: 1, g: 0.965, b: 0.957, a: 1 } : { r: 1, g: 1, b: 1, a: 1 } }],
+    strokes: [{ type: 'SOLID', color: on ? { r: 1, g: 0.886, b: 0.8, a: 1 } : { r: 0.9, g: 0.906, b: 0.922, a: 1 } }],
+    strokeWeight: 1,
+    paddingTop: 16, paddingRight: 20, paddingBottom: 16, paddingLeft: 20,
+    componentProperties: { 'Property 1': { type: 'VARIANT', value: on ? 'Selected' : 'Default' } },
+  });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('host', '_Title', [0, 0, 1140, 400], [
+    frame('bar', 'Frame 2147225732', [0, 80, 1140, 64], [control('linux', 'LINUX', false), control('win', 'WINDOWS', true)], { layoutMode: 'HORIZONTAL' }),
+    frame('data', 'Service Section', [0, 160, 1140, 200], [frame('c1', 'ServiceCard', [0, 0, 200, 160], [text('n', 'NVME', [0.1, 0.1, 0.1])])], { layoutMode: 'HORIZONTAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'host', params: {} }] }, salt: 'radio' });
+  const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
+  const attr = (node, name) => el(node).settings._attributes.find((a) => a.name === name).value;
+  assert.equal(el('win').settings._hidden._cssClasses, 'tab-title brx-open');
+  assert.equal(attr('winr', 'aria-checked'), 'true');
+  assert.equal(attr('linuxr', 'aria-checked'), 'false');
+  assert.equal(attr('winr', 'data-f2b-check'), 'radio');
+  assert.match(el('linux').settings._cssCustom, /\.brx-open \.f2b-s-1 \{[^}]*background-color: #ff8629 !important/);
+  assert.match(el('linux').settings._cssCustom, /\.brx-open \.f2b-on \{ display: block !important/);
+  assert.match(el('win').settings._cssCustom, /border-color: #ffe2cc !important/);
+  const clone = built.template.content.find((e) => e.label === 'Check' && e.id !== el('winrc').id);
+  assert.equal(clone.parent, el('linuxr').id);
+  assert.equal(clone.settings._cssClasses, 'f2b-on');
+  assert.equal(clone.settings._width, '8px');
+  assert.equal(clone.settings._height, '8px');
+  assert.equal(el('linuxr').settings._position, 'relative');
+  assert.match(built.template.scripts[0], /aria-checked/);
+  assert.match(built.template.scripts[0], /input\.checked/);
+});
+
+test('a pill row with one gradient chip, nested under the title, switches the frame below', () => {
+  const rest = { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 0.6 } }] };
+  const gradient = { fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0.486, b: 0.988, a: 1 } }, { position: 1, color: { r: 0, g: 0.392, b: 0.8, a: 1 } }] }] };
+  const chip = (id, label, y, extra = {}, badge = false) => frame(id, '_period-bar-item-Ver 11.2024', [0, y, 218, 36], [
+    text(`${id}t`, label, extra === gradient ? [1, 1, 1] : [0.322, 0.337, 0.4]),
+    ...(badge ? [frame(`${id}b`, 'recom.svg', [140, y, 81, 22], [])] : []),
+  ], { layoutMode: 'HORIZONTAL', ...extra });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('title', '_Title', [0, 0, 1140, 700], [
+    frame('head', 'Header', [0, 0, 1140, 64], [text('h', 'Dịch vụ', [0.1, 0.1, 0.1])]),
+    frame('period', '_Period', [0, 80, 1140, 52], [
+      frame('wrap', 'period-bar', [0, 80, 1140, 52], [
+        frame('list', '_period-list', [8, 88, 1124, 36], [
+          chip('a', 'FIRE WALL ANTI DDOS', 88, gradient),
+          chip('b', 'EMAIL', 88, rest),
+          chip('c', 'SSL', 88, rest),
+          chip('d', 'MÁY CHỦ', 88, rest),
+          chip('e', 'TỐI ƯU TỐC ĐỘ', 88, rest, true),
+        ], { layoutMode: 'HORIZONTAL' }),
+      ]),
+    ]),
+    frame('data', 'Cards', [0, 150, 1140, 400], [
+      frame('left', 'Paragraph', [0, 150, 360, 400], [text('lt', 'list', [0, 0, 0])]),
+      frame('right', 'Paragraph', [0, 150, 700, 400], [text('rt', 'cards', [0, 0, 0])]),
+    ], { layoutMode: 'HORIZONTAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectForms(tree).some((f) => f.node === 'list'), false);
+  assert.equal(detectMenus(tree).some((f) => f.node === 'list'), false);
+  const found = detectTabSwitches(tree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].node, 'title');
+  const next = { id: 'next', name: 'Next', type: 'FRAME', visible: true, box: { x: 0, y: 800, w: 1440, h: 400, absX: 0, absY: 800 }, children: [] };
+  const page = { id: 'page', name: 'Homepage', type: 'FRAME', visible: true, layout: { mode: 'VERTICAL' }, box: { x: 0, y: 0, w: 1440, h: 1600, absX: 0, absY: 0 }, children: [tree, next] };
+  assert.equal(detectTabSwitches(page)[0].node, 'title');
+  const rows = switchInventory(tree);
+  assert.equal(rows[0].label, 'FIRE WALL ANTI DDOS');
+  assert.equal(rows[0].active, true);
+  assert.match(rows[0].drawn, /2 item/);
+  assert.equal(rows[1].drawn, '');
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'title', params: {} }] }, salt: 'period' });
+  const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
+  assert.equal(el('a').settings._hidden._cssClasses, 'tab-title brx-open');
+  assert.equal(el('b').settings._hidden._cssClasses, 'tab-title');
+  assert.match(el('list').settings._cssCustom, /linear-gradient\(/);
+  assert.match(el('list').settings._cssCustom, /#007cfc/);
+  assert.equal(el('a').settings._gradient, undefined);
+});
+
+test('a service bar with State=Active and a divider, nested in the header, switches the wrapper below', () => {
+  const item = (id, label, state, rgb, w) => frame(id, 'Services Bar', [0, 210, w, 40], [text(`${id}t`, label, rgb)], {
+    layoutMode: 'HORIZONTAL',
+    componentProperties: { State: { type: 'VARIANT', value: state } },
+    ...(state === 'Active' ? { fills: [{ type: 'SOLID', color: { r: 0.988, g: 0.988, b: 0.988, a: 1 } }] } : {}),
+  });
+  const divider = { id: 'div', name: 'Vector', type: 'VECTOR', absoluteBoundingBox: box(200, 224, 1, 12) };
+  const tree = normalizeRoot({ nodes: { r: { document: frame('title', '_Title', [0, 0, 1140, 800], [
+    frame('head', 'Header', [0, 0, 1140, 292], [
+      frame('period', '_Period', [0, 200, 1140, 64], [
+        frame('bar', 'Service Bar', [0, 210, 360, 48], [item('store', 'Lưu trữ', 'Active', [0, 0.486, 0.988], 195), divider, item('speed', 'Tốc độ cao', 'Default', [0.157, 0.157, 0.161], 133)], { layoutMode: 'HORIZONTAL' }),
+      ]),
+    ]),
+    frame('wrap', 'Lưu trữ wrapper', [0, 300, 1140, 470], [
+      frame('body', 'Paragraph', [0, 300, 1140, 390], [text('body', 'gói', [0, 0, 0])]),
+    ]),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const found = detectTabSwitches(tree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].node, 'title');
+  const rows = switchInventory(tree);
+  assert.equal(rows[0].label, 'Lưu trữ');
+  assert.equal(rows[0].active, true);
+  assert.equal(rows[1].label, 'Tốc độ cao');
+  assert.equal(rows[1].drawn, '');
+  const alone = normalizeRoot({ nodes: { r: { document: frame('bar', 'Service Bar', [0, 0, 360, 48], [item('store', 'Lưu trữ', 'Active', [0, 0.486, 0.988], 195), divider, item('speed', 'Tốc độ cao', 'Default', [0.157, 0.157, 0.161], 133)], { layoutMode: 'HORIZONTAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectTabSwitches(alone)[0].node, 'bar');
+});
+
+test('a row of price cards, one of them on a gradient, is not a tab', () => {
+  const card = (id, label, gradient) => frame(id, 'CardPrice-Hosting-Ver 1.1.25', [0, 0, 315, 410], [
+    text(`${id}t`, label, [0.1, 0.1, 0.1]),
+    text(`${id}p`, '560.000', [0.1, 0.1, 0.1]),
+    text(`${id}c`, 'CPU: 1', [0.1, 0.1, 0.1]),
+    text(`${id}r`, 'RAM: 2GB', [0.1, 0.1, 0.1]),
+  ], gradient
+    ? { fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0.5, b: 1, a: 1 } }, { position: 1, color: { r: 0, g: 0.3, b: 0.8, a: 1 } }] }] }
+    : { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('row', 'Frame', [0, 0, 1308, 410], [card('a', 'Gói 1', false), card('b', 'Gói 2', false), card('c', 'Gói 3', false), card('d', 'Tùy chỉnh', true)], { layoutMode: 'HORIZONTAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.deepEqual(detectTabSwitches(tree), []);
+});
+
+test('a tall row of single-label chips, one painted differently, is still a tab', () => {
+  const chip = (id, label, gradient) => frame(id, 'chip', [0, 0, 180, 220], [text(`${id}t`, label, gradient ? [1, 1, 1] : [0.2, 0.2, 0.2])], gradient
+    ? { fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0.49, b: 0.99, a: 1 } }, { position: 1, color: { r: 0, g: 0.39, b: 0.8, a: 1 } }] }] }
+    : { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 0.6 } }] });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('title', 'Block', [0, 0, 800, 600], [
+    frame('bar', 'row', [0, 0, 760, 220], [chip('a', 'FIRE WALL', true), chip('b', 'EMAIL', false), chip('c', 'BACKUP', false)], { layoutMode: 'HORIZONTAL' }),
+    frame('body', 'Frame', [0, 240, 760, 300], [text('body', 'nội dung', [0, 0, 0])]),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const found = detectTabSwitches(tree);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].node, 'title');
+  assert.equal(switchInventory(tree)[0].label, 'FIRE WALL');
+  assert.equal(switchInventory(tree)[0].active, true);
+});
+
+test('a divider between two triggers makes the painted one a tab', () => {
+  const item = (id, label, gradient) => frame(id, 'Item', [0, 0, 140, 40], [text(`${id}t`, label, [0.1, 0.1, 0.1])], gradient
+    ? { fills: [{ type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }], gradientStops: [{ position: 0, color: { r: 0, g: 0.49, b: 0.99, a: 1 } }, { position: 1, color: { r: 0, g: 0.39, b: 0.8, a: 1 } }] }] }
+    : { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] });
+  const pair = (withDivider) => frame('bar', 'row', [0, 0, 300, 40], withDivider
+    ? [item('a', 'Lưu trữ', true), { id: 'div', name: 'Vector', type: 'VECTOR', absoluteBoundingBox: box(150, 14, 1, 12) }, item('b', 'Tốc độ', false)]
+    : [item('a', 'Lưu trữ', true), item('b', 'Tốc độ', false)], { layoutMode: 'HORIZONTAL' });
+  const bare = normalizeRoot({ nodes: { r: { document: pair(false) } } }, 'r', { images: {}, svgs: {} });
+  assert.deepEqual(detectTabSwitches(bare), []);
+  const split = normalizeRoot({ nodes: { r: { document: frame('title', 'Block', [0, 0, 400, 300], [
+    pair(true),
+    frame('body', 'Frame', [0, 48, 400, 200], [text('body', 'gói', [0, 0, 0])]),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectTabSwitches(split)[0].node, 'title');
+  assert.equal(switchInventory(split)[0].label, 'Lưu trữ');
+  assert.equal(switchInventory(split)[0].active, true);
+});
+
+test('one underlined trigger with a pane under it is a line tab', () => {
+  const link = (id, label, y, line) => frame(id, 'Link', [0, y, 80, 36], [text(`${id}t`, label, [0.1, 0.1, 0.1])], line ? { strokes: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }], strokeWeight: 1, individualStrokeWeights: { top: 0, right: 0, bottom: 2, left: 0 } } : {});
+  const page = (sections) => normalizeRoot({ nodes: { r: { document: frame('page', 'Homepage', [0, 0, 1440, 800], [
+    frame('header', 'Header', [0, 0, 1440, 80], [
+      frame('nav', 'Nav', [0, 20, 200, 40], [link('home', 'Trang chủ', 20, true), link('about', 'Giới thiệu', 20, false)], { layoutMode: 'HORIZONTAL' }),
+    ]),
+    ...sections,
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const line = page([frame('hero', 'Hero', [0, 80, 1440, 500], [text('ht', 'Hero', [0, 0, 0])])]);
+  assert.equal(detectTabSwitches(line)[0].node, 'page');
+  assert.equal(switchInventory(line)[0].label, 'Trang chủ');
+  assert.equal(switchInventory(line)[0].active, true);
+  assert.equal(detectMenus(line).some((m) => m.node === 'nav'), false);
+  const site = page([
+    frame('hero', 'Hero', [0, 80, 1440, 500], [text('ht', 'Hero', [0, 0, 0])]),
+    frame('next', 'Features', [0, 600, 1440, 400], [text('ft', 'Features', [0, 0, 0]), text('fd', 'More', [0, 0, 0])]),
+  ]);
+  assert.deepEqual(detectTabSwitches(site), []);
+  assert.equal(detectMenus(site).some((m) => m.node === 'nav'), true);
+});
+
 test('stacked tab titles on a mobile frame are not a tab switch', () => {
   const tab = (id, label, y) => frame(id, 'Linux tab', [16, y, 200, 36], [text(`${id}t`, label, [1, 1, 1])], { layoutMode: 'HORIZONTAL' });
   const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'OPERATING SYSTEM', [0, 0, 375, 700], [
@@ -248,4 +441,71 @@ test('stacked tab titles on a mobile frame are not a tab switch', () => {
   tree.children.find((n) => n.id === 'linux').visible = false;
   assert.deepEqual(detectTabSwitches(tree), []);
   assert.equal(detectTabs(tree).length, 0);
+});
+
+function freshPlan(tree, fileKey) {
+  const dir = mkdtempSync(join(tmpdir(), 'f2b-tab-plan-'));
+  try {
+    writeFileSync(join(dir, 'tree.json'), JSON.stringify(tree));
+    const ws = detectStep(dir);
+    const result = decide(ws, { firstSection: false, variant: false, parentBg: null, formErrors: {} });
+    writeDecisionReport(ws, result, tree.name || 'tabs');
+    detectStep(dir);
+    const det = ws.readJson('detections.json');
+    const questions = groupQuestions(result.questions ?? []).flatMap((g) => g.items.map((item) => ({
+      group: g.group,
+      title: GROUPS[g.group].title(1).replace(/ 1 /, ' '),
+      summary: GROUPS[g.group].summary,
+      node: item.node,
+      label: item.label,
+      key: keyOf(g.group, item.node),
+      value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
+      figma: '',
+    })));
+    const inventory = planInventory(tree, det.components, fileKey);
+    const typeQuestion = questions.find((q) => q.group === 'type');
+    const plan = renderTemplatePlan({
+      title: tree.name || 'tabs',
+      name: tree.name,
+      width: tree.box?.w ?? null,
+      variants: [],
+      parts: screenParts(tree, det.components, questions, fileKey),
+      blocks: sectionBlocks(tree, fileKey),
+      open: inventory.open,
+      repeats: inventory.repeats,
+      templateType: {
+        key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
+        value: typeQuestion?.value || 'section',
+      },
+    });
+    return { plan, det };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('a fresh plan lists the period bar as tabs, with no earlier expect', () => {
+  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-4263/tree.json', import.meta.url), 'utf8'));
+  const { plan, det } = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
+  const tab = det.components.find((c) => c.component === 'tab-switch' && c.node === '1:4264');
+  assert.equal(tab?.status, 'approved');
+  assert.equal(det.components.some((c) => c.component === 'form' && c.node === '1:4273'), false);
+  assert.equal(det.components.some((c) => c.component === 'menu' && c.node === '1:4273'), false);
+  assert.match(plan, /Tabs Component `_Title`/);
+  assert.match(plan, /`part:1:4264`:/);
+  assert.match(plan, /FIRE WALL ANTI DDOS/);
+  assert.match(plan, /EMAIL/);
+  assert.match(plan, /pane:1:4274/);
+});
+
+test('a fresh plan lists the service bar as tabs, and the button under the open pane stays in that pane', () => {
+  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-12774/tree.json', import.meta.url), 'utf8'));
+  const { plan, det } = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
+  const tab = det.components.find((c) => c.component === 'tab-switch' && c.node === '1:12774');
+  assert.equal(tab?.status, 'approved');
+  assert.match(plan, /Tabs Component `_Title`/);
+  assert.match(plan, /`part:1:12774`:/);
+  assert.match(plan, /Lưu trữ đang mở/);
+  assert.match(plan, /Tốc độ cao chưa vẽ nội dung/);
+  assert.doesNotMatch(plan, /Tốc độ cao đang có: XEM CHI TIẾT/);
 });

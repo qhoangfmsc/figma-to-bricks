@@ -4,6 +4,7 @@
 // Consent rows (a small checkbox + a statement) between them become checkbox fields.
 // Params for components/form.mjs: fields [{ node, type, label, placeholder, required }] in drawing order, submit (node id). Types are inferred from
 // the visible text only (e-mail / phone words). Submit stores the entry (save-submission). The form name is filled at build from the Figma file, the section and this frame.
+import { isActionBar } from '../../write-bricks/components/tab-switch.mjs';
 import { classifyChoice } from './choice.mjs';
 import { centeredCard, covers, dimFill, hasClose, textsOf, visibleKids } from './shape.mjs';
 
@@ -188,6 +189,11 @@ export function detectForms(tree) {
     if (!n || n.visible === false) return;
     const kids = kidsOf(n);
     if (actionNodes.has(n.id)) {
+      kids.forEach((c) => walk(c, n));
+      return;
+    }
+    // A row of peer chips, one drawn selected, is a tab. The resting chips are not inputs and the selected chip is not a submit.
+    if (isActionBar(n)) {
       kids.forEach((c) => walk(c, n));
       return;
     }

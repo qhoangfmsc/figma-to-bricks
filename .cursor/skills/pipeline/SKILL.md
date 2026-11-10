@@ -49,9 +49,19 @@ The generate pipeline stays on the `f2b` mu-plugin and `WP_URL`. One `.env` is o
 
 ## States
 
-`ComponentState` in `process/modules/write-bricks/components/states.mjs` is the only enum: `rest`, `hover`, `active`, `open`, `focus`, `disabled`, `pressed`. It reads the variant property `State`, or the variant name `State=Hover`. A layer name is not a state.
+`ComponentState` in `process/modules/write-bricks/components/states.mjs` is the only enum: `rest`, `hover`, `active`, `open`, `focus`, `disabled`, `pressed`. It reads the variant property `State`, or the variant name `State=Hover`, or a selected variant such as `Checked=True`. A layer name is not a state.
 
-Siblings of one component set share the resting look. A Hover / Active / Open / Focus / Disabled / Pressed sibling contributes only that state's selector (`:hover`, `.is-active`, `.brx-open`, `:focus-visible`, `.is-disabled`, `:active`). Accordion, menu, and tabs paint their own open and active behaviour and are not painted twice.
+A state is CSS, HTML, and JS together. Paint copied onto one item that stays after another item is chosen is not a state.
+
+Compare the selected item with a resting item. Fill, stroke, text color, and a mark that exists only on the selected variant move with the state. Words and icons that identify the item stay. The class the component toggles (`brx-open`, `is-active`) and the control attribute (`aria-checked`, `checked`) move together. A pane or answer that belongs to the state is the region that shows. A region Figma does not draw stays empty. JS, when the component has it, is what moves the class and the attribute.
+
+`activeLook` is that comparison. Tabs use it: the open title is `brx-open`, its check is `aria-checked="true"`, and the matching pane is `brx-open`. Accordion and menu own their open and active behaviour the same way and are not painted twice. A Hover / Focus / Pressed sibling still contributes its selector (`:hover`, `:focus-visible`, `:active`) on top of the resting look.
+
+A tab row is one-label triggers of the same structure. Height does not decide, and the layer name does not decide. One trigger is open: a variant, a fill, one peer painted differently, or a line under that trigger. A divider between triggers is optional; when it is there, it counts. The content is the region under the row, or peer panes that follow the row. Later sections of a page are not that content. An underlined row with that content is a line tab. The same row without a pane stays a menu.
+
+## Look
+
+A plan conclusion needs three records in the desktop workspace: `look.png` (Figma's render of the section), `look.json` `ai` (one `{ node, kind, see }` per signal, `kind` from `PART_RULES` or `block`), and the detection cite. `read` saves the picture and the signals, and the plan says it is not ready. The chat reads `look.png`, writes the reading, then `node process/template.mjs look --desktop URL --ai <file>`. The same kind is the conclusion. A different kind, or a picture group with no signal, stays a block. Do not measure pixels off the picture. Do not point the owner at the plan before that command.
 
 ## Popup
 

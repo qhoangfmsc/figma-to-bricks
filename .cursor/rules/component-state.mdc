@@ -1,0 +1,19 @@
+---
+description: A component state is CSS, HTML, and JS together. A paint-only fake is not a state.
+alwaysApply: true
+---
+
+# Component state
+
+A drawn state (`rest`, `hover`, `active`, `open`, `focus`, `disabled`, `pressed`, or a selected variant such as `Checked=True`) is a component state. `ComponentState` in `process/modules/write-bricks/components/states.mjs` is the enum. A layer name is not a state.
+
+CSS that copies the selected paint onto one item, and leaves it there after another item is chosen, is not a state.
+
+For every state the visitor can enter:
+
+1. Compare the selected item with a resting item. Paint that differs moves with the state: fill, stroke, text color, and a mark that exists only on the selected variant. Words and icons that identify the item stay.
+2. HTML changes with the state. The class the component toggles (`brx-open`, `is-active`) and the control attribute (`aria-checked`, `checked`) move together. A control that looks selected is `aria-checked="true"` or `checked` only while that item is the state.
+3. Data changes with the state when the component has another region (a tab pane, an accordion answer). The open item shows its region. A region Figma does not draw stays empty.
+4. JS, when the component has it, is what moves the class and the attribute. Hiding a pane with CSS alone is not enough.
+
+Tabs are the reference. `activeLook` pairs the open title with a resting title. Bricks moves `brx-open`. The check inside the open title is `aria-checked="true"`. The matching pane is the one with `brx-open`. After a click, the newly open item must match the item Figma drew as selected, including the attribute.

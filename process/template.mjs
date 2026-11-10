@@ -22,6 +22,7 @@ import { runLines } from './modules/common/spawn-lines.mjs';
 import { parseFrameInput, SLOTS } from './modules/single-template/frames.mjs';
 import { planInventory, screenParts, sectionBlocks } from './modules/single-template/parts.mjs';
 import { writeTemplatePlan } from './modules/single-template/plan-doc.mjs';
+import { PLAN_MODEL, applyAiLook, lookReport, saveSectionShot, writeLook } from './modules/single-template/look.mjs';
 import { unclaimedRepeats } from './modules/recognize-parts/structure.mjs';
 import { reviewFrame } from './modules/single-template/review.mjs';
 import { attachFilledFrames } from './modules/single-template/filled.mjs';
@@ -134,6 +135,15 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   }));
   const inventory = planInventory(tree, det.components, desktop.fileKey);
   const typeQuestion = questions.find((q) => q.group === 'type');
+  let shot = { shot: '', shotError: '' };
+  try {
+    const version = base.readJson('raw.json', {}).version ?? null;
+    shot = await saveSectionShot(base, desktop.fileKey, tree.id, version);
+  } catch (e) {
+    shot = { shot: '', shotError: e.message };
+    log(`Không chụp được ảnh section: ${e.message}`);
+  }
+  const look = writeLook(base, det.components, shot);
   const shown = {
     title,
     name: tree.name,
@@ -148,7 +158,9 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
       value: typeQuestion?.value || 'section',
       reason: typeQuestion?.label || '',
     },
+    look: lookReport(look),
   };
+  base.writeJson(PLAN_MODEL, shown);
   const planFile = writeTemplatePlan(base.dir, shown);
   log(`Plan: ${planFile}`);
   return {
@@ -171,9 +183,20 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   };
 }
 
+export function recordLook(desktopUrl, groups) {
+  const base = resolveWorkspace(desktopUrl);
+  const shown = applyAiLook(base, groups);
+  base.writeJson(PLAN_MODEL, shown);
+  const planFile = writeTemplatePlan(base.dir, shown);
+  return { planFile, ready: shown.look.ready === true };
+}
+
 export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}) {
   const base = resolveWorkspace(desktopUrl);
   if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Chạy read trước.');
+  if (base.has('look.json') && !lookReport(base.readJson('look.json')).ready) {
+    throw new Error('Plan chưa đủ chứng cứ. Ảnh, nhận dạng từ ảnh, và tín hiệu phải có trước khi build.');
+  }
   const stored = base.has('choices.json') ? base.readJson('choices.json') : {};
   const { ready, open } = resolvePlan(answers ?? {}, stored, (group) => GROUPS[group]?.value ?? '');
   if (open.length) {
@@ -248,13 +271,17 @@ if (isMain) {
   const parsed = parseFrameInput(input);
   if (!cmd || !parsed.ok) {
     if (!parsed.ok) for (const e of parsed.errors) console.error(e);
-    console.error('usage: node process/template.mjs read|build --desktop URL [--widescreen URL] [--tablet URL] [--landscape URL] [--mobile URL] [--answers JSON]');
+    console.error('usage: node process/template.mjs read|look|build --desktop URL [--widescreen URL] [--tablet URL] [--landscape URL] [--mobile URL] [--answers JSON] [--ai file]');
     process.exit(1);
   }
   const log = (line) => console.log(line);
   try {
     if (cmd === 'read') {
       console.log(JSON.stringify(await readTemplate(parsed.frames, { log }), null, 2));
+    } else if (cmd === 'look') {
+      const file = readFlag(args, 'ai');
+      if (!file) throw new Error('thiếu --ai <file json>');
+      console.log(JSON.stringify(recordLook(parsed.frames.desktop.url, JSON.parse(readFileSync(file, 'utf8'))), null, 2));
     } else if (cmd === 'build') {
       const raw = readFlag(args, 'answers');
       const answers = raw ? JSON.parse(raw) : {};

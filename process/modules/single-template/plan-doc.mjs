@@ -16,11 +16,56 @@ function stored(saved, key, fallback) {
   return Object.prototype.hasOwnProperty.call(saved, key) ? saved[key] : fallback;
 }
 
-function valueLine(key, saved, fallback, label = '') {
-  const text = String(stored(saved, key, fallback) ?? '');
+function valueLine(key, saved, fallback, label = '', force = false) {
+  const text = String((force ? fallback : stored(saved, key, fallback)) ?? '');
   const [first, ...rest] = text.split(/\r?\n/);
   const lead = label ? `${label} ` : '';
   return [`- ${lead}\`${key}\`: ${first ?? ''}`, ...rest.map((line) => `  ${line}`)].join('\n');
+}
+
+function lookRow(model, node) {
+  return (model.look?.rows ?? []).find((row) => row.node === node) ?? null;
+}
+
+// A blank or a previous drop/attach written by this look is replaced. A sentence the owner typed stays.
+function lookChoice(saved, key, row, ready, { agree, differ }) {
+  if (!ready || !row || (row.verdict !== 'agree' && row.verdict !== 'differ')) return null;
+  const prev = Object.prototype.hasOwnProperty.call(saved, key) ? String(saved[key]).trim() : '';
+  if (prev !== '' && prev !== 'drop' && prev !== 'attach') return null;
+  return row.verdict === 'differ' ? differ : agree;
+}
+
+function evidenceLines(row) {
+  const lines = [];
+  if (row.verdict === 'no-shot') lines.push('- Ảnh: chưa chụp được');
+  if (row.see) lines.push(`- AI: ${clean(row.aiKind)} — ${clean(row.see)}`);
+  else lines.push('- AI: chưa nhận dạng nhóm này trên ảnh');
+  const cite = (row.cite ?? []).join(', ');
+  lines.push(`- Tín hiệu: ${clean(row.evidence) || row.kind}${cite ? ` (${cite})` : ''}`);
+  if (row.verdict === 'agree') lines.push(`- Kết luận: dựng ${row.kind}`);
+  else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. Ảnh thấy ${clean(row.aiKind)}. Giữ block.`);
+  else lines.push('- Kết luận: chưa đủ ảnh, nhận dạng và tín hiệu');
+  return lines;
+}
+
+function proofSection(model) {
+  const look = model.look;
+  if (!look) return [];
+  const lines = ['## Chứng cứ'];
+  if (look.shot) lines.push(`![Section](${look.shot})`);
+  else lines.push(`Ảnh chưa chụp được. ${clean(look.shotError)}`);
+  if (!look.ready) {
+    lines.push('Nhận dạng từ ảnh chưa đủ. Plan này chưa phải bản để xác nhận.', '');
+    return lines;
+  }
+  lines.push('Ảnh, nhận dạng từ ảnh, và tín hiệu trong cây. Kết luận chỉ khi ảnh và tín hiệu cùng một loại.', '');
+  for (const extra of look.extras ?? []) {
+    lines.push(`### Ảnh thấy ${extra.kind}${extra.node ? ` \`${extra.node}\`` : ''}`);
+    lines.push(`- AI: ${clean(extra.see)}`);
+    lines.push('- Tín hiệu: không có');
+    lines.push('- Kết luận: không dựng. Giữ block.', '');
+  }
+  return lines;
 }
 
 function fieldTitle(field) {
@@ -28,12 +73,15 @@ function fieldTitle(field) {
   return clean(field.title) || field.field || field.group;
 }
 
-function componentLines(part, saved, index) {
+function componentLines(part, saved, index, model = {}) {
   const title = `${part.kind} \`${part.name}\``;
   const lines = [index ? `### ${index}. ${title}` : `### ${title}`, `- Loại: ${part.kind}`];
   if (part.figma) lines.push(`- Figma: [Mở](${part.figma})`);
   if (part.detail) lines.push(`- ${part.detail}`);
-  if (part.node) lines.push(valueLine(`part:${part.node}`, saved, '', `Quyết định dựng ${part.kind}`));
+  const row = lookRow(model, part.node);
+  if (row) lines.push(...evidenceLines(row));
+  const choice = lookChoice(saved, `part:${part.node}`, row, model.look?.ready, { agree: '', differ: 'drop' });
+  if (part.node) lines.push(valueLine(`part:${part.node}`, saved, choice ?? '', `Quyết định dựng ${part.kind}`, choice != null));
   for (const field of part.fields ?? []) {
     const titleText = fieldTitle(field);
     if (titleText) lines.push(`- ${titleText}`);
@@ -83,13 +131,14 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
   const typeFallback = model.templateType?.value || 'section';
   out.push(
     '',
-    'Đổi `Xác nhận: không` thành `Xác nhận: có` khi xong.',
+    model.look && !model.look.ready ? 'Plan này chưa đủ chứng cứ. Chưa đổi Xác nhận.' : 'Đổi `Xác nhận: không` thành `Xác nhận: có` khi xong.',
     '',
     'Xác nhận: không',
     '',
     '## Loại Template',
     valueLine(typeKey, saved, typeFallback),
     '',
+    ...proofSection(model),
   );
   const rows = rowsOf(model);
   const kinds = rows.flatMap((row) => [row.self?.kind || (row.block ? 'Khối' : null), ...row.nested.map((part) => part.kind)].filter(Boolean));
@@ -106,7 +155,10 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
       const lines = [`### ${clean(item.label)}`];
       if (item.figma) lines.push(`- Figma: [Mở](${item.figma})`);
       if (clean(item.evidence)) lines.push(`- ${clean(item.evidence)}`);
-      lines.push(valueLine(`guess:${item.node}`, saved, ''));
+      const seen = lookRow(model, item.node);
+      if (seen) lines.push(...evidenceLines(seen));
+      const choice = lookChoice(saved, `guess:${item.node}`, seen, model.look?.ready, { agree: 'attach', differ: 'drop' });
+      lines.push(valueLine(`guess:${item.node}`, saved, choice ?? '', '', choice != null));
       extras.push(lines.join('\n'));
     }
     for (const item of (model.repeats ?? []).filter((repeat) => ids.has(repeat.node))) {
@@ -118,8 +170,8 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
       extras.push(lines.join('\n'));
     }
     if (row.block && !row.self) pushBlock([...blockLines(row.block, saved, n), ...extras], detected);
-    if (row.self) pushBlock([...componentLines(row.self, saved, n), ...extras], decisions);
-    for (const part of row.nested) pushBlock(componentLines(part, saved), decisions);
+    if (row.self) pushBlock([...componentLines(row.self, saved, n, model), ...extras], decisions);
+    for (const part of row.nested) pushBlock(componentLines(part, saved, 0, model), decisions);
   });
   out.push(`## Component Detected (${rows.length})`);
   if (tally) out.push(tally);
@@ -135,7 +187,10 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
       out.push(`### ${clean(item.label)}`, '');
       if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
       if (clean(item.evidence)) out.push(`- ${clean(item.evidence)}`);
-      out.push('', valueLine(`guess:${item.node}`, saved, ''), '');
+      const row = lookRow(model, item.node);
+      if (row) out.push(...evidenceLines(row));
+      const choice = lookChoice(saved, `guess:${item.node}`, row, model.look?.ready, { agree: 'attach', differ: 'drop' });
+      out.push('', valueLine(`guess:${item.node}`, saved, choice ?? '', '', choice != null), '');
     }
   }
   const repeats = (model.repeats ?? []).filter((item) => !placed.has(item.node));
