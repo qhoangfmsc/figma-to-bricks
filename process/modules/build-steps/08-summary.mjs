@@ -20,7 +20,8 @@ export function summaryStep(urlOrDir) {
   // breakpoint variants (responsive.json): the same template measured at each frame's width
   const variantChecks = ws.readJson('responsive.json', { variants: [] }).variants.filter((v) => ws.has(`verify.${v.key}.json`)).map((v) => {
     const r = ws.readJson(`verify.${v.key}.json`);
-    return { key: v.key, width: ws.readJson(`../../${v.workspace}/tree.json`).box.w, total: r.total, bad: r.bad.length, file: `verify.${v.key}.md` };
+    // workspace is the sibling folder under the same file key (39-5747/../1-16827), not history/runs/<id>.
+    return { key: v.key, width: ws.readJson(`../${v.workspace}/tree.json`).box.w, total: r.total, bad: r.bad.length, file: `verify.${v.key}.md` };
   });
   const st = stats(tree);
 

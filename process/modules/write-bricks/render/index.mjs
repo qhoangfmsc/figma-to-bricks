@@ -151,11 +151,12 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
         if (node.layout) {
           const p = node.layout.padding;
           if (p.top || p.right || p.bottom || p.left) s._padding = { top: px(p.top), right: px(p.right), bottom: px(p.bottom), left: px(p.left) };
-          // slider-nested has no justify / align controls. Splide lays the slides out in `.splide__list`.
+          // Splide translates `.splide__list`. justify-content on that node shifts the flex line by half the
+          // overflow, so a loop reposition misses the clone and the drag jumps. Cross-axis align stays here:
+          // slider-nested has no list align control. Slide content align is written on the slide itself.
           if (node.layout.mode !== 'GRID') {
-            const justify = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', SPACE_BETWEEN: 'space-between' }[node.layout.primaryAlign] ?? 'flex-start';
             const align = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' }[node.layout.counterAlign] ?? 'flex-start';
-            addCustomCss(s, `justify-content: ${justify}; align-items: ${align};`, ' .splide__list');
+            addCustomCss(s, `align-items: ${align};`, ' .splide__list');
           }
         }
       } else applyLayout(ctx, kind);

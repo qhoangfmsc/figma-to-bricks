@@ -97,7 +97,7 @@ test('a fixed-height text uses the vertical alignment Figma drew', () => {
   assert.match(settings(built, 'caps')._cssCustom, /font-variant-caps: small-caps;/);
 });
 
-test('a slider row keeps justify and align, and a slide is not recentered by the theme', () => {
+test('a slider list keeps cross-axis align and leaves the axis Splide translates alone', () => {
   const card = (id, x) => ({
     id, name: id, type: 'FRAME',
     absoluteBoundingBox: box(x, 0, 100, 60),
@@ -125,7 +125,8 @@ test('a slider row keeps justify and align, and a slide is not recentered by the
   const row = settings(built, 'row');
   assert.equal(built.template.content.find((e) => e.id === built.mapping.row.bricksId).name, 'slider-nested');
   assert.equal(row.gap, 16);
-  assert.match(row._cssCustom, /\.splide__list \{ justify-content: center; align-items: flex-end; \}/);
+  assert.match(row._cssCustom, /\.splide__list \{ align-items: flex-end; \}/);
+  assert.doesNotMatch(row._cssCustom, /justify-content/);
   const slide = settings(built, 'a');
   assert.match(slide._cssCustom, /flex-direction: column; justify-content: flex-start; align-items: flex-start;/);
   assert.match(slide._cssCustom, /row-gap: 4px;/);
