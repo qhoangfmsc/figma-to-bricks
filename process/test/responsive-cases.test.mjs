@@ -854,3 +854,37 @@ test('a clipped frame hides overflow the way Figma clips it', () => {
   applyAppearance({ node: sticker, s: cutSticker, css: {}, warn() {} });
   assert.equal(cutSticker._overflow, 'hidden');
 });
+
+test('a fixed picture keeps both axes, and its row does not wrap', () => {
+  const template = {
+    content: [
+      el('slider', 0, 'slider-nested', { _width: '1140px', _direction: 'row', perPage: 1 }),
+      el('card', 'slider', 'block', { _direction: 'row', _display: 'flex', _width: '751px', _columnGap: '24px' }),
+      el('photo', 'card', 'div', { _width: '234px', _height: '343px' }),
+      el('img', 'photo', 'image', { _width: '100%', _height: '100%', _objectFit: 'fill' }),
+      el('copy', 'card', 'block', { _width: '493px', _flexBasis: '493px' }),
+      el('wide', 'slider', 'div', { _width: '1200px', _height: '400px' }),
+      el('wideImg', 'wide', 'image', { _width: '100%', _height: '100%' }),
+      el('bleed', 'slider', 'block', { _position: 'absolute', _width: '1400px', _height: '200px' }),
+    ],
+  };
+  fitSoloTemplate(template);
+  fitFluid(template, { frameWidth: 1440 });
+  fitAnvRemainder(template);
+  const by = (id) => template.content.find((e) => e.id === id).settings;
+  assert.notEqual(by('photo')['_width:tablet_portrait'], '100%');
+  assert.equal(by('photo')._width, '234px');
+  assert.equal(by('photo')._height, '343px');
+  assert.equal(by('photo')['_height:tablet_portrait'], undefined);
+  assert.equal(by('card')['_direction:tablet_portrait'], 'column');
+  assert.equal(by('card')._flexWrap, 'nowrap');
+  assert.doesNotMatch(by('card')._cssCustom ?? '', /flex-wrap:\s*wrap/);
+  assert.equal(by('wide')['_width:tablet_portrait'], '100%');
+  assert.equal(by('wide')['_height:tablet_portrait'], 'auto');
+  assert.equal(by('wide')['_aspectRatio:tablet_portrait'], '1200 / 400');
+  assert.equal(by('wide')['_widthMax:tablet_portrait'], '1200px');
+  assert.equal(by('card')['_width:tablet_portrait'], '100%');
+  assert.equal(by('bleed')._width, '1400px');
+  assert.equal(by('bleed')['_aspectRatio:tablet_portrait'], undefined);
+  assert.equal(by('bleed')['_height:tablet_portrait'], undefined);
+});

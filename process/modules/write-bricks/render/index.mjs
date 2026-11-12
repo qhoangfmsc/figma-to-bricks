@@ -164,7 +164,12 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     // The theme centers every slide (`.brxe-slider-nested .splide__slide`). The slide's own align has the same
     // specificity, so the id selector writes the Figma alignment again and wins.
     if (isSlide && s._display === 'flex') {
-      const bits = ['display: flex', `flex-direction: ${s._direction || 'row'}`, `justify-content: ${s._justifyContent || 'flex-start'}`, `align-items: ${s._alignItems || 'flex-start'}`];
+      // The theme centers the slide. It does not set flex-direction. A row repeated here with no
+      // @media beats `_direction:tablet_portrait`, so the column key never starts. Column stays in
+      // this rule: a vertical card is a column at every width. A row is the desktop key only.
+      const direction = s._direction || 'row';
+      const bits = ['display: flex', `justify-content: ${s._justifyContent || 'flex-start'}`, `align-items: ${s._alignItems || 'flex-start'}`];
+      if (direction !== 'row') bits.splice(1, 0, `flex-direction: ${direction}`);
       if (s._columnGap) bits.push(`column-gap: ${s._columnGap}`);
       if (s._rowGap) bits.push(`row-gap: ${s._rowGap}`);
       addCustomCss(s, `${bits.join('; ')};`);

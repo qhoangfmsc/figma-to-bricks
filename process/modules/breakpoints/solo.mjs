@@ -57,6 +57,72 @@ const isTabTitle = (e) => /\btab-title\b/.test(classesOf(e.settings));
 const isMenu = (e) => e.settings?.tag === 'ul' || e.settings?.tag === 'nav';
 const componentRoot = (e) => e.name === 'tabs-nested' || e.name === 'accordion-nested' || e.name === 'form' || e.name === 'slider-nested' || /\bread-more-/.test(classesOf(e.settings));
 
+// A content picture is the div that holds one image at the box Figma drew (figma_rules §6).
+// The image inside is already 100% of that div. An absolute backdrop is a background, not this box.
+// A card that also holds text is the row, not the picture.
+function pictureHit(content, id, depth = 0) {
+  if (depth > 4) return { image: false, text: false };
+  let image = false;
+  let text = false;
+  for (const child of content) {
+    if (child.parent !== id) continue;
+    if (child.name === 'image') image = true;
+    else if (child.name === 'text-basic' || child.name === 'heading' || child.name === 'text-link' || child.name === 'button') text = true;
+    else if (child.name === 'div' || child.name === 'block') {
+      const inner = pictureHit(content, child.id, depth + 1);
+      image = image || inner.image;
+      text = text || inner.text;
+    }
+  }
+  return { image, text };
+}
+function isPictureFrame(el, content) {
+  const s = el?.settings;
+  if (!s || s._position === 'absolute') return false;
+  if (pxNum(s._width) == null || pxNum(s._height) == null) return false;
+  if (el.name === 'image') return true;
+  const hit = pictureHit(content, el.id);
+  return hit.image && !hit.text;
+}
+function rowHoldsPicture(row, content) {
+  const seen = new Set();
+  const walk = (id) => {
+    for (const child of content) {
+      if (child.parent !== id || seen.has(child.id)) continue;
+      seen.add(child.id);
+      if (isPictureFrame(child, content) || walk(child.id)) return true;
+    }
+    return false;
+  };
+  return walk(row.id);
+}
+// The wrapper keeps both axes. It becomes 100% only when its own px width is wider than that
+// screen, and then the height follows the same ratio (figma_rules §7.5). One axis at 100%
+// with the old px height repaints the crop.
+function protectPictures(template, keys) {
+  const content = template.content ?? [];
+  const screens = new Map(FRAME_SCREENS.map((screen) => [screen.key, screen.width]));
+  for (const el of content) {
+    if (!isPictureFrame(el, content)) continue;
+    const s = el.settings ??= {};
+    const w = pxNum(s._width);
+    const h = pxNum(s._height);
+    if (w == null || h == null) continue;
+    for (const key of keys) {
+      const screen = screens.get(key);
+      if (screen == null) continue;
+      if (w <= screen) {
+        if (s[`_width:${key}`] === '100%') delete s[`_width:${key}`];
+        continue;
+      }
+      s[`_width:${key}`] = '100%';
+      s[`_widthMax:${key}`] ??= `${Math.round(w)}px`;
+      s[`_height:${key}`] = 'auto';
+      s[`_aspectRatio:${key}`] ??= `${Math.round(w)} / ${Math.round(h)}`;
+    }
+  }
+}
+
 const appendCss = (s, id, marker, rule) => {
   if (String(s._cssCustom ?? '').includes(marker)) return;
   s._cssCustom = [s._cssCustom, rule].filter(Boolean).join(' ');
@@ -278,6 +344,17 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     // A card inside a scroll list keeps the width it drew. max-width 100% would squash it into the window.
     if (insideScroll(e)) continue;
     const width = pxNum(s._width);
+    // A content picture keeps both axes of its Figma box. Width 100% under the frame, with the
+    // old height left in place, stretches the crop. The query starts only once the window is
+    // narrower than the box, and the height follows the same ratio.
+    if (isPictureFrame(e, content)) {
+      const height = pxNum(s._height);
+      if (width != null && height != null) {
+        const query = band(Math.floor(width) - 1);
+        if (query) appendCss(s, e.id, 'picture-ratio', `${query} { #brxe-${e.id} { width: 100%; max-width: ${Math.round(width)}px; height: auto; aspect-ratio: ${Math.round(width)} / ${Math.round(height)}; } }`);
+      }
+      continue;
+    }
     // size.mjs sets max-width none when the fixed box is wider than the parent's content room.
     // Every other wide px width also stays on the desktop key. The shrink lives under the frame,
     // so a verify at that frame still measures the Figma pixels.
@@ -344,6 +421,13 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     if (scrollRows.has(e.id)) continue;
     if (rowWidth != null && rowWidth < 480) continue;
     if (widths.length < 2 || widths.reduce((sum, w) => sum + w, 0) < 480) continue;
+    // A row that holds a fixed picture stacks. Wrap would drop the picture onto its own line and,
+    // once a later pass has set one axis to 100%, stretch it. nowrap also beats the theme rule
+    // that forces wrap on every block below 767px.
+    if (rowHoldsPicture(e, content)) {
+      s._flexWrap ??= 'nowrap';
+      continue;
+    }
     // Wrap and shrink only below the frame. At the frame, nowrap keeps a 384px card from growing.
     // A row that can shrink then pins nowrap back on, up to its drawn width: wrap would drop the
     // last card onto its own line while the window can still hold the row (1032px vs four 250px cards).
@@ -439,6 +523,7 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       }
     }
   }
+  protectPictures(template, open.map((bp) => bp.key));
   return template;
 }
 
@@ -578,10 +663,11 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
     // A row of cards is not this: those cards stay their own width and stack.
     const besideIcon = rowHost?.settings?._direction === 'row' && iconBeside && width != null && width >= 160 && !rowMates.some((c) => (pxNum(c.settings?._width) ?? 0) >= 160);
     // A slide's own width belongs to Splide. Content inside the slide still has the desktop
-    // pixel width, which is wider than the slide once perPage drops.
-    if (inSlider(e)) fill(s, width != null && width > 200, width);
-    else if (!besideIcon) fill(s, componentRoot(e), width);
-    if (besideIcon) {
+    // pixel width, which is wider than the slide once perPage drops. A picture frame keeps
+    // both axes in protectPictures, so this pass does not turn one of them into 100%.
+    if (!isPictureFrame(e, content) && inSlider(e)) fill(s, width != null && width > 200, width);
+    else if (!isPictureFrame(e, content) && !besideIcon) fill(s, componentRoot(e), width);
+    if (besideIcon && !isPictureFrame(e, content)) {
       for (const bp of breaks) {
         s[`_width:${bp.key}`] ??= 'auto';
         s[`_flexGrow:${bp.key}`] ??= 1;
@@ -658,6 +744,7 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
       }
     }
   }
+  protectPictures(template, breaks.map((bp) => bp.key));
   return template;
 }
 
@@ -707,6 +794,7 @@ export function fitAnvRemainder(template, { keep = [] } = {}) {
       if (mates.length >= 2 && !/\btab-menu\b/.test(classesOfEl(parent))) parentSettings[`_direction:${screen.key}`] = 'column';
     }
   }
+  protectPictures(template, open.map((screen) => screen.key));
   return template;
 }
 
