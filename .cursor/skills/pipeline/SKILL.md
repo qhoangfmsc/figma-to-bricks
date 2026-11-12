@@ -13,6 +13,7 @@ The map of our docs is `process/docs/INDEX.md`. Each component is one file in `p
 
 ## Locks that stay until the owner changes them
 
+- A content picture keeps the Figma box on its wrapper (`_width` and `_height`, or `flex-basis` plus `_height`). The image child stays 100% by 100% with `object-fit: cover`. The wrapper does not `flex-grow` or `flex-shrink`. It becomes width 100% and `aspect-ratio` only when the window is narrower than that box. A crop keeps `fill` on the inner crop frame. An absolute backdrop is not a picture. A frame that also holds text is not a picture; only the inner image box is.
 - A desktop slider stays a slider when that screen has no frame. Do not turn it into a horizontal scroll row.
 - A screen with no frame uses this project's step-down. A leftover px width becomes 100%, capped at the Figma px.
 - Do not invent an icon-font name, a URL, alt text, or an FAQ answer. An svg stays an svg.

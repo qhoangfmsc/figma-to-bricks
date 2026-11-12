@@ -891,3 +891,37 @@ test('a fixed picture keeps both axes, and its row does not wrap', () => {
   assert.equal(by('bleed')['_aspectRatio:tablet_portrait'], undefined);
   assert.equal(by('bleed')['_height:tablet_portrait'], undefined);
 });
+
+test('a fill picture keeps the Figma box on the wrapper, and the image stays 100%', () => {
+  const template = {
+    content: [
+      el('card', 0, 'block', { _direction: 'row', _display: 'flex', _width: '343px', _height: '278px', _columnGap: '12px' }),
+      el('photo', 'card', 'div', { _width: 'auto', _height: '278px', _flexGrow: 1, _flexShrink: 1, _flexBasis: '165.5px', _position: 'relative' }),
+      el('img', 'photo', 'image', { _position: 'absolute', _width: '100%', _height: '100%', _objectFit: 'fill' }),
+      el('copy', 'card', 'block', { _width: '165px', _height: '278px' }),
+      el('tight', 0, 'block', { _direction: 'row', _display: 'flex', _width: '800px', _columnGap: '24px' }),
+      el('shot', 'tight', 'div', { _width: 'auto', _height: '200px', _flexShrink: 1, _flexBasis: '400px' }),
+      el('shotImg', 'shot', 'image', { _width: '100%', _height: '100%' }),
+      el('words', 'tight', 'block', { _width: '400px' }),
+    ],
+  };
+  fitSoloTemplate(template);
+  fitFluid(template, { frameWidth: 1440 });
+  const by = (id) => template.content.find((e) => e.id === id).settings;
+  assert.equal(by('photo')._width, '165.5px');
+  assert.equal(by('photo')._height, '278px');
+  assert.equal(by('photo')._flexShrink, 0);
+  assert.equal(by('photo')._flexGrow, 0);
+  assert.equal(by('photo')['_height:mobile_portrait'], undefined);
+  assert.equal(by('img')._width, '100%');
+  assert.equal(by('img')._height, '100%');
+  assert.equal(by('img')._objectFit, 'cover');
+  assert.equal(by('card')['_direction:mobile_portrait'], undefined);
+  assert.equal(by('card')['_direction:tablet_portrait'], undefined);
+  assert.equal(by('tight')['_direction:mobile_portrait'], 'column');
+  assert.equal(by('shot')._width, '400px');
+  assert.equal(by('shot')._height, '200px');
+  assert.equal(by('shot')._flexShrink, 0);
+  assert.equal(by('shotImg')._width, '100%');
+  assert.equal(by('shotImg')._height, '100%');
+});

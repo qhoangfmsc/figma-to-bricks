@@ -76,10 +76,16 @@ function pictureHit(content, id, depth = 0) {
   }
   return { image, text };
 }
+function pictureBox(s) {
+  const w = itemWidth(s);
+  const h = pxNum(s?._height);
+  return w != null && h != null ? { w, h } : null;
+}
 function isPictureFrame(el, content) {
   const s = el?.settings;
   if (!s || s._position === 'absolute') return false;
-  if (pxNum(s._width) == null || pxNum(s._height) == null) return false;
+  // Fill stores the drawn width on flex-basis and leaves _width auto. That box is still the frame.
+  if (!pictureBox(s)) return false;
   if (el.name === 'image') return true;
   const hit = pictureHit(content, el.id);
   return hit.image && !hit.text;
@@ -105,14 +111,29 @@ function protectPictures(template, keys) {
   for (const el of content) {
     if (!isPictureFrame(el, content)) continue;
     const s = el.settings ??= {};
-    const w = pxNum(s._width);
-    const h = pxNum(s._height);
-    if (w == null || h == null) continue;
+    const box = pictureBox(s);
+    if (!box) continue;
+    const { w, h } = box;
+    // The image is 100% of this div and out of flow, so it cannot hold the div open.
+    // The div owns the Figma box. flex-shrink 1 on a column eats that height down to 0.
+    // flex-grow 1 widens only the width, and object-fit fill then stretches the file.
+    if (pxNum(s._width) == null) s._width = `${w}px`;
+    s._flexShrink = 0;
+    s._flexGrow = 0;
+    s._aspectRatio ??= `${Math.round(w)} / ${Math.round(h)}`;
+    for (const child of content) {
+      if (child.parent !== el.id || child.name !== 'image') continue;
+      const cs = child.settings ??= {};
+      if (cs._objectFit == null || cs._objectFit === 'fill') cs._objectFit = 'cover';
+    }
     for (const key of keys) {
       const screen = screens.get(key);
       if (screen == null) continue;
+      s[`_flexShrink:${key}`] = 0;
+      s[`_flexGrow:${key}`] = 0;
       if (w <= screen) {
         if (s[`_width:${key}`] === '100%') delete s[`_width:${key}`];
+        if (s[`_height:${key}`] === 'auto') delete s[`_height:${key}`];
         continue;
       }
       s[`_width:${key}`] = '100%';
@@ -367,10 +388,11 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     // old height left in place, stretches the crop. The query starts only once the window is
     // narrower than the box, and the height follows the same ratio.
     if (isPictureFrame(e, content)) {
+      const boxW = itemWidth(s);
       const height = pxNum(s._height);
-      if (width != null && height != null) {
-        const query = band(Math.floor(width) - 1);
-        if (query) appendCss(s, e.id, 'picture-ratio', `${query} { #brxe-${e.id} { width: 100%; max-width: ${Math.round(width)}px; height: auto; aspect-ratio: ${Math.round(width)} / ${Math.round(height)}; } }`);
+      if (boxW != null && height != null) {
+        const query = band(Math.floor(boxW) - 1);
+        if (query) appendCss(s, e.id, 'picture-ratio', `${query} { #brxe-${e.id} { width: 100%; max-width: ${Math.round(boxW)}px; height: auto; aspect-ratio: ${Math.round(boxW)} / ${Math.round(height)}; } }`);
       }
       continue;
     }
