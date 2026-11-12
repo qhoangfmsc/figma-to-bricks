@@ -876,7 +876,10 @@ test('a fixed picture keeps both axes, and its row does not wrap', () => {
   assert.equal(by('photo')._width, '234px');
   assert.equal(by('photo')._height, '343px');
   assert.equal(by('photo')['_height:tablet_portrait'], undefined);
-  assert.equal(by('card')['_direction:tablet_portrait'], 'column');
+  assert.equal(by('card')['_direction:tablet_portrait'], undefined);
+  assert.equal(by('card')['_direction:mobile_landscape'], undefined);
+  assert.equal(by('card')['_direction:mobile_portrait'], 'column');
+  assert.match(by('card')._cssCustom, /max-width: 767px\) \{ body #brxe-card \{ flex-direction: column/);
   assert.equal(by('card')._flexWrap, 'nowrap');
   assert.doesNotMatch(by('card')._cssCustom ?? '', /flex-wrap:\s*wrap/);
   assert.equal(by('wide')['_width:tablet_portrait'], '100%');

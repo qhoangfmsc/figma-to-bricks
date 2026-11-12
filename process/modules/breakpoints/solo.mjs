@@ -147,6 +147,25 @@ const stackRow = (s, breaks = BREAKS) => {
     if (s._width == null || s._width === 'auto') s[`_width:${bp.key}`] ??= '100%';
   }
 };
+// figma_rules §4: a multi-column row stacks when each column is under half that screen, so the
+// text does not overflow. The early point is tablet. A picture beside one text block is the
+// later point they allow (mobile_landscape): the row stays a row while the two still fit.
+const SCREEN_OF = { tablet_portrait: 991, mobile_landscape: 767, mobile_portrait: 478 };
+function columnAt(row, wide, breaks, content) {
+  if (isMenu(row)) return breaks;
+  const s = row.settings ?? {};
+  const gap = pxNum(s._columnGap) ?? pxNum(s._gap) ?? 0;
+  const widths = wide.map((child) => itemWidth(child.settings)).filter((w) => w != null);
+  const sum = widths.reduce((n, w) => n + w, 0) + gap * Math.max(0, widths.length - 1);
+  const pair = rowHoldsPicture(row, content) && widths.length <= 2;
+  return breaks.filter((bp) => {
+    const screen = SCREEN_OF[bp.key];
+    if (screen == null) return false;
+    if (pair && sum <= screen) return false;
+    if (sum > screen) return true;
+    return widths.length >= 2 && widths.every((w) => w < screen / 2);
+  });
+}
 
 // A desktop-only frame has no tablet or phone drawing. Large spacing and headings step down the way
 // Tailwind does (a smaller step at each breakpoint) so the 1440 values do not overflow a phone.
@@ -414,8 +433,11 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
     // flex-basis, and only the first one used to stack. Column makes flex-basis the height, so the card
     // keeps its drawn width instead of growing taller.
     if ((wide.length >= 2 || isMenu(e)) && !(rowWidth != null && rowWidth < 480)) {
-      stackRow(s, open);
-      for (const child of wide) pinStackedCard(child, open);
+      const stacked = columnAt(e, wide, open, content);
+      if (stacked.length) {
+        stackRow(s, stacked);
+        for (const child of wide) pinStackedCard(child, stacked);
+      }
     }
     // A scrolling card list keeps one line. Wrap would drop each card under the one before it.
     if (scrollRows.has(e.id)) continue;
@@ -685,8 +707,11 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
     }
 
     const children = kids.get(e.id) ?? [];
-    const wideChildren = children.filter((c) => (itemWidth(c.settings) ?? 0) > 160).length;
-    if (s._direction === 'row' && !isTabBar(e) && e.name !== 'slider-nested' && (wideChildren >= 2 || isMenu(e))) stackRow(s, breaks);
+    const wideKids = children.filter((c) => (itemWidth(c.settings) ?? 0) > 160);
+    if (s._direction === 'row' && !isTabBar(e) && e.name !== 'slider-nested' && (wideKids.length >= 2 || isMenu(e))) {
+      const stacked = columnAt(e, wideKids, breaks, content);
+      if (stacked.length) stackRow(s, stacked);
+    }
 
     if (e.name === 'slider-nested' && s.optionsType !== 'custom') {
       const per = Number(s.perPage) || 1;
