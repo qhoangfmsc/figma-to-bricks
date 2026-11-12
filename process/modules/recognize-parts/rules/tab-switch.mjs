@@ -5,6 +5,16 @@ import { inspect, inspectClassic, listsIn, isTabList, isNamedTabBar, isActionBar
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const contains = (n, id) => !!n && (n.id === id || visibleKids(n).some((c) => contains(c, id)));
 
+function tabParts(barId, dataId, count, activeIndex) {
+  const active = Number.isInteger(activeIndex) ? 1 : 0;
+  return {
+    tabs_bar: barId,
+    ...(dataId ? { tabs_data: dataId } : {}),
+    tabsActive: active,
+    tabsIdle: Math.max(0, count - active),
+  };
+}
+
 function coveredByTabs(host, list, panels) {
   const kids = visibleKids(host);
   return kids.length === 2 && kids.some((k) => k.id === list.id) && kids.some((k) => panels.every((p) => contains(k, p.id)));
@@ -28,7 +38,7 @@ export function detectTabSwitches(tree) {
       component: 'tab-switch', node: host.id, level: 'E1', confidence: 'high',
       cite: [{ node: list.id, field: 'name', equals: list.name }, { node: panels[0].id, field: 'name', equals: panels[0].name }],
       evidence: `"${host.name}": Tab List "${list.name}" (${titles.length} titles) switches "${panels[0].name}"`,
-      params: {},
+      params: tabParts(list.id, panels[0]?.id, titles.length, null),
       note: `${titles.length} tabs, Figma draws ${panels.length} panel(s); the Plan asks for the content of the others`,
     });
   }
@@ -68,7 +78,7 @@ function detectNamedTabRows(tree, claimed) {
           component: 'tab-switch', node: n.id, level: 'E1', confidence: marked || divider || isNamedTabBar(info.list) ? 'high' : 'medium',
           cite,
           evidence: `"${n.name}": ${info.titles.length} tab(s)${info.list ? ` in "${info.list.name}"` : ''}, ${info.dataItems?.length ? `${info.dataItems.length} item(s) of the open tab` : `${info.panels.length} content frame(s)`} drawn`,
-          params: {},
+          params: tabParts(info.list.id, info.paneParent?.id || info.panels?.[0]?.id, info.titles.length, Number.isInteger(info.active) ? info.active : null),
           note: `${info.titles.length} tabs; the row switches the data frame under it`,
         });
         return;
@@ -85,7 +95,7 @@ function detectNamedTabRows(tree, claimed) {
           component: 'tab-switch', node: n.id, level: 'E1', confidence: strong ? 'high' : 'medium',
           cite: [{ node: n.id, field: 'layout.mode', equals: 'HORIZONTAL' }, { node: open.id, field: 'name', equals: open.name }],
           evidence: `"${n.name}": ${titles.length} tab(s), no content frame in this node`,
-          params: {},
+          params: tabParts(n.id, '', titles.length, Number.isInteger(active.index) ? active.index : null),
           note: `${titles.length} tabs; the pane is not inside this frame`,
         });
         return;

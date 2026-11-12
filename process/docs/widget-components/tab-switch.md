@@ -4,7 +4,7 @@ Có: có
 
 Tên khác: tab, switcher
 
-Nhận: hàng nút cùng cấu trúc, mỗi nút một nhãn, đúng một nút đang chọn. Chọn bằng variant (`State=Active`), một nền khác các nút còn lại, hoặc gạch chân (dạng line). Chiều cao của nút không quyết định. Tên layer không quyết định. Vạch ngăn giữa các nút có thể có hoặc không; khi có, vạch đó là một tín hiệu của hàng tab và không phải một nút. Hàng có thể nằm trong khối tiêu đề. Khung nội dung là vùng ngay bên dưới khối đó, hoặc các pane cùng cấu trúc xếp sau hàng. Các section sau của trang không phải pane đó. Hàng link gạch chân mà có pane bên dưới là tab line; hàng đó không có pane thì vẫn là menu.
+Nhận: hàng nút cùng cấu trúc, mỗi nút một nhãn, đúng một nút đang chọn. Chọn bằng variant (`State=Active`), một nền khác các nút còn lại, hoặc gạch chân (dạng line). Chiều cao của nút không quyết định. Tên layer không quyết định. Vạch ngăn giữa các nút có thể có hoặc không; khi có, vạch đó là một tín hiệu của hàng tab và không phải một nút. Hàng có thể nằm trong khối tiêu đề. Khung nội dung là vùng ngay bên dưới khối đó, hoặc các pane cùng cấu trúc xếp sau hàng. Tabs bar và tabs data là hai phần của component này, cùng tên với tabs. Plan ghi node của từng phần, hoặc không khi khung không vẽ. Các section sau của trang không phải pane đó. Hàng link gạch chân mà có pane bên dưới là tab line; hàng đó không có pane thì vẫn là menu.
 
 Không nhận: hai nút cùng active, hoặc hai nhóm mục bằng nhau, thì hỏi, không đoán.
 

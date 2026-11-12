@@ -1,6 +1,7 @@
 // detections.json + facts -> detections.md: THE sheet the owner reads against the Figma file before anything is built.
 // Pure formatting. Repeated candidates (55 tooltips from one designer flag) are shown as one group; the ids stay in detections.json.
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
+import { isSignal } from '../recognize-parts/kinds.mjs';
 import { findNode, nodePath } from '../recognize-parts/index.mjs';
 import { DEFAULTS } from '../write-bricks/defaults.mjs';
 
@@ -21,7 +22,7 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
 
   // group identical patterns: same component + same evidence level + same source + same note
   const group = (status) => {
-    const list = det.components.filter((c) => c.status === status);
+    const list = det.components.filter((c) => c.status === status && !isSignal(c.component));
     if (!list.length) return ['_none_', ''];
     const groups = new Map();
     for (const c of list) { const k = [c.component, c.level, c.source, c.confidence, c.note ?? ''].join('|'); (groups.get(k) ?? groups.set(k, []).get(k)).push(c); }
@@ -46,7 +47,8 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
   if (facts?.interactions?.length) notBuilt.push(`**hover** on ${facts.interactions.length} node(s) (${facts.interactions.slice(0, 3).map((i) => `${i.name} \`${i.node}\``).join(', ')}): Figma draws the hover as another variant; ${DEFAULTS.hover ? `the build uses the owner default (opacity ${DEFAULTS.hover.opacity}), not that variant's real values.` : 'the build writes no hover (no default; the variant\'s real values are not read yet).'}`);
   if (facts?.hygiene && facts.hygiene.genericPct >= 10) notBuilt.push(`**layer names**: ${facts.hygiene.genericPct}% are Figma defaults (Frame 1234…), so names were not trusted as evidence.`);
 
-  const counts = (s) => det.components.filter((c) => c.status === s).length;
+  const counts = (s) => det.components.filter((c) => c.status === s && !isSignal(c.component)).length;
+  const hints = det.components.filter((c) => isSignal(c.component));
   return [
     `# Detections: ${tree.name} [${tree.id}]`, '',
     '> **Review gate.** Nothing is exported, built or pushed until the owner has compared this sheet with the Figma file and signed off.',
@@ -60,6 +62,8 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
     '## Sections', '',
     ...(det.sections.length ? ['| id | Figma node | what is inside |', '|---|---|---|', ...det.sections.map((s) => `| ${s.id} | ${cell(s.name)} \`${s.node}\` ${link(s.node)} | ${cell(s.summary ?? '_not described yet (AI pass)_')} |`)] : ['_none_']), '',
     `## ⏳ Waiting for review (${counts('proposed')})`, '', ...group('proposed'),
+    `## Hints (${hints.length})`, '',
+    ...(hints.length ? ['These name a part of a component. They are not elements and they are not a decision.', '', ...head, ...hints.slice(0, 12).map(row), hints.length > 12 ? `| … | | ${hints.length - 12} more hints in detections.json | | | |` : ''] : ['_none_']), '',
     `## ✅ Approved (${counts('approved')})`, '', ...group('approved'),
     `## ✖ Rejected, stays a block (${counts('rejected')})`, '', ...group('rejected'),
     '## ❔ Missing from Figma (needs the designer)', '', ...(missing.length ? missing.map((m) => `- ${m}`) : ['- nothing']), '',

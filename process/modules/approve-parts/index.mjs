@@ -27,6 +27,7 @@ import { switchInventory, tabQuestions } from '../write-bricks/components/tab-sw
 import { paneQuestionLabel } from '../missing-content/index.mjs';
 import { menuLabels } from '../write-bricks/components/menu.mjs';
 import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
+import { isSignal } from '../recognize-parts/kinds.mjs';
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const walk = (n, fn) => { if (n.visible === false) return; fn(n); kids(n).forEach((c) => walk(c, fn)); };
@@ -192,6 +193,10 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     } else if (c.component === 'readmore') {
       c.status = 'approved'; c.note = 'autopilot: "Xem thêm" opens the clipped text (a click toggles a class, no JS); nothing to ask';
       log('readmore', node, 'approved', c.evidence ?? '', c.confidence ?? 'medium');
+    } else if (isSignal(c.component) || c.component === 'pagination') {
+      c.status = 'proposed';
+      c.note = 'autopilot: a hint for the component it belongs to, not an element';
+      log(c.component, node, 'hint', c.evidence ?? '', c.confidence ?? 'high');
     } else if (c.component === 'carousel' && c.confidence === 'low') {
       c.status = 'proposed'; c.note = 'autopilot: slider shape only, the plan asks';
       log('carousel', node, 'proposed (shape only)', c.evidence ?? '', 'low');
@@ -346,6 +351,17 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   const nSvg = Object.values(ov.nodes).filter((v) => v.reason === 'autopilot: icon, decorative').length;
   if (nSvg) log('icons', null, `aria-hidden on ${nSvg} svg icon(s)`, 'icons are decorative unless the designer names them', 'high');
   if (imgIndex) log('images', null, `alt "" + ${firstSection ? 'eager' : 'lazy'} on ${imgIndex} image(s)`, 'alt text is content only the designer has', 'high');
+
+  const bars = new Set();
+  for (const scroll of det.components.filter((c) => c.component === 'scroll')) {
+    if (scroll.params?.track) bars.add(scroll.params.track);
+    if (scroll.params?.thumb) bars.add(scroll.params.thumb);
+  }
+  for (const line of det.components.filter((c) => c.component === 'divider' && bars.has(c.node))) {
+    line.status = 'rejected';
+    line.note = 'autopilot: this line is the scroll bar, not a divider';
+    log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
+  }
 
   const typed = detectTemplateType(tree);
   const suggested = typed.confidence === 'low' ? 'section' : typed.type;

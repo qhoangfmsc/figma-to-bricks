@@ -4,7 +4,7 @@ Có: có
 
 Tên khác: tab
 
-Nhận: một thanh ngang từ hai tiêu đề và một khung nội dung bên dưới.
+Nhận: một thanh ngang từ hai tiêu đề và một khung nội dung bên dưới. Tabs bar là hàng đó: một tiêu đề đang chọn và ít nhất một tiêu đề nghỉ. Tabs data là khung ngay dưới hàng. Plan ghi node của từng phần.
 
 Dựng: `process/modules/write-bricks/components/tabs.mjs`, `tabs-chrome.mjs`
 Nhận dạng: `process/modules/recognize-parts/rules/tabs.mjs`

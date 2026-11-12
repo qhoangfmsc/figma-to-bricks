@@ -1,13 +1,13 @@
 // COMPONENT carousel: a row of slides, the arrow buttons drawn on it, and a pagination row.
 // Bricks 1.9.8: `slider-nested` (Splide). Every child of the row becomes a slide (slide widths belong to the slider: perPage + gap).
 //   source: includes/elements/slider-nested.php (type, perPage, gap, focus, start, pagination, arrows, prevArrow / nextArrow and their position)
-// The tool always builds type `loop` and autoplay (Bricks' own interval placeholder is 3000ms). A different type or a stopped autoplay is edited on the template, or autoplay is turned off in the Plan.
+// Two or more drawn slides build type `loop`. One drawn slide builds type `slide`: Splide's loop clones that single card and parks it outside the track, so the builder shows the dot and a blank. Autoplay uses Bricks' 3000ms placeholder. A stopped autoplay is turned off in the Plan.
 // perPage and gap come from Figma (how many slides fit in the row, the auto layout gap). Arrow size, border, icon, gradient and place come from the
 // drawn buttons. The dash count is the number of items in the slider, not the number of dashes drawn in Figma. Splide only emits one dot per slide
 // when `focus` is set (otherwise the count is ceil(slides / perPage)); focus 0 keeps the leftmost slide as the current index, so the active dash
 // follows whichever item is in front as the loop moves. The slider always starts at the first item. Dash size and color still come from the drawn dashes.
 // params: perPage · pagination (node id) · controls (node ids merged, not slides) · allowSingle (one drawn slide + arrows)
-//         prev / next (arrow buttons) · itemCount · items · autoplay (false turns it off) · settings (raw Bricks settings, deep-merged; type is still loop)
+//         prev / next (arrow buttons) · itemCount · items · autoplay (false turns it off) · settings (raw Bricks settings, deep-merged; type stays loop when two or more slides are drawn)
 import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { boxLook, findNode, jsonParam, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
@@ -160,9 +160,9 @@ export default {
   id: 'carousel',
   status: 'implemented',
   label: 'Carousel',
-  figma: 'a horizontal row of similar cards, or one slide with arrow buttons, plus an optional pagination',
-  bricks: '`slider-nested`: type loop, perPage = slides fitting the row, gap = auto layout gap, one dash per item, arrows from the drawn controls',
-  limits: 'Loop is always on and autoplay starts at 3s (change either on the template; the Plan can turn autoplay off or set the seconds). The dash count follows the items, not the Figma pagination drawing; the active dash follows the item in front. Items past the ones drawn in the frame come only from the Figma link of the full set.',
+  figma: 'a horizontal row of similar cards, one slide with arrow buttons, or one card with a Pagination instance inside the frame',
+  bricks: '`slider-nested`: type loop when two or more slides are drawn, type slide for one drawn card, perPage = slides fitting the row, gap = auto layout gap, one dash per item, arrows from the drawn controls',
+  limits: 'Two or more slides stay type loop. One drawn slide is type slide, because a loop clone moves that card out of the track. Autoplay starts at 3s (the Plan can turn it off or set the seconds). The dash count follows the items, not the Figma pagination drawing; the active dash follows the item in front. Items past the ones drawn in the frame come only from the Figma link of the full set.',
   kind: () => 'slider-nested',
 
   mergedNodes(det, node, ctx = {}) {
@@ -178,7 +178,10 @@ export default {
     if (slides.length < (det.params?.allowSingle ? 1 : 2)) return { ok: false, reason: `needs at least 2 slides, found ${slides.length}` };
     for (const k of ['pagination', 'prev', 'next']) if (det.params?.[k] && !findNode(root, det.params[k])) return { ok: false, reason: `params.${k} ${det.params[k]} is not in the tree` };
     const per = perPageOf(node, slides, det);
-    const warnings = [`${slides.length} slides, ${per} per page; loop is always on and autoplay is on (3s unless the Plan says otherwise)`];
+    const loopNote = slides.length < 2
+      ? 'one drawn slide stays type slide so Splide does not clone it out of the track'
+      : 'loop is always on';
+    const warnings = [`${slides.length} slides, ${per} per page; ${loopNote} and autoplay is on (3s unless the Plan says otherwise)`];
     const want = Number(det.params?.itemCount);
     if (want && want !== slides.length && det.params?.items?.kind !== 'figma') warnings.push(`asked for ${want} items, this frame draws ${slides.length}: the dashes follow those ${slides.length}. The rest needs the Figma link of the full set`);
     return { ok: true, warnings };
@@ -224,10 +227,16 @@ export default {
     applySyncedArrows(s, node, pair, warn);
     const extra = jsonParam(det.params?.settings);
     if (extra && typeof extra === 'object') Object.assign(s, deepMerge(s, extra));
-    // After the Plan settings, so a saved "slide" type cannot turn the loop off.
+    // After the Plan settings, so a saved "slide" type cannot turn the loop off when several cards are drawn.
+    // One drawn slide cannot loop: Splide clones it and the builder track shows only the pagination dot.
     // PHP treats isset(autoplay) as on, including false, so off means the key is absent.
+    // PHP also treats a missing height as 50vh, which leaves an empty track when the only card is positioned out.
+    const one = slides.length < 2;
     if (det.params?.autoplay === false) delete s.autoplay;
     else { s.autoplay = true; s.interval ??= 3000; }
-    Object.assign(s, { type: 'loop', focus: 0, perMove: 1, start: 0 });
+    Object.assign(s, { type: one ? 'slide' : 'loop', focus: 0, perMove: 1, start: 0 });
+    if (one && node.box?.h) s.height = px(node.box.h);
+    // Splide ships `.splide { visibility: hidden }` until JS adds `is-initialized`. This site delays that script, so the slide and its picture stay blank on first paint.
+    addCustomCss(s, 'visibility: visible;');
   },
 };

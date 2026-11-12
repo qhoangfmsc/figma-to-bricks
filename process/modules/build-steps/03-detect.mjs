@@ -9,6 +9,7 @@ import { emptyDetections, mergeDetections, runRules, validate } from '../recogni
 import { renderReview } from '../recognize-parts/review-md.mjs';
 import { buildFacts, renderFacts } from '../tree-inventory/index.mjs';
 import { gate } from '../sign-off/index.mjs';
+import { isSignal } from '../recognize-parts/kinds.mjs';
 
 export function detectStep(urlOrDir) {
   const ws = resolveWorkspace(urlOrDir);
@@ -22,9 +23,10 @@ export function detectStep(urlOrDir) {
   ws.writeText('facts.md', renderFacts(facts));
   ws.writeText('detections.md', renderReview(tree, detections, problems, facts, { fileKey: ws.ref?.fileKey }));
 
-  const count = (st) => detections.components.filter((c) => c.status === st).length;
-  console.log(`  detections.json + detections.md  (${detections.sections.length} sections · components: ${count('proposed')} to review, ${count('approved')} approved, ${count('rejected')} rejected; ${added.length} new this run)`);
-  for (const c of added) console.log(`    + ${c.id} ${c.component} ${c.node}: ${c.evidence}`);
+  const count = (st) => detections.components.filter((c) => c.status === st && !isSignal(c.component)).length;
+  const hints = detections.components.filter((c) => isSignal(c.component)).length;
+  console.log(`  detections.json + detections.md  (${detections.sections.length} sections · components: ${count('proposed')} to review, ${count('approved')} approved, ${count('rejected')} rejected; ${added.filter((c) => !isSignal(c.component)).length} new this run; ${hints} hints)`);
+  for (const c of added) console.log(`    ${isSignal(c.component) ? 'hint' : '+'} ${c.id} ${c.component} ${c.node}: ${c.evidence}`);
   for (const p of problems) console.log(`    ! ${p}`);
   const g = gate(ws);
   console.log(`  review gate: ${g.ok ? 'open (signed off)' : 'CLOSED, the owner has to review detections.md and sign off before export / build'}`);

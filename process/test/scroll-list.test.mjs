@@ -4,9 +4,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectScrollLists } from '../modules/recognize-parts/rules/scroll.mjs';
+import { detectDividers } from '../modules/recognize-parts/rules/divider.mjs';
 import { detectProduction } from '../modules/recognize-parts/rules/production-widgets.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { fitFluid } from '../modules/breakpoints/solo.mjs';
+import { fitAnvRemainder, fitFluid, fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 import { detectStep } from '../modules/build-steps/03-detect.mjs';
 import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs';
 import { groupQuestions, GROUPS, keyOf, figmaLink } from '../modules/missing-content/index.mjs';
@@ -50,7 +51,7 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
     children: [row, track],
   };
   const found = detectScrollLists(host);
-  assert.equal(found.length, 1);
+  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
   assert.equal(found[0].node, 'track');
   assert.equal(found[0].params.axis, 'x');
   assert.equal(found[0].params.container, 'host');
@@ -70,15 +71,12 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
   assert.equal(frame.settings._overflow, 'auto');
   assert.equal(frame.settings._attributes.find((a) => a.name === 'data-f2b-scroll').value, 'x');
   assert.match(frame.settings._attributes.find((a) => a.name === 'onwheel').value, /scrollLeft/);
-  assert.match(frame.settings._cssCustom, /scrollbar-width: none/);
+  assert.match(frame.settings._cssCustom, /scrollbar-width: thin/);
+  assert.match(frame.settings._cssCustom, /scrollbar-color: #d9d9d9 #f5f5f5/);
   assert.equal(rowEl.settings._overflow, undefined);
   assert.equal(rowEl.settings._width, '977px');
-  assert.equal(barEl.settings._position, 'sticky');
-  assert.equal(thumbEl.settings._attributes.find((a) => a.name === 'data-f2b-scroll-thumb').value, 'x');
-  assert.match(frame.settings._cssCustom, /scroll-timeline-name: --f2b-scroll-trackthumb/);
-  assert.match(thumbEl.settings._cssCustom, /animation-timeline: --f2b-scroll-trackthumb/);
-  assert.match(thumbEl.settings._cssCustom, /translateX\(602px\)/);
-  assert.match(thumbEl.settings._attributes.find((a) => a.name === 'onpointermove').value, /scrollLeft/);
+  assert.equal(barEl.settings._display, 'none');
+  assert.equal(thumbEl, undefined);
   const named = buildTemplate(section, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'scroll', node: 'track', params: {} }] }, salt: 'named' });
   assert.equal(named.template.content.find((e) => e.label === 'Paragraph').settings._overflow, 'auto');
   assert.equal(named.template.content.find((e) => e.label === 'row').settings._overflow, undefined);
@@ -112,6 +110,86 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
   assert.equal(detectScrollLists(pale).length, 0);
 });
 
+test('a thumb and a track drawn on a text frame scroll that text', () => {
+  const fill = { h: 'FILL', v: 'FIXED' };
+  const paragraph = {
+    id: 'copy', type: 'FRAME', name: 'Paragraph', visible: true, box: box(0, 0, 145.5, 200), sizing: { h: 'FILL', v: 'HUG' },
+    layout: { mode: 'HORIZONTAL', wrap: false, gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [text('body', 'Hơn 1 năm qua, doanh nghiệp tôi sử dụng Firewall Anti DDoS.')],
+  };
+  const host = {
+    id: 'content', type: 'FRAME', name: '_content-text', visible: true, clip: true, box: box(0, 0, 153.5, 162), sizing: fill,
+    layout: { mode: 'VERTICAL', wrap: false, gap: 10, padding: { top: 0, right: 8, bottom: 0, left: 0 } },
+    children: [
+      paragraph,
+      rect('track', 151.5, 0, 2, 162, '#f2f3f5', 'ABSOLUTE'),
+      rect('thumb', 151.5, 0, 2, 82, '#747475', 'ABSOLUTE'),
+    ],
+  };
+  const found = detectScrollLists(host);
+  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
+  assert.equal(found[0].node, 'content');
+  assert.equal(found[0].params.axis, 'y');
+  assert.equal(found[0].params.container, 'content');
+  assert.equal(found[0].params.list, 'copy');
+  assert.equal(found[0].params.track, 'track');
+  assert.equal(found[0].params.thumb, 'thumb');
+  assert.deepEqual(found[0].params.items, []);
+  const built = buildTemplate(host, {
+    overrides: { nodes: { thumb: { settings: { _attributes: [{ name: 'aria-hidden', value: 'true' }] }, reason: 'decorative stroke' } } },
+    detections: { components: [{ id: 'd0', status: 'approved', ...found[0] }] },
+    salt: 'vscroll',
+  });
+  const frame = built.template.content.find((e) => e.label === '_content-text');
+  const copy = built.template.content.find((e) => e.label === 'Paragraph');
+  assert.equal(detectDividers(host).some((c) => c.node === 'track' || c.node === 'thumb'), false);
+  assert.equal(frame.settings._width, '100%');
+  assert.equal(frame.settings._alignSelf, 'stretch');
+  assert.equal(frame.settings._height, '162px');
+  assert.equal(frame.settings._flexGrow, 0);
+  assert.equal(frame.settings._widthMax, undefined);
+  assert.equal(frame.settings._overflow, 'auto');
+  assert.equal(frame.settings._attributes.find((a) => a.name === 'data-f2b-scroll').value, 'y');
+  assert.equal(frame.settings._attributes.find((a) => a.name === 'onwheel'), undefined);
+  assert.equal(frame.settings._attributes.find((a) => a.name === 'onscroll'), undefined);
+  assert.match(frame.settings._cssCustom, /scrollbar-color: #747475 #f2f3f5/);
+  assert.notEqual(frame.settings._position, 'sticky');
+  assert.equal(copy.settings._flexShrink, 0);
+  assert.equal(copy.settings._width, '100%');
+  assert.equal(built.template.content.find((e) => e.label === 'thumb'), undefined);
+  assert.equal(built.template.content.find((e) => e.label === 'track'), undefined);
+  fitSoloTemplate(built.template, { keep: ['mobile_portrait'] });
+  fitFluid(built.template, { frameWidth: 375, coveredUntil: 478, keep: ['mobile_portrait'] });
+  fitAnvRemainder(built.template, { keep: ['mobile_portrait'] });
+  const again = built.template.content.find((e) => e.label === '_content-text');
+  assert.equal(again.settings._width, '100%');
+  assert.equal(again.settings._overflow, 'auto');
+  assert.equal(again.settings._widthMax, undefined);
+  assert.equal(again.settings['_width:mobile_landscape'], undefined);
+  assert.equal(again.settings['_widthMax:tablet_portrait'], undefined);
+});
+
+test('a drawn thumb and track scroll the text even when the text box fits the frame', () => {
+  const fill = { h: 'FILL', v: 'FIXED' };
+  const host = {
+    id: 'content', type: 'FRAME', name: '_content-text', visible: true, box: box(0, 0, 259, 244), sizing: fill,
+    layout: { mode: 'VERTICAL', wrap: false, gap: 10, padding: { top: 0, right: 8, bottom: 0, left: 0 } },
+    children: [
+      { id: 'copy', type: 'FRAME', name: 'Paragraph', visible: true, box: box(0, 0, 251, 200), children: [text('body', 'Một đoạn nhận xét.')] },
+      rect('track', 257, 0, 2, 244, '#f2f3f5', 'ABSOLUTE'),
+      rect('thumb', 257, 0, 2, 120, '#747475', 'ABSOLUTE'),
+    ],
+  };
+  const found = detectScrollLists(host);
+  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
+  assert.equal(found[0].params.axis, 'y');
+  assert.equal(found[0].params.list, 'copy');
+  assert.deepEqual(found.filter((c) => c.component !== 'scroll').map((c) => c.component).sort(), ['thumb_scroll', 'track_scroll']);
+  assert.equal(found.find((c) => c.component === 'thumb_scroll').params.of, 'scroll');
+  assert.equal(found.find((c) => c.component === 'track_scroll').params.host, 'content');
+  assert.equal(detectDividers(host).some((c) => c.node === 'track' || c.node === 'thumb'), false);
+});
+
 test('the enterprise price row in this file is that sideways list', () => {
   const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-4263/tree.json', import.meta.url), 'utf8'));
   const hit = detectScrollLists(tree).find((c) => c.node === '1:4547');
@@ -121,6 +199,12 @@ test('the enterprise price row in this file is that sideways list', () => {
   assert.equal(hit.params.track, '1:4548');
   assert.equal(hit.params.thumb, '1:4549');
   assert.deepEqual(hit.params.items, ['1:4363', '1:4428', '1:4485']);
+  const phone = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-16827/tree.json', import.meta.url), 'utf8'));
+  const text = detectScrollLists(phone).find((c) => c.node === '1:16878');
+  assert.equal(text.params.axis, 'y');
+  assert.equal(text.params.list, '1:16879');
+  assert.equal(text.params.track, '1:16881');
+  assert.equal(text.params.thumb, '1:16882');
 });
 
 function freshPlan(tree, fileKey) {
@@ -169,6 +253,10 @@ test('a fresh read lists the scroll in the plan', () => {
   const drawn = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
   const scroll = drawn.det.components.find((c) => c.component === 'scroll' && c.node === '1:4547');
   assert.equal(scroll?.status, 'approved');
+  assert.equal(drawn.det.components.some((c) => c.component === 'thumb_scroll' && c.params.host === '1:4547'), true);
+  assert.match(drawn.plan, /Nút kéo: `1:4549`/);
+  assert.match(drawn.plan, /Thanh kéo: `1:4548`/);
+  assert.doesNotMatch(drawn.plan, /`part:1:4549`/);
   assert.equal(drawn.det.components.some((c) => c.component === 'progress' && ['1:4361', '1:4547', '1:4548', '1:4549'].includes(c.node)), false);
   assert.match(drawn.plan, /Loại: Scroll/);
   assert.match(drawn.plan, /`part:1:4547`:/);

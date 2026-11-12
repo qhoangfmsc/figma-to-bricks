@@ -33,6 +33,7 @@ import { siblingStatePatches } from '../../write-bricks/components/states.mjs';
 import { closeMarkIds, popupCard } from '../../recognize-parts/rules/shape.mjs';
 import { isDomainLookup } from '../../recognize-parts/rules/layout-only.mjs';
 import { detectActionForms } from '../../recognize-parts/rules/form.mjs';
+import { isSignal } from '../../recognize-parts/kinds.mjs';
 import { resolvedRole } from '../../write-bricks/components/button.mjs';
 
 export { deepMerge };
@@ -54,7 +55,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
   const approved = new Map();
-  for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved')) {
+  for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination')) {
     const prev = approved.get(c.node);
     if (prev && c.component === 'semantic') continue;
     approved.set(c.node, c);
@@ -62,6 +63,13 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   for (const found of detectActionForms(root)) {
     if ([...approved.values()].some((d) => d.component === 'form' && d.node === found.node)) continue;
     approved.set(found.node, { id: `action-${found.node}`, status: 'approved', source: 'rule', ...found });
+  }
+  // A dash strip that is only a question must not become a line of blocks while the plan is still asking.
+  const held = new Set();
+  for (const c of detections?.components ?? []) {
+    if (isSignal(c.component) || c.component === 'pagination' || c.params?.hold) held.add(c.node);
+    if (c.status === 'approved') continue;
+    if (c.component === 'carousel' && c.params?.pagination) held.add(c.params.pagination);
   }
   const elements = [];
   const mapping = {};
@@ -123,6 +131,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (node.visible === false) { mapping[node.id] = { skipped: 'hidden in Figma' }; return; }
     if (ov.skip) { mapping[node.id] = { skipped: `override: ${ov.reason ?? 'skip'}` }; return; }
     if (mergedInto.has(node.id)) { const d = mergedInto.get(node.id); mapping[node.id] = { skipped: `merged into ${d.component} ${d.id}` }; return; }
+    if (held.has(node.id)) { mapping[node.id] = { skipped: 'waiting for the plan' }; return; }
 
     const imageLeaf = isImageLeaf(node);
     node.__intrinsic = imageLeaf || !!node.svg || !!plan.get(node.id)?.comp.intrinsic; // no fit-to-content in CSS: keep the Figma box
@@ -262,8 +271,14 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const IMAGE_CHILD_KEYS = ['image', 'altText', 'loading', '_objectFit', '_objectPosition', 'link', 'url', 'newTab', 'caption', 'captionCustom', 'showTitle'];
   function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, after, component, extra, inner, keep = new Set() } = {}) {
     let settings = s;
+    const scrollAttrs = (s._attributes ?? []).filter((a) => a.name === 'data-f2b-scroll' || a.name === 'data-f2b-scroll-track' || a.name === 'data-f2b-scroll-thumb' || a.name === 'onscroll' || a.name === 'onwheel' || String(a.name).startsWith('onpointer'));
     for (const k of ov.dropSettings ?? []) delete settings[k];
     if (ov.settings) settings = deepMerge(settings, ov.settings);
+    // A decorative-icon override replaces the attribute list. The scroll thumb is a control, so its handlers stay.
+    if (scrollAttrs.length) {
+      const names = new Set(scrollAttrs.map((a) => a.name));
+      settings._attributes = [...(settings._attributes ?? []).filter((a) => !names.has(a.name)), ...scrollAttrs];
+    }
     // A decorative-icon override replaces _attributes. The close mark is a control, so the close attribute is put back after that merge.
     if (closing.has(node.id)) {
       settings._attributes = [...(settings._attributes ?? []).filter((a) => a.name !== 'aria-hidden' && a.name !== 'data-f2b-close'), { name: 'data-f2b-close', value: '1' }];

@@ -182,7 +182,12 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
         const cap = axis === 'h' ? node.limits?.maxWidth : null;
         const align = parent?.layout?.counterAlign;
         if (cap != null && align && align !== 'MIN') { s[dim] = '100%'; s._alignSelf = align === 'CENTER' ? 'center' : 'flex-end'; }
-        else s._alignSelf = 'stretch';
+        else {
+          s._alignSelf = 'stretch';
+          // Fill across a column is the parent width at every window in that band.
+          // The drawn px is not a max-width, or a wider phone in the same breakpoint stays short.
+          if (axis === 'h') s._width = '100%';
+        }
       }
       if (axis === 'h' && node.type === 'TEXT' && node.__inHug) s._widthMax ??= px(boxVal); // see index.mjs markHug
       css[cssDim] = px(boxVal);

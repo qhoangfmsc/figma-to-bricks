@@ -44,7 +44,7 @@ export function detectTabs(tree) {
           found.push({
             component: 'tabs', node: n.id, level: hinted ? 'E1' : 'E2', confidence: variants && named ? 'high' : hinted ? 'medium' : 'low', cite,
             evidence: `"${n.name}": a tab bar "${bar.name}" with ${titles.length} titles and a content frame "${content.name}" ${variants ? '(one title is active)' : hinted ? '(named like tabs)' : '(shape only)'}`,
-            params: {},
+            params: { tabs_bar: bar.id, tabs_data: content.id, tabsActive: acts.filter((a) => a?.on).length, tabsIdle: titles.length - acts.filter((a) => a?.on).length },
             note: `${titles.length} tabs, Figma draws the open pane; the Plan asks for the content of the others`,
           });
           return;

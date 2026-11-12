@@ -6,18 +6,19 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { validate } from '../recognize-parts/index.mjs';
+import { isSignal } from '../recognize-parts/kinds.mjs';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
 export function fingerprint(ws) {
   const tree = readFileSync(ws.file('tree.json'), 'utf8');
   const det = ws.readJson('detections.json', { components: [] });
-  const decisions = det.components.map((c) => ({ id: c.id, component: c.component, node: c.node, status: c.status, params: c.params ?? {} }));
+  const decisions = det.components.filter((c) => !isSignal(c.component)).map((c) => ({ id: c.id, component: c.component, node: c.node, status: c.status, params: c.params ?? {} }));
   return { tree: sha(tree), decisions: sha(JSON.stringify(decisions)) };
 }
 
 export function counts(det) {
-  const c = (s) => det.components.filter((x) => x.status === s).length;
+  const c = (s) => det.components.filter((x) => x.status === s && !isSignal(x.component)).length;
   return { approved: c('approved'), rejected: c('rejected'), proposed: c('proposed') };
 }
 

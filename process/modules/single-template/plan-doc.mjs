@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { parsePlan } from '../missing-content/index.mjs';
 import { MISSING } from '../missing-content/choices.mjs';
 import { SLOTS } from '../single-template/frames.mjs';
+import { isSignal } from '../recognize-parts/kinds.mjs';
 
 export const templatePlanPath = (dir) => join(dir, 'plan.md');
 
@@ -42,8 +43,9 @@ function evidenceLines(row) {
   else lines.push('- AI: chưa nhận dạng nhóm này trên ảnh');
   const cite = (row.cite ?? []).join(', ');
   lines.push(`- Tín hiệu: ${clean(row.evidence) || row.kind}${cite ? ` (${cite})` : ''}`);
-  if (row.verdict === 'agree') lines.push(`- Kết luận: dựng ${row.kind}`);
+  if (row.verdict === 'agree') lines.push('- Kết luận: dựng ' + row.kind + '. Code, ảnh và cấu trúc cùng một loại.');
   else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. Ảnh thấy ${clean(row.aiKind)}. Giữ block.`);
+  else if (row.verdict === 'doubt') lines.push('- Kết luận: nghi ngờ. Code có, ảnh hoặc cấu trúc chưa đủ.');
   else lines.push('- Kết luận: chưa đủ ảnh, nhận dạng và tín hiệu');
   return lines;
 }
@@ -62,8 +64,37 @@ function proofSection(model) {
   for (const extra of look.extras ?? []) {
     lines.push(`### Ảnh thấy ${extra.kind}${extra.node ? ` \`${extra.node}\`` : ''}`);
     lines.push(`- AI: ${clean(extra.see)}`);
+    if (isSignal(extra.kind)) {
+      lines.push('- Tín hiệu: phần này thuộc component cha. Plan ghi node ở mục component.');
+      lines.push('');
+      continue;
+    }
     lines.push('- Tín hiệu: không có');
     lines.push('- Kết luận: không dựng. Giữ block.', '');
+  }
+  return lines;
+}
+
+function detectedReview(look) {
+  if (!look?.rows?.length) return [];
+  const lines = ['Kết quả của code, rồi ảnh, rồi review trên ảnh và cấu trúc Figma.', ''];
+  for (const row of look.rows) {
+    lines.push(`### ${row.kind} \`${row.node}\``);
+    lines.push(`- Code: ${row.kind}${row.evidence ? ` — ${clean(row.evidence)}` : ''}`);
+    lines.push(row.see ? `- AI: ${clean(row.aiKind)} — ${clean(row.see)}` : '- AI: chưa review ảnh');
+    lines.push(`- Ảnh: ${row.verdict === 'no-shot' ? 'chưa có' : 'có'}`);
+    lines.push(`- Cấu trúc: ${(row.cite ?? []).length ? row.cite.join(', ') : 'chưa trích'}`);
+    if (row.review === 'trust') lines.push('- Review: tin được. Code, ảnh và cấu trúc cùng một loại.');
+    else if (row.review === 'differ') lines.push(`- Review: lệch. Code thấy ${row.kind}, ảnh thấy ${clean(row.aiKind)}.`);
+    else if (row.review === 'no-shot') lines.push('- Review: chưa review. Thiếu ảnh chứng cứ.');
+    else if (row.review === 'pending') lines.push('- Review: chưa review. Chưa có nhận dạng từ ảnh.');
+    else lines.push('- Review: nghi ngờ. Code có, nhưng ảnh hoặc cấu trúc chưa đủ.');
+    for (const child of row.children ?? []) {
+      const structure = child.structure ? 'cấu trúc có node này' : 'cấu trúc chưa trích node này';
+      const image = child.image ? 'ảnh có gọi tên' : 'ảnh chưa gọi tên';
+      lines.push(`- ${child.label}: \`${child.node}\` — nghi ngờ. ${structure}. ${image}.`);
+    }
+    lines.push('');
   }
   return lines;
 }
@@ -78,6 +109,7 @@ function componentLines(part, saved, index, model = {}) {
   const lines = [index ? `### ${index}. ${title}` : `### ${title}`, `- Loại: ${part.kind}`];
   if (part.figma) lines.push(`- Figma: [Mở](${part.figma})`);
   if (part.detail) lines.push(`- ${part.detail}`);
+  for (const line of part.children ?? []) lines.push(`- ${line}`);
   const row = lookRow(model, part.node);
   if (row) lines.push(...evidenceLines(row));
   const choice = lookChoice(saved, `part:${part.node}`, row, model.look?.ready, { agree: '', differ: 'drop' });
@@ -174,6 +206,8 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
     for (const part of row.nested) pushBlock(componentLines(part, saved, 0, model), decisions);
   });
   out.push(`## Component Detected (${rows.length})`);
+  const review = detectedReview(model.look);
+  if (review.length) out.push(...review);
   if (tally) out.push(tally);
   if (!rows.length) out.push('Không nhận ra component nào.');
   if (detected.length) out.push('', detected.join('\n\n'));

@@ -23,7 +23,7 @@ import { detectMedia } from '../recognize-parts/rules/media.mjs';
 import { detectProduction } from '../recognize-parts/rules/production-widgets.mjs';
 import { detectScrollLists } from '../recognize-parts/rules/scroll.mjs';
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
-import { partRule } from '../recognize-parts/kinds.mjs';
+import { isSignal, partRule } from '../recognize-parts/kinds.mjs';
 import { checkCites, findNode } from '../recognize-parts/cite.mjs';
 
 export const STATUSES = ['proposed', 'approved', 'rejected'];
@@ -88,6 +88,7 @@ export function validate(det, tree) {
     for (const p of checkCites(c.cite, tree)) problems.push(`${where}: ${p}`);
     if (c.source === 'ai' && !(c.cite?.length)) problems.push(`${where}: an AI candidate must cite what it saw in the tree (cite: [{ node, field, equals }]); it cannot be approved without`);
     if (c.source === 'rule' && !partRule(c.kind ?? c.component)) problems.push(`${where}: no shape rule for "${c.component}"`);
+    if (isSignal(c.component)) continue;
     const comp = COMPONENTS[c.component];
     if (!comp) problems.push(`${where}: unknown component "${c.component}" (known: ${Object.keys(COMPONENTS).join(', ')})`);
     else if (c.status === 'approved' && comp.status !== 'implemented') problems.push(`${where}: approved but "${c.component}" is ${comp.status}: the node stays a block`);

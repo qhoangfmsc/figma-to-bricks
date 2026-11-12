@@ -62,11 +62,9 @@ function overlaps(track, thumb, axis) {
   return crossHit && onTrack;
 }
 
-// Two filled shapes in one frame. The longer, lighter one is the track. The shorter, darker one is the thumb.
-function barOf(frame) {
-  if (!frame?.box) return null;
-  const kids = visibleKids(frame).filter((c) => c.box && SHAPE.has(c.type) && textsOf(c).length === 0);
-  if (kids.length !== 2) return null;
+// Two filled shapes. The longer, lighter one is the track. The shorter, darker one is the thumb.
+function pairFrom(kids, frame) {
+  if (!frame?.box || kids.length !== 2 || !kids.every((c) => c.box)) return null;
   const horizontal = kids.every((c) => c.box.h <= 18) && Math.max(...kids.map((c) => c.box.w)) >= 40;
   const vertical = kids.every((c) => c.box.w <= 18) && Math.max(...kids.map((c) => c.box.h)) >= 40;
   if (horizontal === vertical) return null;
@@ -83,6 +81,29 @@ function barOf(frame) {
   return { axis, track, thumb };
 }
 
+// A frame that is only the bar. The list sits beside it.
+function barOf(frame) {
+  const kids = visibleKids(frame);
+  const shapes = kids.filter((c) => c.box && SHAPE.has(c.type) && textsOf(c).length === 0);
+  if (kids.length !== 2 || shapes.length !== 2) return null;
+  return pairFrom(shapes, frame);
+}
+
+// The bar drawn on the content frame is the scroll. A darker shorter thumb on a longer lighter track
+// is that bar, whether the text box is taller than the frame or not. Measuring the boxes against each
+// other drops a bar the designer drew when the text happens to fit.
+function embeddedScroll(frame) {
+  if (!frame?.box) return null;
+  const kids = visibleKids(frame);
+  const shapes = kids.filter((c) => c.box && SHAPE.has(c.type) && textsOf(c).length === 0);
+  if (shapes.length !== 2 || kids.length <= 2) return null;
+  const bar = pairFrom(shapes, frame);
+  if (!bar) return null;
+  const region = flow(frame).find((c) => textsOf(c).length > 0);
+  if (!region) return null;
+  return { bar, region, items: itemsOf(region) };
+}
+
 function listBeside(container, bar, axis) {
   const along = axis === 'x' ? 'w' : 'h';
   const start = axis === 'x' ? 'x' : 'y';
@@ -96,10 +117,52 @@ function cite(node, field, equals) {
   return { node, field, equals };
 }
 
+function barSignals(bar, hostId) {
+  return [
+    ['thumb_scroll', bar.thumb, 'the shorter darker bar of the scroll'],
+    ['track_scroll', bar.track, 'the longer lighter bar of the scroll'],
+  ].map(([component, node, evidence]) => ({
+    component,
+    node: node.id,
+    level: 'E1',
+    confidence: 'high',
+    cite: [cite(node.id, 'type', node.type)],
+    evidence,
+    params: { of: 'scroll', host: hostId, hold: true },
+    note: 'a scroll hint, not an element',
+  }));
+}
+
 export function detectScrollLists(tree) {
   const found = [];
   (function walk(n, parent) {
     if (!n || n.visible === false) return;
+    const embedded = embeddedScroll(n);
+    if (embedded && !readMoreAfter(parent, n) && !hasArrows(n) && !hasArrows(embedded.region)) {
+      const count = embedded.items?.length ?? 0;
+      found.push({
+        component: 'scroll',
+        node: n.id,
+        level: 'E1',
+        confidence: 'high',
+        cite: [cite(embedded.bar.thumb.id, 'type', embedded.bar.thumb.type), cite(embedded.bar.track.id, 'type', embedded.bar.track.type), cite(embedded.region.id, 'type', embedded.region.type)],
+        evidence: count
+          ? `"${n.name}" is a darker thumb on a lighter track, scrolling ${count} items in "${embedded.region.name}"`
+          : `"${n.name}" is a darker thumb on a lighter track, scrolling the text in "${embedded.region.name}"`,
+        params: {
+          axis: embedded.bar.axis,
+          container: n.id,
+          list: embedded.region.id,
+          items: (embedded.items ?? []).map((c) => c.id),
+          track: embedded.bar.track.id,
+          thumb: embedded.bar.thumb.id,
+          embedded: true,
+        },
+        note: embedded.bar.axis === 'x' ? 'the drawn bar is the horizontal scroll' : 'the drawn bar is the vertical scroll',
+      });
+      found.push(...barSignals(embedded.bar, n.id));
+      return;
+    }
     const bar = barOf(n);
     const beside = bar && parent ? listBeside(parent, n, bar.axis) : null;
     if (bar && beside && !readMoreAfter(parent, n) && !hasArrows(parent) && !hasArrows(beside.list)) {
@@ -120,6 +183,7 @@ export function detectScrollLists(tree) {
         },
         note: bar.axis === 'x' ? 'the drawn bar is the horizontal scroll' : 'the drawn bar is the vertical scroll',
       });
+      found.push(...barSignals(bar, n.id));
       return;
     }
     for (const c of visibleKids(n)) walk(c, n);

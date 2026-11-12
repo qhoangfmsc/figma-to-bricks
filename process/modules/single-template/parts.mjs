@@ -5,6 +5,7 @@ import { findNode, firstText } from '../write-bricks/components/helpers.mjs';
 import { GROUPS, itemHeading, keyOf, figmaLink } from '../missing-content/index.mjs';
 import { MISSING } from '../missing-content/choices.mjs';
 import { unclaimedRepeats } from '../recognize-parts/structure.mjs';
+import { isSignal, SIGNAL_RULES } from '../recognize-parts/kinds.mjs';
 
 const HINT = {
   link: 'Viết địa chỉ, ví dụ vietnix.vn/bang-gia. Chưa có thì ghi chưa có.',
@@ -71,6 +72,21 @@ function detailOf(tree, component) {
   return [labels.join(', '), button ? `nút ${button}` : ''].filter(Boolean).join(' · ');
 }
 
+function childFacts(tree, component) {
+  const kids = SIGNAL_RULES[component.component]?.childComponent ?? [];
+  return kids.map((child) => {
+    const id = component.params?.[child.param];
+    const label = child.label || child.id;
+    if (!id) return `${label}: không`;
+    const node = findNode(tree, id);
+    const name = clip(node?.name || '');
+    const count = child.id === 'tabs_bar' && Number.isInteger(component.params?.tabsActive)
+      ? ` — ${component.params.tabsActive} đang chọn, ${component.params.tabsIdle ?? 0} nghỉ`
+      : '';
+    return `${label}: \`${id}\`${name ? ` ${name}` : ''}${count} — nghi ngờ`;
+  });
+}
+
 const CANNED = new Set(['chưa có địa chỉ', 'chưa có địa chỉ video', 'chưa có câu trả lời', 'chưa có nội dung', 'tự chuyển mỗi 3 giây', 'ảnh chỉ để trang trí', 'giữ nguyên khối', 'làm các mục giống nhau']);
 
 function shownValue(value, fallback) {
@@ -98,7 +114,7 @@ function fieldOf(q, fileKey) {
 // approved components, deepest owner wins a question, plus a fallback field when the rules asked nothing.
 // A component with nothing to type is still listed: step 2 is where the owner sees what was recognized.
 export function screenParts(tree, components, questions, fileKey) {
-  const approved = (components ?? []).filter((c) => c.status === 'approved');
+  const approved = (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination');
   const readmoreButtons = new Set(approved.filter((c) => c.component === 'readmore').map((c) => c.params?.button).filter(Boolean));
   const ranked = [...approved].sort((a, b) => depthOf(tree, b.node) - depthOf(tree, a.node));
   const buckets = new Map(approved.map((c) => [c.node + ':' + c.component, []]));
@@ -121,8 +137,9 @@ export function screenParts(tree, components, questions, fileKey) {
     }
     const note = c.component === 'tabs' || c.component === 'tab-switch' ? TAB_NOTE : c.component === 'carousel' ? SLIDER_NOTE : '';
     const detail = detailOf(tree, c);
+    const children = childFacts(tree, c);
     const ids = walkIds(findNode(tree, c.node) ?? { id: c.node });
-    return { kind, name, node: c.node, figma: figmaLink(fileKey, c.node), ids, ...(detail && { detail }), ...(note && { note }), fields };
+    return { kind, name, node: c.node, figma: figmaLink(fileKey, c.node), ids, ...(detail && { detail }), ...(note && { note }), ...(children.length && { children }), fields };
   });
   for (const q of loose) {
     const name = clip(q.label);
@@ -136,8 +153,8 @@ export function planInventory(tree, components, fileKey = '') {
   const link = (node) => (fileKey ? figmaLink(fileKey, node) : '');
   const line = (c) => ({ node: c.node, label: `${KIND[c.component] || c.component} "${partName(tree, c)}"`, value: '' });
   return {
-    found: (components ?? []).filter((c) => c.status === 'approved').map(line),
-    open: (components ?? []).filter((c) => c.status === 'proposed').map((c) => ({
+    found: (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component)).map(line),
+    open: (components ?? []).filter((c) => c.status === 'proposed' && !isSignal(c.component) && c.component !== 'pagination').map((c) => ({
       ...line(c),
       evidence: String(c.evidence ?? '').replace(/\s+/g, ' ').trim(),
       figma: link(c.node),

@@ -1772,8 +1772,15 @@ test('detect tabs: a horizontal tab bar of >= 2 titles above a content frame; a 
   const bar = nn('bar', 'Tab List', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [tab(1, true), tab(2, false)] });
   const [t] = detectTabs(make(bar));
   assert.deepEqual([t.component, t.node, t.level], ['tabs', 'wrap', 'E1']);
+  assert.equal(t.params.tabs_bar, 'bar');
+  assert.equal(t.params.tabs_data, 'content');
+  assert.equal(t.params.tabsActive, 1);
+  assert.equal(t.params.tabsIdle, 1);
   const plain = nn('bar2', 'Bar', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 48, absX: 0, absY: 0 }, children: [nn('a', 'Item', 'FRAME', { children: [nt('ta', 'A')] }), nn('b', 'Item', 'FRAME', { children: [nt('tb', 'B')] })] });
-  assert.equal(detectTabs(make(plain))[0]?.confidence, 'low');
+  const shape = detectTabs(make(plain))[0];
+  assert.equal(shape?.confidence, 'low');
+  assert.equal(shape.params.tabsActive, 0);
+  assert.equal(shape.params.tabsIdle, 2);
 });
 
 test('detect menu: a row of links named like a menu is a menu and not a carousel, also when the frame cuts it off; a row of cards is still a carousel candidate', () => {

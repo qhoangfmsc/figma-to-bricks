@@ -39,7 +39,8 @@ test('the same kind is kept, a different kind is drop, and a picture-only group 
   assert.equal(report.ready, true);
   assert.equal(report.rows[0].verdict, 'agree');
   assert.equal(report.rows[1].verdict, 'differ');
-  assert.equal(report.rows[2].verdict, 'agree');
+  assert.equal(report.rows[2].verdict, 'doubt');
+  assert.equal(report.rows[2].review, 'doubt');
   assert.equal(report.extras.length, 1);
   const model = {
     title: 'T', name: 'S', width: 100,
@@ -53,14 +54,51 @@ test('the same kind is kept, a different kind is drop, and a picture-only group 
   const md = renderTemplatePlan(model);
   assert.match(md, /## Chứng cứ\n!\[[^\]]*\]\(look\.png\)\nẢnh, nhận dạng từ ảnh/);
   assert.match(md, /Kết luận: dựng tab-switch/);
+  assert.match(md, /Review: tin được/);
   assert.match(md, /Tín hiệu: 5 tabs \(1:2\.layout\.mode\)/);
   assert.match(md, /Kết luận: không dựng menu/);
+  assert.match(md, /Review: lệch/);
   assert.match(md, /guess:1:9`: drop/);
-  assert.match(md, /guess:1:8`: attach/);
+  assert.doesNotMatch(md, /guess:1:8`: attach/);
+  assert.match(md, /Review: nghi ngờ/);
   assert.match(md, /Ảnh thấy form/);
   assert.match(md, /Tín hiệu: không có/);
   const kept = renderTemplatePlan(model, { 'part:1:1': 'đừng dựng nút này' });
   assert.match(kept, /đừng dựng nút này/);
+});
+
+test('a picture that names a part of the component agrees with that component', () => {
+  const signals = signalRows([tab, { node: '1:4', component: 'thumb_scroll', status: 'proposed', evidence: 'the thumb', cite: [] }]);
+  assert.equal(signals.some((row) => row.kind === 'thumb_scroll'), false);
+  const ai = normalizeAi([{ node: '1:1', kind: 'tabs_bar', see: 'một hàng, một tab đang chọn, các tab còn lại nghỉ' }]);
+  const report = lookReport({ shot: 'look.png', signals, ai });
+  assert.equal(report.rows[0].verdict, 'agree');
+  assert.equal(report.rows[0].review, 'trust');
+  assert.equal(report.ready, true);
+});
+
+test('a detected child stays a doubt until the picture and the structure both name it', () => {
+  const slider = {
+    node: 's', component: 'carousel', status: 'approved', evidence: 'two rows and a dash row',
+    cite: [{ node: 'dots', field: 'svg' }],
+    params: { pagination: 'dots', prev: 'pv' },
+  };
+  const signals = signalRows([slider]);
+  assert.equal(signals[0].children[0].node, 'dots');
+  const ai = normalizeAi([{ node: 's', kind: 'carousel', see: 'hàng card và hàng gạch' }]);
+  const report = lookReport({ shot: 'look.png', signals, ai });
+  assert.equal(report.rows[0].review, 'trust');
+  assert.equal(report.rows[0].children[0].review, 'doubt');
+  assert.equal(report.rows[0].children[0].structure, true);
+  assert.equal(report.rows[0].children[1].structure, false);
+  const md = renderTemplatePlan({
+    title: 'T', name: 'S', width: 100,
+    parts: [{ kind: 'Slider', name: 'Reviews', node: 's', fields: [] }],
+    look: report,
+  });
+  assert.match(md, /## Component Detected/);
+  assert.match(md, /Pagination: `dots` — nghi ngờ\. cấu trúc có node này\. ảnh chưa gọi tên\./);
+  assert.match(md, /Nút trước: `pv` — nghi ngờ\. cấu trúc chưa trích node này/);
 });
 
 test('an unknown kind is refused', () => {

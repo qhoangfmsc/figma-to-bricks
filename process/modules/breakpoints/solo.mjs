@@ -382,7 +382,8 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       continue;
     }
     // A card inside a scroll list keeps the width it drew. max-width 100% would squash it into the window.
-    if (insideScroll(e)) continue;
+    // The scrollport itself fills its parent. A px cap would leave Mobile L short of the column that S and M fill.
+    if (insideScroll(e) || (s._attributes ?? []).some((a) => a?.name === 'data-f2b-scroll')) continue;
     const width = pxNum(s._width);
     // A content picture keeps both axes of its Figma box. Width 100% under the frame, with the
     // old height left in place, stretches the crop. The query starts only once the window is
@@ -818,6 +819,7 @@ export function fitAnvRemainder(template, { keep = [] } = {}) {
     for (const el of content) {
       if (el.settings?._position === 'absolute' || /\btab-title\b/.test(classesOfEl(el)) || inTabBar(el)) continue;
       const settings = el.settings ??= {};
+      if ((settings._attributes ?? []).some((a) => a?.name === 'data-f2b-scroll')) continue;
       const desktop = pxNum(settings._width);
       // Our step already switched this screen to 100%. The cap stops that 100% from growing past the px Figma drew.
       if (settings[`_width:${screen.key}`] === '100%' && desktop != null && desktop > screen.width && settings[`_widthMax:${screen.key}`] == null && settings._widthMax !== '100%') {
@@ -829,6 +831,7 @@ export function fitAnvRemainder(template, { keep = [] } = {}) {
       if (!el || el.settings?._position === 'absolute') continue;
       if (/\btab-title\b/.test(classesOfEl(el)) || inTabBar(el)) continue;
       const settings = el.settings ??= {};
+      if ((settings._attributes ?? []).some((a) => a?.name === 'data-f2b-scroll')) continue;
       const raw = settings[`_width:${screen.key}`] ?? settings._width;
       const width = pxNum(raw);
       if (width == null || width <= screen.width) continue;
