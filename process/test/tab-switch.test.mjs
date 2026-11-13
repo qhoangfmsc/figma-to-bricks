@@ -117,6 +117,35 @@ test('a later drawn title is the open tab', () => {
   assert.equal(el('p1').settings._hidden._cssClasses, 'tab-pane');
 });
 
+test('a tab row inside the panel under another tab row is a nested tab', () => {
+  const title = (id, label, on) => frame(id, 'Tab', [0, 0, 80, 32], [text(`${id}t`, label, [0, 0, 0])], on ? { fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] } : {});
+  const card = (id, label) => frame(id, 'Card', [0, 0, 120, 80], [
+    text(`${id}a`, label, [0, 0, 0]),
+    text(`${id}b`, 'Detail', [0, 0, 0]),
+  ], { layoutMode: 'VERTICAL' });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('outer', 'Plans', [0, 0, 600, 440], [
+    frame('heading', 'Heading', [0, 0, 200, 28], [text('h', 'Choose', [0, 0, 0])]),
+    frame('products', 'Tab List', [0, 40, 200, 40], [title('alpha', 'Alpha', true), title('beta', 'Beta', false)], { layoutMode: 'HORIZONTAL' }),
+    frame('body', 'Body', [0, 90, 600, 300], [
+      frame('slot', 'Slot', [0, 0, 280, 36], [
+        frame('when', 'Tab List', [0, 0, 280, 36], [title('now', 'Now', true), title('soon', 'Soon', false), title('later', 'Later', false)], { layoutMode: 'HORIZONTAL' }),
+      ], { layoutMode: 'VERTICAL' }),
+      frame('grid', 'Grid', [0, 48, 600, 200], [card('c1', 'One'), card('c2', 'Two'), card('c3', 'Three'), card('c4', 'Four')], { layoutMode: 'HORIZONTAL' }),
+    ], { layoutMode: 'VERTICAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const found = detectTabSwitches(tree);
+  const hosts = found.map((item) => item.node).sort();
+  assert.deepEqual(hosts, ['body', 'outer']);
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: found.map((item, i) => ({ id: `d${i}`, status: 'approved', ...item })) }, salt: 'nest' });
+  const el = (id) => built.template.content.find((entry) => entry.id === built.mapping[id].bricksId);
+  assert.equal(el('outer').name, 'tabs-nested');
+  assert.equal(el('body').name, 'tabs-nested');
+  assert.equal(el('c1').settings._hidden, undefined);
+  assert.equal(el('c2').settings._hidden, undefined);
+  assert.equal(el('c3').settings._hidden, undefined);
+  assert.equal(el('c4').settings._hidden, undefined);
+});
+
 test('a row of named tabs with an empty frame under it is listed, including a link field', () => {
   const tree = osDesktop();
   const found = detectTabSwitches(tree);

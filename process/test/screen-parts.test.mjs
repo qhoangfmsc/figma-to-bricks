@@ -90,8 +90,16 @@ test('the collapse button drawn in the full frame is the open state of Xem thêm
   assert.deepEqual(readmore.mergedNodes({}, frame), ['up']);
   const out = readmore.descendants(frame, { params: { button: 'btn' } }, { root });
   assert.match(out.btn.settings.text, /rm-closed">Xem thêm/);
-  assert.match(out.btn.settings.text, /rm-open">Thu gọn/);
+  assert.match(out.btn.settings.text, /rm-open">Rút gọn/);
+  assert.equal(out.btn.settings._background.color.raw, 'transparent');
+  assert.match(out.btn.css[0].decl, /background-color: transparent/);
   assert.match(out.full.css.map((c) => c.suffix).join('\n'), /read-more-open ~ \.read-more-toggle svg/);
+  const plain = { id: 'more', name: 'More', clip: true, children: [{ id: 'copy', type: 'TEXT', text: { characters: 'Body' } }] };
+  const see = { id: 'go', name: 'Button', type: 'INSTANCE', children: [label('gt', 'See more')] };
+  const bare = readmore.descendants(plain, { params: { button: 'go' } }, { root: { id: 'page', name: 'Page', children: [plain, see] } });
+  assert.match(bare.go.settings.text, /rm-closed">See more/);
+  assert.match(bare.go.settings.text, /rm-open">Rút gọn/);
+  assert.equal(bare.go.settings._background.color.raw, 'transparent');
   const s = {};
   button.apply({ node: { ...closed, fills: undefined, layout: { gap: 8, primaryAlign: 'CENTER' } }, s, css: {}, warn() {} }, { params: { link: '#' } });
   assert.equal(s._background.color.raw, 'transparent');

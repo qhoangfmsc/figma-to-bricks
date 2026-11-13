@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
+import { fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 
 const manifest = { images: { r: { file: 'images/r.png', bytes: 1, sha256: 'x', width: 800, height: 400, ext: 'png' }, g: { file: 'images/g.png', bytes: 1, sha256: 'y', width: 658, height: 656, ext: 'png' } }, svgs: {} };
 
@@ -126,6 +127,50 @@ const text = (id, box) => ({
   absoluteBoundingBox: { x: box.x, y: box.y, width: box.w, height: box.h },
   style: { fontFamily: 'Inter', fontSize: 32, fontWeight: 700, lineHeightPx: 40, textAlignHorizontal: 'LEFT' },
   fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }],
+});
+
+test('a picture that hangs out of an unclipped frame keeps that frame height', () => {
+  const shot = image('shot', { x: 16, y: -12, width: 440, height: 230 }, 'g');
+  shot.layoutPositioning = 'ABSOLUTE';
+  const tree = normalizeRoot({ nodes: { r: { document: {
+    id: 'r', name: 'Band', type: 'FRAME',
+    absoluteBoundingBox: { x: 0, y: 0, width: 960, height: 240 },
+    layoutMode: 'VERTICAL',
+    children: [{
+      id: 'row', name: 'Row', type: 'FRAME',
+      absoluteBoundingBox: { x: 40, y: 20, width: 880, height: 200 },
+      layoutMode: 'HORIZONTAL', layoutSizingVertical: 'HUG', itemSpacing: 16,
+      children: [{
+        id: 'photo', name: 'Photo', type: 'FRAME',
+        absoluteBoundingBox: { x: 40, y: 20, width: 480, height: 200 },
+        layoutSizingHorizontal: 'FIXED', layoutSizingVertical: 'FILL',
+        children: [shot],
+      }, {
+        id: 'copy', name: 'Copy', type: 'FRAME',
+        absoluteBoundingBox: { x: 536, y: 20, width: 344, height: 200 },
+        layoutMode: 'VERTICAL', layoutSizingHorizontal: 'FILL', layoutSizingVertical: 'HUG',
+        children: [text('line', { x: 536, y: 40, w: 300, h: 40 })],
+      }],
+    }],
+  } } } }, 'r', manifest);
+  const built = buildTemplate(tree, { overrides: {}, salt: 'hang' });
+  const photo = built.template.content.find((e) => e.id === built.mapping.photo.bricksId).settings;
+  const layer = built.template.content.find((e) => e.id === built.mapping.shot.bricksId).settings;
+  assert.equal(photo._alignSelf, undefined);
+  assert.equal(photo._width, '480px');
+  assert.equal(photo._height, '200px');
+  assert.equal(photo._aspectRatio, '480 / 200');
+  assert.equal(layer._position, 'absolute');
+  assert.equal(layer._width.endsWith('%'), true);
+  assert.equal(layer._height.endsWith('%'), true);
+  const fitted = fitSoloTemplate(built.template);
+  const narrow = fitted.content.find((e) => e.id === built.mapping.photo.bricksId).settings;
+  assert.equal(narrow['_width:mobile_portrait'], '100%');
+  assert.equal(narrow['_height:mobile_portrait'], 'auto');
+  assert.equal(narrow['_aspectRatio:mobile_portrait'], '480 / 200');
+  assert.equal(narrow._flexGrow, 0);
+  const img = fitted.content.find((e) => e.parent === built.mapping.shot.bricksId && e.name === 'image');
+  assert.equal(img.settings._objectFit, 'cover');
 });
 
 test('a gradient as wide as the screen is a background, and a centered text column stays its Figma width', () => {

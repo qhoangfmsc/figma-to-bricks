@@ -2,7 +2,7 @@
 
 Mỗi component một file trong [widget-components/](widget-components/). Tên file là id. Mục lục là [INDEX.md](INDEX.md).
 
-Hình trên cây quyết định. Tên lớp chỉ tăng độ chắc. Số lấy từ Figma.
+Nhận dạng phân loại theo hình, không theo chữ của trang đang mở. Một hàng ngang là menu khi các mục là nhãn ngang hàng. Một mục là số (kèm tối đa ba chữ cái đơn vị) và mục kia là nhãn thì đó là dòng số liệu, không phải menu. Tiêu đề kèm một nhãn tô nhỏ hơn thì không phải menu. Tab có vùng nội dung phía dưới vẫn là tab. Hàng nhãn gạch chân mà không có vùng đó vẫn là menu.
 
 Plan chỉ kết luận khi đủ ba thứ: ảnh render của section (`look.png`), nhận dạng từ ảnh đó, và tín hiệu trong cây. Cùng một loại thì dựng. Khác loại, hoặc chỉ có một phía, thì giữ block. Plan chưa có nhận dạng từ ảnh thì chưa phải bản để xác nhận.
 

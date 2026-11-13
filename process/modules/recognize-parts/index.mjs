@@ -16,6 +16,7 @@ import { detectAccordions } from '../recognize-parts/rules/accordion.mjs';
 import { detectTabs } from '../recognize-parts/rules/tabs.mjs';
 import { detectTabSwitches } from '../recognize-parts/rules/tab-switch.mjs';
 import { detectMenus } from '../recognize-parts/rules/menu.mjs';
+import { detectBreadcrumbs } from '../recognize-parts/rules/breadcrumbs.mjs';
 import { detectReadMore } from '../recognize-parts/rules/readmore.mjs';
 import { detectChoices } from '../recognize-parts/rules/choice.mjs';
 import { detectDividers } from '../recognize-parts/rules/divider.mjs';
@@ -40,7 +41,7 @@ export function nodePath(tree, id, trail = []) {
 }
 
 export function runRules(tree) {
-  const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree), ...detectScrollLists(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
+  const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectBreadcrumbs(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree), ...detectScrollLists(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
   const claimed = new Set();
   for (const c of components) {
     if (c.component !== 'search') continue;

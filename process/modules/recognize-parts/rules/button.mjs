@@ -20,8 +20,12 @@ export function detectButtons(tree) {
     const named = NAMED.test(n.name ?? '') || NAMED.test(n.componentSet ?? n.component ?? '');
     const pad = n.layout?.padding ?? {};
     const drawn = (n.fills ?? []).some((f) => f.visible !== false) || (n.strokes ?? []).length > 0 || n.radius || [pad.top, pad.right, pad.bottom, pad.left].filter(Boolean).length >= 2;
-    // a text line in a bare frame is a label; a control has a fill, a stroke, a radius, or padding
-    if (shape && (named || (drawn && h >= 32 && h <= 56))) {
+    const control = h >= 32 && h <= (named ? 72 : 56);
+    if (shape && control && (named || drawn)) {
+      if (layoutOnlyReason(n, tree) === 'domain' && !named) {
+        kids.forEach(walk);
+        return;
+      }
       const designed = n.type === 'INSTANCE' && NAMED.test(n.componentSet ?? n.component ?? '');
       const confidence = designed ? 'high' : named ? 'medium' : 'low';
       found.push({

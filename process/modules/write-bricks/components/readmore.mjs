@@ -43,7 +43,7 @@ export default {
   label: 'Read more (Xem thêm)',
   figma: 'a clipped frame whose content is longer than its height, with a button "Xem thêm" / "Read more" after it (variant Expand=No)',
   bricks: 'the frame gets a class, the button a click interaction that toggles it (`toggleAttribute` on `class`); one css rule gives the open frame `height: auto`',
-  limits: 'the open label and the turned caret come from the collapse button drawn in the full frame (Thu gọn). That button is not built again. Typed text is added under the clipped copy and shown only while open.',
+  limits: 'The open label is always "Rút gọn" and the caret turns up, whether or not the full frame draws that button. A drawn collapse button is not built again. The toggle has no fill. Typed text is added under the clipped copy and shown only while open.',
 
   mergedNodes(det, node) {
     const open = collapseButton(node);
@@ -89,26 +89,37 @@ export default {
         { decl: `display: ${openDisplay} !important;`, suffix: `.${OPEN} > .read-more-full` },
       );
     }
-    const openBtn = collapseButton(node);
     out[node.id] = { css, ...(extraChildren.length && { extraChildren }) };
     if (fade) out[fade.id] = { settings: { _cssClasses: 'read-more-fade' } };
     const mode = det.params?.buttonMode || 'toggle';
     if (mode === 'none') out[det.params.button] = { settings: { tag: 'span' }, dropSettings: ['link', '_interactions'] };
     else if (mode === 'toggle') {
-      const settings = { tag: 'button', _interactions: [{ id: rowId(cls, 'rm'), trigger: 'click', action: 'toggleAttribute', target: 'custom', targetSelector: `.${cls}`, actionAttributeKey: 'class', actionAttributeValue: OPEN }] };
-      const openLabel = openBtn && firstText(openBtn)?.text?.characters?.trim();
-      if (openLabel) {
-        const closedLabel = firstText(findNode(root, det.params.button))?.text?.characters?.trim() ?? '';
-        settings.text = `<span class="rm-closed">${esc(closedLabel)}</span><span class="rm-open">${esc(openLabel)}</span>`;
-        settings._cssClasses = 'read-more-toggle';
-        css.push(
-          { decl: 'display: none;', suffix: ' ~ .read-more-toggle .rm-open' },
-          { decl: 'display: none !important;', suffix: `.${OPEN} ~ .read-more-toggle .rm-closed` },
-          { decl: 'display: inline !important;', suffix: `.${OPEN} ~ .read-more-toggle .rm-open` },
-          { decl: 'transform: rotate(180deg);', suffix: `.${OPEN} ~ .read-more-toggle svg` },
-        );
-      }
-      out[det.params.button] = { settings, dropSettings: ['link'] };
+      const buttonNode = findNode(root, det.params.button);
+      const labelNode = buttonNode ? firstText(buttonNode) : null;
+      const closedLabel = labelNode?.text?.characters?.trim() ?? '';
+      const underlined = labelNode?.text?.decoration === 'UNDERLINE' || labelNode?.text?.runs?.some((run) => run.style?.textDecoration === 'UNDERLINE');
+      const word = (cls, words) => underlined
+        ? `<span class="${cls}" style="text-decoration:underline">${esc(words)}</span>`
+        : `<span class="${cls}">${esc(words)}</span>`;
+      const labelHtml = `${word('rm-closed', closedLabel)}${word('rm-open', 'Rút gọn')}`;
+      if (labelNode && labelNode.id !== det.params.button) out[labelNode.id] = { settings: { text: labelHtml } };
+      css.push(
+        { decl: 'display: none;', suffix: ' ~ .read-more-toggle .rm-open' },
+        { decl: 'display: none !important;', suffix: `.${OPEN} ~ .read-more-toggle .rm-closed` },
+        { decl: 'display: inline !important;', suffix: `.${OPEN} ~ .read-more-toggle .rm-open` },
+        { decl: 'transform: rotate(180deg);', suffix: `.${OPEN} ~ .read-more-toggle svg` },
+      );
+      out[det.params.button] = {
+        settings: {
+          tag: 'button',
+          text: labelHtml,
+          _cssClasses: 'read-more-toggle',
+          _background: { color: { raw: 'transparent' } },
+          _interactions: [{ id: rowId(cls, 'rm'), trigger: 'click', action: 'toggleAttribute', target: 'custom', targetSelector: `.${cls}`, actionAttributeKey: 'class', actionAttributeValue: OPEN }],
+        },
+        dropSettings: ['link'],
+        css: [{ decl: 'background-color: transparent;' }],
+      };
     }
     return out;
   },

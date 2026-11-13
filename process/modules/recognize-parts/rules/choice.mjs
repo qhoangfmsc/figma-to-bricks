@@ -66,13 +66,20 @@ function classify(n) {
   const direct = kids(n);
   const track = direct.find((c) => isTrack(c) && !isIconMark(c));
   const knob = track ? knobOf(track) : null;
-  const square = direct.find((c) => isSquare(c) && !isIconMark(c));
+  const square = direct.find((c) => isSquare(c) && !isIconMark(c) && !c.svg);
   const circle = square && isCircle(square) ? square : null;
   const mark = knob ? track : square;
   if (!mark) return null;
   const labelNode = direct.filter((c) => c !== mark).map(labelOf).find(Boolean);
   const extras = direct.filter((c) => c !== mark && labelOf(c) !== labelNode);
-  if (!labelNode || extras.length) return null;
+  const labelHolder = direct.find((c) => c !== mark && labelOf(c) === labelNode);
+  const onMark = labelHolder?.box && mark?.box
+    && labelHolder.box.w <= mark.box.w + 4 && labelHolder.box.h <= mark.box.h + 4
+    && labelHolder.box.x + labelHolder.box.w / 2 >= mark.box.x
+    && labelHolder.box.x + labelHolder.box.w / 2 <= mark.box.x + mark.box.w
+    && labelHolder.box.y + labelHolder.box.h / 2 >= mark.box.y
+    && labelHolder.box.y + labelHolder.box.h / 2 <= mark.box.y + mark.box.h;
+  if (!labelNode || extras.length || onMark) return null;
   if (knob) {
     const named = SWITCH_NAME.test(n.name ?? '') || SWITCH_NAME.test(n.component ?? '') || SWITCH_NAME.test(track.name ?? '');
     return {

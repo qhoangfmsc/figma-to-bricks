@@ -58,23 +58,27 @@ function searchOf(n) {
   const icon = direct.find((c) => c !== text && (iconOf(c) || kids(c).some(iconOf)));
   if (!text || !icon) return null;
   if (direct.some((c) => c !== text && c !== icon && !kids(c).includes(icon) && labelOf(c) !== text)) return null;
+  const words = `${n.name ?? ''} ${n.component ?? ''} ${n.componentSet ?? ''} ${text.text?.characters ?? ''}`;
+  if (isButtonLike(n) && !SEARCH_NAME.test(words)) return null;
   const named = SEARCH_NAME.test(n.name ?? '') || SEARCH_NAME.test(n.component ?? '');
   return { text, icon, named, w, h };
 }
 
 function imageCovers(n, frame) {
   const fill = (n.fills ?? []).some((f) => f.visible !== false && f.type === 'IMAGE');
-  if (!fill) return false;
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
-  return w >= (frame.box?.w ?? 0) * 0.6 && h >= (frame.box?.h ?? 0) * 0.6;
+  const covers = w >= (frame.box?.w ?? 0) * 0.6 && h >= (frame.box?.h ?? 0) * 0.6;
+  if (!covers) return false;
+  if (fill) return true;
+  return (n.children ?? []).some((c) => c.visible !== false && imageCovers(c, n));
 }
 
 function playMark(n, frame) {
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
   if (w < 28 || w > 96 || Math.abs(w - h) > 6) return false;
-  if (radiusMin(n) < h / 2 - 1 && !n.svg) return false;
+  if (radiusMin(n) < h / 2 - 1 && !n.svg && n.type !== 'VECTOR') return false;
   const cx = (n.box?.x ?? 0) + w / 2;
   const cy = (n.box?.y ?? 0) + h / 2;
   const fw = frame.box?.w ?? 0;

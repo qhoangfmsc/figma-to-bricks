@@ -216,6 +216,59 @@ test('one svg of a longer dash and any number of shorter faded dashes is the sli
   assert.equal(detectCarousels({ ...frame, children: [band('r1', 0, ['a', 'b']), band('r2', 200, ['c', 'd']), plain] }).find((c) => c.component === 'carousel'), undefined);
 });
 
+test('rows of the same card that sit inside the frame are one page of the slider', () => {
+  const sizing = { h: 'FIXED', v: 'FIXED' };
+  const pad = { top: 0, right: 0, bottom: 0, left: 0 };
+  const note = (id, x, extra = false) => ({
+    id, name: 'Note', type: 'FRAME', sizing,
+    box: { x, y: 0, w: 160, h: 100, absX: x, absY: 0 },
+    children: [
+      { id: id + 't', type: 'TEXT', sizing, text: { characters: 'Hello' }, box: { x: 8, y: 8, w: 120, h: 40, absX: x + 8, absY: 8 }, children: [] },
+      ...(extra ? [{ id: id + 'bar', type: 'RECTANGLE', sizing, box: { x: 150, y: 0, w: 2, h: 80, absX: x + 150, absY: 0 }, children: [] }] : []),
+    ],
+  });
+  const band = (id, y, ids, extra) => ({
+    id, name: 'Band', type: 'FRAME', sizing,
+    layout: { mode: 'HORIZONTAL', wrap: false, gap: 12, padding: pad },
+    box: { x: 0, y, w: 340, h: 100, absX: 0, absY: y },
+    children: ids.map((n, i) => note(n, i * 172, extra && i === 0)),
+  });
+  const stroke = (x, len, opacity = 0.4) => `<path opacity="${opacity}" d="M${x} 2H${x + len}" stroke-width="4" stroke-linecap="round" stroke="#2255AA"/>`;
+  const marks = `<svg width="80" height="4" viewBox="0 0 80 4" fill="none" xmlns="http://www.w3.org/2000/svg">${[stroke(2, 12), stroke(22, 20, 1), stroke(50, 12)].join('')}</svg>`;
+  const dots = { id: 'marks', name: 'Frame', type: 'FRAME', sizing, box: { x: 120, y: 220, w: 80, h: 4, absX: 120, absY: 220 }, children: [], svgText: marks };
+  const frame = {
+    id: 'stack', name: 'Quotes', type: 'FRAME', sizing,
+    layout: { mode: 'VERTICAL', wrap: false, gap: 16, padding: pad },
+    box: { x: 0, y: 0, w: 340, h: 240, absX: 0, absY: 0 },
+    children: [band('b1', 0, ['n1', 'n2'], true), band('b2', 116, ['n3', 'n4'], false), dots],
+  };
+  const hit = detectCarousels(frame).find((c) => c.node === 'stack');
+  assert.equal(hit.component, 'carousel');
+  assert.equal(hit.params.page, true);
+  assert.equal(hit.params.allowSingle, true);
+  assert.equal(hit.params.itemCount, 3);
+  assert.match(hit.evidence, /one page of 4 "Note"/);
+  const built = buildTemplate(frame, { detections: { components: [{ id: 'd1', status: 'approved', ...hit }] }, salt: 'quotes' });
+  const slider = built.template.content.find((e) => e.name === 'slider-nested');
+  assert.equal(slider.settings.type, 'slide');
+  assert.equal(slider.settings.perPage, 1);
+  const page = built.template.content.find((e) => e.parent === slider.id);
+  assert.equal(page.label, 'page');
+  assert.equal(built.template.content.filter((e) => e.parent === page.id).length, 2);
+  const hanging = { ...frame, id: 'hang', box: { ...frame.box, h: 180 }, children: [band('h1', 0, ['q1', 'q2']), band('h2', 116, ['q3', 'q4']), dots] };
+  assert.equal(detectCarousels(hanging).find((c) => c.node === 'hang')?.params.page, undefined);
+  const basic = {
+    ...frame, id: 'basic', box: { ...frame.box, h: 120 },
+    children: [band('one', 0, ['s1', 's2']), { ...dots, id: 'basic-marks', box: { ...dots.box, y: 108, absY: 108 } }],
+  };
+  const one = detectCarousels(basic).find((c) => c.node === 'basic');
+  assert.equal(one.component, 'carousel');
+  assert.equal(one.params.page, undefined);
+  const basicBuilt = buildTemplate(basic, { detections: { components: [{ id: 'd1', status: 'approved', ...one }] }, salt: 'basic' });
+  const basicSlider = basicBuilt.template.content.find((e) => e.name === 'slider-nested');
+  assert.equal(basicBuilt.template.content.find((e) => e.parent === basicSlider.id).label, 'Band');
+});
+
 test('a desktop slider stays a slider on mobile unless a mobile frame draws something else', () => {
   const tree = { id: 'row', name: 'Slider', children: [] };
   const questions = [{ group: 'mobileform', node: 'row', label: 'Slider "Slider"', value: 'mobile vẫn là slider' }];
@@ -281,6 +334,37 @@ test('a clipped row of the same card is a carousel, and the fade shapes are not 
   assert.equal(found.find((c) => c.node === 'lower').params.prev, undefined);
 });
 
+test('two cards cut by the parent clip are a carousel, and the arrows under them belong to it', () => {
+  const slide = (id, x) => ({
+    id, name: 'Container', type: 'FRAME',
+    box: { x, y: 0, w: 350, h: 457, absX: x, absY: 0 },
+    children: [{ id: `${id}b`, type: 'FRAME', children: [{ id: `${id}t`, type: 'TEXT', text: { characters: 'Card' } }] }],
+  });
+  const row = {
+    id: 'row', name: 'Frame', type: 'FRAME', layout: { mode: 'HORIZONTAL', wrap: false },
+    box: { x: 0, y: 0, w: 558, h: 457, absX: 0, absY: 0 },
+    children: [slide('a', 0), slide('b', 374)],
+  };
+  const button = (id, x, side) => ({
+    id, name: 'Button V2', type: 'INSTANCE', componentSet: 'Button V2', arrow: side,
+    box: { x, y: 0, w: 48, h: 48, absX: x, absY: 0 }, children: [],
+  });
+  const arrows = {
+    id: 'arrows', name: 'Indicator', type: 'FRAME', layout: { mode: 'HORIZONTAL', wrap: false },
+    box: { x: 430, y: 457, w: 128, h: 72, absX: 430, absY: 457 },
+    children: [button('prev', 0, 'prev'), button('next', 80, 'next')],
+  };
+  const tree = {
+    id: 'col', name: 'Container', type: 'FRAME', clip: true, layout: { mode: 'VERTICAL', wrap: false },
+    box: { x: 0, y: 0, w: 558, h: 529, absX: 0, absY: 0 },
+    children: [row, arrows],
+  };
+  const hit = detectCarousels(tree).find((c) => c.node === 'row');
+  assert.equal(hit?.params.prev, 'prev');
+  assert.equal(hit?.params.next, 'next');
+  assert.equal(checkCites(hit.cite, tree).join(';'), '');
+});
+
 test('a Figma frame of items replaces the drawn slides and keeps the arrow', () => {
   const tree = { id: 'root', children: [{ id: 'row', children: [{ id: 'a', name: 'Card', type: 'FRAME', children: [] }, { id: 'prev', name: 'Left', type: 'FRAME', children: [] }] }] };
   const source = { id: 'all', layout: { mode: 'HORIZONTAL' }, children: [{ id: 'n1', name: 'Card', type: 'FRAME', children: [{ id: 't1', type: 'TEXT' }] }, { id: 'n2', name: 'Card', type: 'FRAME', children: [] }, { id: 'dots', name: 'Pagination', type: 'FRAME', children: [] }] };
@@ -290,4 +374,12 @@ test('a Figma frame of items replaces the drawn slides and keeps the arrow', () 
   assert.equal(tree.children[0].children.length, 3);
   assert.equal(tree.children[0].children[0].children.length, 1);
   assert.notEqual(tree.children[0].children[0].id, 'n1');
+});
+
+test('a square illustration svg is not a pagination row', () => {
+  const dash = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#111111" d="M0 0H32V4H0Z"/><path fill="#111111" opacity="0.3" d="M40 0H52V4H40Z"/><path fill="#111111" opacity="0.3" d="M60 0H72V4H60Z"/></svg>';
+  const art = { id: 'art', name: 'Group', type: 'GROUP', box: { x: 0, y: 0, w: 74, h: 74 }, svgText: dash, children: [] };
+  const dots = { id: 'dots', name: 'Pagination', type: 'FRAME', box: { x: 0, y: 0, w: 120, h: 8 }, svgText: dash, children: [] };
+  assert.equal(detectCarousels(art).find((c) => c.component === 'pagination_carousel'), undefined);
+  assert.equal(detectCarousels(dots).find((c) => c.node === 'dots')?.component, 'pagination_carousel');
 });

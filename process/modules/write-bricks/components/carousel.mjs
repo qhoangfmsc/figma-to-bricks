@@ -14,7 +14,11 @@ import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/
 import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
 
 const controlIds = (det) => [det.params?.pagination, det.params?.prev, det.params?.next, ...(det.params?.controls ?? [])].filter(Boolean);
-const slidesOf = (node, det) => visibleKids(node).filter((c) => !controlIds(det).includes(c.id));
+const slidesOf = (node, det) => {
+  const kids = visibleKids(node).filter((c) => !controlIds(det).includes(c.id));
+  // The rows are the layout of one drawn page. Splide must see one slide, or it moves a row at a time.
+  return det.params?.page ? kids.slice(0, 1) : kids;
+};
 const perPageOf = (node, slides, det) => {
   if (det.params?.perPage) return Math.max(1, Number(det.params.perPage));
   if (det.params?.allowSingle) return 1;

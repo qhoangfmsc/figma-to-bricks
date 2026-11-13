@@ -38,7 +38,7 @@ function detectGallery(n) {
   const items = kids(n).filter(isPicture);
   if (items.length < 3 || items.length !== kids(n).filter((k) => k.type !== 'TEXT').length) return null;
   if (!similar(items, 'h') || !similar(items, 'w')) return null;
-  if (n.clip && items.some((item) => (item.box?.x ?? 0) + item.box.w > n.box.w + 1)) return null;
+  if (items.some((item) => (item.box?.x ?? 0) < -1 || (item.box?.x ?? 0) + item.box.w > (n.box?.w ?? 0) + 1)) return null;
   const images = items.map(imageFile).filter(Boolean);
   if (images.length !== items.length) return null;
   const rows = new Map();
@@ -64,10 +64,12 @@ function detectGallery(n) {
 function barOf(n) {
   const track = kids(n).find((c) => (c.box?.w ?? 0) >= 80 && (c.box?.h ?? 0) >= 4 && (c.box?.h ?? 0) <= 28);
   if (!track) return null;
+  const pictured = (node) => (node.fills ?? []).some((f) => f.type === 'IMAGE') || (node.children ?? []).some((c) => c.visible !== false && pictured(c));
+  if (pictured(track)) return null;
   // A title row with a badge is not a track. A track may show a percent, not a sentence.
   const words = textsOf(track).map((t) => t.text.characters.trim()).filter((t) => t && !/%$/.test(t));
-  if (words.some((t) => t.length > 3)) return null;
-  const fill = kids(track).find((c) => solid(c) && (c.box?.w ?? 0) > 0 && c.box.w < track.box.w - 1);
+  if (words.some((t) => !/^\d{1,3}$/.test(t))) return null;
+  const fill = kids(track).find((c) => solid(c) && (c.box?.w ?? 0) > (c.box?.h ?? 0) && c.box.w < track.box.w - 1);
   if (!fill) return null;
   const label = textsOf(n).find((t) => !kids(track).some((c) => c.id === t.id));
   const percentText = textsOf(n).map((t) => t.text.characters.trim()).find((t) => /%$/.test(t));

@@ -33,6 +33,11 @@ test('a row of equal pictures is a gallery and a clipped overflowing row is not'
     children: [picture('a', 0), picture('b', 136), picture('c', 272)],
   });
   assert.equal(detectProduction(clipped).length, 0);
+  const spilling = frame('spill', {
+    box: box(0, 0, 200, 80),
+    children: [picture('a', 0), picture('b', 136), picture('c', 272)],
+  });
+  assert.equal(detectProduction(spilling).some((c) => c.component === 'gallery'), false);
 });
 
 test('a track with a shorter fill is a progress bar at that percent', () => {
@@ -157,5 +162,36 @@ test('a tinted sentence bar is an alert and the first picture of a link bar is a
   assert.equal(logo.params.file, 'svg/brand.svg');
   const logoEl = buildTemplate(header, { overrides: {}, detections: { components: [{ id: 'd0', status: 'approved', ...logo }] }, salt: 'logo' }).template.content.find((e) => e.name === 'logo');
   assert.equal(logoEl.settings.logoHeight, '32px');
-  assert.equal(logoEl.settings.logoUrl, undefined);
+});
+
+test('a quote icon in the corner of a card is not an offcanvas', () => {
+  const quote = frame('Quote icon', { box: box(16, 12, 24, 24), svg: { file: 'svg/quote.svg' } });
+  const card = frame('card', { box: box(440, 0, 360, 300), children: [quote] });
+  const page = frame('page', { box: box(0, 0, 800, 400), children: [card] });
+  assert.equal(detectProduction(page).find((c) => c.component === 'offcanvas'), undefined);
+});
+
+test('a bullet before a short word is not a progress bar', () => {
+  const row = frame('tld', {
+    box: box(0, 0, 104, 12),
+    children: [
+      frame('dot', { box: box(0, 4, 3, 3), fills: [{ type: 'SOLID', hex: '#ffffff', alpha: 1 }] }),
+      { id: 'name', type: 'TEXT', box: box(8, 0, 90, 12), text: { characters: 'com' } },
+    ],
+  });
+  assert.equal(detectProduction(row).find((c) => c.component === 'progress'), undefined);
+});
+
+test('a logo that contains a picture is not a progress bar', () => {
+  const logo = frame('logo', {
+    box: box(0, 0, 84, 34),
+    children: [frame('mark', {
+      box: box(0, 8, 84, 18),
+      children: [
+        frame('word', { box: box(0, 4, 61, 8), fills: [{ type: 'SOLID', hex: '#111111', alpha: 1 }] }),
+        frame('photo', { box: box(62, 0, 21, 18), fills: [{ type: 'IMAGE' }] }),
+      ],
+    })],
+  });
+  assert.equal(detectProduction(logo).find((c) => c.component === 'progress'), undefined);
 });

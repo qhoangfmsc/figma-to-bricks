@@ -282,6 +282,28 @@ test('a circle beside a label is a radio and a thin line is a divider', () => {
   assert.match(form.settings._cssCustom, /input\[type="radio"\] \{ appearance: none; width: 18px; height: 18px; border-radius: 9px;/);
 });
 
+test('a badge sitting on an icon is not a radio', () => {
+  const bell = {
+    id: 'note', name: 'Notification Container', type: 'FRAME', box: { x: 0, y: 0, w: 32, h: 32 },
+    children: [
+      { id: 'bell', name: 'Button', type: 'INSTANCE', svg: { file: 'svg/bell.svg' }, box: { x: 0, y: 0, w: 32, h: 32 }, radius: [999, 999, 999, 999], children: [] },
+      { id: 'badge', name: 'badget', type: 'FRAME', box: { x: 20, y: -7, w: 18, h: 18 }, radius: [999, 999, 999, 999], children: [
+        { id: 'count', type: 'TEXT', box: { x: 4, y: 2, w: 10, h: 14 }, text: { characters: '8' } },
+      ] },
+    ],
+  };
+  const dot = {
+    id: 'count-only', name: 'Badge', type: 'FRAME', box: { x: 0, y: 0, w: 32, h: 32 },
+    children: [
+      { id: 'disk', type: 'FRAME', box: { x: 0, y: 0, w: 32, h: 32 }, radius: [999, 999, 999, 999], children: [] },
+      { id: 'badge', type: 'FRAME', box: { x: 18, y: -4, w: 18, h: 18 }, children: [
+        { id: 'count', type: 'TEXT', box: { x: 4, y: 2, w: 10, h: 14 }, text: { characters: '8' } },
+      ] },
+    ],
+  };
+  assert.equal(detectChoices({ id: 'root', children: [bell, dot] }).some((c) => c.component === 'radio'), false);
+});
+
 test('a wide field with an icon is a search, and a picture with a play mark waits for a video address', () => {
   const tree = normalizeRoot({ nodes: { r: { document: {
     id: 'r', name: 'root', type: 'FRAME', layoutMode: 'VERTICAL',
@@ -654,6 +676,7 @@ test('a domain lookup and a price table stay layout, with no search action and n
   });
   const found = runRules(domain).components;
   assert.equal(found.some((c) => c.component === 'search'), false);
+  assert.equal(found.some((c) => c.component === 'button' && c.node === 'field'), false);
   const button = found.find((c) => c.component === 'button' && c.node === 'go');
   assert.equal(button.params.role, 'layout');
   const built = buildTemplate(domain, { detections: { components: [{ ...button, id: 'd1', status: 'approved' }] } });
@@ -778,4 +801,37 @@ test('a button with a popup id opens that popup instead of linking to #', () => 
   assert.equal(el.settings._interactions[0].action, 'show');
   assert.equal(el.settings._interactions[0].target, 'popup');
   assert.equal(el.settings._interactions[0].templateId, '528');
+});
+
+test('a call-to-action button is not a search field', () => {
+  const tree = {
+    id: 'root', name: 'Section', type: 'FRAME', box: { x: 0, y: 0, w: 800, h: 200 }, children: [{
+      id: 'btn', name: 'Button', type: 'INSTANCE', componentSet: 'Button',
+      layout: { mode: 'HORIZONTAL' },
+      box: { x: 0, y: 0, w: 364, h: 54 },
+      fills: [{ type: 'SOLID', hex: '#0066cc', alpha: 1 }],
+      children: [
+        { id: 't', type: 'TEXT', box: { x: 16, y: 12, w: 200, h: 24 }, text: { characters: 'XEM CHI TIẾT' } },
+        { id: 'i', type: 'FRAME', svg: { file: 'svg/i.svg' }, box: { x: 320, y: 14, w: 20, h: 20 }, children: [] },
+      ],
+    }],
+  };
+  assert.equal(detectMedia(tree).find((c) => c.component === 'search'), undefined);
+});
+
+test('a centered vector on a masked picture is a play mark', () => {
+  const tree = {
+    id: 'root', type: 'FRAME', box: { x: 0, y: 0, w: 800, h: 400 }, children: [{
+      id: 'shot', type: 'GROUP', name: 'Group', box: { x: 0, y: 0, w: 722, h: 386 },
+      children: [
+        {
+          id: 'mask', type: 'GROUP', name: 'Mask group', box: { x: 24, y: 19, w: 699, h: 353 }, children: [
+            { id: 'photo', type: 'RECTANGLE', name: 'poster', box: { x: 0, y: 0, w: 736, h: 705 }, fills: [{ type: 'IMAGE' }], children: [] },
+          ],
+        },
+        { id: 'play', type: 'VECTOR', name: 'Exclude', box: { x: 411, y: 159, w: 68, h: 68 }, children: [] },
+      ],
+    }],
+  };
+  assert.equal(detectMedia(tree).find((c) => c.component === 'video')?.node, 'shot');
 });

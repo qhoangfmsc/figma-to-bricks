@@ -1,0 +1,26 @@
+---
+description: Detect and render changes classify a component kind. A patch that only fits the current Figma file is forbidden.
+alwaysApply: true
+---
+
+# No whack-a-mole
+
+The tool must recognize a component on a design it has not seen. A Figma file in this repo is a test, not the product. Real pages will not reuse its words, units, or layer names.
+
+A change to `process/modules/recognize-parts/` or `process/modules/write-bricks/` is a classification of one kind. Name the kind without naming the current section. Recognition asks what structure makes that kind. A word, a unit, a currency, a layer name, or a node id taken from the file that just failed is not a rule.
+
+Forbidden. The next file of the same kind still fails, or a different component that happens to use those tokens is dropped:
+
+- A token list from one file (`đ`, `/th`, `/tháng`, `TB`, `GB`, `MB`, a badge word, a layer name).
+- A pixel, a count, or a string length tuned so this section passes.
+- A branch that mentions one file key or one node id.
+
+Required before the edit:
+
+1. Write the kind in one sentence that still makes sense if this file is deleted.
+2. Add a test whose copy is not the copy of the failing file. A Vietnamese price row is not covered by another Vietnamese price row. Cover the same shape with different words.
+3. Keep the existing tests of that kind passing.
+
+If you cannot write that second example, do not edit the rule. Record the miss in `history/notes/gaps.md`.
+
+During a generate run, do not edit `process/` or the theme. The same miss is a note, not a local patch.

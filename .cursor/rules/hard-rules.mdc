@@ -23,7 +23,7 @@ The picture, the reading of that picture, and the tree decide what a group is. A
 
 `read` saves `look.png` and the detection signals. The plan is not the copy to confirm until the picture has been read and `node process/template.mjs look` has written the conclusion. The same kind is built. A different kind, or a picture group with no signal, stays a block. Do not measure pixels off the screenshot.
 
-No whack-a-mole. A miss is a gap in the shared rule, not a patch for that file. Before changing detect or render, read the catalog, `process/modules/recognize-parts/structure.mjs`, and one other section with the same shape. The change has to serve the next Figma file and still pass the existing tests. The picture is Figma's own frame render. The tree supplies the numbers. Do that look before the plan is confirmed, then create the template on `WP_URL`. Do not wait for an upload confirmation.
+No whack-a-mole. Follow `.cursor/rules/no-whack-a-mole.mdc`. A detect change classifies a kind. A token list, a pixel, or a node id from the file that just failed is not a rule. The test must use different words than that file. If that test cannot be written, record the miss in `history/notes/gaps.md` and do not edit `process/`. The picture is Figma's own frame render. The tree supplies the numbers. Do that look before the plan is confirmed, then create the template on `WP_URL`. Do not wait for an upload confirmation.
 
 # Never
 

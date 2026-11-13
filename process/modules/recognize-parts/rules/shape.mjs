@@ -36,8 +36,9 @@ function isCloseMark(n, parent) {
   if (!corner) return false;
   const label = textsOf(n).map((t) => t.text.characters.trim()).join('');
   if (/^[×xX✕✖]$/.test(label)) return true;
-  if (!label && (n.svg || n.type === 'VECTOR' || visibleKids(n).some((c) => c.svg || c.type === 'VECTOR'))) return true;
-  return false;
+  const name = `${n.name ?? ''} ${n.component ?? ''} ${n.svg?.file ?? ''}`;
+  if (/\b(close|dismiss|times)\b/i.test(name) || /\bx\b/i.test(name)) return true;
+  return n.type === 'VECTOR' && !n.svg;
 }
 
 // The mark may sit inside a header. Coordinates are added up from this frame.

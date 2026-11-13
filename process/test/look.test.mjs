@@ -38,9 +38,11 @@ test('the same kind is kept, a different kind is drop, and a picture-only group 
   const report = lookReport({ shot: 'look.png', signals, ai });
   assert.equal(report.ready, true);
   assert.equal(report.rows[0].verdict, 'agree');
+  assert.equal(report.rows[0].weight.total, 100);
   assert.equal(report.rows[1].verdict, 'differ');
-  assert.equal(report.rows[2].verdict, 'doubt');
-  assert.equal(report.rows[2].review, 'doubt');
+  assert.equal(report.rows[1].weight.ai, 70);
+  assert.equal(report.rows[2].verdict, 'agree');
+  assert.deepEqual(report.rows[2].weight, { ai: 70, code: 0, total: 70 });
   assert.equal(report.extras.length, 1);
   const model = {
     title: 'T', name: 'S', width: 100,
@@ -52,17 +54,16 @@ test('the same kind is kept, a different kind is drop, and a picture-only group 
     look: report,
   };
   const md = renderTemplatePlan(model);
-  assert.match(md, /## Chứng cứ\n!\[[^\]]*\]\(look\.png\)\nẢnh, nhận dạng từ ảnh/);
+  assert.match(md, /## Chứng cứ\n!\[[^\]]*\]\(look\.png\)\nẢnh quyết định loại/);
   assert.match(md, /Kết luận: dựng tab-switch/);
   assert.match(md, /Review: tin được/);
   assert.match(md, /Tín hiệu: 5 tabs \(1:2\.layout\.mode\)/);
   assert.match(md, /Kết luận: không dựng menu/);
-  assert.match(md, /Review: lệch/);
+  assert.match(md, /AI 70% thấy block/);
   assert.match(md, /guess:1:9`: drop/);
-  assert.doesNotMatch(md, /guess:1:8`: attach/);
-  assert.match(md, /Review: nghi ngờ/);
+  assert.match(md, /guess:1:8`: attach/);
   assert.match(md, /Ảnh thấy form/);
-  assert.match(md, /Tín hiệu: không có/);
+  assert.match(md, /dựng form. AI 70%/);
   const kept = renderTemplatePlan(model, { 'part:1:1': 'đừng dựng nút này' });
   assert.match(kept, /đừng dựng nút này/);
 });

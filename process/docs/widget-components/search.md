@@ -9,7 +9,7 @@ Nhận, một trong hai hình:
 - Ô ngang rộng ít nhất bốn lần chiều cao, một chữ, một icon nhỏ.
 - Hàng ngang gồm một ô placeholder và một nút có chữ Tìm kiếm hoặc Search. Tên lớp search cũng đủ. Ô và nút không bị nhận thêm thành button.
 
-Không nhận: ô này nằm trong [form](form.md) thì thuộc form. Trang kết quả tìm kiếm là [template-search.md](template-search.md), không phải ô này.
+Không nhận: nút kêu gọi như Xem chi tiết, dù rộng và có icon. Ô này nằm trong [form](form.md) thì thuộc form. Trang kết quả tìm kiếm là [template-search.md](template-search.md), không phải ô này.
 
 Dựng: `process/modules/write-bricks/components/search.mjs`
 Nhận dạng: `process/modules/recognize-parts/rules/media.mjs`

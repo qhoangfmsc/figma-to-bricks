@@ -1142,6 +1142,8 @@ test('phase 3 detection: a CTA that is an instance of the Button component is a 
   const bare = { ...cta, id: 'card', name: 'Problem card / 05 Unpredictable costs', componentSet: undefined };
   assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [bare] }).length, 0);
   assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [{ ...bare, fills: [{ type: 'SOLID' }] }] })[0]?.confidence, 'low');
+  const link = { id: 'lnk', name: 'link-introduction', type: 'INSTANCE', visible: true, componentSet: 'Button link footer', box: { w: 80, h: 20 }, children: [text('lt', 'Giới Thiệu')] };
+  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [link] }).length, 0);
   // decide: the form is approved and its submit button is not a second button
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }, { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'cta', params: {} }] }, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});

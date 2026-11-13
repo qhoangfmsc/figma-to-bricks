@@ -1,6 +1,5 @@
-// The picture, the reading of that picture, and the tree signals. A plan conclusion needs all three.
-// The picture is Figma's render of the section. The reading names a component kind. The signal is a detection cite.
-// Neither the reading nor the signal is a conclusion on its own.
+// The picture's reading decides the kind. Code is a hint and does not decide.
+// AI is 70. A code hint that names the same kind adds 30. A code-only row stays a hint.
 import { writeFileSync } from 'node:fs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { SIGNAL_RULES, childKindIds, isSignal } from '../recognize-parts/kinds.mjs';
@@ -9,6 +8,13 @@ export const LOOK_FILE = 'look.json';
 export const PLAN_MODEL = 'plan-model.json';
 
 export const lookKinds = () => new Set([...Object.keys(SIGNAL_RULES), ...childKindIds(), 'pagination', 'block']);
+
+export const AI_WEIGHT = 70;
+export const CODE_WEIGHT = 30;
+
+function weightOf(ai, code) {
+  return { ai, code, total: ai + code };
+}
 
 function citeOf(cite) {
   return (cite ?? []).map((item) => [item.node, item.field].filter(Boolean).join('.')).filter(Boolean);
@@ -84,21 +90,29 @@ export function lookReport(look) {
     const structure = (signal.cite ?? []).length > 0;
     let verdict = 'pending';
     let review = 'pending';
+    let weight = weightOf(0, 0);
     if (!image) {
       verdict = 'no-shot';
       review = 'no-shot';
     } else if (!ai) {
       verdict = 'pending';
       review = 'pending';
-    } else if (other && !match) {
-      verdict = 'differ';
-      review = 'differ';
-    } else if (match && structure) {
+    } else if (!seen.length) {
+      verdict = 'hint';
+      review = 'hint';
+      weight = weightOf(0, CODE_WEIGHT);
+    } else if (match) {
       verdict = 'agree';
       review = 'trust';
+      weight = weightOf(AI_WEIGHT, structure ? CODE_WEIGHT : 0);
+    } else if (other.kind === 'block') {
+      verdict = 'differ';
+      review = 'ai';
+      weight = weightOf(AI_WEIGHT, 0);
     } else {
-      verdict = 'doubt';
-      review = 'doubt';
+      verdict = 'ai';
+      review = 'ai';
+      weight = weightOf(AI_WEIGHT, 0);
     }
     const chosen = match ?? other;
     const children = (signal.children ?? []).map((child) => ({
@@ -107,10 +121,10 @@ export function lookReport(look) {
       structure: (signal.cite ?? []).some((cite) => cite.startsWith(`${child.node}.`) || cite === child.node),
       image: (ai ?? []).some((group) => group.kind === child.id || group.node === child.node),
     }));
-    return { ...signal, verdict, review, structure, children, see: chosen?.see ?? '', aiKind: chosen?.kind ?? '' };
+    return { ...signal, verdict, review, structure, weight, children, see: chosen?.see ?? '', aiKind: chosen?.kind ?? '' };
   });
   const extras = (ai ?? []).filter((group) => !group.node || !signals.some((signal) => signal.node === group.node));
-  const reviewed = new Set(['agree', 'differ', 'doubt']);
+  const reviewed = new Set(['agree', 'differ', 'doubt', 'hint', 'ai']);
   const ready = image && !!ai && rows.every((row) => reviewed.has(row.verdict));
   return { shot: look?.shot || '', shotError: look?.shotError || '', ready, rows, extras };
 }
@@ -119,7 +133,64 @@ export function applyAiLook(ws, groups) {
   const look = ws.readJson(LOOK_FILE);
   look.ai = normalizeAi(groups);
   ws.writeJson(LOOK_FILE, look);
+  const report = lookReport(look);
+  applyAiDecisions(ws, report);
   const model = ws.readJson(PLAN_MODEL);
-  model.look = lookReport(look);
+  model.look = report;
   return model;
+}
+
+export function applyAiDecisions(ws, report) {
+  if (!ws.has('detections.json')) return;
+  const det = ws.readJson('detections.json');
+  const components = det.components ?? [];
+  for (const row of report.rows ?? []) {
+    const item = components.find((entry) => entry.node === row.node && entry.component === row.kind);
+    if (!item) continue;
+    item.weight = row.weight;
+    if (row.verdict === 'agree') {
+      item.status = 'approved';
+      item.note = `AI ${row.weight.ai}%${row.weight.code ? ` + code ${row.weight.code}%` : ''}`;
+    } else if (row.verdict === 'differ') {
+      item.status = 'rejected';
+      item.note = `AI ${row.weight.ai}% thấy block. Code chỉ gợi ý.`;
+    } else if (row.verdict === 'ai') {
+      item.status = 'rejected';
+      item.note = `Code gợi ý ${row.kind}. AI ${row.weight.ai}% thấy ${row.aiKind}.`;
+      adopt(components, row.node, row.aiKind, row.see, row.weight);
+    } else if (row.verdict === 'hint' && item.status === 'approved') {
+      item.status = 'proposed';
+      item.note = `Code gợi ý ${row.weight.code}%. AI chưa gọi tên.`;
+    }
+  }
+  for (const extra of report.extras ?? []) {
+    if (!extra.node || extra.kind === 'block' || isSignal(extra.kind)) continue;
+    adopt(components, extra.node, extra.kind, extra.see, weightOf(AI_WEIGHT, 0));
+  }
+  det.components = components;
+  ws.writeJson('detections.json', det);
+}
+
+function adopt(components, node, kind, see, weight) {
+  const existing = components.find((entry) => entry.node === node && entry.component === kind);
+  if (existing && existing.status !== 'rejected') {
+    existing.status = 'approved';
+    existing.weight = weight;
+    existing.note = `AI ${weight.ai}%. Code không quyết định.`;
+    if (!existing.cite?.length) existing.cite = [{ node, field: 'name' }];
+    return;
+  }
+  components.push({
+    id: `ai${String(node).replace(/\W/g, '').slice(0, 8)}`,
+    status: 'approved',
+    source: 'ai',
+    component: kind,
+    node,
+    confidence: 'high',
+    weight,
+    cite: [{ node, field: 'name' }],
+    evidence: see,
+    params: {},
+    note: `AI ${weight.ai}%. Code không quyết định.`,
+  });
 }

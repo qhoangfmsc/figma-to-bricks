@@ -14,6 +14,7 @@ export const PartKind = {
   TAB_SWITCH: 'tab-switch',
   MENU: 'menu',
   MENU_SLIDER: 'menu-slider',
+  BREADCRUMBS: 'breadcrumbs',
   READMORE: 'readmore',
   CHECKBOX: 'checkbox',
   SWITCH: 'switch',
@@ -96,7 +97,7 @@ export const SIGNAL_RULES = {
     childComponent: none,
   },
   [PartKind.CAROUSEL]: {
-    shape: 'A horizontal row of the same card. It is a carousel when the frame clips and a card sits outside it, or a prev and next pair sits on the row or on the sibling above or below, or a dash or dot row belongs to the frame. A shape that is not that card, such as a fade at the edge, is not a slide. Missing buttons do not cancel it. The same cards sitting fully inside the frame, with no clip, no buttons, and no dash row, stay a grid.',
+    shape: 'A horizontal row of the same card. It is a carousel when the frame or its parent clips and a card sits outside the row, or a prev and next pair sits on the row or on the sibling above or below, or a dash or dot row belongs to the frame. One such row is the basic slider, and that row is the slide. Two or more rows of that card, every row inside the frame, plus that dash row, are still one page: the rows are the layout of the page, not separate slides. A shape that is not that card, such as a fade at the edge, is not a slide. Missing buttons do not cancel it. The same cards sitting fully inside the frame, with no clip, no buttons, and no dash row, stay a grid.',
     hint: 'slider, carousel',
     anv: 'Component (Slider/Carousel) → slider-nested',
     childComponent: [
@@ -145,6 +146,12 @@ export const SIGNAL_RULES = {
     shape: 'A horizontal row of short link labels, no picture. A title plus a badge, a row that holds a switch, or a bar of filled buttons is not a link row.',
     hint: 'menu, nav',
     anv: 'nav-menu is a WordPress menu id; this row is ul > li',
+    childComponent: none,
+  },
+  [PartKind.BREADCRUMBS]: {
+    shape: 'A horizontal trail of labels. A separator icon sits before every label after the first, or the labels and separators alternate. A row of labels with no separators stays a menu.',
+    hint: 'breadcrumb',
+    anv: 'the Bricks breadcrumbs element already existed; detection was missing',
     childComponent: none,
   },
   [PartKind.MENU_SLIDER]: {

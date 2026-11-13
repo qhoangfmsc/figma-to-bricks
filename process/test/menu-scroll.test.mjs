@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
+import { detectTabSwitches } from '../modules/recognize-parts/rules/tab-switch.mjs';
 import { detectCarousels } from '../modules/recognize-parts/rules/carousel.mjs';
 import { checkCites } from '../modules/recognize-parts/cite.mjs';
 import menuSlider from '../modules/write-bricks/components/menu-slider.mjs';
@@ -250,4 +251,35 @@ test('an arrow that covers the labels moves into a gutter, and the lighter icon 
   assert.equal(s.arrowColor.hex, '#525666');
   assert.equal(s.arrowDisabledColor.hex, '#e0e0e0');
   assert.equal(s.arrowDisabledOpacity, 1);
+});
+
+test('a quantity beside a label is a fact line, and peer labels stay a menu', () => {
+  const line = (id, label) => ({ id, name: 'Label', type: 'TEXT', box: { x: 0, y: 0, w: 80, h: 20, absX: 0, absY: 0 }, text: { characters: label } });
+  const pair = (id, a, b) => ({
+    id, name: 'Row', type: 'FRAME', layout: { mode: 'HORIZONTAL' },
+    box: { x: 0, y: 0, w: 180, h: 32, absX: 0, absY: 0 },
+    children: [
+      { id: `${id}a`, name: 'Value', type: 'FRAME', box: { x: 0, y: 0, w: 80, h: 32, absX: 0, absY: 0 }, children: [line(`${id}ta`, a)] },
+      { id: `${id}b`, name: 'Note', type: 'FRAME', box: { x: 90, y: 0, w: 40, h: 32, absX: 90, absY: 0 }, children: [line(`${id}tb`, b)] },
+    ],
+  });
+  const heading = {
+    id: 'head', name: 'Row', type: 'FRAME', layout: { mode: 'HORIZONTAL' },
+    box: { x: 0, y: 0, w: 480, h: 48, absX: 0, absY: 0 },
+    children: [
+      { id: 'title', name: 'Title', type: 'FRAME', box: { x: 0, y: 0, w: 280, h: 48, absX: 0, absY: 0 }, children: [line('title-text', 'Annual plan')] },
+      { id: 'badge', name: 'Badge', type: 'FRAME', box: { x: 300, y: 8, w: 48, h: 28, absX: 300, absY: 8 }, fills: [{ type: 'SOLID', hex: '#e8f7ee', alpha: 1 }], children: [line('badge-text', 'New')] },
+    ],
+  };
+  assert.equal(detectMenus({ id: 'root', children: [pair('money', '$12', 'yr'), pair('size', '9', 'oz'), heading] }).length, 0);
+  const links = pair('nav', 'Plan 2', 'Pricing');
+  assert.equal(detectMenus({ id: 'root', children: [links] }).length, 1);
+});
+
+test('an underlined menu with no pane is a menu, not a tab switch', () => {
+  const tree = row([item(1, 0, 120, 'Hosting'), item(2, 144, 80, 'Tên miền')]);
+  const menu = tree.children[0].children[0];
+  menu.children[0].stroke = { weights: { bottom: 2 } };
+  assert.equal(detectMenus(tree).some((hit) => hit.node === 'menu'), true);
+  assert.equal(detectTabSwitches(tree).some((hit) => hit.node === 'menu'), false);
 });

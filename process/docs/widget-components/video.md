@@ -4,7 +4,7 @@ Có: có
 
 Tên khác: player, play
 
-Nhận: ảnh có một vòng play gần giữa.
+Nhận: ảnh có một vòng play gần giữa. Vòng đó có thể là nét vector, không cần bo góc trên layer. Ảnh có thể nằm trong mask bên trong.
 
 Không nhận: chưa có URL thì giữ ảnh. Không bịa URL. Autoplay tắt.
 

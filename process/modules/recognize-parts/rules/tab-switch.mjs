@@ -1,6 +1,7 @@
 // A Tab List whose panel is not its sibling (the price table: the list sits beside the period bar, the
 // panel is under the card). The two-child pair is left to detect/rules/tabs.mjs.
 import { inspect, inspectClassic, listsIn, isTabList, isNamedTabBar, isActionBar, rowTitles, activeTitle, dividerOf, hasDivider } from '../../write-bricks/components/tab-switch.mjs';
+import { detectMenus } from './menu.mjs';
 
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const contains = (n, id) => !!n && (n.id === id || visibleKids(n).some((c) => contains(c, id)));
@@ -22,17 +23,21 @@ function coveredByTabs(host, list, panels) {
 
 export function detectTabSwitches(tree) {
   const found = [];
+  const menus = new Set(detectMenus(tree).map((m) => m.node));
   for (const list of listsIn(tree)) {
     if (!isTabList(list)) continue;
-    let host = null;
-    let panels = [];
+    const candidates = [];
     (function walk(n) {
       for (const c of visibleKids(n)) walk(c);
-      if (host || n.id === list.id) return;
+      if (n.id === list.id) return;
       const info = inspectClassic(n, list);
-      if (info?.list?.id === list.id) { host = n; panels = info.panels; }
+      if (info?.list?.id === list.id) candidates.push({ host: n, panels: info.panels });
     })(tree);
-    if (!host || found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels)) continue;
+    const chosen = candidates.find((item) => item.panels.some((panel) => /tab\s*panel/i.test(panel.name ?? ''))) ?? candidates.at(-1);
+    if (!chosen) continue;
+    const host = chosen.host;
+    const panels = chosen.panels;
+    if (found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels)) continue;
     const titles = visibleKids(list);
     found.push({
       component: 'tab-switch', node: host.id, level: 'E1', confidence: 'high',
@@ -42,17 +47,21 @@ export function detectTabSwitches(tree) {
       note: `${titles.length} tabs, Figma draws ${panels.length} panel(s); the Plan asks for the content of the others`,
     });
   }
-  return found.concat(detectNamedTabRows(tree, found));
+  return found.concat(detectNamedTabRows(tree, found, menus));
 }
 
 // A horizontal row the visitor clicks, plus the frame under that row that shows the open tab's data.
 // A layer name is a hint. A mobile frame that stacks each title above its own content is not this component.
 // The two-child bar + pane pair stays with detect/rules/tabs.mjs. A Tab List stays with the loop above.
-function detectNamedTabRows(tree, claimed) {
+function detectNamedTabRows(tree, claimed, menus) {
   const found = [];
   const taken = new Set(claimed.map((f) => f.node));
   (function walk(n) {
-    if (n.visible === false || taken.has(n.id)) return;
+    if (n.visible === false) return;
+    if (taken.has(n.id)) {
+      visibleKids(n).forEach((child) => walk(child));
+      return;
+    }
     const kids = visibleKids(n);
     const bar = kids.find((child) => isActionBar(child) || isNamedTabBar(child));
     const info = inspect(n);
@@ -84,7 +93,7 @@ function detectNamedTabRows(tree, claimed) {
         return;
       }
     }
-    const bare = !info && isActionBar(n) && !isTabList(n);
+    const bare = !info && isActionBar(n) && !isTabList(n) && !menus.has(n.id);
     if (bare) {
       const titles = rowTitles(n);
       const active = activeTitle(titles, n);

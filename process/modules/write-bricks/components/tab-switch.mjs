@@ -38,19 +38,23 @@ function isSeparator(n) {
   return w <= 2 || h <= 2;
 }
 
-function labelCount(n) {
-  let count = 0;
-  (function walk(x) {
-    if (!x || x.visible === false) return;
-    if (x.type === 'TEXT' && !x.svg && x.text?.characters?.trim()) count += 1;
-    for (const c of x.children ?? []) walk(c);
+function textLabels(n) {
+  const labels = [];
+  (function walk(node) {
+    if (!node || node.visible === false) return;
+    if (node.type === 'TEXT' && !node.svg && node.text?.characters?.trim()) labels.push(node.text.characters.trim());
+    for (const child of node.children ?? []) walk(child);
   })(n);
-  return count;
+  return labels;
 }
 
-// A trigger carries one label. A price card carries a title, a price and a feature list, so it is not a trigger.
+// A trigger carries one label. A short badge beside that label is still the trigger.
+// A card carries a title, a price and a feature list, so it is not a trigger.
 function isTrigger(n) {
-  return !!n && BOX.has(n.type) && labelCount(n) === 1;
+  if (!n || !BOX.has(n.type)) return false;
+  const labels = textLabels(n);
+  if (labels.length === 1) return true;
+  return labels.length === 2 && labels.some((label) => label.length <= 6);
 }
 
 // Titles are the boxes that carry one label. Dividers stay in the row and are not titles.
@@ -124,23 +128,44 @@ export function isTabList(n) {
   return LIST.test(n.name ?? '') || titles.every((k) => /^tab$/i.test(String(k.name ?? '').trim()));
 }
 
-function collectPanels(n, listId, out) {
-  if (n.id === listId) return;
-  if (PANEL.test(n.name ?? '')) out.push(n);
-  for (const c of visibleKids(n)) collectPanels(c, listId, out);
+function regionUnder(host, list) {
+  const kids = visibleKids(host);
+  const index = kids.findIndex((child) => child.id === list.id || contains(child, list.id));
+  if (index < 0) return null;
+  const below = kids.slice(index + 1).filter((child) => {
+    if (!list.box || !child.box || child.box.absY == null || list.box.absY == null) return true;
+    return child.box.absY >= list.box.absY + list.box.h - 1;
+  });
+  const titles = visibleKids(list);
+  const panesOf = (nodes) => {
+    const named = nodes.filter((node) => PANEL.test(node.name ?? ''));
+    if (named.length === titles.length || named.length === 1) return named;
+    return null;
+  };
+  if (below.length === 1) {
+    const direct = panesOf(visibleKids(below[0]));
+    return { host, panels: direct ?? [below[0]] };
+  }
+  const direct = panesOf(below);
+  return direct ? { host, panels: direct } : null;
+}
+
+function namedPanelInside(node) {
+  if (!node) return false;
+  if (PANEL.test(node.name ?? '')) return true;
+  return visibleKids(node).some(namedPanelInside);
 }
 
 function hostOf(root, list) {
-  let host = null;
-  let panels = [];
-  (function walk(n) {
-    for (const c of visibleKids(n)) walk(c);
-    if (host || n.id === list.id) return;
-    const found = [];
-    collectPanels(n, list.id, found);
-    if (found.length && contains(n, list.id)) { host = n; panels = found; }
-  })(root);
-  return host && { host, panels };
+  const found = [];
+  let current = parentIn(root, list.id);
+  while (current) {
+    const region = regionUnder(current, list);
+    if (region) found.push(region);
+    if (current.id === root.id) break;
+    current = parentIn(root, current.id);
+  }
+  return found.find((region) => region.panels.some(namedPanelInside)) ?? found[0] ?? null;
 }
 
 // A pair of two children (the list and a frame that holds the panel) is the tabs component, not this one.
@@ -221,7 +246,7 @@ function looseInspect(node) {
   if (isSingleTab(content) || isNamedTabBar(content)) return null;
   const inner = visibleKids(content);
   const named = inner.filter((n) => PANEL.test(n.name ?? ''));
-  if (named.length) return { list: bar, titles, panels: named, paneParent: content, active: active.index ?? 0, activeClear: active.clear };
+  if (named.length === titles.length || named.length === 1) return { list: bar, titles, panels: named, paneParent: content, active: active.index ?? 0, activeClear: active.clear };
   const data = repeatedSet(inner);
   // Five matching cards are the open tab's data, not five panes. Bricks keeps one pane open
   // (tabs-nested.php: tab-content > tab-pane siblings; .tab-pane is hidden until .brx-open).

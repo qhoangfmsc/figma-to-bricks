@@ -30,10 +30,11 @@ function lookRow(model, node) {
 
 // A blank or a previous drop/attach written by this look is replaced. A sentence the owner typed stays.
 function lookChoice(saved, key, row, ready, { agree, differ }) {
-  if (!ready || !row || (row.verdict !== 'agree' && row.verdict !== 'differ')) return null;
+  if (!ready || !row || (row.verdict !== 'agree' && row.verdict !== 'differ' && row.verdict !== 'ai')) return null;
   const prev = Object.prototype.hasOwnProperty.call(saved, key) ? String(saved[key]).trim() : '';
   if (prev !== '' && prev !== 'drop' && prev !== 'attach') return null;
-  return row.verdict === 'differ' ? differ : agree;
+  if (row.verdict === 'differ' || row.verdict === 'ai') return differ;
+  return agree;
 }
 
 function evidenceLines(row) {
@@ -43,8 +44,10 @@ function evidenceLines(row) {
   else lines.push('- AI: chưa nhận dạng nhóm này trên ảnh');
   const cite = (row.cite ?? []).join(', ');
   lines.push(`- Tín hiệu: ${clean(row.evidence) || row.kind}${cite ? ` (${cite})` : ''}`);
-  if (row.verdict === 'agree') lines.push('- Kết luận: dựng ' + row.kind + '. Code, ảnh và cấu trúc cùng một loại.');
-  else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. Ảnh thấy ${clean(row.aiKind)}. Giữ block.`);
+  if (row.verdict === 'agree') lines.push(`- Kết luận: dựng ${row.kind}. AI ${row.weight?.ai ?? 70}%${row.weight?.code ? ` + code ${row.weight.code}%` : ''}.`);
+  else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. AI ${row.weight?.ai ?? 70}% thấy block. Code chỉ gợi ý.`);
+  else if (row.verdict === 'ai') lines.push(`- Kết luận: dựng ${clean(row.aiKind)}. AI ${row.weight?.ai ?? 70}%. Code gợi ý ${row.kind}, không quyết định.`);
+  else if (row.verdict === 'hint') lines.push(`- Kết luận: code gợi ý ${row.weight?.code ?? 30}%. AI chưa gọi tên, không dựng.`);
   else if (row.verdict === 'doubt') lines.push('- Kết luận: nghi ngờ. Code có, ảnh hoặc cấu trúc chưa đủ.');
   else lines.push('- Kết luận: chưa đủ ảnh, nhận dạng và tín hiệu');
   return lines;
@@ -60,7 +63,7 @@ function proofSection(model) {
     lines.push('Nhận dạng từ ảnh chưa đủ. Plan này chưa phải bản để xác nhận.', '');
     return lines;
   }
-  lines.push('Ảnh, nhận dạng từ ảnh, và tín hiệu trong cây. Kết luận chỉ khi ảnh và tín hiệu cùng một loại.', '');
+  lines.push('Ảnh quyết định loại. AI 70%. Code là gợi ý, thêm 30% khi cùng loại.', '');
   for (const extra of look.extras ?? []) {
     lines.push(`### Ảnh thấy ${extra.kind}${extra.node ? ` \`${extra.node}\`` : ''}`);
     lines.push(`- AI: ${clean(extra.see)}`);
@@ -70,7 +73,7 @@ function proofSection(model) {
       continue;
     }
     lines.push('- Tín hiệu: không có');
-    lines.push('- Kết luận: không dựng. Giữ block.', '');
+    lines.push(`- Kết luận: dựng ${extra.kind}. AI 70%. Code chưa gợi ý.`, '');
   }
   return lines;
 }
@@ -84,8 +87,9 @@ function detectedReview(look) {
     lines.push(row.see ? `- AI: ${clean(row.aiKind)} — ${clean(row.see)}` : '- AI: chưa review ảnh');
     lines.push(`- Ảnh: ${row.verdict === 'no-shot' ? 'chưa có' : 'có'}`);
     lines.push(`- Cấu trúc: ${(row.cite ?? []).length ? row.cite.join(', ') : 'chưa trích'}`);
-    if (row.review === 'trust') lines.push('- Review: tin được. Code, ảnh và cấu trúc cùng một loại.');
-    else if (row.review === 'differ') lines.push(`- Review: lệch. Code thấy ${row.kind}, ảnh thấy ${clean(row.aiKind)}.`);
+    if (row.review === 'trust') lines.push(`- Review: tin được. AI ${row.weight?.ai ?? 70}%${row.weight?.code ? ` + code ${row.weight.code}%` : ''}.`);
+    else if (row.review === 'ai') lines.push(`- Review: AI ${row.weight?.ai ?? 70}% quyết định ${clean(row.aiKind)}. Code gợi ý ${row.kind}.`);
+    else if (row.review === 'hint') lines.push(`- Review: code gợi ý ${row.weight?.code ?? 30}%. AI chưa gọi tên.`);
     else if (row.review === 'no-shot') lines.push('- Review: chưa review. Thiếu ảnh chứng cứ.');
     else if (row.review === 'pending') lines.push('- Review: chưa review. Chưa có nhận dạng từ ảnh.');
     else lines.push('- Review: nghi ngờ. Code có, nhưng ảnh hoặc cấu trúc chưa đủ.');

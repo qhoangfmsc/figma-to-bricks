@@ -1,4 +1,6 @@
-// Candidate menus: a HORIZONTAL row of >= 2 link-like items (one short text each, no picture) that is named like a menu, or whose items are.
+// Classification, not a word list. A menu is a horizontal row of peer labels: each item is one phrase, none of them is a measurement.
+// A fact row is the other class: one item is only a quantity (a number, optionally with a currency or a unit) and another item is the caption or the unit. Language does not matter.
+// A heading is the third class: two items, and one is a small filled chip beside a wider title. The chip is smaller on the canvas, not a short word from one file.
 //   E1 item    the items are named / componentised like menu items ("_sub-menu-item", "Nav link", "menu item")
 //   E1 named   the row, or a frame above it, is named menu / nav / navigation
 // A row of short links with no menu name is still proposed, at low confidence. A taller row of cards is not a menu. Vertical link lists are lists (rules in decide).
@@ -7,6 +9,8 @@
 import { hasDivider, isActionBar } from '../../write-bricks/components/tab-switch.mjs';
 import { isLinkRow } from '../../recognize-parts/rules/links.mjs';
 import { containsChoice, isPressable, textsOf } from './shape.mjs';
+import { layoutOnlyReason } from './layout-only.mjs';
+import { isBreadcrumbRow } from './breadcrumbs.mjs';
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const ITEM = /menu[ _-]?item|nav[ _-]?(item|link)|sub[ _-]?menu/i;
 const ROW = /(^|[^a-z])(menu|nav|navigation)([^a-z]|$)/i;
@@ -94,9 +98,29 @@ export function detectMenus(tree) {
       const inner = (k.children ?? []).filter((c) => c.visible !== false);
       return inner.length === 1 && (inner[0].fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
     };
+    if (isBreadcrumbRow(n)) {
+      kids.forEach((c) => walk(c, [n, ...trail]));
+      return;
+    }
     const titleAndBadge = kids.some((k) => k.type === 'TEXT' && (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45) && kids.some(chip);
+    const words = (k) => textsOf(k).map((t) => t.text.characters).join(' ').replace(/\s+/g, ' ').trim();
+    const quantity = (text) => {
+      if (!text || text.length > 32 || !/\d/.test(text)) return false;
+      const rest = text.replace(/\d[\d.,]*/g, '').replace(/[^\p{L}]+/gu, '');
+      return rest.length <= 3;
+    };
+    const factRow = kids.some((k) => quantity(words(k))) && kids.some((k) => words(k) && !quantity(words(k)));
+    const mark = (k) => {
+      if ((k.box?.h ?? 0) > 40) return false;
+      const solid = (node) => (node.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
+      return solid(k) || visibleKids(k).some(solid);
+    };
+    const headingAndMark = kids.length === 2 && kids.some((chip) => {
+      const title = kids.find((k) => k !== chip);
+      return mark(chip) && title?.box && chip.box && chip.box.w <= title.box.w * 0.5 && words(title).length > words(chip).length;
+    });
     const actionBar = kids.length >= 2 && kids.every(isPressable);
-    if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && isLinkRow(kids) && !kids.some(containsChoice) && !titleAndBadge && !actionBar) {
+    if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && isLinkRow(kids) && !kids.some(containsChoice) && !titleAndBadge && !headingAndMark && !factRow && !actionBar && layoutOnlyReason(n, tree) !== 'price') {
       const itemNamed = kids.every((k) => ITEM.test(`${k.name} ${k.componentSet ?? ''}`));
       const namedNode = [n, ...trail].find((x) => ROW.test(x.name ?? '')), rowNamed = !!namedNode;
       const short = kids.every((k) => (k.box?.h ?? 0) <= 48);

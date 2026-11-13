@@ -21,6 +21,7 @@ const NAV_FRAME = /^(navigation|arrows?|controls)$/i;
 const stem = (name) => String(name ?? '').trim().toLowerCase().replace(/[\s._-]*\d+$/, '');
 const GENERIC = /^(text|frame|group|rectangle|instance|container|image|vector|ellipse|line)$/;
 import { detectMenus } from '../../recognize-parts/rules/menu.mjs';
+import { pageCards } from '../../recognize-parts/rules/carousel-page.mjs';
 import { paginationMarks } from '../../write-bricks/components/carousel.mjs';
 
 const isPagination = (n) => !!(n && (PAGINATION.test(n.name ?? '') || PAGINATION.test(n.componentSet ?? '')));
@@ -97,7 +98,13 @@ export function dashRowFromSvg(text) {
   return { count: marks.items.length };
 }
 
+function isStrip(n) {
+  if (!n?.box?.w || !n?.box?.h) return true;
+  return n.box.h <= 24 || n.box.w >= n.box.h * 3 || (n.box.w <= 24 && n.box.h >= n.box.w * 3);
+}
+
 function storedDashRow(n) {
+  if (!isStrip(n)) return null;
   if (n?.svgMarks?.count >= 2) return { count: n.svgMarks.count };
   if (typeof n?.svgText === 'string') return dashRowFromSvg(n.svgText);
   return null;
@@ -265,7 +272,7 @@ export function detectCarousels(tree) {
     const cards = repeatedCards(slides);
     const arrows = arrowPair(kids);
     // A clipped row hides the next cards on purpose. A card outside that row is the rest of the set.
-    const peek = n.clip === true && cards.some((c) => crosses(n, c));
+    const peek = (n.clip === true || parent?.clip === true) && cards.some((c) => crosses(n, c));
     const pag = paginationNear(n, parent);
     const pagInside = !!(pag && kids.includes(pag));
     const last = slides.at(-1);
@@ -289,27 +296,32 @@ export function detectCarousels(tree) {
     const pagTail = pagInside && tailControl(n, pag) && realPagination(pag);
     const pagSibling = !!(pag && !pagInside && realPagination(pag));
     const holdsRealRow = slides.some((s) => s.layout?.mode === 'HORIZONTAL' && visibleKids(s).filter((c) => !isPagination(c) && !isNavFrame(c)).length >= 3);
-    const paged = slides.length >= 1 && slides.length < 3 && (pagTail || pagSibling) && !arrows && !innerRow && !holdsRealRow;
-    if (row || oneRow || single || paged) {
+    // One fitting row is the basic slider: that row is the slide. Two or more fitting rows of the same card are one page.
+    const page = (pagTail || pagSibling) && !arrows ? pageCards(n, slides) : null;
+    const paged = !page && slides.length >= 1 && slides.length < 3 && (pagTail || pagSibling) && !arrows && !innerRow && !holdsRealRow;
+    if (row || oneRow || single || paged || page) {
       const onlyPaged = paged && !row && !oneRow && !single;
       const signs = [overflow, named, !!pag, !!arrows, peek].filter(Boolean).length;
       const shown = peek && !similar(slides) ? cards : slides;
       const navFrames = controls.filter((c) => NAV_FRAME.test(c.name ?? '') && !arrowSide(c)).map((c) => c.id);
       found.push({
-        component: 'carousel', node: n.id, level: named ? 'E1' : 'E2', confidence: onlyPaged ? 'medium' : (signs >= 2 ? 'high' : 'medium'),
+        component: 'carousel', node: n.id, level: named ? 'E1' : 'E2', confidence: onlyPaged || page ? 'medium' : (signs >= 2 ? 'high' : 'medium'),
         cite: [
           { node: n.id, field: 'layout.mode', equals: n.layout.mode },
-          ...(peek ? [{ node: n.id, field: 'clip', equals: true }] : []),
+          ...(peek ? [{ node: (n.clip === true ? n : parent).id, field: 'clip', equals: true }] : []),
           ...(named ? [{ node: n.id, field: 'name' }] : []),
           ...(paginationCite(pag) ? [paginationCite(pag)] : []),
           ...(arrows ? [arrows.prev.props?.Position != null ? { node: arrows.prev.id, field: 'props.Position' } : { node: arrows.prev.id, field: 'name' }] : []),
         ],
         evidence: [
-          `"${n.name}" ${single || shown.length < 2 ? 'shows one slide' : `is a row of ${shown.length} similar "${shown[0].name}" items`}`,
+          page
+            ? `"${n.name}" shows one page of ${page.length} "${page[0].name}"`
+            : `"${n.name}" ${single || shown.length < 2 ? 'shows one slide' : `is a row of ${shown.length} similar "${shown[0].name}" items`}`,
           overflow && `the row is ${Math.round(n.box.w)}px wide but its items end at ${Math.round(last.box.x + last.box.w)}px (cut off)`,
           peek && 'the frame clips and one of those cards sits outside it',
           named && 'the layer is named like a slider',
           pag && `pagination "${pag.componentSet || pag.name}" (${Math.round(pag.box.w)}×${Math.round(pag.box.h)})`,
+          page && 'those rows sit inside the frame, so they are one page',
           onlyPaged && `${slides.length} drawn ${slides.length === 1 ? 'slide' : 'slides'} plus this ${pag.props?.Type || 'dash or dot'} row is the slider`,
           arrows && `arrows "${arrows.prev.name}" and "${arrows.next.name}"`,
           slideNamed && 'each item belongs to a Slider component',
@@ -319,6 +331,7 @@ export function detectCarousels(tree) {
           ...(pag && slideCount(pag) && { itemCount: slideCount(pag) }),
           ...(arrows && { prev: arrows.prev.id, next: arrows.next.id }),
           ...(navFrames.length && { controls: navFrames }),
+          ...(page && { page: true, allowSingle: true }),
           ...((single || (oneRow && slides.length < 2) || (onlyPaged && slides.length < 2)) && { allowSingle: true }),
         },
         note: pag ? 'params.pagination was found by the Pagination layer: check it really is the pagination' : 'is there a pagination row? link it with params.pagination=<node id>',

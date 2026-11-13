@@ -252,7 +252,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
       addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
     }
-    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
   function bindSelectors(settings, id, name) {
@@ -269,7 +269,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   }
 
   const IMAGE_CHILD_KEYS = ['image', 'altText', 'loading', '_objectFit', '_objectPosition', 'link', 'url', 'newTab', 'caption', 'captionCustom', 'showTitle'];
-  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, after, component, extra, inner, keep = new Set() } = {}) {
+  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, onePage = false, after, component, extra, inner, keep = new Set() } = {}) {
     let settings = s;
     const scrollAttrs = (s._attributes ?? []).filter((a) => a.name === 'data-f2b-scroll' || a.name === 'data-f2b-scroll-track' || a.name === 'data-f2b-scroll-thumb' || a.name === 'onscroll' || a.name === 'onwheel' || String(a.name).startsWith('onpointer'));
     for (const k of ov.dropSettings ?? []) delete settings[k];
@@ -315,9 +315,18 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (node.__skipChildren) {
       for (const c of node.children ?? []) if (c) mapping[c.id] = { skipped: 'switch value is the form field' };
     } else if (node.children) {
+      const host = onePage
+        ? emitRaw(`${node.id}#page`, 'block', {
+          _display: 'flex',
+          _direction: 'column',
+          _width: '100%',
+          _alignItems: 'flex-start',
+          ...(typeof node.layout?.gap === 'number' ? { _rowGap: px(node.layout.gap) } : {}),
+        }, id, 'page')
+        : id;
       for (const c of node.children) {
         if (component?.merges && c.visible !== false && !keep.has(c.id)) mapping[c.id] = { skipped: `merged into ${component.id} ${component.detection}` };
-        else mapNode(c, node, id, { isSlide: kind === 'slider-nested' });
+        else mapNode(c, node, host, { isSlide: kind === 'slider-nested' && !onePage });
       }
     }
     // elements Bricks needs that Figma does not draw (e.g. an empty tab pane): created empty, never invented content
