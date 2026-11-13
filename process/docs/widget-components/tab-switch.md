@@ -14,4 +14,6 @@ Element: `tabs-nested` (`includes/elements/tabs-nested.php`)
 
 State: so title đang chọn với title nghỉ (`activeLook`). Nền, viền, màu chữ và dấu chỉ có ở biến thể đã chọn đi theo `brx-open`. Chữ và icon riêng của từng tab giữ nguyên. Control trong title mở có `aria-checked="true"`. Pane cùng index với title mở là data đang hiện. Pane Figma không vẽ để trống.
 
+HTML: một block bọc hai block. Block thứ nhất là `tab-menu` (các `tab-title`, title mở thêm `brx-open`). Block thứ hai chứa các `tab-pane`, cùng thứ tự với title, pane đang mở thêm `brx-open`. Icon hoặc vạch giữa các title không nhận class tab.
+
 Tab chưa có mục thì plan hỏi một link Figma.

@@ -460,6 +460,14 @@ export function undrawnPanes(node) {
 
 const displayOf = (c) => (['HORIZONTAL', 'VERTICAL'].includes(c?.layout?.mode) ? 'flex' : c?.layout?.mode === 'GRID' ? 'grid' : 'block');
 
+function undrawnPane(title, index, open, det, sample, sampleText) {
+  const text = det?.params?.content?.panes?.[title.id];
+  const classes = open ? 'tab-pane brx-open' : 'tab-pane';
+  return text
+    ? { name: 'block', label: `Pane ${index + 1}`, settings: hidden(classes), ...(sample && { like: sample.id, drop: ['_display'] }), children: [{ name: 'text-basic', label: 'Content', settings: {}, ...(sampleText && { like: sampleText.id }), text }] }
+    : { name: 'block', label: `Pane ${index + 1} (empty: not in Figma)`, settings: hidden(classes) };
+}
+
 export default {
   id: 'tab-switch',
   status: 'implemented',
@@ -511,17 +519,35 @@ export default {
       ...(line ? [{ decl: line, suffix: ' .tab-title.brx-open' }] : []),
     ];
     const missing = titles.slice(panels.length);
-    const extraChildren = missing.map((title, i) => {
-      const text = det?.params?.content?.panes?.[title.id];
-      const open = panels.length + i === openAt ? 'tab-pane brx-open' : 'tab-pane';
-      return text
-        ? { name: 'block', label: `Pane ${panels.length + i + 1}`, settings: hidden(open), ...(sample && { like: sample.id, drop: ['_display'] }), children: [{ name: 'text-basic', label: 'Content', settings: {}, ...(sampleText && { like: sampleText.id }), text }] }
-        : { name: 'block', label: `Pane ${panels.length + i + 1} (empty: not in Figma)`, settings: hidden(open) };
-    });
+    const extraChildren = missing.map((title, i) => undrawnPane(title, panels.length + i, panels.length + i === openAt, det, sample, sampleText));
     const out = {
       [node.id]: { settings: { openTab: String(openAt) }, css: [...flexDirectionCss(node), ...tabsChromeCss(), ...(list ? [] : titleCss)] },
     };
-    if (!list && missing.length && (!paneParent || paneParent.id === node.id)) out[node.id].extraChildren = extraChildren;
+    // One block holds the menu. The other block holds every pane, in title order.
+    // The frame Figma drew is that second block; its children are the open pane.
+    const body = paneParent && paneParent.id !== node.id && panels.length === 0 && visibleKids(paneParent).some((kid) => !isSeparator(kid))
+      ? paneParent : null;
+    if (body) {
+      const blanks = titles.flatMap((title, i) => {
+        if (i === openAt) return [];
+        const pane = undrawnPane(title, i, false, det, null, null);
+        if (i < openAt) pane.place = 'before';
+        return [pane];
+      });
+      out[body.id] = {
+        kind: 'block',
+        settings: { ...hidden('tab-content'), _direction: 'column' },
+        dropSettings: ['_columnGap', '_rowGap'],
+        wrapChildren: {
+          label: `Pane ${openAt + 1}`,
+          settings: hidden('tab-pane brx-open'),
+          css: [...flexDirectionCss(body), { decl: `display: ${displayOf(body)};`, suffix: '.brx-open' }],
+        },
+        extraChildren: blanks,
+      };
+    } else if (!list && missing.length && (!paneParent || paneParent.id === node.id)) {
+      out[node.id].extraChildren = extraChildren;
+    }
     if (list) out[list.id] = { settings: hidden('tab-menu'), css: titleCss };
     titles.forEach((title, i) => {
       out[title.id] = { settings: hidden(i === openAt ? 'tab-title brx-open' : 'tab-title'), dropSettings: line ? ['_background', '_gradient', '_border', '_boxShadow'] : ['_background', '_gradient'] };
@@ -536,10 +562,10 @@ export default {
       };
     });
     stampActive(out, titles, openAt);
-    if (paneParent && paneParent.id !== node.id) {
+    if (!body && paneParent && paneParent.id !== node.id) {
       // The content frame is the pane parent. It has to be a block: an empty frame exported as svg does not render its children.
       out[paneParent.id] = { ...(out[paneParent.id] ?? {}), kind: 'block', settings: { ...(out[paneParent.id]?.settings ?? {}), ...hidden('tab-content') }, ...(missing.length ? { extraChildren } : {}) };
-    } else if (paneParent && paneParent.id === node.id && missing.length && list) {
+    } else if (!body && paneParent && paneParent.id === node.id && missing.length && list) {
       out[node.id].extraChildren = extraChildren;
     }
     return out;

@@ -252,12 +252,18 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
       addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
     }
-    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
   function bindSelectors(settings, id, name) {
     if (typeof settings._cssCustom !== 'string') return;
     settings._cssCustom = settings._cssCustom.replaceAll('%root%', `#brxe-${id}`).replaceAll('%class%', `.brxe-${id}.brxe-${name}`);
+  }
+
+  function emitWrap(node, parentId, wrap) {
+    const settings = { ...(wrap.settings ?? {}), _width: '100%' };
+    for (const rule of wrap.css ?? []) addCustomCss(settings, rule.decl, rule.suffix ?? '');
+    return emitRaw(`${node.id}#open`, wrap.name ?? 'block', settings, parentId, wrap.label ?? 'Pane');
   }
 
   function emitRaw(key, name, settings, parent, label) {
@@ -269,7 +275,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   }
 
   const IMAGE_CHILD_KEYS = ['image', 'altText', 'loading', '_objectFit', '_objectPosition', 'link', 'url', 'newTab', 'caption', 'captionCustom', 'showTitle'];
-  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, onePage = false, after, component, extra, inner, keep = new Set() } = {}) {
+  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, onePage = false, after, component, extra, wrapChildren, inner, keep = new Set() } = {}) {
     let settings = s;
     const scrollAttrs = (s._attributes ?? []).filter((a) => a.name === 'data-f2b-scroll' || a.name === 'data-f2b-scroll-track' || a.name === 'data-f2b-scroll-thumb' || a.name === 'onscroll' || a.name === 'onwheel' || String(a.name).startsWith('onpointer'));
     for (const k of ov.dropSettings ?? []) delete settings[k];
@@ -312,10 +318,15 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     };
     after?.(id);
     if (inner) emitRaw(`${node.id}#inner`, inner.name, inner.settings, id, inner.label || inner.name); // wrapping component: the block keeps the Figma frame, the real element sits inside
+    // Bricks pairs tab panes by DOM order. A pane for an earlier title has to exist before the drawn pane.
+    const extras = extra ?? [];
+    const lead = extras.filter((x) => x.place === 'before');
+    const tail = extras.filter((x) => x.place !== 'before');
+    lead.forEach((x, i) => emitExtra(`${node.id}#lead${i}`, x, id));
     if (node.__skipChildren) {
       for (const c of node.children ?? []) if (c) mapping[c.id] = { skipped: 'switch value is the form field' };
-    } else if (node.children) {
-      const host = onePage
+    } else if (node.children || wrapChildren) {
+      const pageHost = onePage && node.children
         ? emitRaw(`${node.id}#page`, 'block', {
           _display: 'flex',
           _direction: 'column',
@@ -324,13 +335,15 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
           ...(typeof node.layout?.gap === 'number' ? { _rowGap: px(node.layout.gap) } : {}),
         }, id, 'page')
         : id;
-      for (const c of node.children) {
+      // The drawn children are one pane. Empty panes stay siblings of that pane, inside the pane block.
+      const childHost = wrapChildren ? emitWrap(node, pageHost, wrapChildren) : pageHost;
+      for (const c of node.children ?? []) {
         if (component?.merges && c.visible !== false && !keep.has(c.id)) mapping[c.id] = { skipped: `merged into ${component.id} ${component.detection}` };
-        else mapNode(c, node, host, { isSlide: kind === 'slider-nested' && !onePage });
+        else mapNode(c, node, childHost, { isSlide: kind === 'slider-nested' && !onePage });
       }
     }
     // elements Bricks needs that Figma does not draw (e.g. an empty tab pane): created empty, never invented content
-    (extra ?? []).forEach((x, i) => emitExtra(`${node.id}#extra${i}`, x, id));
+    tail.forEach((x, i) => emitExtra(`${node.id}#extra${i}`, x, id));
     return id;
   }
   // An element Bricks needs that Figma does not draw. `children` nest ({ name, label, settings, children }). `like` = the Figma node id of a drawn element of the

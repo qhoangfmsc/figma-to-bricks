@@ -527,6 +527,35 @@ test('a fresh plan lists the period bar as tabs, with no earlier expect', () => 
   assert.match(plan, /pane:1:4274/);
 });
 
+test('one block wraps a menu block and a pane block, and an icon between titles is not a title', () => {
+  const chip = (id, label, on) => frame(id, 'Zone', [0, 0, 120, 36], [text(`${id}t`, label, [0.1, 0.2, 0.3])], on ? { fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.4, b: 0.9, a: 1 } }] } : {});
+  const mark = { id: 'mark', name: 'mark', type: 'VECTOR', absoluteBoundingBox: box(130, 12, 12, 12) };
+  const tree = normalizeRoot({ nodes: { r: { document: frame('host', 'Atlas', [0, 0, 640, 320], [
+    frame('bar', 'Zones', [0, 0, 400, 36], [chip('north', 'North', false), mark, chip('south', 'South', true), chip('east', 'East', false)], { layoutMode: 'HORIZONTAL' }),
+    frame('sheet', 'Sheet', [0, 48, 640, 240], [
+      frame('harbor', 'Harbor', [0, 48, 280, 200], [text('ht', 'Harbor', [0.1, 0.1, 0.1])], { layoutMode: 'VERTICAL' }),
+      frame('ridge', 'Ridge', [300, 48, 280, 200], [text('rt', 'Ridge', [0.1, 0.1, 0.1])], { layoutMode: 'VERTICAL' }),
+    ], { layoutMode: 'HORIZONTAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'host', params: {} }] }, salt: 'atlas' });
+  const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
+  const classes = (id) => el(id).settings._hidden?._cssClasses ?? '';
+  assert.equal(el('host').name, 'tabs-nested');
+  assert.equal(el('host').settings.openTab, '1');
+  assert.equal(classes('bar'), 'tab-menu');
+  assert.equal(classes('north'), 'tab-title');
+  assert.equal(classes('south'), 'tab-title brx-open');
+  assert.equal(classes('east'), 'tab-title');
+  assert.equal(classes('mark'), '');
+  assert.equal(classes('sheet'), 'tab-content');
+  const hostKids = built.template.content.filter((e) => e.parent === el('host').id);
+  assert.deepEqual(hostKids.map((e) => e.id), [el('bar').id, el('sheet').id]);
+  const panes = built.template.content.filter((e) => e.parent === el('sheet').id);
+  assert.deepEqual(panes.map((e) => e.settings._hidden._cssClasses), ['tab-pane', 'tab-pane brx-open', 'tab-pane']);
+  assert.equal(built.template.content.find((e) => e.id === el('harbor').id).parent, panes[1].id);
+  assert.equal(built.template.content.find((e) => e.id === el('ridge').id).parent, panes[1].id);
+});
+
 test('a fresh plan lists the service bar as tabs, and the button under the open pane stays in that pane', () => {
   const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-12774/tree.json', import.meta.url), 'utf8'));
   const { plan, det } = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
