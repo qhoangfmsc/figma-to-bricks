@@ -191,6 +191,20 @@ class F2B_MCP_Tools {
 				),
 			),
 			array(
+				'name'        => 'get_service_price',
+				'description' => 'Read one Service Pricing table as widget_data. Requires VNX_Service_Price_Store_Center on this site.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'id' => array(
+							'type'        => 'string',
+							'description' => 'Price table id, for example bang-gia-maxspeed-hosting-thang-10.',
+						),
+					),
+					'required'   => array( 'id' ),
+				),
+			),
+			array(
 				'name'        => 'upload_media',
 				'description' => 'Upload a media file (PNG/JPG/WEBP/SVG/GIF) to the WordPress Media Library from base64 content. Returns attachment_id and url. Used to re-host build-time Figma cache assets (localhost:3845) so images resolve for real visitors on any environment (local or remote).',
 				'inputSchema' => array(
@@ -244,6 +258,8 @@ class F2B_MCP_Tools {
 				return self::set_page_settings_tool( $args );
 			case 'generate_css_file':
 				return self::generate_css_file( $args );
+			case 'get_service_price':
+				return self::get_service_price( $args );
 			case 'upload_media':
 				return self::upload_media( $args );
 		}
@@ -252,6 +268,21 @@ class F2B_MCP_Tools {
 	}
 
 	// ---------------------------------------------------------------- tools
+
+	private static function get_service_price( array $args ) {
+		if ( ! class_exists( 'VNX_Service_Price_Store_Center' ) ) {
+			return new WP_Error( 'missing-store', 'Service price store is not on this site.' );
+		}
+		$id = isset( $args['id'] ) ? (string) $args['id'] : '';
+		if ( ! VNX_Service_Price_Store_Center::is_valid_id( $id ) ) {
+			return new WP_Error( 'bad-id', 'Invalid price table id.' );
+		}
+		$data = VNX_Service_Price_Store_Center::widget_data( $id );
+		if ( $data === null ) {
+			return new WP_Error( 'missing-table', 'Price table not found.' );
+		}
+		return $data;
+	}
 
 	private static function get_site_info() {
 		$theme = wp_get_theme();

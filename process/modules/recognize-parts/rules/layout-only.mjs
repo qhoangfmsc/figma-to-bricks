@@ -1,5 +1,5 @@
-// Domain lookup and a price table stay a picture of the layout.
-// The action is built in the vietnix-center plugin, outside this project.
+// Domain lookup and a price table stay a picture of the layout until the plan binds a Service Pricing id.
+// That id is the plugin's table. This file does not invent a sign-up URL.
 // A normal search field and a normal link button are unchanged.
 import { textsOf, visibleKids } from './shape.mjs';
 

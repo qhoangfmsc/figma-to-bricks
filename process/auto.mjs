@@ -19,6 +19,8 @@ import { parseFigmaUrl } from './modules/read-figma/url.mjs';
 import { figmaGet, enableRunCache, refreshRunCache, runCacheStats } from './modules/read-figma/api.mjs';
 import { writePlan, assemblePage, plansFile, sectionTitles } from './modules/common/deliverable.mjs';
 import { loadConfirmed, applyAnswers, shareAccordionAnswers, consumeConfirmation, planProblems } from './modules/missing-content/index.mjs';
+import { attachWidgetData } from './modules/write-bricks/components/price-data.mjs';
+import { readServicePrice } from './modules/write-bricks/bridge.mjs';
 import { attachFilledFrames } from './modules/single-template/filled.mjs';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { sectionJob, writeSectionJob } from './modules/section-jobs/jobs.mjs';
@@ -58,7 +60,12 @@ async function prepare(u, opts) {
   if (prev) { prev.components = prev.components.filter((c) => !String(c.note ?? '').startsWith('autopilot')); ws.writeJson('detections.json', prev); }
   detectStep(ws.dir);
   const result = decide(ws, { ...opts, formErrors: await formErrorsFor(ws.ref.nodeId) });
-  if (confirmedAnswers) { const r = applyAnswers(ws, confirmedAnswers); if (r.applied.length) console.log(`  plan: ${r.applied.length} value(s) from plan-${ref.nodeId.replace(':', '-')}.md applied`); }
+  if (confirmedAnswers) {
+    const r = applyAnswers(ws, confirmedAnswers);
+    if (r.applied.length) console.log(`  plan: ${r.applied.length} value(s) from plan-${ref.nodeId.replace(':', '-')}.md applied`);
+    const priceErrors = await attachWidgetData(ws, readServicePrice);
+    if (priceErrors.length) throw new Error(priceErrors.join('\n'));
+  }
   writeDecisionReport(ws, result, ws.readJson('tree.json').name);
   detectStep(ws.dir); // validates the citations of what decide wrote
   return { ws, result };

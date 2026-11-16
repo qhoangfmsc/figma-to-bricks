@@ -30,6 +30,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 | [accordion](widget-components/accordion.md) | FAQ |
 | [tabs](widget-components/tabs.md) | tab |
 | [tab-switch](widget-components/tab-switch.md) | tab có mục lặp |
+| [price-table](widget-components/price-table.md) | bảng giá Service Pricing |
 | [menu](widget-components/menu.md) | hàng link |
 | [menu-slider](widget-components/menu-slider.md) | hàng link tràn |
 | [carousel](widget-components/carousel.md) | slider |

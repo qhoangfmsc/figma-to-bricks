@@ -126,3 +126,7 @@ export async function bridge(method, path, body = {}) {
 
   throw new Error(`bridge ${method} ${path} is not available on this site`);
 }
+
+export async function readServicePrice(id) {
+  return mcp('get_service_price', { id });
+}

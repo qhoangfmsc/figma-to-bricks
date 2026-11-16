@@ -10,6 +10,7 @@
 //   applyAnswers() puts each value on its node after decide() ran. Answers are keyed by the Figma node id, never stored in the entries
 //                  that decide() regenerates on every run, so they survive a re-run.
 // A blank value is not an error: the safe default stays (link "#", alt "") and the item is listed again in the report.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { readSync } from '../write-bricks/components/accordion.mjs';
@@ -20,6 +21,7 @@ import { parseFigmaUrl } from '../read-figma/url.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { choiceOf, MISSING, REPEAT_COMPONENT } from './choices.mjs';
+import { PRICE_ID } from '../write-bricks/components/price-data.mjs';
 import tabsComponent from '../write-bricks/components/tabs.mjs';
 import tabSwitch from '../write-bricks/components/tab-switch.mjs';
 
@@ -180,6 +182,18 @@ export const GROUPS = {
     summary: 'Ghi thêm điều tool chưa hỏi.',
     value: '',
     check: (v) => (v.length <= 2000 ? null : 'dài quá 2000 ký tự'),
+  },
+  price: {
+    title: (n) => `Id bảng giá của ${n} cụm`,
+    field: 'Id bảng giá',
+    heading: (name) => `${name || 'Cụm này'} lấy số liệu bảng giá nào?`,
+    summary: 'Ghi id bảng giá trong Service Pricing, ví dụ bang-gia-maxspeed-hosting-thang-10. Để trống thì giữ hình đã vẽ, nút không có link.',
+    value: '',
+    check: (v) => {
+      const text = String(v ?? '').trim();
+      if (!text || text === MISSING) return null;
+      return PRICE_ID.test(text) ? null : 'id chỉ gồm chữ thường, số và dấu gạch, tối đa 60 ký tự';
+    },
   },
   tabdata: {
     title: (n) => `Nhóm item của ${n} tab`,
@@ -491,6 +505,32 @@ export function applyAnswers(ws, answers) {
         ov.template = { ...(ov.template ?? {}), type: picked.choice };
         ok = true;
         break;
+      case 'price': {
+        if (!findIn(node)) break;
+        if (picked.choice === 'unset') { ok = true; break; }
+        if (picked.choice !== 'id' || !PRICE_ID.test(picked.id ?? '')) break;
+        let entry = det.components.find((item) => item.component === 'price-table' && item.node === node);
+        const detectionId = 'p' + createHash('sha1').update(node).digest('hex').slice(0, 8);
+        if (!entry) {
+          det.components.push({
+            id: detectionId,
+            status: 'approved',
+            source: 'plan',
+            component: 'price-table',
+            node,
+            confidence: 'high',
+            params: { id: picked.id },
+            note: 'plan: service price table id',
+          });
+        } else {
+          entry.id = detectionId;
+          entry.status = 'approved';
+          entry.params = { ...(entry.params ?? {}), id: picked.id };
+          delete entry.params.table;
+        }
+        ok = true;
+        break;
+      }
       case 'expect': {
         if (!findIn(node) || picked.choice === 'unset' || picked.choice === 'block') { ok = !!findIn(node); break; }
         const name = picked.choice === 'tab' ? tabKind(findIn(node)) : (REPEAT_COMPONENT[picked.choice] ?? picked.choice);

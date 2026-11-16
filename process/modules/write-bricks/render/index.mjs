@@ -29,6 +29,7 @@ import { applyLayout } from '../../write-bricks/render/layout.mjs';
 import { applyStyle } from '../../write-bricks/render/style.mjs';
 import { applyText } from '../../write-bricks/render/text.mjs';
 import { COMPONENTS } from '../../write-bricks/components/index.mjs';
+import priceTable from '../../write-bricks/components/price-table.mjs';
 import { siblingStatePatches } from '../../write-bricks/components/states.mjs';
 import { closeMarkIds, popupCard } from '../../recognize-parts/rules/shape.mjs';
 import { isDomainLookup } from '../../recognize-parts/rules/layout-only.mjs';
@@ -54,8 +55,17 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
+  const priceReady = new Set();
+  const priceSkipped = [];
+  for (const c of detections?.components ?? []) {
+    if (c.status !== 'approved' || c.component !== 'price-table') continue;
+    const node = findNode(root, c.node);
+    if (node && priceTable.check(node, c, { root }).ok) priceReady.add(c.node);
+  }
   const approved = new Map();
   for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination')) {
+    if (c.component === 'price-table' && !priceReady.has(c.node)) { priceSkipped.push(c); continue; }
+    if ((c.component === 'tab-switch' || c.component === 'tabs') && priceReady.has(c.node)) continue;
     const prev = approved.get(c.node);
     if (prev && c.component === 'semantic') continue;
     approved.set(c.node, c);
@@ -78,6 +88,10 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const rootAbs = { x: root.box.absX, y: root.box.absY };
 
   const warn = (node, msg) => warnings.push({ node: node.id, name: node.name, msg });
+  for (const c of priceSkipped) {
+    const node = findNode(root, c.node);
+    if (node) warn(node, `detection ${c.id} (price-table) approved but not applied, kept as block: ${priceTable.check(node, c, { root }).reason}`);
+  }
 
   function brickId(figmaId) {
     for (let i = 0; ; i++) {

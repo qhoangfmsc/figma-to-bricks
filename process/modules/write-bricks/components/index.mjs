@@ -11,6 +11,7 @@ import form from '../../write-bricks/components/form.mjs';
 import accordion from '../../write-bricks/components/accordion.mjs';
 import tabs from '../../write-bricks/components/tabs.mjs';
 import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
+import priceTable from '../../write-bricks/components/price-table.mjs';
 import link from '../../write-bricks/components/link.mjs';
 import semantic from '../../write-bricks/components/semantic.mjs';
 import iconList from '../../write-bricks/components/icon-list.mjs';
@@ -30,4 +31,4 @@ import video from '../../write-bricks/components/video.mjs';
 import { PRODUCTION } from '../../write-bricks/components/production.mjs';
 import scroll from '../../write-bricks/components/scroll.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, scroll, ...PRODUCTION].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, priceTable, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, scroll, ...PRODUCTION].map((c) => [c.id, c]));

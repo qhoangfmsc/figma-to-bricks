@@ -28,6 +28,7 @@ import { paneQuestionLabel } from '../missing-content/index.mjs';
 import { menuLabels } from '../write-bricks/components/menu.mjs';
 import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
 import { isSignal } from '../recognize-parts/kinds.mjs';
+import { priceFrames } from '../write-bricks/components/price-table.mjs';
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const walk = (n, fn) => { if (n.visible === false) return; fn(n); kids(n).forEach((c) => walk(c, fn)); };
@@ -362,6 +363,8 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     line.note = 'autopilot: this line is the scroll bar, not a divider';
     log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
   }
+
+  for (const frame of priceFrames(tree)) ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
 
   const typed = detectTemplateType(tree);
   const suggested = typed.confidence === 'low' ? 'section' : typed.type;

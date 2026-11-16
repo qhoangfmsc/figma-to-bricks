@@ -1,0 +1,352 @@
+// A price table whose plan carries a Service Pricing id.
+// One drawn pill, one drawn card and one drawn info row stay. Query loops repeat them.
+// Text that equals a cell of the loaded table becomes {vnx_sp_*}. Other text stays.
+// Bricks 1.12.3 reads hasLoop + query.objectType on block/div (container.php).
+// The plugin resolves vnxsp_{pkg|cycle|row}__{id} and {vnx_sp_*} at request time.
+import { visibleKids, hidden, flexDirectionCss } from '../../write-bricks/components/helpers.mjs';
+import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
+import { queryType } from '../../write-bricks/components/price-data.mjs';
+import { cssColor } from '../../write-bricks/render/utils/css.mjs';
+import { layoutOnlyReason } from '../../recognize-parts/rules/layout-only.mjs';
+import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
+
+const cache = new WeakMap();
+const claimedHosts = new WeakMap();
+const norm = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
+const fold = (value) => norm(value).toLocaleLowerCase('vi');
+const shown = (value) => fold(String(value ?? '').replaceAll('/', '|'));
+const same = (drawn, cell) => {
+  const left = fold(drawn);
+  const right = fold(cell);
+  return !!left && !!right && (left === right || left === shown(cell));
+};
+
+function textsIn(node, out = []) {
+  if (!node || node.visible === false) return out;
+  if (node.type === 'TEXT' && !node.svg && node.text?.characters) out.push(node);
+  for (const child of node.children ?? []) textsIn(child, out);
+  return out;
+}
+
+function hasWords(node, pred) {
+  return textsIn(node).some((text) => pred(norm(text.text.characters)));
+}
+
+function parentOf(root, id) {
+  let found = null;
+  const walk = (node) => {
+    for (const child of node?.children ?? []) {
+      if (!child) continue;
+      if (child.id === id) { found = node; return; }
+      walk(child);
+      if (found) return;
+    }
+  };
+  walk(root);
+  return found;
+}
+
+function contains(node, id) {
+  return !!node && (node.id === id || visibleKids(node).some((child) => contains(child, id)));
+}
+
+function bestGroup(scope, pred, min = 1) {
+  let found = null;
+  const walk = (node) => {
+    const items = visibleKids(node).filter(pred);
+    if (items.length >= min && (!found || items.length > found.items.length)) found = { host: node, items };
+    visibleKids(node).forEach(walk);
+  };
+  if (scope) walk(scope);
+  return found;
+}
+
+function climb(start, root, pred, min) {
+  let current = start;
+  let found = null;
+  while (current) {
+    const group = bestGroup(current, pred, min);
+    if (group && (!found || group.items.length > found.items.length)) found = group;
+    if (!root || current.id === root.id) break;
+    current = parentOf(root, current.id);
+  }
+  return found;
+}
+
+function findById(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const child of node.children ?? []) {
+    const found = findById(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function hasSvg(node) {
+  if (!node || node.visible === false) return false;
+  if (node.svg) return true;
+  return visibleKids(node).some(hasSvg);
+}
+
+function flowSettings(node) {
+  const layout = node?.layout ?? {};
+  if (layout.mode !== 'HORIZONTAL' && layout.mode !== 'VERTICAL') return { _display: 'flex' };
+  const horizontal = layout.mode === 'HORIZONTAL';
+  const align = { MIN: 'flex-start', CENTER: 'center', MAX: 'flex-end', BASELINE: 'baseline' }[layout.counterAlign] ?? 'flex-start';
+  return {
+    _display: 'flex',
+    _direction: horizontal ? 'row' : 'column',
+    _alignItems: align,
+    ...(typeof layout.gap === 'number' ? { [horizontal ? '_columnGap' : '_rowGap']: `${layout.gap}px` } : {}),
+  };
+}
+
+function raisedMark(item) {
+  const walk = (node) => {
+    if (!node || node.visible === false) return false;
+    if (node !== item && node.place === 'ABSOLUTE' && node.box && node.box.y < 0) return true;
+    return (node.children ?? []).some(walk);
+  };
+  return walk(item);
+}
+
+function spills(parent) {
+  const walk = (node) => (node.children ?? []).some((child) => {
+    if (!child || child.visible === false) return false;
+    const box = child.box;
+    const host = node.box;
+    if (box && host && (box.x < -0.5 || box.y < -0.5 || box.x + box.w > host.w + 0.5 || box.y + box.h > host.h + 0.5)) return true;
+    return walk(child);
+  });
+  return walk(parent);
+}
+
+const solidFill = (node) => (node?.fills ?? []).filter((fill) => fill.type === 'SOLID' && fill.visible !== false).at(-1);
+
+function loop(kind, id) {
+  return { hasLoop: true, query: { objectType: queryType(kind, id) } };
+}
+
+function tagText(patches, id, tag) {
+  const prev = patches[id] ?? {};
+  patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
+}
+
+function bindPrice(node, table, id, root) {
+  const empty = { tabsHost: null, card: null, patches: {}, omit: [], warnings: [], skip: false };
+  if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
+  const scopeRoot = root ?? node;
+  const packOf = (item) => table.packages.find((itemPack) => hasWords(item, (word) => same(word, itemPack.name)));
+  const isPackage = (item) => !!packOf(item);
+  const isCycle = (item) => hasWords(item, (word) => table.cycles.some((cycle) => same(word, cycle.label)));
+  const cards = climb(node, scopeRoot, isPackage, 2) ?? climb(node, scopeRoot, isPackage, 1);
+  const cycles = bestGroup(scopeRoot, isCycle, 2) ?? bestGroup(scopeRoot, isCycle, 1);
+  if (!cards) return { ...empty, warnings: ['no drawn card matches a package name in this table'] };
+  const claims = claimedHosts.get(scopeRoot) ?? new Set();
+  claimedHosts.set(scopeRoot, claims);
+  if (claims.has(cards.host.id)) return { ...empty, skip: true, card: cards.items[0] };
+  claims.add(cards.host.id);
+
+  const card = cards.items[0];
+  const pack = packOf(card) ?? table.packages[0];
+  const cardWords = textsIn(card).map((text) => fold(text.text.characters));
+  let openAt = 0;
+  let best = -1;
+  table.cycles.forEach((_, index) => {
+    const price = pack.prices[index] ?? {};
+    const score = ['regular', 'sale', 'total', 'tag', 'promoText', 'code'].filter((key) => price[key] && cardWords.includes(fold(price[key]))).length;
+    if (score > best) { best = score; openAt = index; }
+  });
+  const price = pack.prices[openAt] ?? {};
+  const infoItemShape = (item) => (hasSvg(item) || hasWords(item, (word) => pack.info.some((info) => same(word, info.text)))) && textsIn(item).length >= 1;
+  const rows = bestGroup(card, infoItemShape, 2) ?? bestGroup(card, infoItemShape, 1);
+
+  const patches = {};
+  const put = (nodeId, patch) => {
+    const prev = patches[nodeId] ?? {};
+    patches[nodeId] = {
+      ...prev,
+      ...patch,
+      settings: { ...(prev.settings ?? {}), ...(patch.settings ?? {}) },
+      css: [...(prev.css ?? []), ...(patch.css ?? [])],
+      ...(patch.wrapChildren ? { wrapChildren: patch.wrapChildren } : {}),
+    };
+  };
+  const omit = [];
+  const warnings = [];
+  const cycleProto = cycles?.items.find((item) => !raisedMark(item)) ?? cycles?.items[0];
+  const cycleActive = cycles?.items.find((item) => raisedMark(item));
+  if (cycleActive) {
+    const label = textsIn(cycleActive).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
+    const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
+    if (index >= 0) openAt = index;
+  }
+  if (cycles && cycleProto) cycles.items.filter((item) => item.id !== cycleProto.id).forEach((item) => omit.push(item.id));
+  cards.items.slice(1).forEach((item) => omit.push(item.id));
+  if (rows) rows.items.slice(1).forEach((item) => omit.push(item.id));
+  if (!cycles) warnings.push('no cycle labels from this table are drawn here, so the first cycle is used');
+
+  let tabsHost = null;
+  if (cycles) {
+    let cursor = cards.host;
+    while (cursor) {
+      if (contains(cursor, cycles.host.id) && contains(cursor, cards.host.id)) tabsHost = cursor.id;
+      if (cursor.id === scopeRoot.id) break;
+      cursor = parentOf(scopeRoot, cursor.id);
+    }
+  }
+  const tabsNode = tabsHost === cards.host.id ? cards.host : (tabsHost ? findById(scopeRoot, tabsHost) : null);
+
+  if (tabsHost) {
+    const hostNode = tabsNode ?? cards.host;
+    put(tabsHost, {
+      kind: 'tabs-nested',
+      settings: { openTab: String(openAt) },
+      css: [...flexDirectionCss(hostNode), ...tabsChromeCss()],
+    });
+    const activeCss = [];
+    if (cycleActive && cycleProto && cycleActive.id !== cycleProto.id) {
+      const fill = solidFill(cycleActive);
+      const label = textsIn(cycleActive).find((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label)));
+      const ink = solidFill(label);
+      if (fill) activeCss.push({ decl: `background-color: ${cssColor(fill)};`, suffix: ' .tab-title.brx-open' });
+      if (ink) activeCss.push({ decl: `color: ${cssColor(ink)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
+    }
+    put(cycles.host.id, { settings: hidden('tab-menu'), css: activeCss });
+    if (cycleProto?.type !== 'TEXT') put(cycleProto.id, { settings: { ...hidden('tab-title'), ...loop('cycle', id) } });
+    put(cards.host.id, {
+      settings: hidden('tab-content'),
+      wrapChildren: { label: 'Cycle', settings: { ...hidden('tab-pane'), ...loop('cycle', id), ...flowSettings(cards.host) } },
+    });
+  } else if (cycleProto?.type !== 'TEXT') {
+    put(cycleProto.id, { settings: loop('cycle', id) });
+  }
+  if (card.type !== 'TEXT') put(card.id, { settings: { ...loop('pkg', id), ...(spills(card) ? { _overflow: 'hidden' } : {}) } });
+  if (rows && rows.items[0].type !== 'TEXT') put(rows.items[0].id, { settings: loop('row', id) });
+
+  const assign = (textNode, tag) => tagText(patches, textNode.id, tag);
+  const used = new Set();
+  const take = (textNode, tag) => { assign(textNode, tag); used.add(textNode.id); };
+  for (const textNode of textsIn(cycleProto)) {
+    const word = textNode.text.characters;
+    if (table.cycles.some((cycle) => same(word, cycle.label))) take(textNode, '{vnx_sp_cycle}');
+    else take(textNode, '{vnx_sp_cycle_badge}');
+  }
+  const infoItem = rows?.items[0];
+  if (infoItem) {
+    const infoTexts = textsIn(infoItem);
+    if (infoTexts[0]) {
+      take(infoTexts[0], '{vnx_sp_info}');
+      put(infoTexts[0].id, { settings: { _typography: { 'white-space': 'normal' } } });
+    }
+    if (infoTexts[1]) take(infoTexts[1], '{vnx_sp_info_extra}');
+    const icon = visibleKids(infoItem).find((child) => hasSvg(child));
+    if (icon) put(icon.id, { settings: { _cssClasses: '{vnx_sp_info_icon_class}' } });
+  }
+  for (const textNode of textsIn(card)) {
+    if (used.has(textNode.id)) continue;
+    if (rows && rows.items.some((item) => contains(item, textNode.id))) continue;
+    const word = textNode.text.characters;
+    if (same(word, pack.name)) take(textNode, '{vnx_sp_name}');
+    else if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
+    else if (same(word, price.sale) || pack.prices.some((item) => same(word, item.sale))) take(textNode, '{vnx_sp_sale}');
+    else if (same(word, price.regular)) take(textNode, '{vnx_sp_regular}');
+    else if (same(word, price.total)) take(textNode, '{vnx_sp_total}');
+    else if (same(word, price.promoText) || pack.prices.some((item) => same(word, item.promoText))) take(textNode, '{vnx_sp_promo_text}');
+    else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
+      take(textNode, '{vnx_sp_code}');
+      put(textNode.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }] } });
+    } else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, '{vnx_sp_unit}');
+    else if (table.meta.button && same(word, table.meta.button)) {
+      take(textNode, '{vnx_sp_button}');
+      const frame = parentOf(card, textNode.id);
+      const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
+      if (onlyText) put(frame.id, { settings: { text: '{vnx_sp_button}', link: { type: 'external', url: '{vnx_sp_link}' } } });
+    }
+  }
+  let promo = null;
+  const walkPromo = (current) => {
+    if (rows && (current.id === rows.host.id || rows.items.some((item) => contains(item, current.id) || item.id === current.id))) return;
+    const texts = textsIn(current).filter((text) => !used.has(text.id));
+    if (texts.length === 2) promo = texts;
+    visibleKids(current).forEach(walkPromo);
+  };
+  walkPromo(card);
+  if (promo) {
+    const [code, sentence] = fold(promo[0].text.characters).includes(' ') ? [promo[1], promo[0]] : [promo[0], promo[1]];
+    take(sentence, '{vnx_sp_promo_text}');
+    take(code, '{vnx_sp_code}');
+    put(code.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }] } });
+  }
+
+  if (price.special) {
+    const image = textsIn(card).length && findImage(card);
+    if (image) {
+      const prev = patches[image.id] ?? {};
+      patches[image.id] = { ...prev, settings: { ...(prev.settings ?? {}), image: { useDynamicData: '{vnx_sp_label}' } } };
+    }
+  }
+
+  return { tabsHost, card, patches, omit, warnings };
+}
+
+function findImage(node) {
+  if (!node || node.visible === false) return null;
+  if (node.type !== 'TEXT' && (node.fills ?? []).some((fill) => fill.type === 'IMAGE')) return node;
+  for (const child of visibleKids(node)) {
+    const found = findImage(child);
+    if (found) return found;
+  }
+  return null;
+}
+
+function bound(node, det, root) {
+  if (cache.has(det)) return cache.get(det);
+  const value = bindPrice(node, det?.params?.table, det?.params?.id, root ?? node);
+  cache.set(det, value);
+  return value;
+}
+
+function containsNode(node, id) {
+  return contains(node, id);
+}
+
+export function priceFrames(root) {
+  const frames = [];
+  const walk = (node) => {
+    const cards = visibleKids(node).filter((child) => layoutOnlyReason(child, root) === 'price' && visibleKids(child).length > 0);
+    if (cards.length >= 2) frames.push(node);
+    visibleKids(node).forEach(walk);
+  };
+  walk(root);
+  return frames.filter((frame) => !frames.some((other) => other !== frame && containsNode(frame, other.id)));
+}
+
+export default {
+  id: 'price-table',
+  status: 'implemented',
+  label: 'Price table',
+  figma: 'a drawn card row whose plan names a Service Pricing table id',
+  bricks: 'tabs-nested when cycle labels are drawn, plus query loops vnxsp_cycle, vnxsp_pkg and vnxsp_row. Text is {vnx_sp_*}',
+  limits: 'A pill, card or info row that is not the first drawn one is not emitted. The loop repeats the first. A cycle badge drawn only on a later pill is not added. Popular styling and the consult slide stay the look of the first card.',
+  kind(node, det) {
+    return bound(node, det).tabsHost === node.id ? 'tabs-nested' : undefined;
+  },
+  check(node, det, ctx) {
+    if (!det?.params?.table?.packages?.length) return { ok: false, reason: 'price table data is not loaded' };
+    const found = bound(node, det, ctx?.root ?? node);
+    if (found.skip) return { ok: true, warnings: [] };
+    if (!found.card) return { ok: false, reason: found.warnings[0] ?? 'no drawn card matches a package name in this table' };
+    return { ok: true, warnings: found.warnings };
+  },
+  descendants(node, det, ctx) {
+    return bound(node, det, ctx?.root ?? node).patches;
+  },
+  mergedNodes(det, node) {
+    return bound(node, det).omit;
+  },
+  pageScript() {
+    return tabSwitch.pageScript();
+  },
+};
