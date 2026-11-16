@@ -4,6 +4,7 @@
 // Paint left on one item after another item is chosen is not a state.
 // Accordion, menu, and tabs own their open / active behaviour and are skipped by the sibling walker.
 import { cssColor, px } from '../../write-bricks/render/utils/css.mjs';
+import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
 
 export const ComponentState = Object.freeze({
   REST: 'rest',
@@ -47,6 +48,14 @@ export function componentState(node) {
 
 const solidFill = (n) => (n?.fills ?? []).filter((f) => f.type === 'SOLID').at(-1) ?? null;
 const fillKey = (f) => (f ? `${f.hex}:${f.alpha ?? 1}` : '');
+// The top linear gradient, when it sits above every solid fill. Bricks writes it as background-image (_gradient),
+// which a background-color rule does not cover: the other state has to set or clear the image as well.
+const topGradient = (n) => {
+  const fills = (n?.fills ?? []).filter((f) => f.visible !== false);
+  const top = fills.at(-1);
+  if (top?.type !== 'GRADIENT_LINEAR' || !top.stops?.length || !(n.box?.w > 0) || !(n.box?.h > 0)) return null;
+  return linearGradientCss(top, n.box.w, n.box.h);
+};
 const shown = (n) => (n?.children ?? []).filter((c) => c && c.visible !== false);
 
 function checkedValue(n) {
@@ -90,7 +99,14 @@ function paintDiff(rest, on, { root = false } = {}) {
   if (!root && rest.type !== 'TEXT' && on.type !== 'TEXT') {
     const a = solidFill(rest);
     const b = solidFill(on);
-    if (fillKey(a) !== fillKey(b)) {
+    const ga = topGradient(rest);
+    const gb = topGradient(on);
+    if (ga || gb) {
+      if (ga !== gb || fillKey(a) !== fillKey(b)) {
+        out.rest.push(ga ? 'background-color: transparent !important;' : `background-color: ${a ? cssColor(a) : 'transparent'} !important;`, `background-image: ${ga ?? 'none'} !important;`);
+        out.on.push(gb ? 'background-color: transparent !important;' : `background-color: ${b ? cssColor(b) : 'transparent'} !important;`, `background-image: ${gb ?? 'none'} !important;`);
+      }
+    } else if (fillKey(a) !== fillKey(b)) {
       out.rest.push(`background-color: ${a ? cssColor(a) : 'transparent'} !important;`);
       out.on.push(`background-color: ${b ? cssColor(b) : 'transparent'} !important;`);
     }

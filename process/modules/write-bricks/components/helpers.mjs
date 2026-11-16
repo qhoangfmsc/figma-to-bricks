@@ -50,6 +50,16 @@ export const flexDirectionCss = (node) => {
   return [{ decl: `flex-direction: ${horizontal ? 'row' : 'column'}; justify-content: ${justify}; align-items: ${align};${gap}`, suffix: '' }];
 };
 
+// The same layout as Bricks settings. A wrapper the component adds (the open pane around the drawn row) keeps its
+// direction where the breakpoint fit reads it (breakpoints/solo.mjs looks at _direction), not only in custom css.
+export const flexDirectionSettings = (node) => {
+  const l = node.layout ?? {};
+  const horizontal = l.mode === 'HORIZONTAL';
+  const out = { _direction: horizontal ? 'row' : 'column', _justifyContent: JUSTIFY[l.primaryAlign] ?? 'flex-start', _alignItems: ALIGN[l.counterAlign] ?? 'flex-start' };
+  if (l.primaryAlign !== 'SPACE_BETWEEN' && l.gap != null) out[horizontal ? '_columnGap' : '_rowGap'] = `${l.gap}px`;
+  return out;
+};
+
 export const hidden = (cssClass) => ({ _hidden: { _cssClasses: cssClass } });
 
 // ---- shared by the semantic components ----

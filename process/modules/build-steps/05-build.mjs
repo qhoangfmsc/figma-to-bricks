@@ -12,6 +12,8 @@ import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
+import { scrollClippedRows, setAsideFrames, subtreeOf } from '../breakpoints/phone-frame.mjs';
+import { applyBinding, showDrawnLayers, textLookup, unloopedTags, validateBinding } from '../data-binding/index.mjs';
 
 // [{ family, weights: [400, 700], italicWeights: [] }] for every visible text node (incl. mixed-style runs)
 export function collectFonts(root) {
@@ -38,6 +40,10 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   const tree = ws.readJson('tree.json');
   const detections = ws.readJson('detections.json', null);
   bundleOpenPanes(tree, detections);
+  // bind.json: the words and repeats come from a data source on the site (modules/data-binding).
+  const bind = ws.readJson('bind.json', null);
+  const bindTrees = [tree];
+  if (bind) showDrawnLayers(tree, bind);
   const overrides = ws.readJson('overrides.json', { nodes: {} });
   const flats = ws.readJson('assets/manifest.json', {}).flats ?? {};
   const readAsset = (file) => readFileSync(ws.file('assets/' + file), 'utf8');
@@ -56,6 +62,8 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   };
   // Breakpoint variants (responsive.json): every variant frame is built with its own workspace (tree, decisions, assets) and merged in
   const responsive = ws.readJson('responsive.json', null);
+  const variantMappings = [];
+  const wholeFrames = []; // pasted frames that stay whole: their own layout, not fitted again (breakpoints/phone-frame.mjs)
   const fontSources = [tree];
   const narrowing = (responsive?.variants ?? []).filter((v) => v.maxWidth != null);
   if (responsive?.variants?.length) {
@@ -64,6 +72,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       requireSignOff(vws, 'build');
       const vtree = vws.readJson('tree.json');
       bundleOpenPanes(vtree, vws.readJson('detections.json', null));
+      if (bind) { showDrawnLayers(vtree, bind); bindTrees.push(vtree); }
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {
         overrides: vws.readJson('overrides.json', { nodes: {} }), detections: vws.readJson('detections.json', null), flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
@@ -75,7 +84,13 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
     const merged = mergeResponsive({ base: { tree, template, mapping, sig: signature(ws) }, variants });
     template = merged.template;
     for (const w of merged.warnings) warnings.push(w);
-    for (const v of variants) ws.writeJson(`mapping.${v.key}.json`, merged.mappings[v.key]);
+    for (const v of variants) variantMappings.push([v.key, merged.mappings[v.key]]);
+    const baseRoot = mapping[tree.id]?.bricksId;
+    for (const v of variants) {
+      const id = merged.mappings[v.key]?.[v.tree.id]?.bricksId;
+      const el = template.content.find((e) => e.id === id);
+      if (id && id !== baseRoot && el && (el.parent === 0 || el.parent === '0')) wholeFrames.push({ key: v.key, id, width: v.tree.box?.w });
+    }
     // images / svg / flat exports that only a variant frame has: the push step reads them from this workspace
     const need = new Set([...JSON.stringify(template).matchAll(/"\$asset":"([^"]+)"/g)].map((m) => m[1]));
     for (const file of need) {
@@ -91,6 +106,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   // The breakpoints with no frame get the same steps (padding, type, rows that no longer fit).
   const keep = narrowing.map((v) => v.key);
   const coveredUntil = narrowing.reduce((max, v) => Math.max(max, v.maxWidth ?? 0), 0);
+  const aside = setAsideFrames(template, wholeFrames.map((f) => f.id));
   fitSoloTemplate(template, { keep });
   fitFluid(template, { frameWidth: template.popup?.width ?? tree.box?.w, coveredUntil, keep });
   // A pasted phone frame holds until 768. The open 479–767 band is not a third layout.
@@ -98,6 +114,22 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   // A pasted frame already supplied this breakpoint. What is still wider than an undesigned screen
   // becomes 100%, capped at the px Figma drew, so 320 / 767 / 991 do not scroll sideways.
   fitAnvRemainder(template, { keep });
+  aside.restore();
+  for (const f of wholeFrames) {
+    const rows = scrollClippedRows(subtreeOf(aside.elements, f.id), f.width);
+    if (rows.length) console.log(`  ${f.key}: whole frame, ${rows.length} clipped row(s) scroll sideways`);
+  }
+  if (bind) {
+    const ids = new Set();
+    const collect = (n) => { ids.add(n.id); (n.children ?? []).forEach(collect); };
+    bindTrees.forEach(collect);
+    validateBinding(bind, (id) => ids.has(id) || variantMappings.some(([, m]) => m?.[id]) || !!mapping[id]);
+    const bound = applyBinding(template, [mapping, ...variantMappings.map(([, m]) => m)], bind, textLookup(bindTrees));
+    for (const r of bound.report) warnings.push({ node: r.node, name: '-', msg: `data binding: ${r.msg}` });
+    for (const u of unloopedTags(template, bind)) warnings.push({ node: u.element, name: u.label, msg: `data binding: ${u.tag} has no ${u.missing.join(' / ')} loop above it, the source picks its own default` });
+    console.log(`  data binding: ${bind.source} · ${(bind.loops ?? []).length} loop(s), ${bound.removed} drawn copy element(s) removed`);
+  }
+  for (const [key, m] of variantMappings) ws.writeJson(`mapping.${key}.json`, m);
   ws.writeJson('bricks.json', template);
   ws.writeJson('mapping.json', mapping);
   ws.writeJson('warnings.json', warnings);

@@ -69,7 +69,7 @@ test('clicking a title switches the pane, and the drawn pill follows the open ti
   assert.equal(el('r').settings.openTab, '0');
   assert.match(el('r').settings._cssCustom, /#brxe-\w+ \.tab-pane \{ display: none; \}/);
   assert.match(el('r').settings._cssCustom, / \.tab-pane\.brx-open \{ display: flex; \}/);
-  assert.match(el('r').settings._cssCustom, /:not\(:has\(\.tab-pane\.brx-open\)\) \.tab-pane:first-child \{ display: flex; \}/);
+  assert.match(el('r').settings._cssCustom, /:not\(:has\(\.tab-pane\.brx-open\)\) \.tab-pane:not\(\.tab-pane ~ \.tab-pane\) \{ display: flex; \}/);
   assert.match(el('r').settings._cssCustom, / \.tab-title \{ width: auto; \}/);
   assert.equal(el('list').settings._hidden._cssClasses, 'tab-menu');
   assert.equal(el('t1').settings._hidden._cssClasses, 'tab-title brx-open');

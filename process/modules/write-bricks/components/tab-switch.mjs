@@ -5,7 +5,7 @@
 // The script always opens the first title. The drawn pill (the title with the solid fill) is that look, moved
 // with `.brx-open`, because a fill left on the title element would stay put when the other title is clicked.
 // params: content.panes { titleNodeId: text } for a tab whose panel Figma does not draw.
-import { visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from '../../write-bricks/components/helpers.mjs';
+import { visibleKids, hidden, firstText, flexDirectionCss, flexDirectionSettings, textSnippet } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
 import { cssColor } from '../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
@@ -237,9 +237,43 @@ function pickBar(node) {
 function looseInspect(node) {
   const picked = pickBar(node);
   if (!picked) return null;
-  const { bar, content, panels: directPanels } = picked;
-  const titles = rowTitles(bar);
-  const active = activeTitle(titles, bar);
+  return fromBar(node, picked);
+}
+
+const findIn = (n, id) => {
+  if (!n || !id) return null;
+  if (n.id === id) return n;
+  for (const c of visibleKids(n)) {
+    const hit = findIn(c, id);
+    if (hit) return hit;
+  }
+  return null;
+};
+const dataNodeOf = (found) => found?.paneParent?.id || found?.panels?.[0]?.id || '';
+
+// The plan names the bar and the data frame (params.tabs_bar, params.tabs_data). When those are the nodes the
+// drawing already gives, nothing changes. When the owner named another data frame (the sibling after the bar is
+// a banner and the cards sit deeper), that frame is the tab content and the frames beside it stay blocks.
+function namedInspect(node, params, auto) {
+  const barId = params?.tabs_bar;
+  const dataId = params?.tabs_data;
+  if (!barId || !dataId) return null;
+  const titleIds = Array.isArray(params?.tabs_titles) ? params.tabs_titles : [];
+  if (!titleIds.length && auto && auto.list?.id === barId && dataNodeOf(auto) === dataId) return null;
+  const bar = findIn(node, barId);
+  const content = findIn(node, dataId);
+  if (!bar || !content || contains(bar, content.id) || contains(content, bar.id)) return null;
+  // A select drawn closed shows one choice: the plan names that drawn title (params.tabs_titles).
+  const named = titleIds.map((id) => findIn(bar, id));
+  if (named.some((t) => !t)) return null;
+  const titles = named.length ? named : rowTitles(bar);
+  if (titles.length < (named.length ? 1 : 2)) return null;
+  return fromBar(node, { bar, content, panels: null, titles });
+}
+
+function fromBar(node, { bar, content, panels: directPanels, titles: given = null }) {
+  const titles = given ?? rowTitles(bar);
+  const active = titles.length === 1 ? { index: 0, clear: true, reason: 'one drawn choice' } : activeTitle(titles, bar);
   if (directPanels) {
     return { list: bar, titles, panels: directPanels, paneParent: node, active: active.index ?? 0, activeClear: active.clear };
   }
@@ -408,22 +442,23 @@ export function itemSummary(items) {
   return `${items.length} item "${name}"`;
 }
 
-export function inspect(node, list = listsIn(node)[0]) {
-  return classicInspect(node, list) ?? looseInspect(node);
+export function inspect(node, list = listsIn(node)[0], params = null) {
+  const auto = classicInspect(node, list) ?? looseInspect(node);
+  return namedInspect(node, params, auto) ?? auto;
 }
 
 export function inspectClassic(node, list = listsIn(node)[0]) {
   return classicInspect(node, list);
 }
 
-export function tabTitles(node) {
-  return inspect(node)?.titles ?? [];
+export function tabTitles(node, params = null) {
+  return inspect(node, undefined, params)?.titles ?? [];
 }
 
 const labelOf = (title) => firstText(title)?.text?.characters?.replace(/\s+/g, ' ').trim() || title.name;
 
-export function switchInventory(node) {
-  const found = inspect(node);
+export function switchInventory(node, params = null) {
+  const found = inspect(node, undefined, params);
   if (!found) return [];
   return found.titles.map((title, i) => {
     const label = labelOf(title);
@@ -439,8 +474,8 @@ export function switchInventory(node) {
 }
 
 // Asked only when the drawing does not say which tab owns the repeated items.
-export function tabQuestions(node) {
-  const found = inspect(node);
+export function tabQuestions(node, params = null) {
+  const found = inspect(node, undefined, params);
   if (!found) return [];
   const out = [];
   if (found.dataItems?.length && !found.activeClear) {
@@ -454,8 +489,8 @@ export function tabQuestions(node) {
   return out;
 }
 
-export function undrawnPanes(node) {
-  return switchInventory(node).filter((row) => !row.drawn).map((row) => ({ title: row.title, label: row.label }));
+export function undrawnPanes(node, params = null) {
+  return switchInventory(node, params).filter((row) => !row.drawn).map((row) => ({ title: row.title, label: row.label }));
 }
 
 const displayOf = (c) => (['HORIZONTAL', 'VERTICAL'].includes(c?.layout?.mode) ? 'flex' : c?.layout?.mode === 'GRID' ? 'grid' : 'block');
@@ -478,18 +513,18 @@ export default {
   kind: () => 'tabs-nested',
 
   check(node, det) {
-    const found = inspect(node);
+    const found = inspect(node, undefined, det?.params);
     if (!found) return { ok: false, reason: 'needs a Tab List and a Tab Panel inside this frame' };
-    if (found.titles.length < 2) return { ok: false, reason: `needs at least 2 tabs, found ${found.titles.length}` };
+    if (found.titles.length < 2 && !det?.params?.tabs_titles?.length) return { ok: false, reason: `needs at least 2 tabs, found ${found.titles.length}` };
     const warnings = [];
     if (!Number.isInteger(found.active)) warnings.push('Figma does not show one open title, so tab 0 stays open');
-    const missing = undrawnPanes(node).filter((e) => !det?.params?.content?.panes?.[e.title.id]);
+    const missing = undrawnPanes(node, det?.params).filter((e) => !det?.params?.content?.panes?.[e.title.id]);
     if (missing.length) warnings.push(`Figma draws ${found.panels.length} panel(s) for ${found.titles.length} tabs: ${missing.length} empty pane(s), their content is not in Figma and not in the Plan`);
     return { ok: true, warnings };
   },
 
   descendants(node, det) {
-    const found = inspect(node);
+    const found = inspect(node, undefined, det?.params);
     const { list, titles, panels, active } = found;
     const openAt = Number.isInteger(active) ? active : 0;
     const idle = titles.find((_, i) => i !== active) ?? titles[0];
@@ -540,15 +575,23 @@ export default {
         dropSettings: ['_columnGap', '_rowGap'],
         wrapChildren: {
           label: `Pane ${openAt + 1}`,
-          settings: hidden('tab-pane brx-open'),
-          css: [...flexDirectionCss(body), { decl: `display: ${displayOf(body)};`, suffix: '.brx-open' }],
+          settings: { ...hidden('tab-pane brx-open'), ...flexDirectionSettings(body) },
+          css: [{ decl: `display: ${displayOf(body)};`, suffix: '.brx-open' }],
         },
         extraChildren: blanks,
       };
     } else if (!list && missing.length && (!paneParent || paneParent.id === node.id)) {
       out[node.id].extraChildren = extraChildren;
     }
-    if (list) out[list.id] = { settings: hidden('tab-menu'), css: titleCss };
+    // One drawn title: a select drawn closed. Only the open choice shows until a script puts `is-open` on the menu
+    // (the data plugin's dropdown script does; Bricks then switches the pane on the click).
+    // Open, the menu keeps its drawn height and the other choices lie over what follows (the drawn field is
+    // opaque), so opening the select does not push the page down. The list starts at the top and runs down.
+    const selectCss = titles.length === 1 ? [
+      { decl: 'display: none;', suffix: ':not(.is-open) .tab-title:not(.brx-open):not([aria-selected="true"])' },
+      ...(list?.box?.h > 0 ? [{ decl: `height: ${list.box.h}px; position: relative; z-index: 10; justify-content: flex-start;`, suffix: '.is-open' }] : []),
+    ] : [];
+    if (list) out[list.id] = { settings: hidden('tab-menu'), css: [...titleCss, ...selectCss] };
     titles.forEach((title, i) => {
       out[title.id] = { settings: hidden(i === openAt ? 'tab-title brx-open' : 'tab-title'), dropSettings: line ? ['_background', '_gradient', '_border', '_boxShadow'] : ['_background', '_gradient'] };
     });
