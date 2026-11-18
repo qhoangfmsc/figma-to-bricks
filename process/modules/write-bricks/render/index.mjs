@@ -22,6 +22,7 @@
 //  anything with no Bricks equivalent is NOT guessed: it is listed in report.md as a warning.
 import { createHash } from 'node:crypto';
 import { addCustomCss, pct, px, r4 } from '../../write-bricks/render/utils/css.mjs';
+import { markPeekScroll } from '../../write-bricks/render/utils/peek-scroll.mjs';
 import { schemaTraps, sealThemeDefaults } from '../../write-bricks/render/utils/schema-traps.mjs';
 import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { applySize } from '../../write-bricks/render/size.mjs';
@@ -52,6 +53,7 @@ export function overflowsSideways(frame) {
 }
 
 export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '', fileKey = '' } = {}) {
+  markPeekScroll(root);
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
@@ -256,6 +258,15 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (patch?.skipChildren) node.__skipChildren = true;
     const applied = comp?.apply?.(ctx, det) ?? null;
     if (patch?.settings) Object.assign(s, deepMerge(s, patch.settings));
+    if (node.__peekScroll) {
+      s._overflow = 'auto';
+      s._flexWrap = 'nowrap';
+    }
+    if (node.__lockWidth != null) {
+      s._width = px(node.__lockWidth);
+      s._flexShrink = 0;
+      s._widthMax = 'none';
+    }
     if (patch?.expectCss) Object.assign(css, patch.expectCss); // the value the browser will actually compute, when a component replaces a Figma spacing that never sat between two drawn children
     for (const k of patch?.dropSettings ?? []) delete s[k]; // e.g. `_display` of an accordion content block: the theme's open / closed rule must decide it (see components/accordion.mjs)
     for (const [k, v] of Object.entries(patch?.defaults ?? {})) s[k] ??= v; // an ancestor's component gives defaults that never override what the build wrote
@@ -266,7 +277,13 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       s._display = 'none'; // the builder applies this control; custom CSS alone stays visible on the canvas
       addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
     }
-    emit(node, kind, s, css, parentBricksId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    let hostId = parentBricksId;
+    if (patch?.enclose) {
+      const box = { ...(patch.enclose.settings ?? {}) };
+      for (const rule of patch.enclose.css ?? []) addCustomCss(box, rule.decl, rule.suffix ?? '');
+      hostId = emitRaw(`${node.id}#values`, patch.enclose.name ?? 'block', box, parentBricksId, patch.enclose.label ?? 'Values');
+    }
+    emit(node, kind, s, css, hostId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
   }
 
   function bindSelectors(settings, id, name) {
@@ -389,7 +406,8 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const plan = new Map(); // node id -> { det, comp }
   const mergedInto = new Map(); // node id -> det that swallows it (e.g. a tooltip popup drawn loose in Figma)
   const patches = new Map(); // node id -> { kind?, settings?, extraChildren? } set by an ancestor's component
-  for (const det of approved.values()) {
+  const ordered = [...approved.values()].sort((a, b) => Number(a.component === 'price-table') - Number(b.component === 'price-table'));
+  for (const det of ordered) {
     const node = findNode(root, det.node);
     if (!node) continue; // detect step reports stale nodes
     const comp = COMPONENTS[det.component];

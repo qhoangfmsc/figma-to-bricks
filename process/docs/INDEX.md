@@ -48,6 +48,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 | [logo](widget-components/logo.md) | logo |
 | [hamburger](widget-components/hamburger.md) | ba gạch |
 | [dropdown](widget-components/dropdown.md) | danh sách xổ |
+| [select](widget-components/select.md) | ô dropdown đóng |
 | [offcanvas](widget-components/offcanvas.md) | panel mép |
 | [link](widget-components/link.md) | text-link |
 | [semantic](widget-components/semantic.md) | ul > li |

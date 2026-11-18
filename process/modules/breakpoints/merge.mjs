@@ -198,6 +198,11 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
         pairs.clear();
       }
     }
+    const priceLoop = (template) => (template?.content ?? []).some((item) => String(item.settings?.query?.objectType ?? '').startsWith('vnxsp_'));
+    if (priceLoop(v.template) && priceLoop(base.template)) {
+      warn(v.tree, `${v.key}: this frame has its own price table, so the frame stays whole and keeps the same dynamic data`);
+      pairs.clear();
+    }
     const vMap = {};
     const pairedBase = new Set(pairs.values());
     const baseById = new Map(); (function rec(n) { baseById.set(n.id, n); (n.children ?? []).forEach(rec); })(base.tree);

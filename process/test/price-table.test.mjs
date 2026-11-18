@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { parseWidgetData, PRICE_ID } from '../modules/write-bricks/components/price-data.mjs';
+import { parseWidgetData, PRICE_ID, carryPriceTables } from '../modules/write-bricks/components/price-data.mjs';
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 import { decide } from '../modules/approve-parts/index.mjs';
@@ -241,6 +241,95 @@ test('a vertical card row stays a column, and the loop copies the resting pill',
   assert.match(el('bar').settings._cssCustom, /brx-open/);
 });
 
+test('a mark beside one card stays out of the loop', () => {
+  const parsed = parseWidgetData(starter);
+  const body = (id, name) => frame(id, 'plan', [0, 24, 120, 80], [
+    text(`${id}n`, name), text(`${id}p`, '10'), text(`${id}u`, '/mo'), text(`${id}f`, 'Disk'),
+  ]);
+  const ribbon = frame('ribbon', 'ribbon', [20, 0, 48, 16], []);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 300, 160], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [frame('y1', 'pill', [0, 0, 80, 32], [text('y1t', 'Year')]), frame('y2', 'pill', [88, 0, 80, 32], [text('y2t', 'Two years')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 40, 280, 110], [body('plain', 'Basic'), frame('wrap', 'plan', [140, 0, 120, 110], [ribbon, body('inner', 'Plus')])], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    salt: 'ribbon',
+  });
+  const content = built.template.content;
+  const el = (id) => content.find((item) => item.id === built.mapping[id]?.bricksId);
+  const dumped = JSON.stringify(content);
+  assert.equal(el('plain').settings.query.objectType, 'vnxsp_pkg__starter-cloud');
+  assert.equal(dumped.includes('vnx_sp_popular'), false);
+  assert.equal(dumped.includes('f2b-popular'), false);
+  assert.equal(built.mapping.wrap.skipped.startsWith('merged into'), true);
+});
+
+test('a closed cycle field becomes a dropdown and a clipped card row scrolls', () => {
+  const parsed = parseWidgetData(starter);
+  const card = (id, name) => frame(id, 'plan', [0, 0, 140, 80], [text(`${id}n`, name), text(`${id}p`, '10'), text(`${id}u`, '/mo')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 320, 220], [
+    frame('shell', 'shell', [16, 8, 200, 40], [
+      frame('field', 'field', [0, 0, 200, 40], [text('ft', 'Year'), frame('icon', 'icon', [170, 8, 16, 16], [])], { layoutMode: 'HORIZONTAL' }),
+    ], { layoutMode: 'VERTICAL' }),
+    frame('deck', 'cards', [0, 60, 400, 120], [card('a', 'Basic'), card('b', 'Plus')], { layoutMode: 'HORIZONTAL', clipsContent: true }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    salt: 'drop',
+  });
+  const content = built.template.content;
+  const el = (id) => content.find((item) => item.id === built.mapping[id]?.bricksId);
+  const title = content.find((item) => item.settings?._hidden?._cssClasses === 'tab-title' && item.settings?.query);
+  const pane = content.find((item) => item.id === built.mapping['deck#open']?.bricksId);
+  assert.equal(el('shell').settings._hidden._cssClasses, 'f2b-select');
+  assert.equal(el('shell').settings._overflow, 'visible');
+  const values = content.find((item) => item.settings?._hidden?._cssClasses === 'f2b-select-values');
+  assert.equal(values.settings._position, 'absolute');
+  assert.equal(values.settings._top, '100%');
+  assert.equal(el('field').parent, values.id);
+  const trigger = content.find((item) => item.settings?._hidden?._cssClasses === 'f2b-select-trigger');
+  assert.equal(trigger.parent, el('shell').id);
+  assert.equal(content.find((item) => item.settings?._hidden?._cssClasses === 'f2b-select-value').parent, trigger.id);
+  assert.match(el('shell').settings._cssCustom, /:not\(\.is-open\) \.f2b-select-values/);
+  assert.match(el('shell').settings._cssCustom, /\.tab-title \{[^}]*border: none/);
+  assert.match(el('shell').settings._cssCustom, /\.tab-title > \.brxe-text-basic:first-child/);
+  assert.equal(el('field').settings._border, undefined);
+  assert.equal(el('field').settings._justifyContent, 'flex-start');
+  assert.equal(el('field').settings._width, '100%');
+  assert.equal(el('ft').settings.text, '{vnx_sp_cycle}');
+  assert.equal(el('ft').settings._cssCustom, undefined);
+  assert.equal(title.settings.query.objectType, 'vnxsp_cycle__starter-cloud');
+  const badge = content.find((item) => item.settings?.text === '{vnx_sp_cycle_badge}');
+  assert.equal(badge.settings._conditions[0][0].compare, 'empty_not');
+  assert.match(el('deck').settings._cssCustom, /overflow-x: auto/);
+  assert.equal(pane.settings._direction, 'row');
+  assert.match(pane.settings._cssCustom, /max-content/);
+  assert.equal(el('a').settings.query.objectType, 'vnxsp_pkg__starter-cloud');
+});
+
+test('a bound table is the same table on another frame', () => {
+  const table = { packages: [{ name: 'Basic' }], cycles: [{ label: 'Year' }] };
+  const carried = carryPriceTables(
+    { components: [
+      { id: 'desk', component: 'price-table', status: 'approved', node: 'desk-box', params: { id: 'starter-cloud', table } },
+      { id: 'desk-2', component: 'price-table', status: 'approved', node: 'desk-other', params: { id: 'starter-cloud', table } },
+    ] },
+    { components: [
+      { id: 'local', component: 'price-table', status: 'approved', node: 'phone-box', params: { id: 'other-table' } },
+      { id: 'keep', component: 'button', status: 'approved', node: 'phone-btn', params: {} },
+    ] },
+    new Map([['phone-box', 'desk-box']]),
+    'phone',
+  );
+  assert.equal(carried.components.find((item) => item.component === 'button').id, 'keep');
+  const prices = carried.components.filter((item) => item.component === 'price-table');
+  assert.equal(prices.length, 1);
+  const price = prices[0];
+  assert.equal(price.node, 'phone-box');
+  assert.equal(price.params.id, 'starter-cloud');
+  assert.equal(price.params.table, table);
+});
+
 test('two price nodes that share a prefix get different detection ids', () => {
   const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Rates', [0, 0, 400, 120], [
     frame('aa:11111111', 'one', [0, 0, 160, 80], [text('t1', 'One')]),
@@ -259,6 +348,24 @@ test('two price nodes that share a prefix get different detection ids', () => {
   const ids = files['detections.json'].components.map((item) => item.id);
   assert.equal(ids.length, 2);
   assert.notEqual(ids[0], ids[1]);
+});
+
+test('a drawn amount that is not in the table still becomes the sale tag', () => {
+  const parsed = parseWidgetData(starter);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 240, 160], [
+    frame('y1', 'pill', [0, 0, 80, 32], [text('y1t', 'Year')]),
+    frame('card', 'plan', [0, 40, 180, 80], [
+      text('name', 'Basic'),
+      text('sample', '1.500'),
+      text('unit', '/mo'),
+    ]),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    salt: 'sample',
+  });
+  const sample = built.template.content.find((item) => item.id === built.mapping.sample?.bricksId);
+  assert.equal(sample.settings.text, '{vnx_sp_sale}');
 });
 
 test('a drawn price pair asks for a table id', () => {

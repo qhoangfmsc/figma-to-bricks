@@ -739,6 +739,30 @@ test('desktop tabs and mobile blocks are two versions; accordion and form stay o
   assert.equal(info.settings['_display:mobile_portrait'], undefined);
 });
 
+test('two price tables stay two whole frames and keep the base card', () => {
+  const query = { hasLoop: true, query: { objectType: 'vnxsp_pkg__studio-plan' } };
+  const base = {
+    tree: { id: 'desk', name: 'Plans', children: [{ id: 'card', name: 'Card', children: [] }] },
+    template: { content: [el('desk', 0, 'tabs-nested', {}), el('card', 'desk', 'block', { ...query, text: '{vnx_sp_name}' })] },
+    mapping: { desk: { bricksId: 'desk' }, card: { bricksId: 'card' } },
+  };
+  const mobile = {
+    key: 'mobile_portrait',
+    maxWidth: 478,
+    tree: { id: 'mob', name: 'Plans', children: [{ id: 'mcard', name: 'Card', children: [] }] },
+    template: { content: [el('mob', 0, 'tabs-nested', {}), el('mcard', 'mob', 'block', { ...query, text: '{vnx_sp_name}', _direction: 'column' })] },
+    mapping: { mob: { bricksId: 'mob' }, mcard: { bricksId: 'mcard' } },
+  };
+  const merged = mergeResponsive({ base, variants: [mobile] });
+  const by = (id) => merged.template.content.find((e) => e.id === id);
+  assert.equal(by('card').settings.text, '{vnx_sp_name}');
+  assert.equal(by('card').settings._direction, undefined);
+  assert.equal(by('desk').settings['_display:mobile_portrait'], 'none');
+  assert.equal(by('mcard').settings.text, '{vnx_sp_name}');
+  assert.equal(by('mcard').settings._direction, 'column');
+  assert.match(by('mob').settings._cssCustom ?? '', /display: none/);
+});
+
 test('a tab frame and a plain mobile frame stay two whole frames', () => {
   const base = {
     tree: { id: 'desk', name: 'OS', children: [{ id: 'title', name: 'Title', children: [] }] },

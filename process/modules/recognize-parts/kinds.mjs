@@ -29,6 +29,7 @@ export const PartKind = {
   LOGO: 'logo',
   HAMBURGER: 'hamburger',
   DROPDOWN: 'dropdown',
+  SELECT: 'select',
   OFFCANVAS: 'offcanvas',
   SCROLL: 'scroll',
 };
@@ -218,6 +219,12 @@ export const SIGNAL_RULES = {
     shape: 'Three stacked lines in a small square.',
     hint: 'none',
     anv: 'toggle. That element is the hamburger, not a switch',
+    childComponent: none,
+  },
+  [PartKind.SELECT]: {
+    shape: 'A short wide bordered control. One value, and a small mark after that value. A label above the control is optional. The option list is not drawn.',
+    hint: 'none',
+    anv: 'dropdown. The list comes from the plan',
     childComponent: none,
   },
   [PartKind.DROPDOWN]: {

@@ -183,6 +183,14 @@ export const GROUPS = {
     value: '',
     check: (v) => (v.length <= 2000 ? null : 'dài quá 2000 ký tự'),
   },
+  options: {
+    title: (n) => `Mục của ${n} dropdown`,
+    field: 'Mục dropdown',
+    heading: (name) => `${name || 'Ô này'} xổ những mục nào?`,
+    summary: 'Mỗi mục một dòng. Để trống thì ô giữ chữ đang vẽ và chưa có danh sách.',
+    value: '',
+    check: (v) => (String(v ?? '').length <= 2000 ? null : 'dài quá 2000 ký tự'),
+  },
   price: {
     title: (n) => `Id bảng giá của ${n} cụm`,
     field: 'Id bảng giá',
@@ -505,6 +513,14 @@ export function applyAnswers(ws, answers) {
         ov.template = { ...(ov.template ?? {}), type: picked.choice };
         ok = true;
         break;
+      case 'options': {
+        const entry = det.components.find((item) => item.component === 'select' && item.node === node && item.status !== 'rejected');
+        if (!entry) break;
+        if (picked.choice === 'list') entry.params = { ...(entry.params ?? {}), values: picked.values };
+        entry.status = 'approved';
+        ok = true;
+        break;
+      }
       case 'price': {
         if (!findIn(node)) break;
         if (picked.choice === 'unset') { ok = true; break; }

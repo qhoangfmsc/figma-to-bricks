@@ -26,6 +26,7 @@ export const Choice = {
   tabdata: ['unset', 'name'],
   expect: ['unset', 'block', 'slider', 'tab', 'menu', 'form', 'accordion', 'button', 'scroll'],
   price: ['unset', 'id'],
+  options: ['unset', 'list'],
 };
 
 export const MISSING = '[Chưa có value]';
@@ -63,10 +64,20 @@ const DEFAULTS = {
   tabdata: { choice: 'unset' },
   expect: { choice: 'unset' },
   price: { choice: 'unset' },
+  options: { choice: 'unset' },
 };
 
 export function choiceOf(group, value) {
   const allowed = Choice[group];
+  if (group === 'options') {
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === 'list' && Array.isArray(value.values)) {
+      const values = value.values.map((item) => String(item).trim()).filter(Boolean);
+      return values.length ? { choice: 'list', values } : { choice: 'unset' };
+    }
+    const lines = typeof value === 'string' ? value.split(/\n+/).map((item) => item.trim()).filter(Boolean) : [];
+    if (!lines.length || (lines.length === 1 && lines[0] === MISSING)) return { choice: 'unset' };
+    return { choice: 'list', values: lines };
+  }
   if (!allowed) return null;
   if (value && typeof value === 'object' && !Array.isArray(value) && allowed.includes(value.choice)) {
     if (group === 'price' && value.choice === 'id' && !PRICE_ID.test(String(value.id ?? ''))) return null;

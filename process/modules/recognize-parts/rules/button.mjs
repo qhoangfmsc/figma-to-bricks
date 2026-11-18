@@ -3,6 +3,7 @@
 import { ICON_FONT } from '../../read-figma/nodes.mjs';
 import { buttonRole } from '../../write-bricks/components/button.mjs';
 import { layoutOnlyReason } from './layout-only.mjs';
+import { isSelectControl } from './select.mjs';
 
 const NAMED = /\b(button|btn|cta)\b/i;
 const HOLDERS = new Set(['FRAME', 'INSTANCE', 'COMPONENT']);
@@ -12,6 +13,7 @@ export function detectButtons(tree) {
   const found = [];
   (function walk(n) {
     if (n.visible === false) return;
+    if (isSelectControl(n)) return;
     const kids = (n.children ?? []).filter((c) => c.visible !== false);
     const label = kids.find((k) => k.type === 'TEXT' && !k.svg && !ICON_FONT.test(k.text?.fontFamily ?? ''));
     const icons = kids.filter((k) => k !== label && hasSvg(k));

@@ -30,5 +30,6 @@ import search from '../../write-bricks/components/search.mjs';
 import video from '../../write-bricks/components/video.mjs';
 import { PRODUCTION } from '../../write-bricks/components/production.mjs';
 import scroll from '../../write-bricks/components/scroll.mjs';
+import selectField from '../../write-bricks/components/select.mjs';
 
-export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, priceTable, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, scroll, ...PRODUCTION].map((c) => [c.id, c]));
+export const COMPONENTS = Object.fromEntries([tooltip, button, flatImage, carousel, form, accordion, tabs, tabSwitch, priceTable, link, semantic, iconList, breadcrumbs, counter, countdown, tooltipStyle, menu, menuSlider, readmore, checkbox, toggleSwitch, radio, divider, search, video, scroll, selectField, ...PRODUCTION].map((c) => [c.id, c]));

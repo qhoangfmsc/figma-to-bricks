@@ -86,6 +86,33 @@ export function queryType(kind, id) {
   return `vnxsp_${kind}__${id}`;
 }
 
+// The table bound on the base frame is the same table on every breakpoint frame.
+// A variant detection that names another table is replaced. The node is the paired
+// node in that frame, or the frame root when the base node has no pair.
+export function carryPriceTables(baseDetections, variantDetections, pairs, variantRootId) {
+  const bound = (baseDetections?.components ?? []).filter((item) => item.component === 'price-table' && item.status === 'approved' && item.params?.id && item.params?.table);
+  if (!bound.length) return variantDetections;
+  const baseToVariant = new Map();
+  for (const [variantId, baseId] of pairs ?? []) baseToVariant.set(baseId, variantId);
+  const rest = (variantDetections?.components ?? []).filter((item) => item.component !== 'price-table');
+  const byTable = new Map();
+  for (const item of bound) {
+    const paired = baseToVariant.get(item.node);
+    const prev = byTable.get(item.params.id);
+    if (prev?.paired) continue;
+    byTable.set(item.params.id, {
+      paired: !!paired,
+      detection: {
+        ...item,
+        id: `${item.id}@${variantRootId}`,
+        node: paired ?? variantRootId,
+        params: { ...item.params },
+      },
+    });
+  }
+  return { ...(variantDetections ?? {}), components: [...rest, ...[...byTable.values()].map((item) => item.detection)] };
+}
+
 // Fills params.table from the site. A table already on the detection is kept, so a later build stays offline.
 export async function attachWidgetData(ws, reader) {
   const det = ws.readJson('detections.json', { components: [] });

@@ -6,7 +6,9 @@
 import { visibleKids, hidden, flexDirectionCss } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
 import { queryType } from '../../write-bricks/components/price-data.mjs';
-import { cssColor } from '../../write-bricks/render/utils/css.mjs';
+import { cssColor, px } from '../../write-bricks/render/utils/css.mjs';
+import { peekOf } from '../../write-bricks/render/utils/peek-scroll.mjs';
+import { selectOptionHost, selectScript, selectShell } from '../../write-bricks/components/select.mjs';
 import { layoutOnlyReason } from '../../recognize-parts/rules/layout-only.mjs';
 import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
 
@@ -111,6 +113,18 @@ function raisedMark(item) {
   return walk(item);
 }
 
+function rowScrolls(node, root) {
+  if (!node || node.layout?.mode !== 'HORIZONTAL' || visibleKids(node).length < 2) return false;
+  if (node.clip) return true;
+  let parent = parentOf(root, node.id);
+  while (parent) {
+    if (parent.clip && parent.box && node.box && node.box.w > parent.box.w + 0.5) return true;
+    if (!root || parent.id === root.id) break;
+    parent = parentOf(root, parent.id);
+  }
+  return false;
+}
+
 function spills(parent) {
   const walk = (node) => (node.children ?? []).some((child) => {
     if (!child || child.visible === false) return false;
@@ -140,15 +154,50 @@ function bindPrice(node, table, id, root) {
   const packOf = (item) => table.packages.find((itemPack) => hasWords(item, (word) => same(word, itemPack.name)));
   const isPackage = (item) => !!packOf(item);
   const isCycle = (item) => hasWords(item, (word) => table.cycles.some((cycle) => same(word, cycle.label)));
-  const cards = climb(node, scopeRoot, isPackage, 2) ?? climb(node, scopeRoot, isPackage, 1);
-  const cycles = bestGroup(scopeRoot, isCycle, 2) ?? bestGroup(scopeRoot, isCycle, 1);
+  const many = climb(node, scopeRoot, isPackage, 2);
+  let cards = many;
+  if (!cards) {
+    let one = null;
+    const walkOne = (current) => {
+      if (current && isPackage(current) && textsIn(current).length >= 3) one = current;
+      visibleKids(current).forEach(walkOne);
+    };
+    walkOne(scopeRoot);
+    if (one) {
+      let row = parentOf(scopeRoot, one.id);
+      if (row && visibleKids(row).length < 2) row = parentOf(scopeRoot, row.id) ?? row;
+      cards = { host: row ?? one, items: [one] };
+    }
+  }
+  const closedCycleField = (scope) => {
+    let found = null;
+    const walk = (current) => {
+      if (!current || current.visible === false) return;
+      const labels = textsIn(current).filter((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label)));
+      const names = new Set(labels.map((text) => fold(text.text.characters)));
+      const icon = visibleKids(current).some((child) => textsIn(child).length === 0);
+      if (names.size === 1 && icon && !isPackage(current) && (!found || textsIn(current).length < textsIn(found).length)) found = current;
+      visibleKids(current).forEach(walk);
+    };
+    walk(scope);
+    return found;
+  };
+  const cycleRow = bestGroup(scopeRoot, isCycle, 2);
+  const cycleField = cycleRow ? null : closedCycleField(scopeRoot);
+  const cycles = cycleRow ?? (cycleField ? { host: cycleField, items: [cycleField] } : bestGroup(scopeRoot, isCycle, 1));
   if (!cards) return { ...empty, warnings: ['no drawn card matches a package name in this table'] };
   const claims = claimedHosts.get(scopeRoot) ?? new Set();
   claimedHosts.set(scopeRoot, claims);
   if (claims.has(cards.host.id)) return { ...empty, skip: true, card: cards.items[0] };
   claims.add(cards.host.id);
 
-  const card = cards.items[0];
+  const shellMarks = (item) => {
+    const kids = visibleKids(item);
+    const bodies = kids.filter((child) => isPackage(child) && textsIn(child).length >= 3);
+    if (!bodies.length) return [];
+    return kids.filter((child) => !bodies.includes(child));
+  };
+  const card = cards.items.find((item) => !shellMarks(item).length) ?? cards.items[0];
   const pack = packOf(card) ?? table.packages[0];
   const cardWords = textsIn(card).map((text) => fold(text.text.characters));
   let openAt = 0;
@@ -170,6 +219,7 @@ function bindPrice(node, table, id, root) {
       ...patch,
       settings: { ...(prev.settings ?? {}), ...(patch.settings ?? {}) },
       css: [...(prev.css ?? []), ...(patch.css ?? [])],
+      ...(patch.extraChildren ? { extraChildren: [...(prev.extraChildren ?? []), ...patch.extraChildren] } : {}),
       ...(patch.wrapChildren ? { wrapChildren: patch.wrapChildren } : {}),
     };
   };
@@ -182,8 +232,18 @@ function bindPrice(node, table, id, root) {
     const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
     if (index >= 0) openAt = index;
   }
-  if (cycles && cycleProto) cycles.items.filter((item) => item.id !== cycleProto.id).forEach((item) => omit.push(item.id));
-  cards.items.slice(1).forEach((item) => omit.push(item.id));
+  if (cycleField) {
+    const label = textsIn(cycleField).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
+    const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
+    if (index >= 0) openAt = index;
+  }
+  if (cycles && cycleProto && !cycleField) cycles.items.filter((item) => item.id !== cycleProto.id).forEach((item) => omit.push(item.id));
+  cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
+  if (cards.items.length === 1) {
+    visibleKids(cards.host).forEach((child) => {
+      if (child.id !== card.id && !contains(child, card.id)) omit.push(child.id);
+    });
+  }
   if (rows) rows.items.slice(1).forEach((item) => omit.push(item.id));
   if (!cycles) warnings.push('no cycle labels from this table are drawn here, so the first cycle is used');
 
@@ -213,25 +273,90 @@ function bindPrice(node, table, id, root) {
       if (fill) activeCss.push({ decl: `background-color: ${cssColor(fill)};`, suffix: ' .tab-title.brx-open' });
       if (ink) activeCss.push({ decl: `color: ${cssColor(ink)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
     }
-    put(cycles.host.id, { settings: hidden('tab-menu'), css: activeCss });
-    if (cycleProto?.type !== 'TEXT') put(cycleProto.id, { settings: { ...hidden('tab-title'), ...loop('cycle', id) } });
+    const scrollNode = (() => {
+      let current = cards.host;
+      while (current) {
+        if (rowScrolls(current, scopeRoot)) return current;
+        if (!scopeRoot || current.id === scopeRoot.id) break;
+        current = parentOf(scopeRoot, current.id);
+      }
+      return null;
+    })();
+    const scrollHere = scrollNode?.id === cards.host.id;
+    if (cycleField) {
+      const menu = parentOf(scopeRoot, cycleField.id);
+      const menuId = menu && !contains(menu, cards.host.id) ? menu.id : cycleField.id;
+      const line = (cycleField.stroke?.paints ?? []).find((paint) => paint.visible !== false);
+      const lineColor = line ? cssColor(line) : 'currentColor';
+      const lineWidth = cycleField.stroke?.weight || 1;
+      const lineRadius = Array.isArray(cycleField.radius) ? cycleField.radius[0] : 0;
+      const drawn = textsIn(cycleField).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label))) || '';
+      const pad = cycleField.layout?.padding;
+      const padCss = pad ? `padding:${pad.top}px ${pad.right}px ${pad.bottom}px ${pad.left}px;` : '';
+      put(menuId, selectShell({ lineWidth, lineColor, lineRadius, padCss, value: drawn }));
+      const option = selectOptionHost();
+      put(cycleField.id, {
+        ...option,
+        settings: { ...option.settings, ...hidden('tab-title'), ...loop('cycle', id) },
+      });
+    } else {
+      put(cycles.host.id, { settings: hidden('tab-menu'), css: activeCss });
+      if (cycleProto?.type !== 'TEXT') put(cycleProto.id, { settings: { ...hidden('tab-title'), ...loop('cycle', id) } });
+    }
     put(cards.host.id, {
-      settings: hidden('tab-content'),
-      wrapChildren: { label: 'Cycle', settings: { ...hidden('tab-pane'), ...loop('cycle', id), ...flowSettings(cards.host) } },
+      settings: {
+        ...hidden('tab-content'),
+        ...(scrollHere ? { _overflow: 'auto', _width: '100%', _flexWrap: 'nowrap' } : {}),
+      },
+      ...(scrollHere ? { css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }] } : {}),
+      wrapChildren: {
+        label: 'Cycle',
+        settings: { ...hidden('tab-pane'), ...loop('cycle', id), ...flowSettings(cards.host) },
+        ...(scrollHere ? { css: [{ decl: 'width: max-content; flex-wrap: nowrap;', suffix: '' }] } : {}),
+      },
     });
+    if (scrollNode && !scrollHere) {
+      put(scrollNode.id, {
+        settings: { _overflow: 'auto', _width: '100%', _flexWrap: 'nowrap' },
+        css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }],
+      });
+    }
   } else if (cycleProto?.type !== 'TEXT') {
     put(cycleProto.id, { settings: loop('cycle', id) });
   }
-  if (card.type !== 'TEXT') put(card.id, { settings: { ...loop('pkg', id), ...(spills(card) ? { _overflow: 'hidden' } : {}) } });
+  const peeked = peekOf(cards.host, scopeRoot);
+  if (card.type !== 'TEXT') {
+    put(card.id, {
+      settings: {
+        ...loop('pkg', id),
+        ...(spills(card) ? { _overflow: 'hidden' } : {}),
+        ...(peeked && card.box ? { _width: px(card.box.w), _flexShrink: 0, _widthMax: 'none' } : {}),
+      },
+    });
+  }
   if (rows && rows.items[0].type !== 'TEXT') put(rows.items[0].id, { settings: loop('row', id) });
 
   const assign = (textNode, tag) => tagText(patches, textNode.id, tag);
   const used = new Set();
   const take = (textNode, tag) => { assign(textNode, tag); used.add(textNode.id); };
+  const showBadge = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_badge}', compare: 'empty_not' }]];
+  let taggedBadge = false;
   for (const textNode of textsIn(cycleProto)) {
     const word = textNode.text.characters;
-    if (table.cycles.some((cycle) => same(word, cycle.label))) take(textNode, '{vnx_sp_cycle}');
-    else take(textNode, '{vnx_sp_cycle_badge}');
+    if (table.cycles.some((cycle) => same(word, cycle.label))) {
+      take(textNode, '{vnx_sp_cycle}');
+    } else if (cycleField) {
+      take(textNode, '{vnx_sp_cycle_badge}');
+      const host = parentOf(cycleField, textNode.id);
+      const badgeHost = host && host.id !== cycleField.id ? host.id : textNode.id;
+      put(badgeHost, { settings: { _conditions: showBadge, _hidden: { _cssClasses: 'f2b-select-badge' } } });
+      taggedBadge = true;
+    } else take(textNode, '{vnx_sp_cycle_badge}');
+  }
+  if (cycleField && !taggedBadge) {
+    put(cycleField.id, {
+      extraChildren: [{ name: 'text-basic', label: 'Badge', settings: { text: '{vnx_sp_cycle_badge}', _conditions: showBadge, _hidden: { _cssClasses: 'f2b-select-badge' } } }],
+    });
   }
   const infoItem = rows?.items[0];
   if (infoItem) {
@@ -273,6 +398,29 @@ function bindPrice(node, table, id, root) {
     visibleKids(current).forEach(walkPromo);
   };
   walkPromo(card);
+  const amount = (word) => {
+    const raw = String(word ?? '').trim();
+    const digits = raw.replace(/\D/g, '');
+    return digits.length >= 3 && /^[\d\s.,]+$/.test(raw);
+  };
+  let priceCluster = null;
+  const seekCluster = (current) => {
+    if (!current || current.visible === false) return;
+    const texts = textsIn(current);
+    const hasUnit = table.meta.unit && texts.some((text) => same(text.text.characters, table.meta.unit));
+    const hasAmount = texts.some((text) => amount(text.text.characters));
+    if (hasUnit && hasAmount && (!priceCluster || texts.length < textsIn(priceCluster).length)) priceCluster = current;
+    visibleKids(current).forEach(seekCluster);
+  };
+  seekCluster(card);
+  if (priceCluster) {
+    for (const textNode of textsIn(priceCluster)) {
+      if (used.has(textNode.id)) continue;
+      if (!amount(textNode.text.characters)) continue;
+      if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
+      else take(textNode, '{vnx_sp_sale}');
+    }
+  }
   if (promo) {
     const [code, sentence] = fold(promo[0].text.characters).includes(' ') ? [promo[1], promo[0]] : [promo[0], promo[1]];
     take(sentence, '{vnx_sp_promo_text}');
@@ -328,8 +476,8 @@ export default {
   status: 'implemented',
   label: 'Price table',
   figma: 'a drawn card row whose plan names a Service Pricing table id',
-  bricks: 'tabs-nested when cycle labels are drawn, plus query loops vnxsp_cycle, vnxsp_pkg and vnxsp_row. Text is {vnx_sp_*}',
-  limits: 'A pill, card or info row that is not the first drawn one is not emitted. The loop repeats the first. A cycle badge drawn only on a later pill is not added. Popular styling and the consult slide stay the look of the first card.',
+  bricks: 'tabs-nested when cycle labels are drawn, plus query loops vnxsp_cycle, vnxsp_pkg and vnxsp_row. Text is {vnx_sp_*}. A closed cycle field uses the select component shell and only supplies the cycle loop',
+  limits: 'One pill, one card and one info row are the loop. The loop copies the card that is only the package body. The same table id is used on every breakpoint frame.',
   kind(node, det) {
     return bound(node, det).tabsHost === node.id ? 'tabs-nested' : undefined;
   },
@@ -347,6 +495,6 @@ export default {
     return bound(node, det).omit;
   },
   pageScript() {
-    return tabSwitch.pageScript();
+    return `${tabSwitch.pageScript()}\n${selectScript()}`;
   },
 };

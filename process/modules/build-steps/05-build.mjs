@@ -10,6 +10,8 @@ import { requireSignOff } from '../sign-off/index.mjs';
 import { buildTemplate } from '../write-bricks/render/index.mjs';
 import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
+import { matchTrees } from '../breakpoints/match.mjs';
+import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
 
@@ -63,10 +65,14 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       const vws = resolveWorkspace(join(dirname(ws.dir), v.workspace));
       requireSignOff(vws, 'build');
       const vtree = vws.readJson('tree.json');
-      bundleOpenPanes(vtree, vws.readJson('detections.json', null));
+      const variantDetections = vws.readJson('detections.json', null);
+      const carried = (detections?.components ?? []).some((item) => item.component === 'price-table' && item.params?.table)
+        ? carryPriceTables(detections, variantDetections, matchTrees(tree, vtree, { aliases: v.aliases ?? {} }).pairs, vtree.id)
+        : variantDetections;
+      bundleOpenPanes(vtree, carried);
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {
-        overrides: vws.readJson('overrides.json', { nodes: {} }), detections: vws.readJson('detections.json', null), flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
+        overrides: vws.readJson('overrides.json', { nodes: {} }), detections: carried, flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
         readAsset: (file) => readFileSync(vws.file('assets/' + file), 'utf8'), salt: `${ws.ref?.fileKey ?? ''}|${v.key}`, fileKey: ws.ref?.fileKey ?? '',
       });
       for (const w of b.warnings) warnings.push({ ...w, msg: `[${v.key}] ${w.msg}` });

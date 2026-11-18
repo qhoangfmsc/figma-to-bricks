@@ -182,6 +182,12 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
       log(c.component, node, `approved (${labels.length} items${slider ? ', menu slider' : ''})`, c.evidence ?? '', c.confidence ?? 'medium');
       for (const t of labels) ask('link', t.id, `Mục menu "${t.text.characters.trim().slice(0, 40)}"`);
       designer.push(`Link URLs of the ${labels.length} menu items in "${node.name}" (${labels.slice(0, 12).map((t) => t.text.characters.trim()).join(', ')}), written as "#"`);
+    } else if (c.component === 'select') {
+      const label = textsIn(node)[0]?.text.characters.trim().slice(0, 40) ?? node.name;
+      c.status = 'approved';
+      c.note = 'autopilot: a closed dropdown. The option list comes from the plan';
+      log('select', node, 'approved', c.evidence ?? '', 'high');
+      ask('options', node.id, `Dropdown "${label}"`);
     } else if (['gallery', 'progress', 'rating', 'alert', 'logo', 'hamburger', 'dropdown', 'offcanvas', 'scroll'].includes(c.component) && c.confidence === 'high') {
       c.status = 'approved';
       c.note = `autopilot: ${c.component}, from the production widget map and the 1.12.3 element`;
