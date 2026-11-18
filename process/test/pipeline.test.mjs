@@ -1114,6 +1114,21 @@ test('gradient stroke: a ring drawn by ::before; INSIDE + included in layout pus
 });
 
 
+test('gradient stroke on one side, and a dashed gradient underline: the band of that side only, dashes as a third mask layer', () => {
+  // a blog card list: a fading divider on the right of each card, an author link with a dashed gradient underline
+  const fade = { type: 'GRADIENT_LINEAR', gradientHandlePositions: [{ x: 0.5, y: 0 }, { x: 0.5, y: 1 }, { x: 0, y: 0 }], gradientStops: [{ position: 0, color: { r: 0.2, g: 0.2, b: 0.2, a: 0 } }, { position: 1, color: { r: 0.2, g: 0.2, b: 0.2, a: 1 } }] };
+  const card = kid('bc', { layoutMode: 'VERTICAL', paddingLeft: 16, paddingRight: 16, strokes: [fade], strokeWeight: 1, individualStrokeWeights: { top: 0, right: 1, bottom: 0, left: 0 }, strokeAlign: 'INSIDE', absoluteBoundingBox: { x: 0, y: 0, width: 300, height: 120 }, children: [] });
+  const link = kid('au', { layoutMode: 'HORIZONTAL', paddingBottom: 4, strokes: [fade], strokeWeight: 1, individualStrokeWeights: { top: 0, right: 0, bottom: 1, left: 0 }, strokeDashes: [3, 2], strokeAlign: 'INSIDE', absoluteBoundingBox: { x: 0, y: 0, width: 90, height: 24 }, children: [] });
+  const built = buildTemplate(mini({ children: [card, link] }), { overrides: {}, salt: 'b' });
+  const c = byFigma(built, 'bc').settings;
+  assert.equal(c._border?.width, undefined);
+  assert.match(c._cssCustom, /::before \{ content: ""; position: absolute; inset: 0px; padding: 0px 1px 0px 0px;/);
+  const u = byFigma(built, 'au').settings._cssCustom;
+  assert.match(u, /padding: 0px 0px 1px 0px;/);
+  assert.match(u, /-webkit-mask: repeating-linear-gradient\(90deg, #000 0 3px, transparent 3px 5px\), linear-gradient\(#000 0 0\) content-box, linear-gradient\(#000 0 0\); -webkit-mask-composite: source-in, xor; mask-composite: intersect, exclude;/);
+});
+
+
 test('severity tiers: blockers, major (visible), minor, negligible (line-height, outside stroke, text engine); verdict from the worst tier', () => {
   const row = (check, want, got, extra = {}) => ({ label: 'n1 block', check, want, got, ok: false, ...extra });
   assert.equal(tierOf(row('on top at its center', 'itself', 'covered by img#x')), 1);

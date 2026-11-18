@@ -154,6 +154,76 @@ test('a layer the instance hides is built when bound, and a layer drawn on one i
   applyBinding(built.template, [built.mapping], b, textOf(tree));
   const card = built.template.content.find((e) => e.id === built.mapping.a.bricksId);
   const pill = built.mapping.ab.bricksId;
-  assert.match(card.settings._cssCustom, new RegExp(`\\.brxe-${card.id}:not\\(:nth-of-type\\(2\\)\\) :is\\(#brxe-${pill}, \\.brxe-${pill}\\) \\{ display: none; \\}`));
+  const c = `.brxe-${card.id}`;
+  assert.ok(card.settings._cssCustom.includes(`:is(${c}:not(${c} ~ ${c}), ${c} ~ ${c} ~ ${c}) :is(#brxe-${pill}, .brxe-${pill}) { display: none; }`));
   assert.throws(() => validateBinding({ ...b, onlyAt: [{ node: 'ab', loop: 'row', index: 0, reason: 'x' }] }, () => true), /not in loops/);
+});
+
+test('a frame drawn around one featured item: on the other items only its box goes', () => {
+  const tree = catalog();
+  const built = buildTemplate(tree, { overrides: {}, salt: 'lms' });
+  const b = { ...bind(), onlyAt: [{ node: 'a', loop: 'a', index: 1, mode: 'box', reason: 'featured course frame' }] };
+  applyBinding(built.template, [built.mapping], b, textOf(tree));
+  const card = built.template.content.find((e) => e.id === built.mapping.a.bricksId);
+  const c = `.brxe-${card.id}`;
+  assert.ok(card.settings._cssCustom.includes(`:is(${c}:not(${c} ~ ${c}), ${c} ~ ${c} ~ ${c}) { display: contents; }`));
+  assert.throws(() => validateBinding({ ...b, onlyAt: [{ node: 'a', loop: 'a', index: 1, mode: 'fade', reason: 'x' }] }, () => true), /hide or box/);
+});
+
+test('a hidden layer shows while its trigger is hovered, from the element that holds both', () => {
+  const tree = catalog();
+  const built = buildTemplate(tree, { overrides: {}, salt: 'lms' });
+  const b = { ...bind(), hoverShow: [{ node: 'ab', trigger: 'af', transition: '0.3s ease-in', reason: 'fee details on hover' }] };
+  applyBinding(built.template, [built.mapping], b, textOf(tree));
+  const pill = built.mapping.ab.bricksId;
+  const fee = built.mapping.af.bricksId;
+  const card = built.mapping.a.bricksId;
+  const css = built.template.content.find((e) => e.id === pill).settings._cssCustom;
+  assert.match(css, new RegExp(`:is\\(#brxe-${pill}, \\.brxe-${pill}\\) \\{ opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0\\.3s ease-in, visibility 0\\.3s ease-in; \\}`));
+  assert.match(css, new RegExp(`:is\\(#brxe-${card}, \\.brxe-${card}\\):has\\(:is\\(#brxe-${fee}, \\.brxe-${fee}\\):hover\\) :is\\(#brxe-${pill}, \\.brxe-${pill}\\) \\{ opacity: 1; visibility: visible; \\}`));
+  assert.throws(() => validateBinding({ ...b, hoverShow: [{ node: 'ab', trigger: 'af', transition: 'fast', reason: 'x' }] }, () => true), /transition/);
+});
+
+test('an anchored tooltip moves next to its trigger and keeps its arrow over the trigger centre', async () => {
+  const { nodeLookup } = await import('../modules/data-binding/index.mjs');
+  const t = (id, value, r) => ({ ...text(id, value), absoluteBoundingBox: box(...r) });
+  const tree = normalizeRoot({ nodes: { k: { document: frame('k', 'Course', [0, 0, 300, 260], [
+    frame('pr', 'Fee row', [20, 20, 200, 40], [t('amt', '1.200.000', [20, 20, 150, 40]), frame('ic', 'Info', [192, 22, 28, 38], [], { fills: fill(0.1, 0.4, 1) })], { layoutMode: 'HORIZONTAL', itemSpacing: 22 }),
+    frame('tip', 'Tip', [150, 90, 191, 106], [t('tt', 'Học phí trọn khoá', [158, 98, 175, 30]), frame('arw', 'Arrow', [290, 79, 22.6, 22.6], [], { fills: fill(0.98, 0.98, 0.99), layoutPositioning: 'ABSOLUTE' })], { layoutMode: 'VERTICAL', layoutPositioning: 'ABSOLUTE', fills: fill(0.98, 0.98, 0.99) }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'k', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, { overrides: {}, salt: 'tip' });
+  const b = { source: 's', provider, hoverShow: [{ node: 'tip', trigger: 'ic', anchor: true, pointer: 'arw', reason: 'fee details' }] };
+  applyBinding(built.template, [built.mapping], b, () => null, nodeLookup([tree]));
+  const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
+  const tip = el('tip');
+  assert.equal(tip.parent, el('pr').id);
+  assert.equal(tip.settings._position, 'absolute');
+  assert.equal(tip.settings._top, '70px');
+  assert.equal(tip.settings._right, '-25.7px');
+  assert.equal(tip.settings._left, undefined);
+  assert.equal(tip.settings._zIndex, '1');
+  assert.equal(tip.settings._widthMax, 'none');
+  assert.equal(el('pr').settings._position, 'relative');
+});
+
+test('a state class on a trigger swaps drawn layers for a text and an icon made like the drawn ones', () => {
+  const tree = catalog();
+  const built = buildTemplate(tree, { overrides: {}, salt: 'lms' });
+  const b = { source: 's', provider, stateOn: [{ node: 'a', trigger: 'ab', className: 'is-saved', hide: ['an', 'ab'], text: { like: 'an', value: 'Đã lưu khoá học' }, icon: { like: 'ab', className: 'fa-solid fa-heart', size: '14px', color: '#ffffff', box: { background: 'rgba(0, 0, 0, 0.2)', radius: '4px' } }, reason: 'saved state' }] };
+  const before = built.template.content.length;
+  applyBinding(built.template, [built.mapping], b, textOf(tree));
+  const content = built.template.content;
+  assert.equal(content.length, before + 2);
+  const card = content.find((e) => e.id === built.mapping.a.bricksId);
+  const name = content.find((e) => e.id === built.mapping.an.bricksId);
+  const made = content[content.indexOf(name) + 1];
+  assert.equal(made.settings.text, 'Đã lưu khoá học');
+  assert.equal(made.parent, name.parent);
+  const icon = content.find((e) => e.label === 'Icon (is-saved)');
+  assert.deepEqual(icon.settings._attributes[0], { name: 'class', value: 'fa-solid fa-heart' });
+  const css = card.settings._cssCustom;
+  assert.match(css, /:has\(:is\(#brxe-\w+, \.brxe-\w+\)\.is-saved\) :is\(/);
+  assert.match(css, new RegExp(`:is\\(#brxe-${made.id}, \\.brxe-${made.id}\\) \\{ display: none; \\}`));
+  assert.match(css, /background-color: rgba\(0, 0, 0, 0\.2\); border-radius: 4px; font-size: 14px; line-height: 1; color: #ffffff;/);
+  assert.throws(() => validateBinding({ ...b, stateOn: [{ ...b.stateOn[0], text: { like: 'an', value: '{lms_title}' } }] }, () => true), /plain words/);
 });

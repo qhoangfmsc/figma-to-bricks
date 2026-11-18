@@ -2,13 +2,28 @@
 // How an INSIDE stroke is drawn so that the layout matches Figma (where strokes never take space):
 //  'border' CSS border (+ padding reduced by the stroke, see layout.mjs) when every padding side can absorb it,
 //  'inset'  inset box-shadow (takes no space) otherwise, e.g. a 2px stroke on a frame with 0 padding.
-// Not supported yet: gradient strokes, OUTSIDE/CENTER (approximated as inside, warned), several strokes (top one wins).
+// Not supported yet: a gradient stroke with dashes on crossing sides, OUTSIDE/CENTER (approximated as inside, warned), several strokes (top one wins).
 import { addCustomCss, colorObj, cssColor, px } from '../../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss } from '../../../write-bricks/render/utils/gradient.mjs';
 
-// A uniform stroke painted with ONE linear gradient (peach gradient borders of the Gifts cards): CSS borders cannot take a gradient, so the stroke is a ring
-// drawn by ::before (gradient background masked to the ring between the padding box and the content box). OUTSIDE / CENTER grow the ring outwards.
-export const isGradientRing = (node) => { const st = node.stroke; if (!st || st.paints.length !== 1 || st.paints[0].type !== 'GRADIENT_LINEAR' || st.dashes) return false; const w = strokeWidths(st); return w.top === w.right && w.right === w.bottom && w.bottom === w.left; };
+// A stroke painted with ONE linear gradient (peach gradient borders of the Gifts cards, a fading divider on one side of a cell, a dashed gradient
+// underline): CSS borders cannot take a gradient, so the stroke is drawn by ::before (gradient background masked to the band between the padding box
+// and the content box; the ::before padding is the stroke weight of each side). OUTSIDE / CENTER grow a uniform ring outwards. Dashes are a third mask
+// layer when every stroked side runs the same way (only top / bottom, or only left / right).
+const dashAxis = (w) => {
+  const horizontal = w.top > 0 || w.bottom > 0;
+  const vertical = w.left > 0 || w.right > 0;
+  return horizontal && vertical ? null : horizontal ? '90deg' : '180deg';
+};
+export const isGradientRing = (node) => {
+  const st = node.stroke;
+  if (!st || st.paints.length !== 1 || st.paints[0].type !== 'GRADIENT_LINEAR') return false;
+  const w = strokeWidths(st);
+  if (!['top', 'right', 'bottom', 'left'].some((k) => w[k] > 0)) return false;
+  const uniform = w.top === w.right && w.right === w.bottom && w.bottom === w.left;
+  if (!uniform && st.align !== 'INSIDE') return false;
+  return !st.dashes || !!dashAxis(w);
+};
 
 export const strokeWidths = (st) => st.weights ?? { top: st.weight, right: st.weight, bottom: st.weight, left: st.weight };
 
@@ -39,7 +54,15 @@ export function applyStroke(ctx, border) {
     const out = st.align === 'OUTSIDE' ? w.top : st.align === 'CENTER' ? w.top / 2 : 0;
     const r = (node.radius ?? [0, 0, 0, 0]).map((x) => (x > 0 ? x + out : 0));
     if (ctx.s._position !== 'absolute') ctx.s._position ??= 'relative';
-    addCustomCss(s, `content: ""; position: absolute; inset: ${px(-out)}; padding: ${px(w.top)}; border-radius: ${r.map(px).join(' ')}; background: ${linearGradientCss(top, node.box.w + 2 * out, node.box.h + 2 * out)}; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;`, '::before');
+    const uniform = w.top === w.right && w.right === w.bottom && w.bottom === w.left;
+    const pad = uniform ? px(w.top) : [w.top, w.right, w.bottom, w.left].map(px).join(' ');
+    let mask = '-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;';
+    if (st.dashes?.length) {
+      const [dash, gap = dash] = st.dashes;
+      const dashes = `repeating-linear-gradient(${dashAxis(w)}, #000 0 ${px(dash)}, transparent ${px(dash)} ${px(dash + gap)})`;
+      mask = `-webkit-mask: ${dashes}, linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: source-in, xor; mask-composite: intersect, exclude;`;
+    }
+    addCustomCss(s, `content: ""; position: absolute; inset: ${px(-out)}; padding: ${pad}; border-radius: ${r.map(px).join(' ')}; background: ${linearGradientCss(top, node.box.w + 2 * out, node.box.h + 2 * out)}; ${mask} pointer-events: none;`, '::before');
     if (st.inLayout && st.align === 'OUTSIDE') warn(node, 'stroke outside AND included in layout: its outer space is not added');
     return;
   }

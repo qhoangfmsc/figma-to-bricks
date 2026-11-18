@@ -58,7 +58,7 @@ export function applyLayout({ node, s, css, warn }, kind) {
     for (const k of Object.keys(p)) if (l.padding[k] < w[k]) warn(node, `padding-${k} ${l.padding[k]} is smaller than the stroke ${w[k]}: content shifts by ${r4(w[k] - l.padding[k])}px`);
   }
   // a gradient ring that Figma counts in the layout (INSIDE + "include stroke in layout") pushes the content in by its width, like a border would
-  if (node.stroke && isGradientRing(node) && node.stroke.inLayout && node.stroke.align === 'INSIDE') { const w = node.stroke.weight; p = { top: p.top + w, right: p.right + w, bottom: p.bottom + w, left: p.left + w }; }
+  if (node.stroke && isGradientRing(node) && node.stroke.inLayout && node.stroke.align === 'INSIDE') { const w = strokeWidths(node.stroke); p = { top: p.top + w.top, right: p.right + w.right, bottom: p.bottom + w.bottom, left: p.left + w.left }; }
   // A centered child larger than the content box is drawn across the padding (an 18×20 plus in a 24px icon frame with 10px
   // padding sits at x 3, y 2). Writing the padding leaves a 4px content box, and a clip (the builder) shows a dot.
   // Centering the child in the full frame lands on the same point, so that padding is not an inset.

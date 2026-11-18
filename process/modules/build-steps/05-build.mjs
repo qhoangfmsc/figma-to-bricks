@@ -13,7 +13,7 @@ import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
 import { scrollClippedRows, setAsideFrames, subtreeOf } from '../breakpoints/phone-frame.mjs';
-import { applyBinding, showDrawnLayers, textLookup, unloopedTags, validateBinding } from '../data-binding/index.mjs';
+import { applyBinding, nodeLookup, showDrawnLayers, textLookup, unloopedTags, validateBinding } from '../data-binding/index.mjs';
 
 // [{ family, weights: [400, 700], italicWeights: [] }] for every visible text node (incl. mixed-style runs)
 export function collectFonts(root) {
@@ -124,7 +124,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
     const collect = (n) => { ids.add(n.id); (n.children ?? []).forEach(collect); };
     bindTrees.forEach(collect);
     validateBinding(bind, (id) => ids.has(id) || variantMappings.some(([, m]) => m?.[id]) || !!mapping[id]);
-    const bound = applyBinding(template, [mapping, ...variantMappings.map(([, m]) => m)], bind, textLookup(bindTrees));
+    const bound = applyBinding(template, [mapping, ...variantMappings.map(([, m]) => m)], bind, textLookup(bindTrees), nodeLookup(bindTrees));
     for (const r of bound.report) warnings.push({ node: r.node, name: '-', msg: `data binding: ${r.msg}` });
     for (const u of unloopedTags(template, bind)) warnings.push({ node: u.element, name: u.label, msg: `data binding: ${u.tag} has no ${u.missing.join(' / ')} loop above it, the source picks its own default` });
     console.log(`  data binding: ${bind.source} · ${(bind.loops ?? []).length} loop(s), ${bound.removed} drawn copy element(s) removed`);

@@ -10,13 +10,50 @@ import { bridge } from '../write-bricks/bridge.mjs';
 import { sha256 } from '../common/image-info.mjs';
 import { optimizeAssets } from '../common/qa.mjs';
 import { popupPageSettings } from '../write-bricks/components/popup-settings.mjs';
+import { joinTemplates, templateGroup } from '../write-bricks/template-group.mjs';
+import { workRoot } from '../common/workspace.mjs';
 
 
 export async function pushStep(urlOrDir) {
-  const ws = resolveWorkspace(urlOrDir);
-  requireSignOff(ws, 'push'); // the owner must have reviewed detections.md first
-  const template = ws.readJson('bricks.json');
+  const self = resolveWorkspace(urlOrDir);
+  requireSignOff(self, 'push'); // the owner must have reviewed detections.md first
+  // A section added to another template (into.json) is pushed with the whole group into the host's template.
+  const group = templateGroup(self.dir, workRoot());
+  const ws = group.host === self.dir ? self : resolveWorkspace(group.host);
+  const members = group.members.map((dir) => (dir === self.dir ? self : dir === ws.dir ? ws : resolveWorkspace(dir)))
+    .filter((m) => {
+      if (m.has('bricks.json')) return true;
+      if (m === self || m === ws) m.readJson('bricks.json'); // throws: this section was not built
+      console.log(`  ${group.name(m.dir)}: not built yet, left out of the template`);
+      return false;
+    });
+  if (group.joined) console.log(`  one template: ${members.map((m) => group.name(m.dir)).join(' + ')}`);
+  const template = joinTemplates(members.map((m) => ({ name: group.name(m.dir), template: m.readJson('bricks.json') })));
   const state = ws.readJson('state.json', { media: {} });
+  state.media ??= {};
+  const content = [];
+  const fonts = [];
+  for (const m of members) {
+    const own = m.readJson('bricks.json');
+    const mState = m === ws ? state : m.readJson('state.json', { media: {} });
+    content.push(...await resolveMember(m, own, mState));
+    if (m !== ws) m.writeJson('state.json', mState);
+    fonts.push(...m.readJson('fonts.json', []));
+  }
+  const body = { title: template.title, content, type: template.type || 'section' };
+  const res = await sendTemplate(ws, state, template, body, fonts);
+  for (const m of members) {
+    if (m === ws) continue;
+    const mState = m.readJson('state.json', { media: {} });
+    Object.assign(mState, { templateId: res.id, templateTitle: body.title, builderUrl: res.builderUrl, host: group.name(ws.dir) });
+    m.writeJson('state.json', mState);
+  }
+  return self;
+}
+
+// Images of one section: uploaded from that section's own assets, its media ids kept in its own state.json.
+async function resolveMember(ws, template, state) {
+  state.media ??= {};
   const uploaded = {};
   // bitmaps go to the site as optimized webp (page weight is part of the acceptance, qa/budgets.json); svg stays as it is
   const assetFiles = [...new Set([...JSON.stringify(template).matchAll(/"\$asset":"([^"]+)"/g)].map((m) => m[1]))];
@@ -50,14 +87,15 @@ export async function pushStep(urlOrDir) {
 
   const content = [];
   for (const el of template.content) content.push({ ...el, settings: await resolveAssets(el.settings) });
+  return content;
+}
 
-  const fonts = ws.readJson('fonts.json', []);
+async function sendTemplate(ws, state, template, body, fonts) {
   if (fonts.length) {
     await bridge('POST', '/fonts', { fonts });
     console.log(`  fonts (Google): ${fonts.map((f) => `${f.family} ${[...f.weights, ...f.italicWeights.map((w) => w + 'i')].join('/')}`).join(', ')}`);
   }
 
-  const body = { title: template.title, content, type: template.type || 'section' };
   if (Array.isArray(template.scripts) && template.scripts.length) {
     body.page_settings = { customScriptsBodyFooter: template.scripts.join('\n') };
   }
@@ -103,7 +141,7 @@ export async function pushStep(urlOrDir) {
     throw new Error(`template ${res.id}: post-${res.id}.min.css was not written. Bricks defaults to inline styles; this site stays on External files.`);
   }
   console.log(`  css ${css.file_name}`);
-  return ws;
+  return res;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
