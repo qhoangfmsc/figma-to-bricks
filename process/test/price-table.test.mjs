@@ -130,7 +130,14 @@ test('a bound table renders one pill, one card and one info row as query loops',
   assert.equal(el('y1t').settings.text, '{vnx_sp_cycle}');
   assert.equal(content.find((item) => item.id === built.mapping['deck#open']?.bricksId).settings._direction, 'row');
   assert.equal(el('c1b').settings.text, '{vnx_sp_button}');
-  assert.deepEqual(el('c1b').settings.link, { type: 'external', url: '{vnx_sp_link}' });
+  assert.equal(el('c1b').settings.tag, 'a');
+  assert.deepEqual(el('c1b').settings.link, { type: 'external', url: '{vnx_sp_link}', rel: 'nofollow' });
+  assert.equal(el('c1b').settings._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
+  assert.deepEqual(el('c1b').settings._attributes, [
+    { name: 'data-price', value: '{vnx_sp_sale}' },
+    { name: 'data-period', value: '{vnx_sp_cycle}' },
+    { name: 'data-product-name', value: '{vnx_sp_name}' },
+  ]);
   assert.equal(JSON.stringify(content).includes('Plus'), false);
   assert.equal(JSON.stringify(content).includes('>10<'), false);
 });
@@ -169,6 +176,11 @@ test('another table with different words uses the same tags', () => {
   assert.equal(textOf('ap'), '{vnx_sp_sale}');
   assert.equal(textOf('art'), '{vnx_sp_info}');
   assert.equal(textOf('m1t'), '{vnx_sp_cycle}');
+  const order = built.template.content.find((item) => item.id === built.mapping.ab.bricksId).settings;
+  assert.equal(order.tag, 'a');
+  assert.deepEqual(order.link, { type: 'external', url: '{vnx_sp_link}', rel: 'nofollow' });
+  assert.equal(order._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
+  assert.deepEqual(order._attributes.map((item) => item.name), ['data-price', 'data-period', 'data-product-name']);
   assert.equal(built.mapping.b.skipped.startsWith('merged into'), true);
 });
 

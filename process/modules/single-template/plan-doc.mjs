@@ -80,7 +80,7 @@ function proofSection(model) {
 
 function detectedReview(look) {
   if (!look?.rows?.length) return [];
-  const lines = ['Kết quả của code, rồi ảnh, rồi review trên ảnh và cấu trúc Figma.', ''];
+  const lines = ['Kết quả là đúc kết của các chứng cứ: detect code, AI xem ảnh và review, cấu trúc Figma.', ''];
   for (const row of look.rows) {
     lines.push(`### ${row.kind} \`${row.node}\``);
     lines.push(`- Code: ${row.kind}${row.evidence ? ` — ${clean(row.evidence)}` : ''}`);

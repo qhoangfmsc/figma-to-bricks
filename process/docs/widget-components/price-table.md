@@ -14,7 +14,7 @@ Module: `process/modules/write-bricks/components/price-table.mjs`
 | Query gói | `vnxsp_pkg__<id>` |
 | Query dòng | `vnxsp_row__<id>` |
 | Chữ | `{vnx_sp_*}` |
-| Link đăng ký | `{ type: 'external', url: '{vnx_sp_link}' }` |
+| Link đăng ký | thẻ `a`, `rel="nofollow"`, class `vnx-button vnx-btn-conversion vnx-button-register`, href `{vnx_sp_link}`, `data-price` `{vnx_sp_sale}`, `data-period` `{vnx_sp_cycle}`, `data-product-name` `{vnx_sp_name}` |
 | Copy mã | attribute `data-vnx-sp-copy` |
 
 Ba vòng lặp lồng nhau. Khung vẽ một hàng pill thì pill là tab. Khung vẽ một ô đóng (một nhãn chu kỳ và một icon, không có hàng pill) thì ô đó dùng shell mặc định của `select`. Bảng giá chỉ gắn query chu kỳ và tag `{vnx_sp_cycle}` / `{vnx_sp_cycle_badge}`. Bấm một chu kỳ thì Bricks mở pane của chu kỳ đó, nên giá trong thẻ đổi theo. Hàng thẻ nằm ngang và bị cắt thì scroll ngang, không thêm mũi tên. Mọi breakpoint dùng cùng id và cùng tag. Đây là default của bảng giá.

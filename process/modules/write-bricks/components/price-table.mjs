@@ -142,6 +142,23 @@ function loop(kind, id) {
   return { hasLoop: true, query: { objectType: queryType(kind, id) } };
 }
 
+// The sign-up control is the cart link the table stores. The classes and data
+// attributes are what the conversion button on the live site carries. The
+// table has no product-category cell, so that attribute is not invented.
+function registerButton(text) {
+  return {
+    text,
+    tag: 'a',
+    link: { type: 'external', url: '{vnx_sp_link}', rel: 'nofollow' },
+    _cssClasses: 'vnx-button vnx-btn-conversion vnx-button-register',
+    _attributes: [
+      { name: 'data-price', value: '{vnx_sp_sale}' },
+      { name: 'data-period', value: '{vnx_sp_cycle}' },
+      { name: 'data-product-name', value: '{vnx_sp_name}' },
+    ],
+  };
+}
+
 function tagText(patches, id, tag) {
   const prev = patches[id] ?? {};
   patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
@@ -387,7 +404,7 @@ function bindPrice(node, table, id, root) {
       take(textNode, '{vnx_sp_button}');
       const frame = parentOf(card, textNode.id);
       const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
-      if (onlyText) put(frame.id, { settings: { text: '{vnx_sp_button}', link: { type: 'external', url: '{vnx_sp_link}' } } });
+      if (onlyText) put(frame.id, { settings: registerButton('{vnx_sp_button}') });
     }
   }
   let promo = null;
