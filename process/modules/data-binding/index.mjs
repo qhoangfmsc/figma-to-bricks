@@ -12,10 +12,12 @@
 //   text      [{ node, value | runs: [..], reason }]    words of a TEXT node, replaced after render; runs keep each drawn style run
 //   links     [{ node, tag, reason }]                   link of a button / link element (Bricks link type "meta")
 //   attrs     [{ node, name, value, reason }]           custom attribute (Bricks renders dynamic data in it)
-//   icons     [{ node, tag | className, paintFrom, reason }]       the drawn icon becomes <i class="{tag}"> at the same box; className:
+//   icons     [{ node, tag | className, paintFrom | color, reason }]  color: a hex the owner named, with the Figma node it comes from in reason       the drawn icon becomes <i class="{tag}"> at the same box; className:
 //                                                       a fixed icon class for a glyph Figma has no picture of (a layer
 //                                                       hidden in every instance)
 //   hideEmpty [{ node, tag, reason }]                   element shows only when the tag is not empty (_conditions)
+//   showWhen  [{ node, tag, value, reason }]            element shows only when the tag equals value (a yes / no cell:
+//                                                       one drawn icon per answer)
 //   show      [{ node, reason }]                        a layer the component holds but this instance hides (the
 //                                                       source fills it; pair it with hideEmpty)
 //   hoverShow [{ node, trigger, transition, anchor, pointer, reason }]
@@ -30,7 +32,14 @@
 //                                                       closed group shows) the layer opens above the trigger
 //                                                       copy: the layer is drawn in another frame only; a copy goes
 //                                                       under the trigger's parent, at its left padding
+//                                                       under: true (with copy) = right under the trigger, centred on
+//                                                       it (gap from the drawing beside anchor); a script shifts it
+//                                                       back inside the trigger's row when it would pass the row edge
 //                                                       A layer that hugs in Figma hugs the source words
+//                                                       from: '<fileKey>/<node-id>' = the layer is built in another
+//                                                       section's workspace (same template): copied beside each
+//                                                       trigger (wrapped in a box of its size), anchor = its trigger
+//                                                       there, retag: { '{old_tag}': '{new_tag}' }
 //   stateOn   [{ node, trigger, className, hide, text, icon, reason }]
 //                                                       a state a script sets as a class on the trigger (a copy button
 //                                                       gets `is-copied`): inside node, the hide layers go, a text made
@@ -58,6 +67,16 @@
 //   slider    [{ node, pin, reason }]                   the frame scrolls sideways when its rows grow past it (columns
 //                                                       'scroll'); each row is as wide as its content; pin layers (a
 //                                                       label that spans the frame) stay in view at the frame width
+//   stick     [{ node, top, background, reason }]       a layer that stays `top` (px) below the window top while its
+//                                                       parent scrolls past (a table head). Figma draws no scroll: the
+//                                                       owner names it. background: #rrggbb behind it (the rows pass
+//                                                       under). Inside a slider (a sideways scroller) the layer is a
+//                                                       row of it: the other rows scroll in a new block, the stuck row
+//                                                       keeps native sticky and a script keeps its scrollLeft in step
+//   dividers  [{ node, reason }]                        looped columns whose drawn right line separates them: every
+//                                                       column on screen but the last keeps it (a twin shown at
+//                                                       another place moves the last); a plain column right after a
+//                                                       twin without a line draws its line on the left too
 //
 // Bricks 1.12.3: `hasLoop` + `query.objectType` (includes/query.php), link type `meta` reads `useDynamicData`
 // (elements/base.php set_link_attributes), custom attributes merge into `class` since 1.11.1, conditions key
@@ -69,8 +88,16 @@ const from = (id, k) => Array.from({ length: k }, () => `.brxe-${id}`).join(' ~ 
 const at = (id, k) => `${from(id, k)}:not(${from(id, k + 1)})`; // exactly the k-th clone
 const notAt = (id, k) => `:is(.brxe-${id}:not(${from(id, k)}), ${from(id, k + 1)})`; // every clone but the k-th
 
+// A layer centred under its trigger ([data-f2b-keep]) is shifted back inside the trigger's row ([data-f2b-bounds],
+// its padding box) when it would pass the row edge. Run at load, on resize and when a trigger is touched or hovered.
+const KEEP_SCRIPT = `(function(){function fit(l){var b=l.closest('[data-f2b-bounds]');if(!b)return;l.style.translate='';var r=l.getBoundingClientRect();if(!r.width)return;var q=b.getBoundingClientRect(),cs=getComputedStyle(b),lo=q.left+parseFloat(cs.paddingLeft),hi=q.right-parseFloat(cs.paddingRight),d=0;if(r.right>hi)d=hi-r.right;if(r.left+d<lo)d=lo-r.left;if(d)l.style.translate=d+'px 0'}function all(){document.querySelectorAll('[data-f2b-keep]').forEach(fit)}function on(e){var w=e.target&&e.target.closest&&e.target.closest('[data-f2b-keep-host]');if(!w)return;var l=w.querySelector('[data-f2b-keep]');if(l)fit(l)}['mouseover','touchstart','focusin'].forEach(function(t){document.addEventListener(t,on,{passive:true,capture:true})});addEventListener('resize',all);all()})();`;
+
+// Siblings marked [data-f2b-sync] scroll sideways together (a stuck table head and the rows under it).
+// Footer script: the site may delay it until the first touch; before that only the vertical stick works.
+const SYNC_SCRIPT = `(function(){document.addEventListener('scroll',function(e){var a=e.target;if(!a||!a.hasAttribute||!a.hasAttribute('data-f2b-sync'))return;var p=a.parentElement;if(!p)return;Array.prototype.forEach.call(p.children,function(b){if(b!==a&&b.hasAttribute('data-f2b-sync')&&Math.abs(b.scrollLeft-a.scrollLeft)>0.5)b.scrollLeft=a.scrollLeft})},true)})();`;
+
 const TAG = /\{([a-z][a-z0-9_]*)((?::[^{}:]+)*)\}/gi;
-const LISTS = ['loops', 'text', 'links', 'attrs', 'icons', 'hideEmpty', 'show', 'onlyAt', 'hoverShow', 'stateOn', 'twin', 'collapse', 'columns', 'slider'];
+const LISTS = ['loops', 'text', 'links', 'attrs', 'icons', 'hideEmpty', 'showWhen', 'show', 'onlyAt', 'hoverShow', 'stateOn', 'twin', 'collapse', 'columns', 'slider', 'stick', 'dividers'];
 
 export function tagsIn(value) {
   return [...String(value ?? '').matchAll(TAG)].map((m) => ({ raw: m[0], name: m[1], args: m[2] ? m[2].slice(1).split(':') : [] }));
@@ -114,6 +141,12 @@ export function validateBinding(bind, hasNode) {
         if (row.pointer != null && !hasNode(row.pointer)) throw new Error(`${where}: pointer is not in the tree`);
         if (typeof row.anchor === 'string' && !hasNode(row.anchor)) throw new Error(`${where}: anchor is true or the node the layer is drawn beside`);
         if (row.flipUp != null && !(bind.loops ?? []).some((l) => l.node === row.flipUp)) throw new Error(`${where}: flipUp is a row loop`);
+        if (row.under != null && (row.under !== true || !row.copy)) throw new Error(`${where}: under is true, with copy`);
+        if (row.from != null) {
+          if (!/^[A-Za-z0-9]+\/[0-9]+-[0-9]+$/.test(row.from)) throw new Error(`${where}: from is <fileKey>/<node-id> of a built workspace`);
+          if (typeof row.anchor !== 'string') throw new Error(`${where}: from needs anchor = the trigger in that drawing`);
+          for (const v of Object.values(row.retag ?? {})) needTag(v, where);
+        }
       } else if (list === 'stateOn') {
         if (!row.trigger || !hasNode(row.trigger)) throw new Error(`${where}: trigger is not in the tree`);
         if (!/^[a-z][a-z0-9-]*$/i.test(row.className ?? '')) throw new Error(`${where}: className`);
@@ -140,12 +173,22 @@ export function validateBinding(bind, hasNode) {
       } else if (list === 'columns') {
         if (!(bind.loops ?? []).some((l) => l.node === row.node)) throw new Error(`${where}: columns are a loop`);
         if (!['share', 'scroll'].includes(row.mode)) throw new Error(`${where}: mode is share or scroll`);
+      } else if (list === 'dividers') {
+        if (!(bind.loops ?? []).some((l) => l.node === row.node)) throw new Error(`${where}: dividers are a column loop`);
+      } else if (list === 'stick') {
+        if (!/^\d+(\.\d+)?px$/.test(String(row.top ?? ''))) throw new Error(`${where}: top is <N>px`);
+        if (row.background != null && !/^#[0-9a-f]{6}$/i.test(row.background)) throw new Error(`${where}: background is #rrggbb`);
       } else if (list === 'slider') {
         for (const pin of row.pin ?? []) if (!hasNode(pin)) throw new Error(`${where}: pin ${pin} is not in the tree`);
-      } else if (list === 'icons' && (row.className != null || row.paintFrom != null)) {
+      } else if (list === 'icons' && (row.className != null || row.paintFrom != null || row.color != null)) {
         if (row.className != null && !/^[a-z0-9 -]+$/i.test(row.className)) throw new Error(`${where}: className`);
         if (row.paintFrom != null && !hasNode(row.paintFrom)) throw new Error(`${where}: paintFrom is not in the tree`);
+        if (row.color != null && !/^#[0-9a-f]{6}$/i.test(row.color)) throw new Error(`${where}: color is #rrggbb`);
+        if (row.color != null && row.paintFrom != null) throw new Error(`${where}: paintFrom or color, not both`);
         if (row.className == null && !needTag(row.tag, where).length) throw new Error(`${where}: tag is missing`);
+      } else if (list === 'showWhen') {
+        if (!needTag(row.tag, where).length) throw new Error(`${where}: tag is missing`);
+        if (typeof row.value !== 'string' || !row.value || /[{}]/.test(row.value)) throw new Error(`${where}: value is plain text`);
       } else if (list === 'attrs') {
         if (!/^[a-z][a-z0-9-]*$/i.test(row.name ?? '')) throw new Error(`${where}: attribute name`);
         needTag(row.value, where);
@@ -232,7 +275,7 @@ function bindText(el, row, text) {
 // After render (and after the breakpoint merge): words, loops, drops, links, attributes, icons, conditions.
 // `mappings` are the mapping objects of every frame (figma id -> { bricksId }). `textOf(node)` is the drawn
 // `text` of a TEXT node (tree.json).
-export function applyBinding(template, mappings, bind, textOf = () => null, nodeOf = () => null) {
+export function applyBinding(template, mappings, bind, textOf = () => null, nodeOf = () => null, external = {}) {
   const content = template.content;
   const byId = new Map(content.map((e) => [e.id, e]));
   const report = [];
@@ -261,8 +304,15 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
       s.query = { objectType: row.query };
     });
   }
+  // A layout element (section / container / block / div) prints its link only as tag `a`
+  // (elements/base.php: is_layout_element() && link type && tag === 'a'; control `link` requires tag = a).
+  const LAYOUT = new Set(['section', 'container', 'block', 'div']);
   for (const row of bind.links ?? []) {
-    each(row, (el) => { settingsOf(el).link = { type: 'meta', useDynamicData: row.tag }; });
+    each(row, (el) => {
+      const s = settingsOf(el);
+      s.link = { type: 'meta', useDynamicData: row.tag };
+      if (LAYOUT.has(el.name)) { s.tag = 'a'; delete s.customTag; }
+    });
   }
   for (const row of bind.attrs ?? []) {
     each(row, (el) => {
@@ -282,11 +332,15 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
       const t = nodeOf(row.node)?.text;
       // paintFrom: the glyph colour of another drawn copy (this frame's copy keeps the component default)
       const solid = (nodeOf(row.paintFrom ?? row.node)?.fills ?? []).filter((f) => f.visible !== false && f.type === 'SOLID' && f.hex).at(-1);
+      // The icon class brings its own font: the drawn icon-font family / weight (a set the site may not load, e.g.
+      // Font Awesome Sharp) would turn the glyph into an empty box.
+      for (const k of Object.keys(s)) if (/^_typography(:|$)/.test(k) && s[k]) { delete s[k]['font-family']; delete s[k]['font-weight']; }
       if (t) {
         const ty = (s._typography ??= {});
         if (t.fontSize) ty['font-size'] = `${t.fontSize}px`;
         if (t.lineHeightPx) ty['line-height'] = `${t.lineHeightPx}px`;
-        if (solid) ty.color = { hex: solid.hex, ...(solid.alpha != null && solid.alpha < 1 ? { rgb: `rgba(${parseInt(solid.hex.slice(1, 3), 16)}, ${parseInt(solid.hex.slice(3, 5), 16)}, ${parseInt(solid.hex.slice(5, 7), 16)}, ${solid.alpha})` } : {}) };
+        if (row.color) ty.color = { hex: row.color.toLowerCase() };
+        else if (solid) ty.color = { hex: solid.hex, ...(solid.alpha != null && solid.alpha < 1 ? { rgb: `rgba(${parseInt(solid.hex.slice(1, 3), 16)}, ${parseInt(solid.hex.slice(3, 5), 16)}, ${parseInt(solid.hex.slice(5, 7), 16)}, ${solid.alpha})` } : {}) };
         if (t.align) ty['text-align'] = t.align === 'JUSTIFIED' ? 'justify' : String(t.align).toLowerCase();
       }
     });
@@ -294,6 +348,11 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
   for (const row of bind.hideEmpty ?? []) {
     each(row, (el) => {
       settingsOf(el)._conditions = [[{ key: 'dynamic_data', compare: '!=', value: '', dynamic_data: row.tag }]];
+    });
+  }
+  for (const row of bind.showWhen ?? []) {
+    each(row, (el) => {
+      settingsOf(el)._conditions = [[{ key: 'dynamic_data', compare: '==', value: row.value, dynamic_data: row.tag }]];
     });
   }
 
@@ -379,16 +438,31 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
     if (n?.sizing?.v === 'HUG') for (const k of Object.keys(s)) if (/^_height(:|$)/.test(k)) delete s[k];
   };
   // A copy of a drawn layer for a frame that does not draw it (the phone frame of a tooltip drawn on desktop only).
-  const copyInto = (src, parent, seed) => {
+  // Rules of a copied element that name an element outside the copy (the hover rule of its first place) are dropped.
+  const ownRules = (css, keep) => {
+    const out = [];
+    let depth = 0;
+    let buf = '';
+    for (const ch of css) {
+      buf += ch;
+      if (ch === '{') depth++;
+      if (ch === '}' && --depth === 0) { out.push(buf.trim()); buf = ''; }
+    }
+    return out.filter((r) => [...r.matchAll(/brxe-([a-z0-9]{6})/g)].every((m) => keep.has(m[1]))).join(' ');
+  };
+  const copyInto = (src, parent, seed, from = template.content, retag = {}) => {
     const map = new Map();
     const sub = [];
-    (function walk(e) { sub.push(e); template.content.filter((c) => c.parent === e.id).forEach(walk); })(src);
+    (function walk(e) { sub.push(e); from.filter((c) => c.parent === e.id).forEach(walk); })(src);
     for (const e of sub) map.set(e.id, newId(`${seed}|${e.id}`));
     const swap = (txt) => [...map].reduce((t, [a, b]) => t.replaceAll(`brxe-${a}`, `brxe-${b}`), txt);
+    const tags = (v) => JSON.parse(Object.entries(retag).reduce((t, [a, b]) => t.replaceAll(a, b), JSON.stringify(v)));
     const out = sub.map((e) => {
       const c = { ...structuredClone(e), id: map.get(e.id), parent: e === src ? parent.id : map.get(e.parent) };
       if (Array.isArray(c.children)) c.children = c.children.map((id) => map.get(id)).filter(Boolean);
-      if (c.settings?._cssCustom) c.settings._cssCustom = swap(c.settings._cssCustom);
+      c.settings = tags(c.settings ?? {});
+      if (c.settings._cssCustom) c.settings._cssCustom = from === template.content ? swap(c.settings._cssCustom) : ownRules(swap(c.settings._cssCustom), new Set(map.values()));
+      if (!c.settings._cssCustom) delete c.settings._cssCustom;
       return c;
     });
     template.content.push(...out);
@@ -400,7 +474,81 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
     const triggers = elementsOf(row.trigger);
     const ln = nodeOf(row.node);
     let layers = elementsOf(row.node);
-    if (row.copy) {
+    if (row.from) {
+      // The layer is drawn in another section (built in its own workspace): a copy sits beside each trigger. The
+      // trigger is wrapped in a box of its own size, so the layer is placed from the trigger whatever the row does;
+      // gap under the trigger and pointer centre come from the drawing (anchor = its trigger there).
+      const ext = external[row.from];
+      const src = ext?.content.find((e) => e.id === ext.mapping?.[row.node]?.bricksId);
+      layers = [];
+      const box = (n) => (n?.box && n.box.absX != null ? { x: n.box.absX, y: n.box.absY, w: n.box.w, h: n.box.h } : null);
+      const T = box(nodeOf(row.anchor));
+      const L = box(ln);
+      const P = row.pointer ? box(nodeOf(row.pointer)) : null;
+      if (!src || !T || !L) { report.push({ node: row.node, msg: `hover from ${row.from}: the built layer or its drawn boxes are missing` }); continue; }
+      for (const t of triggers) {
+        const tn = nodeOf(row.trigger);
+        const parent = byIdNow.get(t.parent);
+        const wrap = { id: newId(`${t.id}|wrap`), name: 'block', parent: parent.id, label: `${t.label ?? 'Icon'} (tooltip)`, settings: { _display: 'inline-flex', _position: 'relative', _flexShrink: 0, _width: 'auto', _widthMax: 'none' } };
+        const at0 = template.content.indexOf(t);
+        template.content.splice(at0, 0, wrap);
+        byIdNow.set(wrap.id, wrap);
+        if (Array.isArray(parent.children)) parent.children = parent.children.map((id) => (id === t.id ? wrap.id : id));
+        t.parent = wrap.id;
+        wrap.children = [t.id];
+        const el = copyInto(src, wrap, `${t.id}|from`, ext.content, row.retag ?? {});
+        const s = settingsOf(el);
+        for (const k of Object.keys(s)) if (/^_(left|right|top|bottom|width|widthMax|widthMin|height|heightMax|heightMin)(:|$)/.test(k) && k !== '_width') delete s[k];
+        const tw = tn?.box?.w ?? T.w;
+        const th = tn?.box?.h ?? T.h;
+        const a = P ? P.x + P.w / 2 - L.x : T.x + T.w / 2 - L.x;
+        s._position = 'absolute';
+        s._top = r3(th + (L.y - (T.y + T.h)));
+        s._left = r3(tw / 2 - a);
+        s._widthMax = 'none';
+        s._zIndex = '1';
+        hug(s, ln);
+        layers.push(el);
+      }
+    } else if (row.copy && row.under) {
+      // The layer is drawn in another frame only; here it opens right under the trigger, centred on it. The trigger
+      // is wrapped in a box of its own size (the layer is placed from the trigger whatever the row does). The gap
+      // comes from the drawing (layer beside anchor). Near the row edge a centred layer would pass it: a script
+      // shifts it back inside the trigger's row (data-f2b-keep), CSS alone cannot know where the trigger sits.
+      const src = layers[0];
+      layers = [];
+      const box = (n) => (n?.box && n.box.absX != null ? { x: n.box.absX, y: n.box.absY, w: n.box.w, h: n.box.h } : null);
+      const T = typeof row.anchor === 'string' ? box(nodeOf(row.anchor)) : null;
+      const L = box(ln);
+      const gap = T && L ? Math.max(0, L.y - (T.y + T.h)) : 0;
+      for (const t of src ? triggers : []) {
+        const parent = byIdNow.get(t.parent);
+        const wrap = { id: newId(`${t.id}|under`), name: 'block', parent: parent.id, label: `${t.label ?? 'Icon'} (tooltip)`, settings: { _display: 'inline-flex', _position: 'relative', _flexShrink: 0, _width: 'auto', _widthMax: 'none', _attributes: [{ name: 'data-f2b-keep-host', value: '' }] } };
+        template.content.splice(template.content.indexOf(t), 0, wrap);
+        byIdNow.set(wrap.id, wrap);
+        if (Array.isArray(parent.children)) parent.children = parent.children.map((id) => (id === t.id ? wrap.id : id));
+        t.parent = wrap.id;
+        wrap.children = [t.id];
+        const ps = settingsOf(parent);
+        ps._attributes = [...(ps._attributes ?? []).filter((a) => a.name !== 'data-f2b-bounds'), { name: 'data-f2b-bounds', value: '' }];
+        const el = copyInto(src, wrap, `${t.id}|copy`);
+        const s = settingsOf(el);
+        for (const k of Object.keys(s)) if (/^_(left|right|top|bottom|width|widthMax|widthMin|height|heightMax|heightMin)(:|$)/.test(k) && k !== '_width') delete s[k];
+        s._position = 'absolute';
+        s._top = gap ? `calc(100% + ${r3(gap)})` : '100%';
+        s._left = '50%';
+        s._widthMax = 'none';
+        s._zIndex = '1';
+        s._attributes = [...(s._attributes ?? []).filter((a) => a.name !== 'data-f2b-keep'), { name: 'data-f2b-keep', value: '' }];
+        s._cssCustom = [s._cssCustom, `${any(el.id)} { transform: translateX(-50%); }`].filter(Boolean).join(' ');
+        el._flipBottom = gap ? `calc(100% + ${r3(gap)})` : '100%';
+        el._raise = [parent.id];
+        hug(s, ln);
+        layers.push(el);
+      }
+      if (layers.length) template.scripts = [...new Set([...(template.scripts ?? []), KEEP_SCRIPT])];
+      if (!layers.length) report.push({ node: row.node, msg: 'hover copy: no drawn layer or no trigger' });
+    } else if (row.copy) {
       // The layer is drawn in another frame only: a copy sits in the trigger's parent, under it ('below') at the
       // parent's left padding, so it stays inside the frame whatever the trigger's place in the row.
       const src = layers[0];
@@ -490,14 +638,18 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
                 lastRows.push(`.brxe-${g.id}:not(.${c.className})${opened} ${at(R, c.keep)}`);
               }
             }
-            const flip = row.copy ? 'top: auto !important; bottom: 100% !important;' : `top: auto !important; bottom: ${el._flipBottom} !important;`;
+            const flip = row.copy && !row.under ? 'top: auto !important; bottom: 100% !important;' : `top: auto !important; bottom: ${el._flipBottom} !important;`;
             rules.push(`:is(${lastRows.join(', ')}) ${any(el.id)} { ${flip} }`);
+            // a layer in a box of its own rises with its row (rows after it, and their sticky labels, come later)
+            if (el._raise) rules.push(`${any(R)}:has(${any(t.id)}:hover) { z-index: 2; }`);
           }
         }
+        for (const id of el._raise ?? []) rules.push(`${any(id)}:has(${any(t.id)}:hover) { z-index: 2; }`);
         s._cssCustom = s._cssCustom ? `${s._cssCustom} ${rules.join(' ')}` : rules.join(' ');
       }
       if (!triggers.some((t) => chain(t).some((id) => up.includes(id) && id !== el.id && id !== t.id))) report.push({ node: row.node, msg: 'hover: no element holds both the layer and its trigger' });
       delete el._flipBottom;
+      delete el._raise;
     }
   }
 
@@ -549,6 +701,7 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
 
   // A drawn copy with its own look (the featured column) loops the same source and shows at its drawn position only.
   const twinsOf = new Map();
+  const twinAt = new Map(); // looped item id -> { twin element, position (from 0) }
   for (const row of bind.twin ?? []) {
     const loop = loopRow(row.loop);
     const parent = nodeOf.parent?.(row.node);
@@ -564,6 +717,7 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
       bs.hasLoop = true;
       bs.query = { objectType: loop.query };
       twinsOf.set(a.id, [...(twinsOf.get(a.id) ?? []), b.id]);
+      twinAt.set(a.id, { twin: b, index });
       // Flex order, whatever the drawn layer order of the plain item and its twin: clones before the twin's place 0,
       // the twin 1, clones after it 2, a drawn sibling after both 3.
       const pos = (e) => template.content.indexOf(e);
@@ -592,16 +746,104 @@ export function applyBinding(template, mappings, bind, textOf = () => null, node
     }
   }
 
+  // Column lines of a looped row. The drawing puts a line on the right of every column but the last; when the owner
+  // shows a twin at another place than drawn, the last column on screen is another item. Each column keeps its drawn
+  // line except the last on screen; a plain item right after a twin without a line of its own draws its line on the
+  // left too (the line between them, as the drawing shows it beside the plain item). Visual order comes from the twin
+  // `order`, so "last" is written with the same sibling chains.
+  const rightEdge = (el) => {
+    const s = settingsOf(el);
+    const bw = s._border?.width?.right;
+    if (bw && parseFloat(bw) > 0) return { kind: 'border', w: bw, style: s._border.style ?? 'solid', color: s._border.color?.hex ?? s._border.color?.rgb };
+    const m = new RegExp(`#brxe-${el.id}::before \\{[^}]*?padding: (\\S+) (\\S+) (\\S+) (\\S+);[^}]*mask`).exec(s._cssCustom ?? '');
+    if (m && parseFloat(m[2]) > 0) return { kind: 'ring', w: m[2] };
+    const sh = new RegExp(`#brxe-${el.id} \\{ box-shadow: inset -(\\S+) 0px 0 0 ([^;,]+); \\}`).exec(s._cssCustom ?? '');
+    if (sh) return { kind: 'shadow', w: sh[1], color: sh[2] };
+    return null;
+  };
+  const noRight = (sel, e) => ({
+    border: `${sel} { border-right-width: 0 !important; }`,
+    ring: `${sel}::before { padding-right: 0 !important; }`,
+    shadow: `${sel} { box-shadow: none !important; }`,
+  })[e.kind];
+  const addLeft = (sel, e) => ({
+    border: `${sel} { border-left: ${e.w} ${e.style} ${e.color} !important; }`,
+    ring: `${sel}::before { padding-left: ${e.w} !important; }`,
+    shadow: `${sel} { box-shadow: inset -${e.w} 0px 0 0 ${e.color}, inset ${e.w} 0px 0 0 ${e.color} !important; }`,
+  })[e.kind];
+  for (const row of bind.dividers ?? []) {
+    for (const a of elementsOf(row.node)) {
+      const P = `.brxe-${a.id}`;
+      const ea = rightEdge(a);
+      const t = twinAt.get(a.id);
+      const rules = [];
+      if (!t) {
+        if (ea) rules.push(noRight(`${P}:not(:has(~ ${P}))`, ea));
+      } else {
+        const T = `.brxe-${t.twin.id}`;
+        const et = rightEdge(t.twin);
+        const after = from(a.id, t.index + 2);
+        if (ea) rules.push(noRight(`${after}:not(:has(~ ${P}))`, ea));
+        if (et) rules.push(noRight(`${any(a.parent)}:not(:has(${after})) > ${T}`, et));
+        if (!et && ea) rules.push(addLeft(at(a.id, t.index + 2), ea));
+      }
+      if (rules.length) addCss(a, rules.join(' '));
+      report.push({ node: row.node, msg: `dividers: a line between columns, none after the last on screen${t ? ` (twin at position ${t.index + 1})` : ''}` });
+    }
+  }
+
+  // A layer that stays below the window top while its parent scrolls past: CSS sticky. CSS sticky follows the
+  // nearest scroller, so a stuck row of a sideways slider leaves the scroller: the slider's other rows move into a
+  // new block that scrolls, the stuck row scrolls sideways on its own (bar hidden) and a script keeps the two at
+  // the same scrollLeft. The vertical stick stays native (smooth); only the sideways sync is scripted.
+  const stuck = new Map(); // slider element id -> stuck rows
+  for (const row of bind.stick ?? []) {
+    each(row, (el) => {
+      const bg = row.background ? ` background-color: ${row.background};` : '';
+      const slider = (bind.slider ?? []).flatMap((r) => elementsOf(r.node)).find((sl) => chain(el).slice(1).includes(sl.id));
+      if (slider && el.parent !== slider.id) throw new Error(`stick ${row.node}: inside slider ${slider.id}, a stuck layer is a row of the slider (its child)`);
+      if (slider) {
+        stuck.set(slider.id, [...(stuck.get(slider.id) ?? []), el]);
+        const s = settingsOf(el);
+        s._attributes = [...(s._attributes ?? []).filter((x) => x.name !== 'data-f2b-sync'), { name: 'data-f2b-sync', value: '' }];
+        addCss(el, `${any(el.id)} { position: sticky; top: ${row.top}; z-index: 3;${bg} width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; } ${any(el.id)}::-webkit-scrollbar { display: none; }`);
+        template.scripts = [...new Set([...(template.scripts ?? []), SYNC_SCRIPT])];
+        report.push({ node: row.node, msg: `stick: ${row.top} below the window top; the slider's other rows scroll in a new block, kept in step by a script` });
+      } else {
+        addCss(el, `${any(el.id)} { position: sticky; top: ${row.top}; z-index: 3;${bg} }`);
+      }
+    });
+  }
+
   // A sideways scrolling frame. Its rows are as wide as their columns at their smallest (min-content: each 'scroll'
   // column at its drawn width, long words wrap) and at least the frame; a pinned layer keeps the frame width and
   // stays at its left edge while the rows scroll.
   for (const row of bind.slider ?? []) {
     for (const el of elementsOf(row.node)) {
+      let scroller = el;
+      const keep = stuck.get(el.id) ?? [];
+      if (keep.length) {
+        const rows = template.content.filter((c) => c.parent === el.id && !keep.includes(c));
+        const s = settingsOf(el);
+        const layout = Object.fromEntries(Object.entries(s).filter(([k]) => /^_(display|direction|rowGap|columnGap|alignItems|justifyContent|flexWrap)(:|$)/.test(k)));
+        scroller = { id: newId(`${el.id}|rows`), name: 'block', parent: el.id, label: `${el.label ?? 'Slider'} (rows)`, settings: { ...layout, _width: '100%' } };
+        scroller.settings._attributes = [{ name: 'data-f2b-sync', value: '' }];
+        template.content.splice(rows.length ? template.content.indexOf(rows[0]) : template.content.indexOf(el) + 1, 0, scroller);
+        byIdNow.set(scroller.id, scroller);
+        for (const r of rows) r.parent = scroller.id;
+        if (Array.isArray(el.children)) {
+          const ids = new Set(rows.map((r) => r.id));
+          const at0 = el.children.findIndex((id) => ids.has(id));
+          el.children = el.children.filter((id) => !ids.has(id));
+          el.children.splice(at0 < 0 ? el.children.length : at0, 0, scroller.id);
+          scroller.children = rows.map((r) => r.id);
+        }
+      }
       const pins = (row.pin ?? []).flatMap((p) => elementsOf(p)).filter((p) => chain(p).includes(el.id));
-      addCss(el, [
-        `${any(el.id)} { overflow-x: auto !important; container-type: inline-size; }`,
-        `${any(el.id)} > * { width: min-content !important; min-width: 100% !important; max-width: none !important; overflow: visible !important; }`,
-        ...pins.map((p) => `${any(el.id)} ${any(p.id)} { position: sticky; left: 0; z-index: 1; width: 100cqw !important; min-width: 0 !important; max-width: 100cqw !important; flex: none !important; }`),
+      addCss(scroller, [
+        `${any(scroller.id)} { overflow-x: auto !important; container-type: inline-size; }`,
+        `${any(scroller.id)} > * { width: min-content !important; min-width: 100% !important; max-width: none !important; overflow: visible !important; }`,
+        ...pins.map((p) => `${any(scroller.id)} ${any(p.id)} { position: sticky; left: 0; z-index: 1; width: 100cqw !important; min-width: 0 !important; max-width: 100cqw !important; flex: none !important; }`),
       ].join(' '));
     }
   }

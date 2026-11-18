@@ -41,10 +41,17 @@ const NEUTRAL = { _height: 'auto', _widthMax: 'none', _heightMax: 'none', _width
 const SUB_NEUTRAL = { 'white-space': 'normal', 'text-transform': 'none', 'text-decoration': 'none', 'font-style': 'normal', 'letter-spacing': 'normal', radius: ZERO_SIDES, width: ZERO_SIDES, style: 'none' }; // typography sub-keys a variant leaves out
 const FLEX_ONLY = new Set(['_direction', '_justifyContent', '_alignItems', '_flexWrap', '_rowGap', '_columnGap']); // meaningless when the frame has no flex container
 
-// `#brxe-x .field:not(:last-child)::after { a: b; }` -> Map(selector -> body)
+// `#brxe-x .field:not(:last-child)::after { a: b; }` -> Map(selector -> body). A conditional block
+// (`@media (max-width: 991px) { #brxe-x { … } }`, an owner's override) stays one entry: its prelude is the key and its
+// rules the body. Read rule by rule, the inner rule lost its query and applied at every width.
+const AT_BLOCK = /(@[a-z-]+[^{}]*)\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}/gi;
 function cssRules(text) {
   const out = new Map();
-  for (const m of (text ?? '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) out.set(m[1].trim().replace(/\s+/g, ' '), m[2].trim().replace(/\s+/g, ' '));
+  const flat = String(text ?? '').replace(AT_BLOCK, (all, prelude, body) => {
+    out.set(prelude.trim().replace(/\s+/g, ' '), body.trim().replace(/\s+/g, ' '));
+    return ' ';
+  });
+  for (const m of flat.matchAll(/([^{}]+)\{([^{}]*)\}/g)) out.set(m[1].trim().replace(/\s+/g, ' '), m[2].trim().replace(/\s+/g, ' '));
   return out;
 }
 // 'a: b; c: d' -> Map(property -> value)
@@ -52,6 +59,8 @@ const decls = (body) => new Map(body.split(/;(?![^(]*\))/).map((d) => d.trim()).
 // the declarations a narrower frame must write over the wider frame's rule: changed or new ones as they are, dropped ones as `unset`
 // (initial value; CSS has no other way to take a declaration back)
 function cssDelta(refBody, nextBody) {
+  // a conditional block is compared whole: a narrower frame that writes another one writes all of it
+  if (/[{}]/.test(`${refBody ?? ''}${nextBody ?? ''}`)) return nextBody && nextBody !== refBody ? nextBody : '';
   const a = decls(refBody ?? ''), b = decls(nextBody ?? '');
   const out = [];
   for (const [k, v] of b) if (a.get(k) !== v) out.push(`${k}: ${v};`);

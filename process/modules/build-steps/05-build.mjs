@@ -5,7 +5,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { resolveWorkspace } from '../common/workspace.mjs';
+import { resolveWorkspace, workRoot } from '../common/workspace.mjs';
 import { requireSignOff } from '../sign-off/index.mjs';
 import { buildTemplate } from '../write-bricks/render/index.mjs';
 import { stats } from '../read-figma/tree-md.mjs';
@@ -120,11 +120,20 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
     if (rows.length) console.log(`  ${f.key}: whole frame, ${rows.length} clipped row(s) scroll sideways`);
   }
   if (bind) {
+    // A layer bind.json takes from another section of the same template (hoverShow from): its built elements and tree.
+    const external = {};
+    const extTrees = [];
+    for (const from of new Set((bind.hoverShow ?? []).map((r) => r.from).filter(Boolean))) {
+      const other = resolveWorkspace(join(workRoot(), from));
+      if (!other.has('bricks.json')) throw new Error(`bind.json: ${from} is not built yet (hoverShow from)`);
+      external[from] = { content: other.readJson('bricks.json').content, mapping: other.readJson('mapping.json') };
+      extTrees.push(other.readJson('tree.json'));
+    }
     const ids = new Set();
     const collect = (n) => { ids.add(n.id); (n.children ?? []).forEach(collect); };
-    bindTrees.forEach(collect);
+    [...bindTrees, ...extTrees].forEach(collect);
     validateBinding(bind, (id) => ids.has(id) || variantMappings.some(([, m]) => m?.[id]) || !!mapping[id]);
-    const bound = applyBinding(template, [mapping, ...variantMappings.map(([, m]) => m)], bind, textLookup(bindTrees), nodeLookup(bindTrees));
+    const bound = applyBinding(template, [mapping, ...variantMappings.map(([, m]) => m)], bind, textLookup(bindTrees), nodeLookup([...bindTrees, ...extTrees]), external);
     for (const r of bound.report) warnings.push({ node: r.node, name: '-', msg: `data binding: ${r.msg}` });
     for (const u of unloopedTags(template, bind)) warnings.push({ node: u.element, name: u.label, msg: `data binding: ${u.tag} has no ${u.missing.join(' / ')} loop above it, the source picks its own default` });
     console.log(`  data binding: ${bind.source} · ${(bind.loops ?? []).length} loop(s), ${bound.removed} drawn copy element(s) removed`);

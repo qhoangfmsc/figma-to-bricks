@@ -179,3 +179,36 @@ test('a changed image file is a source at that breakpoint, and the phone is list
     { breakpoint: 'tablet_portrait', image: { $asset: 'images/tab.png', size: 'full' } },
   ]);
 });
+
+// A newsletter section: the phone frame adds a coupon strip the desktop frame does not draw. The owner keeps the strip up
+// to the tablet with a query of its own in an override. Merge reads the custom css rule by rule; the query must stay.
+test('a query block in custom css survives the merge (variant-only element and a base element)', () => {
+  const base = {
+    tree: { id: 'n', name: 'Newsletter', children: [{ id: 'n1', name: 'Form', children: [] }] },
+    template: { content: [
+      { id: 'NB', parent: 0, name: 'section', settings: { _width: '1440px' } },
+      { id: 'NF', parent: 'NB', name: 'block', settings: { _width: '600px', _cssCustom: '#brxe-NF { gap: 8px; } @media (max-width: 1200px) { #brxe-NF { gap: 4px; } }' } },
+    ] },
+    mapping: { n: { bricksId: 'NB', element: 'section', verify: true, expect: {} }, n1: { bricksId: 'NF', element: 'block', verify: true, expect: {} } },
+  };
+  const phone = {
+    key: 'mobile_portrait',
+    maxWidth: 478,
+    aliases: {},
+    tree: { id: 'p', name: 'Newsletter', children: [{ id: 'p1', name: 'Form', children: [] }, { id: 'p2', name: 'Coupon', children: [] }] },
+    template: { content: [
+      { id: 'PB', parent: 0, name: 'section', settings: { _width: '375px' } },
+      { id: 'PF', parent: 'PB', name: 'block', settings: { _width: '343px', _cssCustom: '#brxe-PF { gap: 8px; } @media (max-width: 1200px) { #brxe-PF { gap: 4px; } }' } },
+      { id: 'PC', parent: 'PB', name: 'block', settings: { _width: '343px', _cssCustom: '@media (max-width: 991px) { #brxe-PC { display: flex !important; } }' } },
+    ] },
+    mapping: { p: { bricksId: 'PB', element: 'section', verify: true, expect: {} }, p1: { bricksId: 'PF', element: 'block', verify: true, expect: {} }, p2: { bricksId: 'PC', element: 'block', verify: true, expect: {} } },
+  };
+  const merged = mergeResponsive({ base, variants: [phone] });
+  const coupon = merged.template.content.find((e) => e.id === 'PC').settings._cssCustom;
+  assert.match(coupon, /@media \(max-width: 991px\) \{ #brxe-PC \{ display: flex !important; \} \}/);
+  assert.match(coupon, /@media \(min-width: 479px\) \{ body #brxe-PC \{ display: none; \} \}/);
+  assert.doesNotMatch(coupon.replace(/@media[^{]*\{[^{}]*\{[^{}]*\} \}/g, ''), /display: flex/); // never outside its query
+  const form = merged.template.content.find((e) => e.id === 'NF').settings;
+  assert.match(form._cssCustom, /@media \(max-width: 1200px\) \{ #brxe-NF \{ gap: 4px; \} \}/);
+  assert.equal(form['_width:mobile_portrait'], '343px');
+});
