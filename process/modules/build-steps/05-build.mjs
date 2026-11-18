@@ -12,6 +12,7 @@ import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
+import { carryCompareTables } from '../write-bricks/components/compare-data.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
 
@@ -66,9 +67,13 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       requireSignOff(vws, 'build');
       const vtree = vws.readJson('tree.json');
       const variantDetections = vws.readJson('detections.json', null);
-      const carried = (detections?.components ?? []).some((item) => item.component === 'price-table' && item.params?.table)
-        ? carryPriceTables(detections, variantDetections, matchTrees(tree, vtree, { aliases: v.aliases ?? {} }).pairs, vtree.id)
+      const pairs = matchTrees(tree, vtree, { aliases: v.aliases ?? {} }).pairs;
+      const priced = (detections?.components ?? []).some((item) => item.component === 'price-table' && item.params?.table)
+        ? carryPriceTables(detections, variantDetections, pairs, vtree.id)
         : variantDetections;
+      const carried = (detections?.components ?? []).some((item) => item.component === 'compare-table' && item.params?.table)
+        ? carryCompareTables(detections, priced, pairs, vtree.id)
+        : priced;
       bundleOpenPanes(vtree, carried);
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {

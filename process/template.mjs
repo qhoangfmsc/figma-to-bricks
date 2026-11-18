@@ -18,7 +18,8 @@ import { signOff } from './modules/sign-off/index.mjs';
 import { figmaGet, enableRunCache, refreshRunCache } from './modules/read-figma/api.mjs';
 import { groupQuestions, GROUPS, keyOf, figmaLink, applyAnswers, shareAccordionAnswers } from './modules/missing-content/index.mjs';
 import { attachWidgetData } from './modules/write-bricks/components/price-data.mjs';
-import { readServicePrice } from './modules/write-bricks/bridge.mjs';
+import { attachCompareData } from './modules/write-bricks/components/compare-data.mjs';
+import { readServicePrice, readCompareTable } from './modules/write-bricks/bridge.mjs';
 import { resolvePlan } from './modules/missing-content/choices.mjs';
 import { runLines } from './modules/common/spawn-lines.mjs';
 import { parseFrameInput, SLOTS } from './modules/single-template/frames.mjs';
@@ -209,6 +210,8 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
   const applied = applyAnswers(base, ready);
   const priceErrors = await attachWidgetData(base, readServicePrice);
   if (priceErrors.length) throw new Error(priceErrors.join('\n'));
+  const compareErrors = await attachCompareData(base, readCompareTable);
+  if (compareErrors.length) throw new Error(compareErrors.join('\n'));
   const shared = shareAccordionAnswers(base);
   log(`Đã gắn ${applied.applied.length} giá trị${shared.copied ? `, chép ${shared.copied} nội dung sang khung khác` : ''}`);
   await attachFilledFrames(base, { log });

@@ -1,6 +1,7 @@
 // Plan lines stay the words the owner typed. The chat reads those words and writes a choice.
 // This module only accepts a choice. It does not match synonyms.
 import { PRICE_ID } from '../write-bricks/components/price-data.mjs';
+import { COMPARE_ID } from '../write-bricks/components/compare-data.mjs';
 
 export const Choice = {
   type: ['section', 'header', 'footer', 'popup', 'content', 'archive', 'search', 'error'],
@@ -26,6 +27,7 @@ export const Choice = {
   tabdata: ['unset', 'name'],
   expect: ['unset', 'block', 'slider', 'tab', 'menu', 'form', 'accordion', 'button', 'scroll'],
   price: ['unset', 'id'],
+  compare: ['unset', 'id'],
   pattr: ['unset', 'text'],
   options: ['unset', 'list'],
 };
@@ -65,6 +67,7 @@ const DEFAULTS = {
   tabdata: { choice: 'unset' },
   expect: { choice: 'unset' },
   price: { choice: 'unset' },
+  compare: { choice: 'unset' },
   pattr: { choice: 'unset' },
   options: { choice: 'unset' },
 };
@@ -90,11 +93,13 @@ export function choiceOf(group, value) {
   if (!allowed) return null;
   if (value && typeof value === 'object' && !Array.isArray(value) && allowed.includes(value.choice)) {
     if (group === 'price' && value.choice === 'id' && !PRICE_ID.test(String(value.id ?? ''))) return null;
+    if (group === 'compare' && value.choice === 'id' && !COMPARE_ID.test(String(value.id ?? ''))) return null;
     return value;
   }
   const text = typeof value === 'string' ? value.trim() : '';
   if (!text || text === MISSING) return { ...DEFAULTS[group] };
   if (group === 'price' && text !== 'unset' && text !== 'id' && PRICE_ID.test(text)) return { choice: 'id', id: text };
+  if (group === 'compare' && text !== 'unset' && text !== 'id' && COMPARE_ID.test(text)) return { choice: 'id', id: text };
   if (allowed.includes(text)) return { choice: text };
   return null;
 }

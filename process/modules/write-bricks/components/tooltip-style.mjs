@@ -45,6 +45,7 @@ export default {
       [root.id]: { css: [
         { decl: `--bricks-tooltip-bg: ${cssColor(fill)};${tf ? ` --bricks-tooltip-text: ${cssColor(tf)};` : ''}`, suffix: '' },
         { decl: after, suffix: ' [data-balloon]:after' },
+        { decl: after, suffix: ' .f2b-tip' },
       ] },
     };
   },

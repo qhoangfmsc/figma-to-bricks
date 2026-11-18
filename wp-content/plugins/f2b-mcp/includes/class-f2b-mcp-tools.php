@@ -191,6 +191,20 @@ class F2B_MCP_Tools {
 				),
 			),
 			array(
+				'name'        => 'get_compare_table',
+				'description' => 'Read one Comparison table. Requires VNX_Compare_Table_Store_Center on this site.',
+				'inputSchema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'id' => array(
+							'type'        => 'string',
+							'description' => 'Comparison table id, for example bang-so-sanh-maxspeed.',
+						),
+					),
+					'required'   => array( 'id' ),
+				),
+			),
+			array(
 				'name'        => 'get_service_price',
 				'description' => 'Read one Service Pricing table as widget_data. Requires VNX_Service_Price_Store_Center on this site.',
 				'inputSchema' => array(
@@ -260,6 +274,8 @@ class F2B_MCP_Tools {
 				return self::generate_css_file( $args );
 			case 'get_service_price':
 				return self::get_service_price( $args );
+			case 'get_compare_table':
+				return self::get_compare_table( $args );
 			case 'upload_media':
 				return self::upload_media( $args );
 		}
@@ -282,6 +298,74 @@ class F2B_MCP_Tools {
 			return new WP_Error( 'missing-table', 'Price table not found.' );
 		}
 		return $data;
+	}
+
+	private static function get_compare_table( array $args ) {
+		if ( ! class_exists( 'VNX_Compare_Table_Store_Center' ) ) {
+			return new WP_Error( 'missing-store', 'Compare table store is not on this site.' );
+		}
+		$id = isset( $args['id'] ) ? (string) $args['id'] : '';
+		if ( ! VNX_Compare_Table_Store_Center::is_valid_id( $id ) ) {
+			return new WP_Error( 'bad-id', 'Invalid comparison table id.' );
+		}
+		$table = VNX_Compare_Table_Store_Center::get_table( $id );
+		if ( ! $table ) {
+			return new WP_Error( 'missing-table', 'Comparison table not found.' );
+		}
+		$visible = array_values(
+			array_filter(
+				$table['packages'],
+				function ( $package ) {
+					return empty( $package['hidden'] );
+				}
+			)
+		);
+		$packages = array();
+		foreach ( $visible as $package ) {
+			$packages[] = array(
+				'id'    => $package['id'],
+				'name'  => (string) $package['name'],
+				'price' => $package['price'],
+				'cycle' => (string) $package['cycle'],
+				'total' => $package['total'],
+				'link'  => (string) $package['link'],
+			);
+		}
+		$groups = array();
+		foreach ( array_values( $table['groups'] ) as $group ) {
+			$rows = array();
+			foreach ( array_values( $group['rows'] ) as $row ) {
+				$values = array();
+				foreach ( $visible as $package ) {
+					$value = (string) ( $package['values'][ $row['id'] ] ?? '' );
+					$values[] = array(
+						'package' => $package['id'],
+						'value'   => $value,
+						'type'    => in_array( $value, VNX_Compare_Table_Store_Center::MARKS, true ) ? $value : ( $value === '' ? 'empty' : 'text' ),
+					);
+				}
+				$rows[] = array(
+					'id'     => $row['id'],
+					'label'  => (string) $row['label'],
+					'desc'   => (string) $row['desc'],
+					'values' => $values,
+				);
+			}
+			$groups[] = array(
+				'id'    => $group['id'],
+				'label' => (string) $group['label'],
+				'icon'  => VNX_Compare_Table_Store_Center::image_url( $group['icon'] ?? '' ),
+				'rows'  => $rows,
+			);
+		}
+		return array(
+			'id'       => $table['id'],
+			'name'     => (string) $table['name'],
+			'unit'     => (string) ( $table['unit'] ?? '' ),
+			'button'   => (string) ( $table['button'] ?? '' ),
+			'packages' => $packages,
+			'groups'   => $groups,
+		);
 	}
 
 	private static function get_site_info() {

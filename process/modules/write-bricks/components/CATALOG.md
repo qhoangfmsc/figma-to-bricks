@@ -59,7 +59,7 @@ structure in the tree > layer name > geometry. Every signal must be measurable i
 | Offcanvas / mobile panel | A panel that slides in, hamburger frame beside it in the mobile frame | `elements/offcanvas-menu.json` | `offcanvas` (nestable: content block `brx-offcanvas-inner` with a close `toggle`, backdrop block `brx-offcanvas-backdrop`) opened by a `toggle`. `transitionDuration` is not in 1.9.8 | no | Native | Phase 2, after `nav-nested` |
 | Dropdown | A menu item with a sub list | `templates/header-template.json` | `dropdown` (`text`, `link`, `tag`, icon, caret, content `div.brx-dropdown-content` > `ul` > `li` / `text-link`) | no | Native | With `nav-nested` |
 | Toggle (hamburger) | Three-line icon frame in the mobile frame | `offcanvas-menu`, `header-template` | `toggle` (animation, `toggleSelector`, `toggleAttribute`, icon) | no | Native | With `nav-nested` |
-| Tooltip | Icon beside a label + popup node | none in the reference | `data-balloon` attributes | `tooltip`, `tooltip-style` | Ours | – |
+| Tooltip | Icon beside a label + popup node | none in the reference | `.f2b-tip-wrap` + sibling `.f2b-tip` on hover | `tooltip`, `tooltip-style` | Ours | – |
 
 ## 3. Navigation and header
 

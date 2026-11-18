@@ -130,3 +130,7 @@ export async function bridge(method, path, body = {}) {
 export async function readServicePrice(id) {
   return mcp('get_service_price', { id });
 }
+
+export async function readCompareTable(id) {
+  return mcp('get_compare_table', { id });
+}

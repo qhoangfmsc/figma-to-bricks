@@ -31,6 +31,7 @@ import { applyStyle } from '../../write-bricks/render/style.mjs';
 import { applyText } from '../../write-bricks/render/text.mjs';
 import { COMPONENTS } from '../../write-bricks/components/index.mjs';
 import priceTable from '../../write-bricks/components/price-table.mjs';
+import compareTable from '../../write-bricks/components/compare-table.mjs';
 import { siblingStatePatches } from '../../write-bricks/components/states.mjs';
 import { closeMarkIds, popupCard } from '../../recognize-parts/rules/shape.mjs';
 import { isDomainLookup } from '../../recognize-parts/rules/layout-only.mjs';
@@ -59,14 +60,22 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
   const priceReady = new Set();
   const priceSkipped = [];
+  const compareReady = new Set();
+  const compareSkipped = [];
   for (const c of detections?.components ?? []) {
     if (c.status !== 'approved' || c.component !== 'price-table') continue;
     const node = findNode(root, c.node);
     if (node && priceTable.check(node, c, { root }).ok) priceReady.add(c.node);
   }
+  for (const c of detections?.components ?? []) {
+    if (c.status !== 'approved' || c.component !== 'compare-table') continue;
+    const node = findNode(root, c.node);
+    if (node && compareTable.check(node, c, { root }).ok) compareReady.add(c.node);
+  }
   const approved = new Map();
   for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination')) {
     if (c.component === 'price-table' && !priceReady.has(c.node)) { priceSkipped.push(c); continue; }
+    if (c.component === 'compare-table' && !compareReady.has(c.node)) { compareSkipped.push(c); continue; }
     if ((c.component === 'tab-switch' || c.component === 'tabs') && priceReady.has(c.node)) continue;
     const prev = approved.get(c.node);
     if (prev && c.component === 'semantic') continue;
@@ -93,6 +102,10 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   for (const c of priceSkipped) {
     const node = findNode(root, c.node);
     if (node) warn(node, `detection ${c.id} (price-table) approved but not applied, kept as block: ${priceTable.check(node, c, { root }).reason}`);
+  }
+  for (const c of compareSkipped) {
+    const node = findNode(root, c.node);
+    if (node) warn(node, `detection ${c.id} (compare-table) approved but not applied, kept as block: ${compareTable.check(node, c, { root }).reason}`);
   }
 
   function brickId(figmaId) {
@@ -278,12 +291,16 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       addCustomCss(s, 'display: none !important;'); // the open rule is more specific and wins on the site
     }
     let hostId = parentBricksId;
+    let encloseId = null;
     if (patch?.enclose) {
       const box = { ...(patch.enclose.settings ?? {}) };
       for (const rule of patch.enclose.css ?? []) addCustomCss(box, rule.decl, rule.suffix ?? '');
-      hostId = emitRaw(`${node.id}#values`, patch.enclose.name ?? 'block', box, parentBricksId, patch.enclose.label ?? 'Values');
+      encloseId = emitRaw(`${node.id}#values`, patch.enclose.name ?? 'block', box, parentBricksId, patch.enclose.label ?? 'Values');
+      hostId = encloseId;
     }
-    emit(node, kind, s, css, hostId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    emit(node, kind, s, css, hostId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren && !patch?.unmerge, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    // A bubble sits beside the enclosed node. The svg element does not render children, so the text cannot live inside the icon.
+    (patch?.enclose?.tail ?? []).forEach((item, index) => emitExtra(`${node.id}#enclose${index}`, item, encloseId));
   }
 
   function bindSelectors(settings, id, name) {
@@ -406,7 +423,8 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const plan = new Map(); // node id -> { det, comp }
   const mergedInto = new Map(); // node id -> det that swallows it (e.g. a tooltip popup drawn loose in Figma)
   const patches = new Map(); // node id -> { kind?, settings?, extraChildren? } set by an ancestor's component
-  const ordered = [...approved.values()].sort((a, b) => Number(a.component === 'price-table') - Number(b.component === 'price-table'));
+  const late = (name) => name === 'price-table' || name === 'compare-table';
+  const ordered = [...approved.values()].sort((a, b) => Number(late(a.component)) - Number(late(b.component)));
   for (const det of ordered) {
     const node = findNode(root, det.node);
     if (!node) continue; // detect step reports stale nodes

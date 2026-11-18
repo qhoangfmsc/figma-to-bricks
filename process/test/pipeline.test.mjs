@@ -236,19 +236,27 @@ test('proposed or rejected detections change nothing: the nodes stay blocks', ()
   }
 });
 
-test('approved tooltip -> data-balloon attributes on the trigger; without text the attribute is empty (hidden by the theme) and says why', () => {
+test('approved tooltip -> a sibling bubble shows on hover; without text the bubble is not built', () => {
   const tree = withIcons();
   const det = mergeDetections(emptyDetections(), runRules(tree)).detections;
   const tip = det.components.find((c) => c.component === 'tooltip');
   tip.status = 'approved';
   const noText = buildWith(tree, det);
-  assert.deepEqual(byFigma(noText, 'q1').settings._attributes, [{ name: 'data-balloon', value: '' }, { name: 'data-balloon-pos', value: 'top' }]);
+  assert.equal(noText.template.content.some((item) => item.settings?._cssClasses === 'f2b-tip'), false);
   assert.match(noText.warnings.map((w) => w.msg).join(), /tooltip text is not in Figma/);
   tip.params.text = 'How many sites you can host';
   const ok = buildWith(tree, det);
-  assert.deepEqual(byFigma(ok, 'q1').settings._attributes, [{ name: 'data-balloon', value: 'How many sites you can host' }, { name: 'data-balloon-pos', value: 'top' }]);
+  const bubble = ok.template.content.find((item) => item.settings?.text === 'How many sites you can host');
+  const wrap = ok.template.content.find((item) => item.id === bubble.parent);
+  assert.equal(bubble.settings._cssClasses, 'f2b-tip');
+  assert.match(wrap.settings._cssClasses, /f2b-tip-wrap/);
+  assert.match(wrap.settings._cssCustom, /:hover > \.f2b-tip \{ display: block/);
+  assert.match(bubble.settings._cssCustom, /position: absolute/);
+  assert.match(bubble.settings._cssCustom, /z-index: 50/);
+  assert.match(bubble.settings._cssCustom, /bottom: calc\(100% \+ 4px\)/);
+  assert.match(bubble.settings._cssCustom, /right: 0/);
+  assert.match(bubble.settings._cssCustom, /max-width: 150px/);
   assert.equal(ok.mapping.q1.component, 'tooltip');
-  assert.equal(ok.mapping.q1.expect.attrs['data-balloon'], 'How many sites you can host');
 });
 
 test('approved button -> one button element, label merged, theme defaults overridden', () => {
@@ -292,7 +300,7 @@ test('loose tooltip bubble: proposed with its text, applies only once the trigge
   assert.match(buildWith(tree, det).warnings.map((w) => w.msg).join(), /node is the popup bubble itself/);
   loose.node = 'q1'; // the owner picks the trigger
   const b = buildWith(tree, det);
-  assert.equal(byFigma(b, 'q1').settings._attributes[0].value, 'Number of domains:');
+  assert.equal(b.template.content.find((item) => item.settings?.text === 'Number of domains:').settings._cssClasses, 'f2b-tip');
   assert.equal(b.mapping.bubble.skipped, 'merged into tooltip ' + loose.id);
 });
 

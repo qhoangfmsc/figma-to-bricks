@@ -34,11 +34,21 @@ function widgetOf({ id, unit, button, cycles, rows, packages }) {
     '',
     ...packages.map((item) => {
       const price = item.prices[index];
-      return ['', price.sale, price.total, '', price.promo, price.code, ''].join(' | ');
+      return ['', price.sale, price.total, price.tag ?? '', price.promo, price.code, ''].join(' | ');
     }),
   ]);
   const infoHead = ['Specs | *', 'Product | Extra | Icon', ...packages.map(() => '')];
-  const infoRows = rows.map((row, index) => [row, '', ...packages.map((item) => `${item.info[index]} |  | yes`)]);
+  const infoRows = rows.map((row, index) => {
+    const label = typeof row === 'string' ? row : row.label;
+    const desc = typeof row === 'string' ? '' : (row.desc ?? '');
+    return [label, desc, ...packages.map((item) => {
+      const info = item.info[index];
+      const text = typeof info === 'string' ? info : info.text;
+      const extra = typeof info === 'string' ? '' : (info.extra ?? '');
+      const icon = typeof info === 'string' ? 'yes' : (info.icon ?? 'yes');
+      return `${text} | ${extra} | ${icon}`;
+    })];
+  });
   const urlHead = ['Sign-up | *', '', ...packages.map(() => '')];
   const urlRows = cycles.map((cycle, index) => [cycle.label, '', ...packages.map((item) => item.links[index])]);
   return {
@@ -380,6 +390,53 @@ test('a drawn amount that is not in the table still becomes the sale tag', () =>
   });
   const sample = built.template.content.find((item) => item.id === built.mapping.sample?.bricksId);
   assert.equal(sample.settings.text, '{vnx_sp_sale}');
+});
+
+test('an info line binds the row name, the value, the extra, the discount and the mark', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'seat-plan',
+    unit: '/wk',
+    button: 'Join',
+    cycles: [{ label: 'Month', badge: '' }],
+    rows: [{ label: 'Seats', desc: 'People who can sign in' }],
+    packages: [
+      { name: 'Solo', prices: [{ sale: '3', total: '12', tag: '-12%', promo: '', code: '' }], info: [{ text: '3 people', extra: '+1', icon: 'yes' }], links: ['https://example.com/solo'] },
+      { name: 'Crew', prices: [{ sale: '6', total: '24', tag: '-12%', promo: '', code: '' }], info: [{ text: '10 people', extra: '+2', icon: 'no' }], links: ['https://example.com/crew'] },
+    ],
+  }));
+  const line = frame('line', 'line', [0, 0, 180, 24], [
+    frame('mark', 'mark', [0, 0, 16, 16], []),
+    text('label', 'Seats'),
+    text('value', '3 people'),
+    text('extra', '+1'),
+    text('hint', 'People who can sign in'),
+  ], { layoutMode: 'HORIZONTAL' });
+  const card = frame('card', 'plan', [0, 0, 200, 140], [
+    text('name', 'Solo'),
+    text('price', '3'),
+    text('chip', '-12%'),
+    line,
+    frame('buy', 'buy', [0, 100, 80, 28], [text('bt', 'Join')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 480, 180], [
+    frame('bar', 'cycles', [0, 0, 80, 32], [frame('m1', 'pill', [0, 0, 80, 32], [text('m1t', 'Month')])]),
+    frame('deck', 'cards', [0, 40, 440, 140], [card, frame('other', 'plan', [220, 0, 200, 140], [text('on', 'Crew'), text('op', '6')])], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: { mark: { file: 'svg/mark.svg' } } });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'seat-plan', table: parsed.table } }] },
+    salt: 'seats',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('label').settings.text, '{vnx_sp_row}');
+  assert.equal(el('value').settings.text, '{vnx_sp_info}');
+  assert.equal(el('extra').settings.text, '{vnx_sp_info_extra}');
+  assert.equal(el('hint').settings.text, '{vnx_sp_row_desc}');
+  assert.equal(el('chip').settings.text, '{vnx_sp_tag}');
+  assert.equal(el('mark').name, 'icon');
+  assert.equal(el('mark').settings._cssClasses, '{vnx_sp_info_icon_class}');
+  assert.equal(el('mark').settings.icon.icon, 'fa-solid');
+  assert.equal(el('mark').settings._conditions[0][0].dynamic_data, '{vnx_sp_info_icon}');
+  assert.equal(el('line').settings.query.objectType, 'vnxsp_row__seat-plan');
 });
 
 test('a drawn price pair asks for a table id', () => {

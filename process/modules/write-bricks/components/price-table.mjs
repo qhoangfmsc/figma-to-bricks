@@ -11,6 +11,7 @@ import { peekOf } from '../../write-bricks/render/utils/peek-scroll.mjs';
 import { selectOptionHost, selectScript, selectShell } from '../../write-bricks/components/select.mjs';
 import { layoutOnlyReason } from '../../recognize-parts/rules/layout-only.mjs';
 import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
+import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 
 const cache = new WeakMap();
 const claimedHosts = new WeakMap();
@@ -396,14 +397,42 @@ function bindPrice(node, table, id, root, attrs) {
   }
   const infoItem = rows?.items[0];
   if (infoItem) {
+    const labels = new Set(table.rows.map((row) => fold(row.label)).filter(Boolean));
+    const descs = new Set(table.rows.map((row) => fold(row.desc)).filter(Boolean));
+    const infoValues = new Set(pack.info.map((item) => fold(item.text)).filter(Boolean));
+    const extraValues = new Set(pack.info.map((item) => fold(item.extra)).filter(Boolean));
     const infoTexts = textsIn(infoItem);
-    if (infoTexts[0]) {
-      take(infoTexts[0], '{vnx_sp_info}');
-      put(infoTexts[0].id, { settings: { _typography: { 'white-space': 'normal' } } });
+    for (const textNode of infoTexts) {
+      const word = fold(textNode.text.characters);
+      if (descs.has(word)) take(textNode, '{vnx_sp_row_desc}');
+      else if (labels.has(word) && !infoValues.has(word) && !extraValues.has(word)) take(textNode, '{vnx_sp_row}');
+      else if (infoValues.has(word)) take(textNode, '{vnx_sp_info}');
+      else if (extraValues.has(word)) take(textNode, '{vnx_sp_info_extra}');
     }
-    if (infoTexts[1]) take(infoTexts[1], '{vnx_sp_info_extra}');
+    const open = infoTexts.filter((textNode) => !used.has(textNode.id));
+    const infoTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info}');
+    const extraTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info_extra}');
+    if (!infoTagged && open[0]) take(open[0], '{vnx_sp_info}');
+    if (!extraTagged && open[1]) take(open[1], '{vnx_sp_info_extra}');
+    for (const textNode of infoTexts) {
+      if ((patches[textNode.id]?.settings?.text) === '{vnx_sp_info}') {
+        put(textNode.id, { settings: { _typography: { 'white-space': 'normal' } } });
+      }
+    }
     const icon = visibleKids(infoItem).find((child) => hasSvg(child));
-    if (icon) put(icon.id, { settings: { _cssClasses: '{vnx_sp_info_icon_class}' } });
+    if (icon) {
+      put(icon.id, {
+        kind: 'icon',
+        skipChildren: true,
+        dropSettings: ['text'],
+        settings: {
+          icon: { library: 'fontawesome', icon: 'fa-solid' },
+          ...(icon.box?.h ? { iconSize: px(icon.box.h) } : {}),
+          _cssClasses: '{vnx_sp_info_icon_class}',
+          _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: 'empty_not' }]],
+        },
+      });
+    }
   }
   for (const textNode of textsIn(card)) {
     if (used.has(textNode.id)) continue;
@@ -414,6 +443,7 @@ function bindPrice(node, table, id, root, attrs) {
     else if (same(word, price.sale) || pack.prices.some((item) => same(word, item.sale))) take(textNode, '{vnx_sp_sale}');
     else if (same(word, price.regular)) take(textNode, '{vnx_sp_regular}');
     else if (same(word, price.total)) take(textNode, '{vnx_sp_total}');
+    else if (same(word, price.tag) || pack.prices.some((item) => same(word, item.tag))) take(textNode, '{vnx_sp_tag}');
     else if (same(word, price.promoText) || pack.prices.some((item) => same(word, item.promoText))) take(textNode, '{vnx_sp_promo_text}');
     else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
       take(textNode, '{vnx_sp_code}');
@@ -497,10 +527,12 @@ function containsNode(node, id) {
 }
 
 export function priceFrames(root) {
+  const compared = compareFrames(root);
+  const inCompare = (node) => compared.some((frame) => frame.id === node.id || contains(frame, node.id));
   const frames = [];
   const walk = (node) => {
     const cards = visibleKids(node).filter((child) => layoutOnlyReason(child, root) === 'price' && visibleKids(child).length > 0);
-    if (cards.length >= 2) frames.push(node);
+    if (cards.length >= 2 && !inCompare(node)) frames.push(node);
     visibleKids(node).forEach(walk);
   };
   walk(root);

@@ -22,6 +22,8 @@ import { matchTrees } from '../breakpoints/match.mjs';
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { choiceOf, MISSING, REPEAT_COMPONENT } from './choices.mjs';
 import { PRICE_ID } from '../write-bricks/components/price-data.mjs';
+import { COMPARE_ID } from '../write-bricks/components/compare-data.mjs';
+import { compareFrames } from '../write-bricks/components/compare-table.mjs';
 import tabsComponent from '../write-bricks/components/tabs.mjs';
 import tabSwitch from '../write-bricks/components/tab-switch.mjs';
 
@@ -209,6 +211,18 @@ export const GROUPS = {
       const text = String(v ?? '').trim();
       if (!text || text === MISSING) return null;
       return PRICE_ID.test(text) ? null : 'id chỉ gồm chữ thường, số và dấu gạch, tối đa 60 ký tự';
+    },
+  },
+  compare: {
+    title: (n) => `Id bảng so sánh của ${n} cụm`,
+    field: 'Id bảng so sánh',
+    heading: (name) => `${name || 'Cụm này'} lấy số liệu bảng so sánh nào?`,
+    summary: 'Ghi id bảng so sánh trong Service Pricing, ví dụ bang-so-sanh-maxspeed. Để trống thì giữ hình đã vẽ, nút không có link.',
+    value: '',
+    check: (v) => {
+      const text = String(v ?? '').trim();
+      if (!text || text === MISSING) return null;
+      return COMPARE_ID.test(text) ? null : 'id chỉ gồm chữ thường, số và dấu gạch, tối đa 60 ký tự';
     },
   },
   tabdata: {
@@ -539,13 +553,14 @@ export function applyAnswers(ws, answers) {
         if (picked.choice !== 'text') break;
         const text = String(picked.text ?? '').trim();
         if (!text) { ok = true; break; }
-        let entry = det.components.find((item) => item.component === 'price-table' && item.node === host);
+        const component = compareFrames(tree).some((frame) => frame.id === host) ? 'compare-table' : 'price-table';
+        let entry = det.components.find((item) => item.component === component && item.node === host);
         if (!entry) {
           entry = {
             id: 'p' + createHash('sha1').update(`${host}|${attr}`).digest('hex').slice(0, 8),
             status: 'proposed',
             source: 'plan',
-            component: 'price-table',
+            component,
             node: host,
             confidence: 'high',
             params: {},
@@ -573,6 +588,32 @@ export function applyAnswers(ws, answers) {
             confidence: 'high',
             params: { id: picked.id },
             note: 'plan: service price table id',
+          });
+        } else {
+          entry.id = detectionId;
+          entry.status = 'approved';
+          entry.params = { ...(entry.params ?? {}), id: picked.id };
+          delete entry.params.table;
+        }
+        ok = true;
+        break;
+      }
+      case 'compare': {
+        if (!findIn(node)) break;
+        if (picked.choice === 'unset') { ok = true; break; }
+        if (picked.choice !== 'id' || !COMPARE_ID.test(picked.id ?? '')) break;
+        let entry = det.components.find((item) => item.component === 'compare-table' && item.node === node);
+        const detectionId = 'c' + createHash('sha1').update(`compare|${node}`).digest('hex').slice(0, 8);
+        if (!entry) {
+          det.components.push({
+            id: detectionId,
+            status: 'approved',
+            source: 'plan',
+            component: 'compare-table',
+            node,
+            confidence: 'high',
+            params: { id: picked.id },
+            note: 'plan: comparison table id',
           });
         } else {
           entry.id = detectionId;

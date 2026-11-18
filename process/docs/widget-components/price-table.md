@@ -13,7 +13,7 @@ Module: `process/modules/write-bricks/components/price-table.mjs`
 | Query chu kỳ | `vnxsp_cycle__<id>` |
 | Query gói | `vnxsp_pkg__<id>` |
 | Query dòng | `vnxsp_row__<id>` |
-| Chữ | `{vnx_sp_*}` |
+| Chữ | `{vnx_sp_*}`. Tên dòng là `{vnx_sp_row}`, tooltip là `{vnx_sp_row_desc}`, nội dung gói là `{vnx_sp_info}`, phần cộng thêm là `{vnx_sp_info_extra}`, phần trăm trên giá là `{vnx_sp_tag}`. Icon dòng là element Icon, class `{vnx_sp_info_icon_class}`, ẩn khi `{vnx_sp_info_icon}` rỗng. |
 | Link đăng ký | thẻ `a`. Plan liệt kê `href`, `rel`, `class`, `data-price`, `data-period`, `data-product-name`, `data-product-category`. Tag giữ nguyên là lấy từ bảng. `data-product-category` để trống thì không gắn. |
 | Copy mã | attribute `data-vnx-sp-copy` |
 

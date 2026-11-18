@@ -29,6 +29,7 @@ import { menuLabels } from '../write-bricks/components/menu.mjs';
 import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
 import { isSignal } from '../recognize-parts/kinds.mjs';
 import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../write-bricks/components/price-table.mjs';
+import { compareFrames, BUY_BUTTON_FIELDS, buyAttrKey } from '../write-bricks/components/compare-table.mjs';
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const walk = (n, fn) => { if (n.visible === false) return; fn(n); kids(n).forEach((c) => walk(c, fn)); };
@@ -52,10 +53,10 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   const designer = [];
   const questions = []; // structured version of what the Plan (process/modules/missing-content/index.mjs) asks the owner: { group, node, label }
   const ask = (group, node, label, value) => { if (!questions.some((q) => q.group === group && q.node === node && !q.attr)) questions.push({ group, node, label, ...(value != null && value !== '' ? { value } : {}) }); };
-  const askRegister = (node) => {
-    for (const field of REGISTER_BUTTON_FIELDS) {
+  const askRegister = (node, fields = REGISTER_BUTTON_FIELDS, keyOf = registerAttrKey) => {
+    for (const field of fields) {
       if (questions.some((q) => q.group === 'pattr' && q.node === node && q.attr === field.id)) continue;
-      questions.push({ group: 'pattr', node, attr: field.id, key: registerAttrKey(node, field.id), label: field.id, ...(field.value ? { value: field.value } : {}) });
+      questions.push({ group: 'pattr', node, attr: field.id, key: keyOf(node, field.id), label: field.id, ...(field.value ? { value: field.value } : {}) });
     }
   };
   const log =(kind, node, decision, why, confidence = 'high') => decisions.push({ kind, node: node ? `${node.name} [${node.id}]` : '-', decision, why, confidence });
@@ -376,6 +377,10 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
   }
 
+  for (const frame of compareFrames(tree)) {
+    ask('compare', frame.id, `Bảng so sánh "${frame.name || frame.id}"`);
+    askRegister(frame.id, BUY_BUTTON_FIELDS, buyAttrKey);
+  }
   for (const frame of priceFrames(tree)) {
     ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
     askRegister(frame.id);
@@ -384,6 +389,11 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     if (item.component !== 'price-table' || item.status === 'rejected') continue;
     ask('price', item.node, `Bảng giá "${find(tree, item.node)?.name || item.node}"`);
     askRegister(item.node);
+  }
+  for (const item of det.components) {
+    if (item.component !== 'compare-table' || item.status === 'rejected') continue;
+    ask('compare', item.node, `Bảng so sánh "${find(tree, item.node)?.name || item.node}"`);
+    askRegister(item.node, BUY_BUTTON_FIELDS, buyAttrKey);
   }
 
   const typed = detectTemplateType(tree);
