@@ -6,6 +6,8 @@ import { parseWidgetData, PRICE_ID, carryPriceTables } from '../modules/write-br
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 import { decide } from '../modules/approve-parts/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
+import { REGISTER_BUTTON_FIELDS, registerAttrKey } from '../modules/write-bricks/components/price-table.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value) => ({
@@ -395,4 +397,37 @@ test('a drawn price pair asks for a table id', () => {
   const result = decide({ readJson: (name, fallback) => files[name] ?? fallback, writeJson: (name, value) => { files[name] = value; } }, {});
   const asked = result.questions.find((item) => item.group === 'price');
   assert.equal(asked.node, 'r');
+  const attrs = result.questions.filter((item) => item.group === 'pattr');
+  assert.deepEqual(attrs.map((item) => item.attr), REGISTER_BUTTON_FIELDS.map((field) => field.id));
+  assert.equal(attrs.find((item) => item.attr === 'data-product-name').value, '{vnx_sp_name}');
+  assert.equal(attrs.find((item) => item.attr === 'data-product-category').value, undefined);
+  const parts = screenParts(tree, files['detections.json'].components, result.questions, 'FILE');
+  const price = parts.find((part) => (part.fields ?? []).some((field) => field.group === 'price'));
+  assert.deepEqual(price.fields.filter((field) => field.group === 'pattr').map((field) => field.key), REGISTER_BUTTON_FIELDS.map((field) => registerAttrKey('r', field.id)));
+  assert.equal(price.fields.find((field) => field.key === registerAttrKey('r', 'data-product-category')).value, '[Chưa có value]');
+});
+
+test('a filled category is on the register button and the other attributes stay visible', () => {
+  const parsed = parseWidgetData(starter);
+  const tree = treeOf();
+  const files = {
+    'tree.json': tree,
+    'detections.json': { components: [] },
+    'overrides.json': { nodes: {} },
+  };
+  const ws = { readJson: (name, fallback) => files[name] ?? fallback, writeJson: (name, value) => { files[name] = value; } };
+  applyAnswers(ws, {
+    'price:r': 'starter-cloud',
+    [registerAttrKey('r', 'data-product-category')]: 'Cloud desk',
+    [registerAttrKey('r', 'data-product-name')]: '{vnx_sp_name}',
+  });
+  const entry = files['detections.json'].components.find((item) => item.component === 'price-table');
+  entry.params.table = parsed.table;
+  const built = buildTemplate(tree, { detections: files['detections.json'], salt: 'attrs' });
+  const button = built.template.content.find((item) => item.id === built.mapping.c1b.bricksId);
+  assert.equal(button.settings.link.url, '{vnx_sp_link}');
+  assert.equal(button.settings.link.rel, 'nofollow');
+  assert.equal(button.settings._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
+  assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-category').value, 'Cloud desk');
+  assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-name').value, '{vnx_sp_name}');
 });

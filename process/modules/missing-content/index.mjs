@@ -191,6 +191,14 @@ export const GROUPS = {
     value: '',
     check: (v) => (String(v ?? '').length <= 2000 ? null : 'dài quá 2000 ký tự'),
   },
+  pattr: {
+    title: () => 'Attribute nút đăng ký',
+    field: 'Attribute nút đăng ký',
+    heading: (name) => name || 'Attribute nút đăng ký',
+    summary: 'Nút đăng ký trong mỗi item. Dòng đang có tag thì lấy từ bảng. data-product-category để trống thì không gắn.',
+    value: '',
+    check: (v) => (String(v ?? '').length <= 300 ? null : 'ngắn hơn 300 ký tự'),
+  },
   price: {
     title: (n) => `Id bảng giá của ${n} cụm`,
     field: 'Id bảng giá',
@@ -350,7 +358,8 @@ export function groupQuestions(questions) {
   for (const q of questions) {
     if (!GROUPS[q.group]) continue;
     const g = by.get(q.group) ?? [];
-    if (!g.some((x) => x.node === q.node)) g.push(q);
+    const mark = (item) => item.key || `${item.node}\0${item.attr || ''}`;
+    if (!g.some((x) => mark(x) === mark(q))) g.push(q);
     by.set(q.group, g);
   }
   return [...by].map(([group, items]) => ({ group, items }));
@@ -518,6 +527,33 @@ export function applyAnswers(ws, answers) {
         if (!entry) break;
         if (picked.choice === 'list') entry.params = { ...(entry.params ?? {}), values: picked.values };
         entry.status = 'approved';
+        ok = true;
+        break;
+      }
+      case 'pattr': {
+        const bar = node.lastIndexOf('|');
+        const host = bar < 0 ? '' : node.slice(0, bar);
+        const attr = bar < 0 ? '' : node.slice(bar + 1);
+        if (!host || !attr || !findIn(host)) break;
+        if (picked.choice === 'unset') { ok = true; break; }
+        if (picked.choice !== 'text') break;
+        const text = String(picked.text ?? '').trim();
+        if (!text) { ok = true; break; }
+        let entry = det.components.find((item) => item.component === 'price-table' && item.node === host);
+        if (!entry) {
+          entry = {
+            id: 'p' + createHash('sha1').update(`${host}|${attr}`).digest('hex').slice(0, 8),
+            status: 'proposed',
+            source: 'plan',
+            component: 'price-table',
+            node: host,
+            confidence: 'high',
+            params: {},
+            note: 'plan: register button attributes',
+          };
+          det.components.push(entry);
+        }
+        entry.params = { ...(entry.params ?? {}), buttonAttrs: { ...(entry.params?.buttonAttrs ?? {}), [attr]: text } };
         ok = true;
         break;
       }

@@ -142,20 +142,39 @@ function loop(kind, id) {
   return { hasLoop: true, query: { objectType: queryType(kind, id) } };
 }
 
-// The sign-up control is the cart link the table stores. The classes and data
-// attributes are what the conversion button on the live site carries. The
-// table has no product-category cell, so that attribute is not invented.
-function registerButton(text) {
+// One list for the plan and the render. A filled plan line replaces the default.
+// data-product-category has no cell in the table, so its default stays empty.
+export const REGISTER_BUTTON_FIELDS = [
+  { id: 'href', value: '{vnx_sp_link}', slot: 'href' },
+  { id: 'rel', value: 'nofollow', slot: 'rel' },
+  { id: 'class', value: 'vnx-button vnx-btn-conversion vnx-button-register', slot: 'class' },
+  { id: 'data-price', value: '{vnx_sp_sale}', slot: 'data' },
+  { id: 'data-period', value: '{vnx_sp_cycle}', slot: 'data' },
+  { id: 'data-product-name', value: '{vnx_sp_name}', slot: 'data' },
+  { id: 'data-product-category', value: '', slot: 'data' },
+];
+
+export const registerAttrKey = (node, id) => `pattr:${node}|${id}`;
+
+function registerValue(attrs, field) {
+  const typed = attrs?.[field.id];
+  if (typeof typed === 'string' && typed.trim()) return typed.trim();
+  return field.value;
+}
+
+function registerButton(text, attrs) {
+  const href = registerValue(attrs, REGISTER_BUTTON_FIELDS.find((field) => field.slot === 'href'));
+  const rel = registerValue(attrs, REGISTER_BUTTON_FIELDS.find((field) => field.slot === 'rel'));
+  const css = registerValue(attrs, REGISTER_BUTTON_FIELDS.find((field) => field.slot === 'class'));
+  const data = REGISTER_BUTTON_FIELDS.filter((field) => field.slot === 'data')
+    .map((field) => ({ name: field.id, value: registerValue(attrs, field) }))
+    .filter((attr) => attr.value);
   return {
     text,
     tag: 'a',
-    link: { type: 'external', url: '{vnx_sp_link}', rel: 'nofollow' },
-    _cssClasses: 'vnx-button vnx-btn-conversion vnx-button-register',
-    _attributes: [
-      { name: 'data-price', value: '{vnx_sp_sale}' },
-      { name: 'data-period', value: '{vnx_sp_cycle}' },
-      { name: 'data-product-name', value: '{vnx_sp_name}' },
-    ],
+    link: { type: 'external', url: href, ...(rel ? { rel } : {}) },
+    ...(css ? { _cssClasses: css } : {}),
+    ...(data.length ? { _attributes: data } : {}),
   };
 }
 
@@ -164,7 +183,7 @@ function tagText(patches, id, tag) {
   patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
 }
 
-function bindPrice(node, table, id, root) {
+function bindPrice(node, table, id, root, attrs) {
   const empty = { tabsHost: null, card: null, patches: {}, omit: [], warnings: [], skip: false };
   if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
   const scopeRoot = root ?? node;
@@ -404,7 +423,7 @@ function bindPrice(node, table, id, root) {
       take(textNode, '{vnx_sp_button}');
       const frame = parentOf(card, textNode.id);
       const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
-      if (onlyText) put(frame.id, { settings: registerButton('{vnx_sp_button}') });
+      if (onlyText) put(frame.id, { settings: registerButton('{vnx_sp_button}', attrs) });
     }
   }
   let promo = null;
@@ -468,7 +487,7 @@ function findImage(node) {
 
 function bound(node, det, root) {
   if (cache.has(det)) return cache.get(det);
-  const value = bindPrice(node, det?.params?.table, det?.params?.id, root ?? node);
+  const value = bindPrice(node, det?.params?.table, det?.params?.id, root ?? node, det?.params?.buttonAttrs);
   cache.set(det, value);
   return value;
 }

@@ -26,6 +26,7 @@ export const Choice = {
   tabdata: ['unset', 'name'],
   expect: ['unset', 'block', 'slider', 'tab', 'menu', 'form', 'accordion', 'button', 'scroll'],
   price: ['unset', 'id'],
+  pattr: ['unset', 'text'],
   options: ['unset', 'list'],
 };
 
@@ -64,11 +65,19 @@ const DEFAULTS = {
   tabdata: { choice: 'unset' },
   expect: { choice: 'unset' },
   price: { choice: 'unset' },
+  pattr: { choice: 'unset' },
   options: { choice: 'unset' },
 };
 
 export function choiceOf(group, value) {
   const allowed = Choice[group];
+  if (group === 'pattr') {
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === 'unset') return { choice: 'unset' };
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === 'text') return { choice: 'text', text: String(value.text ?? '').trim() };
+    const written = typeof value === 'string' ? value.trim() : '';
+    if (!written || written === MISSING) return { choice: 'unset' };
+    return { choice: 'text', text: written };
+  }
   if (group === 'options') {
     if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === 'list' && Array.isArray(value.values)) {
       const values = value.values.map((item) => String(item).trim()).filter(Boolean);

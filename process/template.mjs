@@ -125,7 +125,7 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     summary: GROUPS[g.group].summary,
     node: item.node,
     label: item.label,
-    key: keyOf(g.group, item.node),
+    key: item.key || keyOf(g.group, item.node),
     value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
     figma: figmaLink(desktop.fileKey, item.node),
   })));

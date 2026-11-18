@@ -28,7 +28,7 @@ import { paneQuestionLabel } from '../missing-content/index.mjs';
 import { menuLabels } from '../write-bricks/components/menu.mjs';
 import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
 import { isSignal } from '../recognize-parts/kinds.mjs';
-import { priceFrames } from '../write-bricks/components/price-table.mjs';
+import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../write-bricks/components/price-table.mjs';
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const walk = (n, fn) => { if (n.visible === false) return; fn(n); kids(n).forEach((c) => walk(c, fn)); };
@@ -51,7 +51,13 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   const needs = []; // things the designer / owner may want to look at, never blocking
   const designer = [];
   const questions = []; // structured version of what the Plan (process/modules/missing-content/index.mjs) asks the owner: { group, node, label }
-  const ask = (group, node, label, value) => { if (!questions.some((q) => q.group === group && q.node === node)) questions.push({ group, node, label, ...(value != null && value !== '' ? { value } : {}) }); };
+  const ask = (group, node, label, value) => { if (!questions.some((q) => q.group === group && q.node === node && !q.attr)) questions.push({ group, node, label, ...(value != null && value !== '' ? { value } : {}) }); };
+  const askRegister = (node) => {
+    for (const field of REGISTER_BUTTON_FIELDS) {
+      if (questions.some((q) => q.group === 'pattr' && q.node === node && q.attr === field.id)) continue;
+      questions.push({ group: 'pattr', node, attr: field.id, key: registerAttrKey(node, field.id), label: field.id, ...(field.value ? { value: field.value } : {}) });
+    }
+  };
   const log =(kind, node, decision, why, confidence = 'high') => decisions.push({ kind, node: node ? `${node.name} [${node.id}]` : '-', decision, why, confidence });
   const setOv = (id, patch) => { ov.nodes[id] = { ...(ov.nodes[id] ?? {}), ...patch, settings: { ...(ov.nodes[id]?.settings ?? {}), ...(patch.settings ?? {}) } }; if (!Object.keys(ov.nodes[id].settings).length) delete ov.nodes[id].settings; };
   const hand = new Set(Object.entries(ov.nodes).filter(([, v]) => v.reason && !/^autopilot/i.test(v.reason)).map(([k]) => k)); // owner's own entries win
@@ -370,7 +376,15 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
   }
 
-  for (const frame of priceFrames(tree)) ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
+  for (const frame of priceFrames(tree)) {
+    ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
+    askRegister(frame.id);
+  }
+  for (const item of det.components) {
+    if (item.component !== 'price-table' || item.status === 'rejected') continue;
+    ask('price', item.node, `Bảng giá "${find(tree, item.node)?.name || item.node}"`);
+    askRegister(item.node);
+  }
 
   const typed = detectTemplateType(tree);
   const suggested = typed.confidence === 'low' ? 'section' : typed.type;
