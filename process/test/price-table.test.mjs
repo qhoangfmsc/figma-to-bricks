@@ -146,7 +146,7 @@ test('a bound table renders one pill, one card and one info row as query loops',
   assert.deepEqual(el('c1b').settings.link, { type: 'external', url: '{vnx_sp_link}', rel: 'nofollow' });
   assert.equal(el('c1b').settings._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
   assert.deepEqual(el('c1b').settings._attributes, [
-    { name: 'data-price', value: '{vnx_sp_sale}' },
+    { name: 'data-price', value: '{vnx_sp_sale:raw}' },
     { name: 'data-period', value: '{vnx_sp_cycle}' },
     { name: 'data-product-name', value: '{vnx_sp_name}' },
   ]);
@@ -433,9 +433,10 @@ test('an info line binds the row name, the value, the extra, the discount and th
   assert.equal(el('hint').settings.text, '{vnx_sp_row_desc}');
   assert.equal(el('chip').settings.text, '{vnx_sp_tag}');
   assert.equal(el('mark').name, 'icon');
-  assert.equal(el('mark').settings._cssClasses, '{vnx_sp_info_icon_class}');
-  assert.equal(el('mark').settings.icon.icon, 'fa-solid');
-  assert.equal(el('mark').settings._conditions[0][0].dynamic_data, '{vnx_sp_info_icon}');
+  assert.equal(el('mark').settings.icon.icon, 'fa-solid fa-check');
+  assert.equal(el('mark').settings._conditions[0][0].value, 'yes');
+  assert.equal(built.template.content.find((item) => item.label === 'No').settings.icon.icon, 'fa-solid fa-xmark');
+  assert.equal(built.template.content.find((item) => item.label === 'Highlight').settings.icon.icon, 'fa-solid fa-star');
   assert.equal(el('line').settings.query.objectType, 'vnxsp_row__seat-plan');
 });
 

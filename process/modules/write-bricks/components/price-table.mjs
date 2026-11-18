@@ -149,7 +149,7 @@ export const REGISTER_BUTTON_FIELDS = [
   { id: 'href', value: '{vnx_sp_link}', slot: 'href' },
   { id: 'rel', value: 'nofollow', slot: 'rel' },
   { id: 'class', value: 'vnx-button vnx-btn-conversion vnx-button-register', slot: 'class' },
-  { id: 'data-price', value: '{vnx_sp_sale}', slot: 'data' },
+  { id: 'data-price', value: '{vnx_sp_sale:raw}', slot: 'data' },
   { id: 'data-period', value: '{vnx_sp_cycle}', slot: 'data' },
   { id: 'data-product-name', value: '{vnx_sp_name}', slot: 'data' },
   { id: 'data-product-category', value: '', slot: 'data' },
@@ -337,7 +337,7 @@ function bindPrice(node, table, id, root, attrs) {
         settings: { ...option.settings, ...hidden('tab-title'), ...loop('cycle', id) },
       });
     } else {
-      put(cycles.host.id, { settings: hidden('tab-menu'), css: activeCss });
+      put(cycles.host.id, { settings: { ...hidden('tab-menu'), _attributes: [{ name: 'data-vnx-sp-dropdown', value: '1' }] }, css: activeCss });
       if (cycleProto?.type !== 'TEXT') put(cycleProto.id, { settings: { ...hidden('tab-title'), ...loop('cycle', id) } });
     }
     put(cards.host.id, {
@@ -419,19 +419,18 @@ function bindPrice(node, table, id, root, attrs) {
         put(textNode.id, { settings: { _typography: { 'white-space': 'normal' } } });
       }
     }
-    const icon = visibleKids(infoItem).find((child) => hasSvg(child));
+    const icon = visibleKids(infoItem).find((child) => hasSvg(child) && !/question|help|tooltip/i.test(child.name || ''));
     if (icon) {
-      put(icon.id, {
-        kind: 'icon',
-        skipChildren: true,
-        dropSettings: ['text'],
-        settings: {
-          icon: { library: 'fontawesome', icon: 'fa-solid' },
-          ...(icon.box?.h ? { iconSize: px(icon.box.h) } : {}),
-          _cssClasses: '{vnx_sp_info_icon_class}',
-          _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: 'empty_not' }]],
-        },
+      const glyph = (which, name) => ({
+        icon: { library: 'fontawesome', icon: name },
+        ...(icon.box?.h ? { iconSize: px(Math.max(icon.box.w || 0, icon.box.h)) } : {}),
+        _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: '==', value: which }]],
       });
+      put(icon.id, { kind: 'icon', skipChildren: true, dropSettings: ['text'], settings: glyph('yes', 'fa-solid fa-check') });
+      put(icon.id, { extraChildren: [
+        { name: 'icon', label: 'No', settings: glyph('no', 'fa-solid fa-xmark') },
+        { name: 'icon', label: 'Highlight', settings: glyph('highlight', 'fa-solid fa-star') },
+      ] });
     }
   }
   for (const textNode of textsIn(card)) {
