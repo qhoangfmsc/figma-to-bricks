@@ -14,6 +14,7 @@ import { matchTrees } from '../breakpoints/match.mjs';
 import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
 import { missingBoundTables } from '../write-bricks/components/price-table.mjs';
 import { carryCompareTables } from '../write-bricks/components/compare-data.mjs';
+import { boundTableGaps } from '../write-bricks/components/table-contract.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
 
@@ -51,6 +52,8 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   const readAsset = (file) => readFileSync(ws.file('assets/' + file), 'utf8');
 
   const firstBuild = buildTemplate(tree, { overrides, detections, flats, readAsset, salt: ws.ref?.fileKey ?? '', fileKey: ws.ref?.fileKey ?? '' });
+  const tableGaps = boundTableGaps(firstBuild.template.content, detections);
+  if (tableGaps.length) throw new Error(tableGaps.join('\n'));
   const { mapping, warnings } = firstBuild;
   let template = firstBuild.template;
   for (const f of ws.readJson('assets/manifest.json', {}).svgFailed ?? []) warnings.push({ node: f.id, name: f.name, msg: 'Figma could not render this svg (e.g. a mask): built as a plain node, the look is not reproduced' });
@@ -89,6 +92,8 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
         overrides: vws.readJson('overrides.json', { nodes: {} }), detections: carried, flats: vws.readJson('assets/manifest.json', {}).flats ?? {},
         readAsset: (file) => readFileSync(vws.file('assets/' + file), 'utf8'), salt: `${ws.ref?.fileKey ?? ''}|${v.key}`, fileKey: ws.ref?.fileKey ?? '',
       });
+      const variantTableGaps = boundTableGaps(b.template.content, carried);
+      if (variantTableGaps.length) throw new Error(variantTableGaps.map((line) => `${v.key} ${line}`).join('\n'));
       for (const w of b.warnings) warnings.push({ ...w, msg: `[${v.key}] ${w.msg}` });
       return { key: v.key, maxWidth: v.maxWidth, minWidth: v.minWidth, aliases: v.aliases ?? {}, tree: vtree, template: b.template, mapping: b.mapping, ws: vws, sig: signature(vws) };
     });

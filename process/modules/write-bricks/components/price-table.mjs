@@ -191,13 +191,17 @@ function bindPrice(node, table, id, root, attrs) {
   const scopeRoot = root ?? node;
   const packOf = (item) => table.packages.find((itemPack) => hasWords(item, (word) => same(word, itemPack.name)));
   const isPackage = (item) => !!packOf(item) || showsPrice(item);
-  const isCycle = (item) => hasWords(item, (word) => table.cycles.some((cycle) => same(word, cycle.label)));
-  const many = climb(node, scopeRoot, isPackage, 2);
+  const hasTitle = (item) => textsIn(item).some((text) => {
+    const word = norm(text.text.characters);
+    return word && !unitShape(word) && !showsPrice(text) && !/^[\d\s.,]+$/.test(word);
+  });
+  const inFlow = (item) => item.place !== 'ABSOLUTE';
+  const many = climb(node, scopeRoot, (item) => inFlow(item) && isPackage(item), 2);
   let cards = many;
   if (!cards) {
     let one = null;
     const walkOne = (current) => {
-      if (current && isPackage(current) && textsIn(current).length >= 3) one = current;
+      if (current && inFlow(current) && isPackage(current) && textsIn(current).length >= 3) one = current;
       visibleKids(current).forEach(walkOne);
     };
     walkOne(scopeRoot);
@@ -207,6 +211,13 @@ function bindPrice(node, table, id, root, attrs) {
       cards = { host: row ?? one, items: [one] };
     }
   }
+  const priceHeavy = (item) => {
+    const words = textsIn(item).map((text) => norm(text.text.characters)).filter(Boolean);
+    const prices = words.filter((word) => unitShape(word) || showsPrice({ type: 'TEXT', text: { characters: word }, children: [] }) || /^[\d\s.,]+$/.test(word));
+    return prices.length >= 2 && prices.length >= words.length - 1;
+  };
+  // A frame that already shows a price is a card, not a cycle pill. A cycle word inside that card is not a second pill row.
+  const isCycle = (item) => !isPackage(item) && hasWords(item, (word) => table.cycles.some((cycle) => same(word, cycle.label)));
   const closedCycleField = (scope) => {
     let found = null;
     const walk = (current) => {
@@ -235,7 +246,12 @@ function bindPrice(node, table, id, root, attrs) {
     if (!bodies.length) return [];
     return kids.filter((child) => !bodies.includes(child));
   };
-  const card = cards.items.find((item) => !shellMarks(item).length) ?? cards.items[0];
+  let card = cards.items.find((item) => !shellMarks(item).length) ?? cards.items[0];
+  // One visible card: the grouped node is the price block. The loop is the whole card, so the title and the list stay.
+  const titleBeside = visibleKids(cards.host).some((kid) => kid.id !== card.id && hasTitle(kid) && !showsPrice(kid) && !isCycle(kid));
+  if (cards.items.length === 1 && card.id !== cards.host.id && priceHeavy(card) && titleBeside && contains(cards.host, card.id)) {
+    card = cards.host;
+  }
   const pack = packOf(card) ?? table.packages[0];
   const cardWords = textsIn(card).map((text) => fold(text.text.characters));
   let openAt = 0;
@@ -283,8 +299,8 @@ function bindPrice(node, table, id, root, attrs) {
       if (item.id !== cycleProto.id) omit.push(item.id);
     }
   }
-  cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
-  if (cards.items.length === 1) {
+  if (card.id !== cards.host.id) cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
+  if (cards.items.length === 1 && cards.items[0].id !== cards.host.id && card.id !== cards.host.id) {
     visibleKids(cards.host).forEach((child) => {
       if (child.id !== card.id && !contains(child, card.id)) omit.push(child.id);
     });

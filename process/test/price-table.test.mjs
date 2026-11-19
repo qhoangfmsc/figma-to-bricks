@@ -154,6 +154,51 @@ test('a bound table renders one pill, one card and one info row as query loops',
   assert.equal(JSON.stringify(content).includes('>10<'), false);
 });
 
+test('a cycle word inside the only card stays in that card, and the pill row is the tab menu', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'orbit-desk',
+    unit: '/nam',
+    button: 'Order',
+    cycles: [{ label: 'Quarter', badge: '' }, { label: 'Half', badge: '-5%' }],
+    rows: ['Disk'],
+    packages: [
+      { name: 'Alpha', prices: [{ sale: '40 đ', total: '160', promo: 'Code', code: 'AA' }, { sale: '30 đ', total: '180', promo: 'Code', code: 'AA' }], info: ['Fast'], links: ['https://example.com/a', 'https://example.com/b'] },
+    ],
+  }));
+  const pill = (id, label) => frame(id, 'pill', [0, 0, 80, 32], [text(`${id}t`, label)]);
+  const card = frame('card', 'card', [0, 0, 180, 200], [
+    text('name', 'Desk'),
+    frame('price', 'price', [0, 28, 160, 40], [text('amount', '40 đ'), text('unit', '/nam')]),
+    text('note', 'Quarter'),
+    frame('line', 'line', [0, 80, 160, 20], [text('info', 'Fast')]),
+    frame('buy', 'buy', [0, 120, 80, 28], [text('buyt', 'Order')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 280], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [pill('q1', 'Quarter'), pill('q2', 'Half')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 200, 200], [card, frame('nav', 'arrows', [0, 0, 40, 40], [text('navt', 'Next')])], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'orbit-desk', table: parsed.table } }] },
+    salt: 'orbit',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(built.mapping.deck?.skipped, undefined);
+  assert.equal(built.mapping.card?.skipped, undefined);
+  assert.equal(built.mapping.name?.skipped, undefined);
+  assert.equal(built.mapping.buy?.skipped, undefined);
+  assert.equal(built.mapping.q2?.skipped?.startsWith('merged into'), true);
+  assert.equal(el('q1').settings.hasLoop, true);
+  assert.equal(el('q1').settings.query.objectType, 'vnxsp_cycle__orbit-desk');
+  assert.equal(el('q1').settings._hidden._cssClasses, 'tab-title');
+  assert.equal(el('bar').settings.hasLoop, undefined);
+  assert.equal(el('bar').settings._hidden._cssClasses, 'tab-menu');
+  assert.equal(el('r').settings.hasLoop, undefined);
+  assert.equal(built.mapping.name?.skipped, undefined);
+  assert.equal(built.mapping.buy?.skipped, undefined);
+  assert.equal(built.mapping.note?.skipped, undefined);
+  assert.equal(el('nav').settings.hasLoop, undefined);
+});
+
 test('another table with different words uses the same tags', () => {
   const parsed = parseWidgetData(widgetOf({
     id: 'studio-plan',

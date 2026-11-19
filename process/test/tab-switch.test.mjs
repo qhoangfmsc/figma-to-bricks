@@ -9,6 +9,7 @@ import { detectTabSwitches } from '../modules/recognize-parts/rules/tab-switch.m
 import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
 import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
 import { switchInventory, tabQuestions } from '../modules/write-bricks/components/tab-switch.mjs';
+import { activateOpenTab } from '../modules/write-bricks/components/tabs-chrome.mjs';
 import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs';
@@ -70,6 +71,7 @@ test('clicking a title switches the pane, and the drawn pill follows the open ti
   assert.match(el('r').settings._cssCustom, /#brxe-\w+ \.tab-pane \{ display: none; \}/);
   assert.match(el('r').settings._cssCustom, / \.tab-pane\.brx-open \{ display: flex; \}/);
   assert.match(el('r').settings._cssCustom, /:not\(:has\(\.tab-pane\.brx-open\)\) \.tab-pane:first-child \{ display: flex; \}/);
+  assert.match(el('r').settings._cssCustom, /:not\(:has\(\.tab-pane\.brx-open\)\) template \+ \.tab-pane \{ display: flex; \}/);
   assert.match(el('r').settings._cssCustom, / \.tab-title \{ width: auto; \}/);
   assert.equal(el('list').settings._hidden._cssClasses, 'tab-menu');
   assert.equal(el('t1').settings._hidden._cssClasses, 'tab-title brx-open');
@@ -554,6 +556,37 @@ test('one block wraps a menu block and a pane block, and an icon between titles 
   assert.deepEqual(panes.map((e) => e.settings._hidden._cssClasses), ['tab-pane', 'tab-pane brx-open', 'tab-pane']);
   assert.equal(built.template.content.find((e) => e.id === el('harbor').id).parent, panes[1].id);
   assert.equal(built.template.content.find((e) => e.id === el('ridge').id).parent, panes[1].id);
+});
+
+test('a tabs render with no open class activates the index Figma marked', () => {
+  const item = (cls) => {
+    const names = new Set(cls.split(' ').filter(Boolean));
+    return {
+      classList: { contains: (name) => names.has(name), add: (name) => names.add(name) },
+      setAttribute() {},
+      parentNode: null,
+      children: [],
+    };
+  };
+  const nest = (node, children) => {
+    node.children = children;
+    children.forEach((child) => { child.parentNode = node; });
+    return node;
+  };
+  const box = item('');
+  const titles = [item('tab-title'), item('tab-title'), item('tab-title')];
+  const panes = [item('tab-pane'), item('tab-pane'), item('tab-pane')];
+  const menu = nest(item('tab-menu'), titles);
+  const body = nest(item('tab-content'), panes);
+  nest(box, [menu, body]);
+  box.getAttribute = (name) => (name === 'data-open-tab' ? '1' : null);
+  box.querySelector = (sel) => (sel === '.tab-title' ? titles[0] : sel === '.tab-pane' ? panes[0] : null);
+  activateOpenTab(box);
+  assert.equal(titles[1].classList.contains('brx-open'), true);
+  assert.equal(panes[1].classList.contains('brx-open'), true);
+  assert.equal(titles[0].classList.contains('brx-open'), false);
+  activateOpenTab(box);
+  assert.equal(titles.filter((title) => title.classList.contains('brx-open')).length, 1);
 });
 
 test('a fresh plan lists the service bar as tabs, and the button under the open pane stays in that pane', () => {

@@ -17,3 +17,5 @@ For every state the visitor can enter:
 4. JS, when the component has it, is what moves the class and the attribute. Hiding a pane with CSS alone is not enough.
 
 Tabs are the reference. `activeLook` pairs the open title with a resting title. Bricks moves `brx-open`. The check inside the open title is `aria-checked="true"`. The matching pane is the one with `brx-open`. After a click, the newly open item must match the item Figma drew as selected, including the attribute.
+
+A rendered tabs-nested has one open title and its pane. The open index is the tab Figma drew as active, written as `openTab`. A query loop repeats one element, so it cannot stamp a single copy. The page script adds `brx-open` at that index when the markup has none. Zero open tabs is not a finished render.

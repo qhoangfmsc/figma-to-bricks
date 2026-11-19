@@ -6,7 +6,7 @@
 // with `.brx-open`, because a fill left on the title element would stay put when the other title is clicked.
 // params: content.panes { titleNodeId: text } for a tab whose panel Figma does not draw.
 import { visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from '../../write-bricks/components/helpers.mjs';
-import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
+import { tabsChromeCss, tabsOpenScript } from '../../write-bricks/components/tabs-chrome.mjs';
 import { cssColor } from '../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
 import { activeLook, markSettings, nodeAt } from '../../write-bricks/components/states.mjs';
@@ -572,7 +572,7 @@ export default {
   },
 
   pageScript() {
-    return '(function(){function sync(root){root.querySelectorAll("[data-f2b-check]").forEach(function(el){var title=el.closest(".tab-title");var on=!!(title&&title.classList.contains("brx-open"));el.setAttribute("aria-checked",on?"true":"false");var input=el.matches("input")?el:el.querySelector("input[type=radio],input[type=checkbox]");if(input)input.checked=on;});}document.querySelectorAll(".brxe-tabs-nested").forEach(function(root){sync(root);var obs=new MutationObserver(function(){sync(root);});root.querySelectorAll(".tab-title").forEach(function(title){obs.observe(title,{attributes:true,attributeFilter:["class"]});});});})();';
+    return `${tabsOpenScript()}\n(function(){function sync(root){root.querySelectorAll("[data-f2b-check]").forEach(function(el){var title=el.closest(".tab-title");var on=!!(title&&title.classList.contains("brx-open"));el.setAttribute("aria-checked",on?"true":"false");var input=el.matches("input")?el:el.querySelector("input[type=radio],input[type=checkbox]");if(input)input.checked=on;});}document.querySelectorAll(".brxe-tabs-nested").forEach(function(root){sync(root);var obs=new MutationObserver(function(){sync(root);});root.querySelectorAll(".tab-title").forEach(function(title){obs.observe(title,{attributes:true,attributeFilter:["class"]});});});})();`;
   },
 };
 

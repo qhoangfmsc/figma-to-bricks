@@ -1,5 +1,7 @@
 # compare-table
 
+Figma là layout phải dựng. Data của id trong plan là nguồn phải dựng. Không hardcode số gói, chữ, hay một file.
+
 Bắt buộc có id. Bảng so sánh chỉ render dynamic data của id đó. Không có id thì không dựng. Chữ Figma vẽ là ô, không phải nguồn dữ liệu.
 
 Tên khác: Comparison tables, bảng so sánh
@@ -28,3 +30,5 @@ Module: `process/modules/write-bricks/components/compare-table.mjs`
 Một cột gói, một nhóm, một dòng và một ô là mẫu lặp. Đầu bảng lặp gói. Thân bảng lặp nhóm, rồi dòng, rồi gói cho từng ô. Mọi breakpoint dùng cùng id và cùng tag. Khung hẹp vẽ tên mục một hàng, hàng dưới là giá trị các gói, vẫn là bảng đó: query, tooltip và Xem thêm gắn trên khung đó. Giá và đơn vị viết chung một chữ vẫn là tag giá và tag đơn vị. Nút chỉ có chữ giá là link mua.
 
 Không có id, hoặc id không đúng chữ thường và dấu gạch, thì build dừng. Không gắn tag và không giữ chữ đã vẽ làm dữ liệu.
+
+Output bắt buộc, với mọi file cùng kiểu: query nhóm, query dòng, và đủ cột gói. Ít cột hơn số gói thì một cột là query gói và lặp hết data. Đủ cột thì mỗi cột là tag của một gói. Tên dòng và giá trị ô lấy từ data. Figma chỉ chọn layout. Thiếu nhóm, dòng, hoặc một gói thì build dừng.
