@@ -181,6 +181,8 @@ async function renderFrame(browserType, frame, { name }) {
   if (job.freezeTime) { await page.clock.pauseAt(new Date(new Date(job.freezeTime).getTime() + 1000)).catch(() => {}); }
   const docH2 = await pageHeight(); // the page can grow while fonts and images arrive
   if (docH2 !== docH) { docH = docH2; await page.setViewportSize({ width: frame.width, height: docH }); }
+  // Lazy images needed the full page height. The look is what a 900px window shows: a missing height of 50vh would fill a viewport as tall as the page and hide the bug.
+  await page.setViewportSize({ width: frame.width, height: Math.min(docH, 900) });
   await page.waitForTimeout(300);
   t.sized = Date.now();
   // A responsive width with no Figma frame: only "does it stay inside". No box comparison, no screenshot.

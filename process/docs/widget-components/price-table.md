@@ -6,6 +6,8 @@ Tên khác: Service Pricing, bảng giá
 
 Khi nào dùng: user đưa id, ví dụ `bang-gia-maxspeed-hosting-thang-10`. Build đọc `widget_data` của id đó trên `WP_URL`.
 
+Mỗi lần build, khi plan đã có id, component tự gắn query, tag `{vnx_sp_*}`, nút đăng ký với `data-price` là số trần, dropdown chu kỳ, icon yes/no/highlight, và ẩn mã giảm khi không có mã. Không cần nhớ cuộc chat.
+
 Module: `process/modules/write-bricks/components/price-table.mjs`
 
 | Việc | Giá trị |

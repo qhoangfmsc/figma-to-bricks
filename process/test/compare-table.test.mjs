@@ -4,6 +4,7 @@ import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { parseCompareData, formatMoney, carryCompareTables } from '../modules/write-bricks/components/compare-data.mjs';
 import { compareFrames, BUY_BUTTON_FIELDS } from '../modules/write-bricks/components/compare-table.mjs';
+import { fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 import { priceFrames } from '../modules/write-bricks/components/price-table.mjs';
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
@@ -264,6 +265,26 @@ test('a later group longer than four rows gets a more control when the frame dra
   const button = result.template.content.find((item) => item.settings?._attributes?.some((attr) => attr.name === 'data-vnx-cmp-more'));
   assert.equal(button.settings._conditions[0][0].value, '4');
   assert.equal(result.template.content.some((item) => item.settings?.text === 'Xem thêm'), true);
+});
+
+test('without a tablet frame the package row stays horizontal and slides', () => {
+  const parsed = parseCompareData(studio);
+  const tree = treeOf({
+    left: { name: 'Starter', price: '12.000', total: '144.000' },
+    right: { name: 'Growth', price: '24.000', total: '288.000' },
+    unit: '/wk', button: 'Order', cycle: 'Year', group: 'Storage', rowA: 'Disk', rowB: 'Backup', more: 'Show rest',
+  });
+  const result = built(parsed.table, tree);
+  fitSoloTemplate(result.template);
+  const head = result.template.content.find((item) => item.id === result.mapping.head.bricksId);
+  const col = result.template.content.find((item) => item.id === result.mapping.a.bricksId);
+  const prev = result.template.content.find((item) => item.settings?._attributes?.some((attr) => attr.name === 'data-vnx-cmp-prev'));
+  assert.equal(head.settings['_direction:tablet_portrait'], 'row');
+  assert.equal(head.settings['_overflow:tablet_portrait'], 'visible');
+  assert.equal(col.settings['_width:tablet_portrait'], 'calc(100% / 2)');
+  assert.equal(prev.parent, head.id);
+  assert.equal(prev.settings._display, 'none');
+  assert.equal(prev.settings['_display:tablet_portrait'], undefined);
 });
 
 test('a matrix is asked as a comparison table, and a card row stays a price table', () => {

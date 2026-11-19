@@ -1,6 +1,8 @@
 // Widgets this project owns, matched by shape.
 // A layer name does not decide. Numbers come from the tree.
 import { hasClose, textsOf, visibleKids } from './shape.mjs';
+import { priceFrames } from '../../write-bricks/components/price-table.mjs';
+import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 
 const kids = visibleKids;
 
@@ -221,12 +223,18 @@ function detectOffcanvas(n, parent) {
   };
 }
 
+function insidePricing(tree, id) {
+  const holds = (node) => !!node && (node.id === id || (node.children ?? []).some((child) => child?.visible !== false && holds(child)));
+  return [...priceFrames(tree), ...compareFrames(tree)].some(holds);
+}
+
 export function detectProduction(tree) {
   const found = [];
   const claimed = new Set();
   (function walk(n, parent) {
     if (!n || n.visible === false || claimed.has(n.id)) return;
-    const hit = detectGallery(n) || detectProgress(n) || detectRating(n) || detectAlert(n) || detectLogo(n, parent) || detectHamburger(n) || detectDropdown(n) || detectOffcanvas(n, parent);
+    const alert = detectAlert(n);
+    const hit = detectGallery(n) || detectProgress(n) || detectRating(n) || (alert && !insidePricing(tree, n.id) ? alert : null) || detectLogo(n, parent) || detectHamburger(n) || detectDropdown(n) || detectOffcanvas(n, parent);
     if (hit) {
       found.push({ ...hit, level: 'E2', note: null });
       claimed.add(n.id);

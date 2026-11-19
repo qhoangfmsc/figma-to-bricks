@@ -1,3 +1,5 @@
+import { applyCompareTablet } from '../write-bricks/components/compare-table.mjs';
+
 // Every generate, including one that only has a desktop frame. The built elements stay the components
 // from that frame and keep the values already on them. Below the desktop width a fixed row does not
 // fit: flex items are built with flex-shrink 0, so they overflow a phone instead of wrapping.
@@ -793,6 +795,7 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
     }
   }
   protectPictures(template, breaks.map((bp) => bp.key));
+  applyCompareTablet(template, breaks.map((bp) => bp.key));
   return template;
 }
 

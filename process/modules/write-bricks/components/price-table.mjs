@@ -446,7 +446,7 @@ function bindPrice(node, table, id, root, attrs) {
     else if (same(word, price.promoText) || pack.prices.some((item) => same(word, item.promoText))) take(textNode, '{vnx_sp_promo_text}');
     else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
       take(textNode, '{vnx_sp_code}');
-      put(textNode.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }] } });
+      put(textNode.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }], _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_code}', compare: 'empty_not' }]] } });
     } else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, '{vnx_sp_unit}');
     else if (table.meta.button && same(word, table.meta.button)) {
       take(textNode, '{vnx_sp_button}');
@@ -490,7 +490,7 @@ function bindPrice(node, table, id, root, attrs) {
     const [code, sentence] = fold(promo[0].text.characters).includes(' ') ? [promo[1], promo[0]] : [promo[0], promo[1]];
     take(sentence, '{vnx_sp_promo_text}');
     take(code, '{vnx_sp_code}');
-    put(code.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }] } });
+    put(code.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }], _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_code}', compare: 'empty_not' }]] } });
   }
 
   if (price.special) {

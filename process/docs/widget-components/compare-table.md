@@ -6,6 +6,8 @@ Tên khác: Comparison tables, bảng so sánh
 
 Khi nào dùng: user đưa id, ví dụ `bang-so-sanh-maxspeed`. Build đọc bảng đó trên `WP_URL`.
 
+Mỗi lần build, khi plan đã có id, component tự gắn. Không cần nhớ cuộc chat, không chép một template đã có. Gồm: query loop, tag `{vnx_cmp_*}`, tooltip từ `{vnx_cmp_row_desc}`, icon yes/no, nút mua với giá `raw`, Xem thêm khi nhóm sau có hơn 4 dòng, nhóm đầu mở hết. Không có khung tablet thì ba gói trở xuống chia đều khung, tên mục một hàng, giá trị các gói hàng dưới. Nút chuyển gói nằm ở hàng các gói và chỉ hiện khi có hơn ba gói.
+
 Module: `process/modules/write-bricks/components/compare-table.mjs`
 
 | Việc | Giá trị |
@@ -21,7 +23,7 @@ Module: `process/modules/write-bricks/components/compare-table.mjs`
 | Xem thêm | Nhóm đầu luôn mở, không có nút. Nhóm sau chỉ có nút khi `{vnx_cmp_group_rows}` lớn hơn 4. Figma không vẽ nút thì vẫn thêm nút đó. Đóng thì hiện 4 dòng đầu (`{vnx_cmp_row_index}` 1–4), dòng sau ẩn đến khi nhóm có `is-open`. Nút: `data-vnx-cmp-more`. Đóng: Xem thêm và `fa-angle-down`. Mở: Thu gọn và `fa-angle-up`, màu `#007cfc`. |
 | Header | Hàng gói `position: sticky`, `top: 60px` (tablet `40px`), nền trắng, dính đến hết section. |
 | Số gói | Khung bảng có `--vnx-cmp-packages`. Một cột lặp và hàng không trượt thì bề rộng cột là `100% / var(--vnx-cmp-packages)`. | 
-| Slider | Hàng gói bị cắt thì khung cha có `data-vnx-cmp-slider-root`, hàng trượt ngang (`overflow-x: auto`) có `data-vnx-cmp-slider`, cột có `data-vnx-cmp-col`. Nút hai bên, nếu có, nhận `data-vnx-cmp-prev` và `data-vnx-cmp-next`. Chưa trượt được thì nút ẩn. Nút `is-disabled` thì mờ và không bấm. Script plugin gắn hai class đó. |
+| Tablet không có khung riêng | Ba gói trở xuống hiện đủ cột, không tràn khung. Tên mục là một hàng. Hàng ngay dưới là giá trị của các gói, chia đều. Nút chuyển gói nằm trong hàng heading của các gói, chỉ hiện khi có hơn ba gói. Không dùng component carousel. |
 
 Một cột gói, một nhóm, một dòng và một ô là mẫu lặp. Đầu bảng lặp gói. Thân bảng lặp nhóm, rồi dòng, rồi gói cho từng ô. Mọi breakpoint dùng cùng id và cùng tag.
 

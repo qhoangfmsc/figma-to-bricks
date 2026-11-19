@@ -1,7 +1,12 @@
 // A Tab List whose panel is not its sibling (the price table: the list sits beside the period bar, the
 // panel is under the card). The two-child pair is left to detect/rules/tabs.mjs.
 import { inspect, inspectClassic, listsIn, isTabList, isNamedTabBar, isActionBar, rowTitles, activeTitle, dividerOf, hasDivider } from '../../write-bricks/components/tab-switch.mjs';
+import { priceFrames } from '../../write-bricks/components/price-table.mjs';
+import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 import { detectMenus } from './menu.mjs';
+
+const holds = (node, id) => !!node && (node.id === id || visibleKids(node).some((child) => holds(child, id)));
+const inPricingTable = (tree, id) => [...priceFrames(tree), ...compareFrames(tree)].some((frame) => holds(frame, id));
 
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const contains = (n, id) => !!n && (n.id === id || visibleKids(n).some((c) => contains(c, id)));
@@ -37,7 +42,7 @@ export function detectTabSwitches(tree) {
     if (!chosen) continue;
     const host = chosen.host;
     const panels = chosen.panels;
-    if (found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels)) continue;
+    if (found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels) || inPricingTable(tree, host.id)) continue;
     const titles = visibleKids(list);
     found.push({
       component: 'tab-switch', node: host.id, level: 'E1', confidence: 'high',
@@ -75,7 +80,7 @@ function detectNamedTabRows(tree, claimed, menus) {
     if (loose && info.titles.length >= 2) {
       // The page that holds this section also matches. The section that holds the bar and the pane is the component.
       const tighter = kids.some((child) => inspect(child)?.list?.id === info.list.id);
-      if (!tighter) {
+        if (!tighter && !inPricingTable(tree, n.id)) {
         const open = info.titles[Number.isInteger(info.active) ? info.active : 0];
         const marked = Object.entries(open.props ?? {}).find(([key, value]) => /state|active|selected|property\s*1/i.test(key) && /^(selected|active|current|on|true)$/i.test(String(value)));
         const divider = dividerOf(info.list, info.titles);

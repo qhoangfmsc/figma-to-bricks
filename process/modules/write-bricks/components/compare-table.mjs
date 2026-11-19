@@ -240,6 +240,65 @@ function matrixOf(scope) {
   return { header, groups };
 }
 
+const hasAttr = (el, name) => (el?.settings?._attributes ?? []).some((attr) => attr?.name === name);
+
+// No tablet frame: three packages fit in the frame. A feature name is its own row. The row under it is the package values. Switch buttons sit in the package heading, not on the page title.
+export function applyCompareTablet(template, keys = []) {
+  const use = keys.filter((key) => key === 'tablet_portrait');
+  if (!use.length) return template;
+  const content = template.content ?? [];
+  const share = (count) => `calc(100% / ${Math.min(Math.max(count, 1), 3)})`;
+  const rows = content.filter((el) => hasAttr(el, 'data-vnx-cmp-slider') || /\bf2b-cmp-row\b/.test(el.settings?._cssClasses ?? ''));
+  for (const row of rows) {
+    const settings = row.settings ??= {};
+    const children = content.filter((el) => el.parent === row.id);
+    const cols = children.filter((el) => hasAttr(el, 'data-vnx-cmp-col'));
+    const feature = /\bf2b-cmp-row\b/.test(settings._cssClasses ?? '');
+    const slides = hasAttr(row, 'data-vnx-cmp-slider') && cols.length > 3;
+    for (const key of use) {
+      settings[`_direction:${key}`] = 'row';
+      settings[`_flexWrap:${key}`] = feature ? 'wrap' : 'nowrap';
+      settings[`_overflow:${key}`] = slides ? 'auto' : 'visible';
+      settings[`_width:${key}`] = '100%';
+      settings[`_widthMax:${key}`] = '100%';
+      settings[`_widthMin:${key}`] = '0px';
+      if (hasAttr(row, 'data-vnx-cmp-slider')) {
+        settings[`_position:${key}`] = 'relative';
+        settings[`_top:${key}`] = '65px';
+      }
+    }
+    for (const child of children) {
+      const childSettings = child.settings ??= {};
+      for (const key of use) {
+        if (hasAttr(child, 'data-vnx-cmp-col')) {
+          childSettings[`_flexGrow:${key}`] = 1;
+          childSettings[`_flexShrink:${key}`] = 1;
+          childSettings[`_flexBasis:${key}`] = '0px';
+          childSettings[`_width:${key}`] = share(cols.length);
+          childSettings[`_widthMax:${key}`] = share(cols.length);
+          childSettings[`_widthMin:${key}`] = '0px';
+        } else if (feature) {
+          childSettings[`_flexGrow:${key}`] = 0;
+          childSettings[`_flexShrink:${key}`] = 0;
+          childSettings[`_flexBasis:${key}`] = '100%';
+          childSettings[`_width:${key}`] = '100%';
+        } else if (hasAttr(row, 'data-vnx-cmp-slider') && !hasAttr(child, 'data-vnx-cmp-prev') && !hasAttr(child, 'data-vnx-cmp-next')) {
+          childSettings[`_display:${key}`] = 'none';
+        }
+      }
+    }
+  }
+  for (const el of content) {
+    if (!hasAttr(el, 'data-vnx-cmp-prev') && !hasAttr(el, 'data-vnx-cmp-next')) continue;
+    if (el.settings?._display !== 'none') continue;
+    const header = content.find((row) => row.id === el.parent && hasAttr(row, 'data-vnx-cmp-slider'));
+    const count = header ? content.filter((child) => child.parent === header.id && hasAttr(child, 'data-vnx-cmp-col')).length : 0;
+    if (count <= 3) continue;
+    for (const key of use) el.settings[`_display:${key}`] = 'flex';
+  }
+  return template;
+}
+
 export function compareFrames(root) {
   if (!root) return [];
   const frames = [];
@@ -515,23 +574,36 @@ function bindCompare(node, table, id, root, attrs) {
       _background: { color: { hex: '#ffffff' } },
     },
   });
-  if (rowScrolls(header.host)) {
-    const sliderRoot = parentOf(scope, header.host.id) ?? scope;
-    const sides = flank(sliderRoot, header.host);
-    put(sliderRoot.id, {
-      settings: { _attributes: [{ name: 'data-vnx-cmp-slider-root', value: '1' }] },
-      css: [
-        { decl: 'overflow-x: auto;', suffix: ' [data-vnx-cmp-slider]' },
-        { decl: 'opacity: 0; pointer-events: none;', suffix: ':not(.is-sliding) [data-vnx-cmp-prev]' },
-        { decl: 'opacity: 0; pointer-events: none;', suffix: ':not(.is-sliding) [data-vnx-cmp-next]' },
-        { decl: 'opacity: .35; pointer-events: none;', suffix: ' [data-vnx-cmp-prev].is-disabled' },
-        { decl: 'opacity: .35; pointer-events: none;', suffix: ' [data-vnx-cmp-next].is-disabled' },
-      ],
-    });
-    put(header.host.id, { settings: { _overflow: 'auto', _attributes: [{ name: 'data-vnx-cmp-slider', value: '1' }] } });
-    if (sides.prev) put(sides.prev.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-prev', value: '1' }] } });
-    if (sides.next) put(sides.next.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-next', value: '1' }] } });
-  }
+  const sliderRoot = parentOf(scope, header.host.id) ?? scope;
+  const sides = flank(sliderRoot, header.host);
+  put(sliderRoot.id, {
+    settings: { _attributes: [{ name: 'data-vnx-cmp-slider-root', value: '1' }] },
+    css: [
+      { decl: 'opacity: 0; pointer-events: none;', suffix: ':not(.is-sliding) [data-vnx-cmp-prev]' },
+      { decl: 'opacity: 0; pointer-events: none;', suffix: ':not(.is-sliding) [data-vnx-cmp-next]' },
+      { decl: 'opacity: .35; pointer-events: none;', suffix: ' [data-vnx-cmp-prev].is-disabled' },
+      { decl: 'opacity: .35; pointer-events: none;', suffix: ' [data-vnx-cmp-next].is-disabled' },
+    ],
+  });
+  put(header.host.id, { settings: { ...(rowScrolls(header.host) ? { _overflow: 'auto' } : {}), _attributes: [{ name: 'data-vnx-cmp-slider', value: '1' }] } });
+  const navButton = (side) => ({
+    name: 'icon',
+    label: side === 'prev' ? 'Prev' : 'Next',
+    settings: {
+      icon: { library: 'fontawesome', icon: side === 'prev' ? 'fa-solid fa-angle-left' : 'fa-solid fa-angle-right' },
+      iconSize: '24px',
+      iconColor: { hex: '#007cfc' },
+      _display: 'none',
+      _position: 'absolute',
+      _top: '8px',
+      _zIndex: 11,
+      ...(side === 'prev' ? { _left: '8px' } : { _right: '8px' }),
+      _attributes: [{ name: side === 'prev' ? 'data-vnx-cmp-prev' : 'data-vnx-cmp-next', value: '1' }],
+    },
+  });
+  put(header.host.id, { extraChildren: [sides.prev ? null : navButton('prev'), sides.next ? null : navButton('next')].filter(Boolean) });
+  if (sides.prev) put(sides.prev.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-prev', value: '1' }] } });
+  if (sides.next) put(sides.next.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-next', value: '1' }] } });
 
   for (const textNode of textsIn(group.host)) {
     if (used.has(textNode.id) || group.rows.some((row) => contains(row.node, textNode.id))) continue;
@@ -602,6 +674,6 @@ export default {
     return bound(node, det).omit;
   },
   pageScript() {
-    return `(function(){document.querySelectorAll('[data-vnx-cmp-group].f2b-cmp-start-open.f2b-cmp-g-1').forEach(function(group){group.classList.add('is-open');var btn=group.querySelector('[data-vnx-cmp-more]');if(btn)btn.setAttribute('aria-expanded','true');});})();`;
+    return `(function(){document.querySelectorAll('[data-vnx-cmp-group].f2b-cmp-start-open.f2b-cmp-g-1').forEach(function(group){group.classList.add('is-open');var btn=group.querySelector('[data-vnx-cmp-more]');if(btn)btn.setAttribute('aria-expanded','true');});document.addEventListener('scroll',function(e){var track=e.target;if(!track||!track.closest||!track.matches||!track.matches('[data-vnx-cmp-slider]'))return;var root=track.closest('[data-vnx-cmp-slider-root]');if(!root)return;root.querySelectorAll('.f2b-cmp-row').forEach(function(row){if(row!==track)row.scrollLeft=track.scrollLeft;});},true);})();`;
   },
 };

@@ -2,7 +2,10 @@
 //   E1 variant   the frame is a designer component with Expand=No (or false / collapsed)
 //   E2 shape     the frame clips (clip) and its flow children end below its own height
 // Both need the button: a clipped frame alone is only a clipped frame. The Figma button is the toggle, the fade over the bottom edge (an absolute gradient child) goes away when it opens.
+import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
+
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
+const holds = (node, id) => !!node && (node.id === id || visibleKids(node).some((child) => holds(child, id)));
 const LABEL = /^\s*(xem thêm|đọc thêm|xem tất cả|xem đầy đủ|read more|show more|view more|see more)\s*$/i;
 const NO = /^(no|false|collapsed?|closed?)$/i;
 const textsOf = (n) => (n.visible === false ? [] : n.type === 'TEXT' && !n.svg && n.text?.characters?.trim() ? [n] : visibleKids(n).flatMap(textsOf));
@@ -14,7 +17,7 @@ export function detectReadMore(tree) {
     const kids = visibleKids(n);
     kids.forEach((c, i) => {
       const next = kids.slice(i + 1).find((k) => textsOf(k).length === 1 && LABEL.test(textsOf(k)[0].text.characters));
-      if (!c.clip || !next) return;
+      if (!c.clip || !next || compareFrames(tree).some((frame) => holds(frame, c.id))) return;
       const flow = visibleKids(c).filter((k) => k.place !== 'ABSOLUTE');
       const overflow = flow.length && Math.max(...flow.map((k) => k.box.y + k.box.h)) > c.box.h + 1;
       const expand = Object.entries(c.props ?? {}).find(([k, v]) => /expand|open/i.test(k) && typeof v === 'string' && NO.test(v));
