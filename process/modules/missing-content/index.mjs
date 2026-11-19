@@ -205,7 +205,7 @@ export const GROUPS = {
     title: (n) => `Id bảng giá của ${n} cụm`,
     field: 'Id bảng giá',
     heading: (name) => `${name || 'Cụm này'} lấy số liệu bảng giá nào?`,
-    summary: 'Ghi id bảng giá trong Service Pricing, ví dụ bang-gia-maxspeed-hosting-thang-10. Để trống thì giữ hình đã vẽ, nút không có link.',
+    summary: 'Bắt buộc. Ghi id bảng giá trong Service Pricing, ví dụ bang-gia-maxspeed-hosting-thang-10. Không có id thì không dựng. Chữ trên Figma chỉ là ô, dữ liệu là query của id.',
     value: '',
     check: (v) => {
       const text = String(v ?? '').trim();
@@ -217,7 +217,7 @@ export const GROUPS = {
     title: (n) => `Id bảng so sánh của ${n} cụm`,
     field: 'Id bảng so sánh',
     heading: (name) => `${name || 'Cụm này'} lấy số liệu bảng so sánh nào?`,
-    summary: 'Ghi id bảng so sánh trong Service Pricing, ví dụ bang-so-sanh-maxspeed. Để trống thì giữ hình đã vẽ, nút không có link.',
+    summary: 'Bắt buộc. Ghi id bảng so sánh trong Service Pricing, ví dụ test-section. Không có id thì không dựng. Chữ trên Figma chỉ là ô, dữ liệu là query của id.',
     value: '',
     check: (v) => {
       const text = String(v ?? '').trim();

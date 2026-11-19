@@ -21,6 +21,27 @@ const amount = (word) => {
   const digits = raw.replace(/\D/g, '');
   return digits.length >= 3 && /^[\d\s.,]+$/.test(raw);
 };
+// A narrow column draws the price and its unit as one string ("12.000/wk"). A bare year is not a price.
+const groupedNumber = (word) => norm(word).match(/\d{1,3}(?:[.,]\d{3})+/)?.[0] ?? '';
+const priced = (word) => amount(word) || !!groupedNumber(word);
+const sameTail = (rest, field) => {
+  const left = fold(rest).replace(/^[/ ]+/, '');
+  const right = fold(field).replace(/^[/ ]+/, '');
+  return !!left && !!right && left === right;
+};
+function mixedPrice(word, position, id, table) {
+  const raw = norm(word);
+  const num = groupedNumber(word);
+  if (!num || amount(word)) return '';
+  const rest = raw.slice(raw.indexOf(num) + num.length);
+  const price = tag('price', position, id);
+  if (!rest.trim()) return price;
+  const cycle = position ? table.packages[position - 1]?.cycle : (table.packages.every((item) => item.cycle === table.packages[0]?.cycle) ? table.packages[0]?.cycle : '');
+  if (sameTail(rest, table.meta?.unit)) return `${price}${tag('unit', position, id)}`;
+  if (sameTail(rest, cycle)) return `${price}${rest.match(/^[\s/]+/)?.[0] ?? ''}${tag('cycle', position, id)}`;
+  if (table.meta?.unit && /^[\s/]/.test(rest)) return `${price}${tag('unit', position, id)}`;
+  return `${price}${rest}`;
+}
 
 export const BUY_BUTTON_FIELDS = [
   { id: 'href', value: '{vnx_cmp_link}', slot: 'href' },
@@ -194,7 +215,7 @@ function isCell(node) {
 function isPackageColumn(node) {
   if (!node || node.layout?.mode === 'HORIZONTAL') return false;
   const texts = textsIn(node);
-  return texts.length >= 2 && texts.some((text) => amount(text.text.characters));
+  return texts.length >= 2 && texts.some((text) => priced(text.text.characters));
 }
 
 function featureRow(node, packageCount) {
@@ -205,6 +226,24 @@ function featureRow(node, packageCount) {
   if (cells.length !== packageCount || !cells.every(isCell)) return null;
   if (!lead.length || lead.some((item) => textsIn(item).length > 2)) return null;
   return { node, cells, lead };
+}
+
+function valueCells(node, packageCount) {
+  if (node?.layout?.mode !== 'HORIZONTAL') return null;
+  const kids = visibleKids(node);
+  if (kids.length !== packageCount || !kids.every(isCell)) return null;
+  return kids;
+}
+
+// The name sits on its own row. The row under it is one cell per package. Both rows are one feature.
+function stackedFeature(node, packageCount) {
+  if (node?.layout?.mode !== 'VERTICAL') return null;
+  const kids = visibleKids(node);
+  const cells = kids.map((child) => valueCells(child, packageCount)).find(Boolean);
+  if (!cells) return null;
+  const lead = kids.filter((child) => child.layout?.mode === 'HORIZONTAL' && !valueCells(child, packageCount) && textsIn(child).length > 0 && textsIn(child).length <= 3);
+  if (lead.length !== 1) return null;
+  return { node, cells, lead, stacked: true };
 }
 
 function matrixOf(scope) {
@@ -222,7 +261,7 @@ function matrixOf(scope) {
   const rows = [];
   const scan = (node) => {
     if (header.cols.some((col) => contains(col, node.id))) return;
-    const row = featureRow(node, header.cols.length);
+    const row = featureRow(node, header.cols.length) ?? stackedFeature(node, header.cols.length);
     if (row) { rows.push(row); return; }
     visibleKids(node).forEach(scan);
   };
@@ -423,12 +462,21 @@ function bindCompare(node, table, id, root, attrs) {
     };
   };
   const fillColumn = (column, position) => {
+    const asBuy = (textNode) => {
+      const frame = parentOf(column, textNode.id);
+      const onlyText = frame && frame.id !== column.id && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
+      if (!onlyText) return;
+      const button = pricedButton(position);
+      delete button.text;
+      put(frame.id, { kind: 'block', unmerge: true, dropSettings: ['text', 'icon', 'iconPosition'], settings: button });
+    };
     for (const textNode of textsIn(column)) {
       const word = textNode.text.characters;
       if (table.packages.some((item) => same(word, item.total))) take(textNode, 'total', position);
       else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, 'unit', position);
       else if (table.packages.some((item) => same(word, item.cycle))) take(textNode, 'cycle', position);
-      else if (table.packages.some((item) => same(word, item.price)) || amount(word)) take(textNode, 'price', position);
+      else if (table.packages.some((item) => same(word, item.price)) || amount(word)) { take(textNode, 'price', position); asBuy(textNode); }
+      else if (priced(word)) { put(textNode.id, { settings: { text: mixedPrice(word, position, id, table) } }); used.add(textNode.id); asBuy(textNode); }
       else if (table.meta.button && same(word, table.meta.button)) {
         take(textNode, 'button', position);
         const frame = parentOf(column, textNode.id);
@@ -440,7 +488,7 @@ function bindCompare(node, table, id, root, attrs) {
         }
       }
     }
-    const prices = textsIn(column).filter((textNode) => amount(textNode.text.characters));
+    const prices = textsIn(column).filter((textNode) => priced(textNode.text.characters));
     const priceY = prices.length ? Math.min(...prices.map(top)) : Infinity;
     const nameNode = textsIn(column).filter((textNode) => !used.has(textNode.id) && top(textNode) < priceY)
       .sort((a, b) => top(b) - top(a))[0];
@@ -480,6 +528,17 @@ function bindCompare(node, table, id, root, attrs) {
     put(item.id, { settings: { ...(drawnMatch ? {} : loop('pkg', id)), _attributes: colAttr } });
     fillCell(item, drawnMatch ? index + 1 : null);
   });
+  if (feature.stacked) {
+    const share = 'calc(100% / var(--vnx-cmp-packages))';
+    for (const cell of feature.cells) {
+      put(cell.id, {
+        settings: { _flexGrow: 1, _flexShrink: 1, _flexBasis: '0px', _width: share, _widthMax: share, _widthMin: '0px' },
+      });
+      for (const textNode of textsIn(cell)) {
+        put(textNode.id, { settings: { _width: '100%', _flexBasis: 'auto', _widthMin: '0px', _typography: { 'white-space': 'normal' } } });
+      }
+    }
+  }
   put(group.host.id, {
     settings: {
       ...loop('group', id),
@@ -659,7 +718,7 @@ export default {
   label: 'Comparison table',
   figma: 'a package row plus feature groups whose rows line up one cell per package',
   bricks: 'query loops vnxcmp_pkg, vnxcmp_group and vnxcmp_row. Text is {vnx_cmp_*}. A mark is an Icon. The buy control is an a. A trailing control and a clipped row use the plugin attributes',
-  limits: 'A drawn column per package stays, with :p= on each tag. Fewer columns than packages, one column is the loop. A closed group is the group loop. The first group starts open when an open group is also drawn. The same table id is used on every breakpoint frame.',
+  limits: 'A drawn column per package stays, with :p= on each tag. Fewer columns than packages, one column is the loop. A closed group is the group loop. The first group starts open when an open group is also drawn. The same table id is the data on every breakpoint. Without that id the build stops.',
   check(node, det, ctx) {
     if (!det?.params?.table?.packages?.length) return { ok: false, reason: 'comparison table data is not loaded' };
     const found = bound(node, det, ctx?.root ?? node);

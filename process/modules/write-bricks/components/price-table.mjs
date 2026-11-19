@@ -9,7 +9,7 @@ import { queryType } from '../../write-bricks/components/price-data.mjs';
 import { cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 import { peekOf } from '../../write-bricks/render/utils/peek-scroll.mjs';
 import { selectOptionHost, selectScript, selectShell } from '../../write-bricks/components/select.mjs';
-import { layoutOnlyReason } from '../../recognize-parts/rules/layout-only.mjs';
+import { showsPrice } from '../../recognize-parts/rules/layout-only.mjs';
 import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
 import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 
@@ -23,6 +23,7 @@ const same = (drawn, cell) => {
   const right = fold(cell);
   return !!left && !!right && (left === right || left === shown(cell));
 };
+const unitShape = (word) => /^\/\S{1,12}$/.test(norm(word));
 
 function textsIn(node, out = []) {
   if (!node || node.visible === false) return out;
@@ -189,7 +190,7 @@ function bindPrice(node, table, id, root, attrs) {
   if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
   const scopeRoot = root ?? node;
   const packOf = (item) => table.packages.find((itemPack) => hasWords(item, (word) => same(word, itemPack.name)));
-  const isPackage = (item) => !!packOf(item);
+  const isPackage = (item) => !!packOf(item) || showsPrice(item);
   const isCycle = (item) => hasWords(item, (word) => table.cycles.some((cycle) => same(word, cycle.label)));
   const many = climb(node, scopeRoot, isPackage, 2);
   let cards = many;
@@ -274,7 +275,14 @@ function bindPrice(node, table, id, root, attrs) {
     const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
     if (index >= 0) openAt = index;
   }
-  if (cycles && cycleProto && !cycleField) cycles.items.filter((item) => item.id !== cycleProto.id).forEach((item) => omit.push(item.id));
+  if (cycles && cycleProto && !cycleField) {
+    const kids = visibleKids(cycles.host);
+    const pillsOnly = kids.every((item) => item.id === cycleProto.id || !contains(item, card?.id));
+    const extras = pillsOnly ? kids : cycles.items;
+    for (const item of extras) {
+      if (item.id !== cycleProto.id) omit.push(item.id);
+    }
+  }
   cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
   if (cards.items.length === 1) {
     visibleKids(cards.host).forEach((child) => {
@@ -358,7 +366,7 @@ function bindPrice(node, table, id, root, attrs) {
         css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }],
       });
     }
-  } else if (cycleProto?.type !== 'TEXT') {
+  } else if (cycleProto && cycleProto.type !== 'TEXT') {
     put(cycleProto.id, { settings: loop('cycle', id) });
   }
   const peeked = peekOf(cards.host, scopeRoot);
@@ -378,17 +386,22 @@ function bindPrice(node, table, id, root, attrs) {
   const take = (textNode, tag) => { assign(textNode, tag); used.add(textNode.id); };
   const showBadge = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_badge}', compare: 'empty_not' }]];
   let taggedBadge = false;
-  for (const textNode of textsIn(cycleProto)) {
-    const word = textNode.text.characters;
-    if (table.cycles.some((cycle) => same(word, cycle.label))) {
+  const badgeWord = (word) => /^[-+]?\d/.test(norm(word)) || /%$/.test(norm(word));
+  const protoTexts = textsIn(cycleProto);
+  const matchedLabel = protoTexts.find((textNode) => table.cycles.some((cycle) => same(textNode.text.characters, cycle.label)));
+  const labelNode = matchedLabel ?? protoTexts.find((textNode) => !badgeWord(textNode.text.characters)) ?? protoTexts[0];
+  for (const textNode of protoTexts) {
+    if (labelNode && textNode.id === labelNode.id) {
       take(textNode, '{vnx_sp_cycle}');
-    } else if (cycleField) {
-      take(textNode, '{vnx_sp_cycle_badge}');
+      continue;
+    }
+    take(textNode, '{vnx_sp_cycle_badge}');
+    if (cycleField) {
       const host = parentOf(cycleField, textNode.id);
       const badgeHost = host && host.id !== cycleField.id ? host.id : textNode.id;
       put(badgeHost, { settings: { _conditions: showBadge, _hidden: { _cssClasses: 'f2b-select-badge' } } });
       taggedBadge = true;
-    } else take(textNode, '{vnx_sp_cycle_badge}');
+    }
   }
   if (cycleField && !taggedBadge) {
     put(cycleField.id, {
@@ -447,13 +460,27 @@ function bindPrice(node, table, id, root, attrs) {
     else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
       take(textNode, '{vnx_sp_code}');
       put(textNode.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }], _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_code}', compare: 'empty_not' }]] } });
-    } else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, '{vnx_sp_unit}');
+    } else if (table.meta.unit && (same(word, table.meta.unit) || unitShape(word))) take(textNode, '{vnx_sp_unit}');
     else if (table.meta.button && same(word, table.meta.button)) {
       take(textNode, '{vnx_sp_button}');
       const frame = parentOf(card, textNode.id);
       const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
       if (onlyText) put(frame.id, { settings: registerButton('{vnx_sp_button}', attrs) });
     }
+  }
+  const amount = (word) => {
+    const raw = String(word ?? '').trim();
+    const digits = raw.replace(/\D/g, '');
+    return digits.length >= 3 && /^[\d\s.,]+$/.test(raw);
+  };
+  const top = (textNode) => textNode.box?.y ?? 0;
+  if (![...used].some((id) => patches[id]?.settings?.text === '{vnx_sp_name}')) {
+    const marks = textsIn(card).filter((textNode) => amount(textNode.text.characters) || unitShape(textNode.text.characters) || (table.meta.unit && same(textNode.text.characters, table.meta.unit)));
+    const priceY = marks.length ? Math.min(...marks.map(top)) : Infinity;
+    const open = textsIn(card).filter((textNode) => !used.has(textNode.id) && !amount(textNode.text.characters) && !unitShape(textNode.text.characters) && !(rows && rows.items.some((item) => contains(item, textNode.id))));
+    const above = open.filter((textNode) => top(textNode) < priceY).sort((a, b) => top(b) - top(a));
+    const nameNode = above[0] ?? open.sort((a, b) => top(a) - top(b))[0];
+    if (nameNode) take(nameNode, '{vnx_sp_name}');
   }
   let promo = null;
   const walkPromo = (current) => {
@@ -463,16 +490,11 @@ function bindPrice(node, table, id, root, attrs) {
     visibleKids(current).forEach(walkPromo);
   };
   walkPromo(card);
-  const amount = (word) => {
-    const raw = String(word ?? '').trim();
-    const digits = raw.replace(/\D/g, '');
-    return digits.length >= 3 && /^[\d\s.,]+$/.test(raw);
-  };
   let priceCluster = null;
   const seekCluster = (current) => {
     if (!current || current.visible === false) return;
     const texts = textsIn(current);
-    const hasUnit = table.meta.unit && texts.some((text) => same(text.text.characters, table.meta.unit));
+    const hasUnit = table.meta.unit && texts.some((text) => same(text.text.characters, table.meta.unit) || unitShape(text.text.characters));
     const hasAmount = texts.some((text) => amount(text.text.characters));
     if (hasUnit && hasAmount && (!priceCluster || texts.length < textsIn(priceCluster).length)) priceCluster = current;
     visibleKids(current).forEach(seekCluster);
@@ -521,21 +543,32 @@ function bound(node, det, root) {
   return value;
 }
 
-function containsNode(node, id) {
-  return contains(node, id);
-}
-
 export function priceFrames(root) {
-  const compared = compareFrames(root);
-  const inCompare = (node) => compared.some((frame) => frame.id === node.id || contains(frame, node.id));
+  const insideCompare = new Set();
+  const mark = (node) => {
+    if (!node) return;
+    insideCompare.add(node.id);
+    visibleKids(node).forEach(mark);
+  };
+  for (const frame of compareFrames(root)) mark(frame);
   const frames = [];
   const walk = (node) => {
-    const cards = visibleKids(node).filter((child) => layoutOnlyReason(child, root) === 'price' && visibleKids(child).length > 0);
-    if (cards.length >= 2 && !inCompare(node)) frames.push(node);
+    if (!node || insideCompare.has(node.id)) return;
+    const cards = visibleKids(node).filter((child) => showsPrice(child));
+    if (cards.length >= 2) frames.push(node);
     visibleKids(node).forEach(walk);
   };
   walk(root);
-  return frames.filter((frame) => !frames.some((other) => other !== frame && containsNode(frame, other.id)));
+  return frames.filter((frame) => !frames.some((other) => other !== frame && contains(other, frame.id)));
+}
+
+export function missingBoundTables(tree, detections) {
+  const loaded = (kind, id) => (detections?.components ?? []).some((item) => item.component === kind && item.status !== 'rejected' && item.node === id && item.params?.id && item.params?.table?.packages?.length);
+  const gap = (kind, frame) => ({ kind, node: frame.id, name: frame.name || frame.id });
+  return [
+    ...priceFrames(tree).filter((frame) => !loaded('price-table', frame.id)).map((frame) => gap('price-table', frame)),
+    ...compareFrames(tree).filter((frame) => !loaded('compare-table', frame.id)).map((frame) => gap('compare-table', frame)),
+  ];
 }
 
 export default {
@@ -544,7 +577,7 @@ export default {
   label: 'Price table',
   figma: 'a drawn card row whose plan names a Service Pricing table id',
   bricks: 'tabs-nested when cycle labels are drawn, plus query loops vnxsp_cycle, vnxsp_pkg and vnxsp_row. Text is {vnx_sp_*}. A closed cycle field uses the select component shell and only supplies the cycle loop',
-  limits: 'One pill, one card and one info row are the loop. The loop copies the card that is only the package body. The same table id is used on every breakpoint frame.',
+  limits: 'One pill, one card and one info row are the loop. The loop copies the card that is only the package body. The same table id is the data on every breakpoint. Without that id the build stops.',
   kind(node, det) {
     return bound(node, det).tabsHost === node.id ? 'tabs-nested' : undefined;
   },

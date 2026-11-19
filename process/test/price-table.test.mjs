@@ -7,7 +7,7 @@ import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 import { decide } from '../modules/approve-parts/index.mjs';
 import { screenParts } from '../modules/single-template/parts.mjs';
-import { REGISTER_BUTTON_FIELDS, registerAttrKey } from '../modules/write-bricks/components/price-table.mjs';
+import { REGISTER_BUTTON_FIELDS, missingBoundTables, priceFrames, registerAttrKey } from '../modules/write-bricks/components/price-table.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value) => ({
@@ -196,7 +196,7 @@ test('another table with different words uses the same tags', () => {
   assert.equal(built.mapping.b.skipped.startsWith('merged into'), true);
 });
 
-test('the plan id is an enum, and a blank id leaves the drawing alone', () => {
+test('the plan id is an enum, and a blank line does not invent one', () => {
   assert.deepEqual(choiceOf('price', 'starter-cloud'), { choice: 'id', id: 'starter-cloud' });
   assert.equal(choiceOf('price', 'Bang Gia'), null);
   assert.deepEqual(choiceOf('price', { choice: 'id', id: 'Not_An_Id' }), null);
@@ -214,6 +214,79 @@ test('the plan id is an enum, and a blank id leaves the drawing alone', () => {
   const plain = buildTemplate(tree, { detections: { components: [] }, salt: 'plain' });
   assert.equal(JSON.stringify(plain.template.content).includes('vnx_sp_'), false);
   assert.equal(JSON.stringify(plain.template.content).includes('vnxsp_'), false);
+});
+
+test('one package row is the price table, and it needs a loaded id', () => {
+  const spec = (id, label) => frame(id, 'spec', [0, 0, 140, 24], [text(`${id}t`, label)]);
+  const card = (id, name, amount) => frame(id, 'card', [0, 0, 160, 140], [
+    text(`${id}n`, name),
+    text(`${id}p`, amount),
+    text(`${id}u`, '/năm'),
+    spec(`${id}s`, 'Seats'),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Rates', [0, 0, 400, 180], [
+    frame('deck', 'row', [0, 0, 400, 160], [card('a', 'Lane', '4.000 đ'), card('b', 'Pier', '9.000 đ')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  assert.deepEqual(priceFrames(tree).map((item) => item.id), ['deck']);
+  assert.deepEqual(missingBoundTables(tree, { components: [] }).map((gap) => gap.node), ['deck']);
+  const loaded = { components: [{ component: 'price-table', status: 'approved', node: 'deck', params: { id: 'lane-pier', table: { packages: [{ name: 'Lane' }] } } }] };
+  assert.deepEqual(missingBoundTables(tree, loaded), []);
+});
+
+test('a card title that is not the stored package name is still the name slot', () => {
+  const placed = (id, value, y) => ({ ...text(id, value), absoluteBoundingBox: box(0, y, 80, 20) });
+  const card = (id, title, amount) => frame(id, 'card', [0, 0, 160, 120], [
+    placed(`${id}n`, title, 8),
+    placed(`${id}p`, amount, 40),
+    placed(`${id}u`, '/năm', 64),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Rates', [0, 0, 400, 140], [
+    frame('deck', 'row', [0, 0, 400, 120], [card('a', 'Lane desk', '4000'), card('b', 'Pier desk', '9000')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const table = {
+    meta: { unit: '/yr', button: 'Join' },
+    cycles: [{ label: 'Season', badge: '' }],
+    rows: [{ label: 'Seats', desc: '' }],
+    packages: [
+      { name: 'Lane', prices: [{ regular: '', sale: '4', total: '4', tag: '', promoText: '', code: '', special: '' }], links: [''], info: [{ text: 'Four', extra: '', icon: '' }] },
+      { name: 'Pier', prices: [{ regular: '', sale: '9', total: '9', tag: '', promoText: '', code: '', special: '' }], links: [''], info: [{ text: 'Nine', extra: '', icon: '' }] },
+    ],
+  };
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'deck', params: { id: 'lane-pier', table } }] },
+    salt: 'lane',
+  });
+  const textOf = (id) => built.template.content.find((item) => item.id === built.mapping[id].bricksId).settings.text;
+  assert.equal(textOf('an'), '{vnx_sp_name}');
+  assert.equal(textOf('au'), '{vnx_sp_unit}');
+  assert.equal(built.template.content.some((item) => item.settings?.query?.objectType === 'vnxsp_pkg__lane-pier'), true);
+});
+
+test('a cycle pill whose words are not in the table is still that one cycle source', () => {
+  const pill = (id, label, badge) => frame(id, 'pill', [0, 0, 90, 32], [text(`${id}l`, label), text(`${id}b`, badge)], { layoutMode: 'HORIZONTAL' });
+  const card = (id, title) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, title), text(`${id}p`, '4000'), text(`${id}u`, '/năm')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Rates', [0, 0, 400, 160], [
+    frame('bar', 'cycles', [0, 0, 280, 36], [pill('s', 'Spring', '-5%'), pill('e', 'Season', '-10%')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'row', [0, 40, 400, 100], [card('a', 'Lane desk'), card('b', 'Pier desk')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const table = {
+    meta: { unit: '/yr', button: 'Join' },
+    cycles: [{ label: 'Season', badge: '-10%' }, { label: 'Winter', badge: '' }],
+    rows: [],
+    packages: [
+      { name: 'Lane', prices: [{ sale: '4', regular: '', total: '', tag: '', promoText: '', code: '', special: '' }], links: [''], info: [] },
+      { name: 'Pier', prices: [{ sale: '9', regular: '', total: '', tag: '', promoText: '', code: '', special: '' }], links: [''], info: [] },
+    ],
+  };
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'lane-pier', table } }] },
+    salt: 'cycles',
+  });
+  const texts = built.template.content.map((item) => item.settings?.text).filter((value) => typeof value === 'string');
+  assert.equal(texts.includes('Spring'), false);
+  assert.equal(texts.includes('-5%'), false);
+  assert.equal(texts.includes('{vnx_sp_cycle}'), true);
+  assert.equal(built.template.content.some((item) => item.settings?.query?.objectType === 'vnxsp_cycle__lane-pier'), true);
 });
 
 test('a card keeps tags when the drawn words differ by case from the table', () => {

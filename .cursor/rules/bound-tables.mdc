@@ -1,0 +1,14 @@
+---
+description: A price table and a comparison table render one id as dynamic data on every breakpoint.
+alwaysApply: true
+---
+
+# Bound tables
+
+A price table is one row of package cards. A comparison table is one package row plus groups of aligned cells. Each is one component. This is mandatory.
+
+Figma is the layout of that frame: size, type, spacing, direction, order, and the boxes. The data is one id. Every breakpoint renders that same id as dynamic data, the query and the tags. A pasted phone frame keeps its own layout and still uses that id. A breakpoint with no frame keeps the id and only changes layout.
+
+The words Figma drew show which box is which slot. They are not a second source. A breakpoint that still prints those words is wrong.
+
+A blank id is not a finished plan. Ask for the id. Do not build the section.

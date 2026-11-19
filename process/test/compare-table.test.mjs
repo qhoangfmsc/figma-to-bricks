@@ -5,7 +5,7 @@ import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { parseCompareData, formatMoney, carryCompareTables } from '../modules/write-bricks/components/compare-data.mjs';
 import { compareFrames, BUY_BUTTON_FIELDS } from '../modules/write-bricks/components/compare-table.mjs';
 import { fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
-import { priceFrames } from '../modules/write-bricks/components/price-table.mjs';
+import { missingBoundTables, priceFrames } from '../modules/write-bricks/components/price-table.mjs';
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 
@@ -301,6 +301,70 @@ test('a matrix is asked as a comparison table, and a card row stays a price tabl
   ], { layoutMode: 'HORIZONTAL' }) } } }, 'r', { images: {}, svgs: {} });
   assert.equal(compareFrames(cards).length, 0);
   assert.equal(priceFrames(cards).length, 1);
+  assert.equal(missingBoundTables(matrix, { components: [] }).some((gap) => gap.kind === 'compare-table'), true);
+  assert.equal(missingBoundTables(cards, { components: [] }).some((gap) => gap.kind === 'price-table'), true);
+});
+
+test('a name row above a value row still binds the table, the tooltip and the expand control', () => {
+  const parsed = parseCompareData(studio);
+  const cell = (id, value) => frame(id, 'cell', [0, 0, 80, 24], [text(`${id}t`, value)], { layoutMode: 'HORIZONTAL' });
+  const at = (node, y) => ({ ...node, absoluteBoundingBox: { ...node.absoluteBoundingBox, y } });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Stack', [0, 0, 320, 420], [
+    frame('head', 'packages', [0, 0, 320, 80], [
+      frame('a', 'col', [0, 0, 150, 80], [
+        at(text('an', 'Desk'), 8),
+        frame('ab', 'buy', [0, 40, 120, 28], [at(text('ap', '12.000/wk'), 44)], { layoutMode: 'HORIZONTAL' }),
+      ], { layoutMode: 'VERTICAL' }),
+      frame('b', 'col', [160, 0, 150, 80], [
+        at(text('bn', 'Bench'), 8),
+        frame('bb', 'buy', [0, 40, 120, 28], [at(text('bp', '24.000/wk'), 44)], { layoutMode: 'HORIZONTAL' }),
+      ], { layoutMode: 'VERTICAL' }),
+    ], { layoutMode: 'HORIZONTAL' }),
+    frame('tip', 'Tooltip', [0, 0, 140, 60], [text('tipt', 'Kept offsite for the visitor.')], {
+      fills: [{ type: 'SOLID', color: { r: 0, g: 0.486, b: 0.988, a: 1 } }],
+    }),
+    frame('g', 'group', [0, 100, 320, 200], [
+      text('gt', 'Storage'),
+      frame('p1', 'pair', [0, 24, 320, 56], [
+        frame('lab', 'label', [0, 0, 320, 24], [
+          frame('labc', 'cell', [0, 0, 320, 24], [
+            text('r1l', 'Disk'),
+            { id: 'hint', name: 'hint', type: 'FRAME', absoluteBoundingBox: box(200, 0, 14, 14) },
+          ], { layoutMode: 'HORIZONTAL' }),
+        ], { layoutMode: 'HORIZONTAL' }),
+        frame('vals', 'values', [0, 28, 320, 24], [
+          cell('c1', 'Nightly'),
+          cell('c2', 'Weekly'),
+        ], { layoutMode: 'HORIZONTAL' }),
+      ], { layoutMode: 'VERTICAL' }),
+      frame('p2', 'pair', [0, 88, 320, 56], [
+        frame('lab2', 'label', [0, 0, 320, 24], [text('r2l', 'Backup')], { layoutMode: 'HORIZONTAL' }),
+        frame('vals2', 'values', [0, 28, 320, 24], [
+          cell('d1', 'Nightly'),
+          cell('d2', 'Weekly'),
+        ], { layoutMode: 'HORIZONTAL' }),
+      ], { layoutMode: 'VERTICAL' }),
+      frame('more', 'more', [0, 160, 120, 24], [text('mt', 'Show rest')]),
+    ], { layoutMode: 'VERTICAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: { hint: { file: 'h.svg', bytes: 8, width: 14, height: 14 } } });
+  assert.equal(compareFrames(tree).length, 1);
+  const result = built(parsed.table, tree);
+  const content = result.template.content;
+  const el = (id) => content.find((item) => item.id === result.mapping[id]?.bricksId);
+  const types = content.filter((item) => item.settings?.hasLoop).map((item) => item.settings.query.objectType).sort();
+  assert.deepEqual(types, ['vnxcmp_group__studio-matrix', 'vnxcmp_row__studio-matrix']);
+  assert.equal(el('an').settings.text, '{vnx_cmp_name:t=studio-matrix:p=1}');
+  assert.equal(el('ap').settings.text, '{vnx_cmp_price:t=studio-matrix:p=1}{vnx_cmp_unit:t=studio-matrix:p=1}');
+  assert.equal(el('ab').settings.tag, 'a');
+  assert.equal(el('ab').settings.link.url, '{vnx_cmp_link:t=studio-matrix:p=1}');
+  assert.equal(el('r1l').settings.text, '{vnx_cmp_row:t=studio-matrix}');
+  assert.equal(el('c1').settings._width, 'calc(100% / var(--vnx-cmp-packages))');
+  assert.equal(el('c1t').settings._typography['white-space'], 'normal');
+  assert.equal(el('gt').settings.text, '{vnx_cmp_group:t=studio-matrix}');
+  assert.equal(el('more').settings._attributes[0].name, 'data-vnx-cmp-more');
+  const tipText = content.find((item) => item.settings?.text === '{vnx_cmp_row_desc:t=studio-matrix}');
+  assert.match(content.find((item) => item.id === tipText.parent).settings._cssClasses, /f2b-tip-wrap/);
+  assert.equal(content.some((item) => item.settings?.text === 'Thu gọn'), true);
 });
 
 test('the plan id is an enum and travels with the table', () => {

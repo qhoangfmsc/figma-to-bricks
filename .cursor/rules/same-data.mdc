@@ -1,0 +1,16 @@
+---
+description: Layout and design follow each breakpoint frame. A section's bound data is one source on every breakpoint.
+alwaysApply: true
+---
+
+# One data source for the section
+
+Each breakpoint keeps the layout and the design of its own frame: size, type, spacing, direction, order, and the boxes that frame draws.
+
+Data is the source a component is bound to: an id, a query, a tag, a URL, an answer, a pane, an option list, a price, a row, a tooltip text. A section has one source. Every breakpoint of that section renders that source. This is every component that is bound, including ones added later.
+
+The words Figma drew inside a bound component show which box is which slot, and how that slot looks on that frame. They are not a second source. Desktop bound to the source and mobile still printing those drawn words is wrong.
+
+A pasted frame that draws the component gets the section source on that frame's tree. The frame's design stays. A breakpoint with no frame keeps the source and only changes layout.
+
+A bound component left on the drawn words at one breakpoint is a miss of the shared carry. Fix that carry and the shape check. Add a test whose copy is not the copy of the file that failed. A branch for one file, one node, or one breakpoint name is not the fix.

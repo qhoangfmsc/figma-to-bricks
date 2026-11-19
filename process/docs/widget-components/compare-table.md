@@ -1,10 +1,10 @@
 # compare-table
 
-Có khi plan ghi id bảng so sánh. Không có id thì khung giữ nguyên hình đã vẽ.
+Bắt buộc có id. Bảng so sánh chỉ render dynamic data của id đó. Không có id thì không dựng. Chữ Figma vẽ là ô, không phải nguồn dữ liệu.
 
 Tên khác: Comparison tables, bảng so sánh
 
-Khi nào dùng: user đưa id, ví dụ `bang-so-sanh-maxspeed`. Build đọc bảng đó trên `WP_URL`.
+Khi nào dùng: user đưa id, ví dụ `test-section`. Build đọc bảng đó trên `WP_URL`.
 
 Mỗi lần build, khi plan đã có id, component tự gắn. Không cần nhớ cuộc chat, không chép một template đã có. Gồm: query loop, tag `{vnx_cmp_*}`, tooltip từ `{vnx_cmp_row_desc}`, icon yes/no, nút mua với giá `raw`, Xem thêm khi nhóm sau có hơn 4 dòng, nhóm đầu mở hết. Không có khung tablet thì ba gói trở xuống chia đều khung, tên mục một hàng, giá trị các gói hàng dưới. Nút chuyển gói nằm ở hàng các gói và chỉ hiện khi có hơn ba gói.
 
@@ -25,6 +25,6 @@ Module: `process/modules/write-bricks/components/compare-table.mjs`
 | Số gói | Khung bảng có `--vnx-cmp-packages`. Một cột lặp và hàng không trượt thì bề rộng cột là `100% / var(--vnx-cmp-packages)`. | 
 | Tablet không có khung riêng | Ba gói trở xuống hiện đủ cột, không tràn khung. Tên mục là một hàng. Hàng ngay dưới là giá trị của các gói, chia đều. Nút chuyển gói nằm trong hàng heading của các gói, chỉ hiện khi có hơn ba gói. Không dùng component carousel. |
 
-Một cột gói, một nhóm, một dòng và một ô là mẫu lặp. Đầu bảng lặp gói. Thân bảng lặp nhóm, rồi dòng, rồi gói cho từng ô. Mọi breakpoint dùng cùng id và cùng tag.
+Một cột gói, một nhóm, một dòng và một ô là mẫu lặp. Đầu bảng lặp gói. Thân bảng lặp nhóm, rồi dòng, rồi gói cho từng ô. Mọi breakpoint dùng cùng id và cùng tag. Khung hẹp vẽ tên mục một hàng, hàng dưới là giá trị các gói, vẫn là bảng đó: query, tooltip và Xem thêm gắn trên khung đó. Giá và đơn vị viết chung một chữ vẫn là tag giá và tag đơn vị. Nút chỉ có chữ giá là link mua.
 
-Không có bảng, hoặc id không đúng chữ thường và dấu gạch, thì không gắn tag. Nút mua không có link cho đến khi có id.
+Không có id, hoặc id không đúng chữ thường và dấu gạch, thì build dừng. Không gắn tag và không giữ chữ đã vẽ làm dữ liệu.

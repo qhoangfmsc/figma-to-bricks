@@ -23,7 +23,7 @@ const HINT = {
   expand: 'Viết chữ thêm khi mở, hoặc dán link khung đã mở hết. Để trống thì hiện nốt chữ đang có.',
   keep: 'Giữ nguyên như bản vẽ.',
   pattr: 'Tag thì giữ. data-product-category thì viết nhóm sản phẩm. Để trống là không gắn attribute đó.',
-  compare: 'Ghi id bảng so sánh, ví dụ bang-so-sanh-maxspeed. Để trống thì giữ hình đã vẽ.',
+  compare: 'Bắt buộc. Ghi id bảng so sánh, ví dụ test-section. Không có id thì không dựng.',
 };
 const KIND = {
   button: 'Nút', checkbox: 'Checkbox', switch: 'Switch', readmore: 'Xem thêm', semantic: 'Khối', accordion: 'Accordion', tabs: 'Tab', 'tab-switch': 'Tabs Component', menu: 'Menu',

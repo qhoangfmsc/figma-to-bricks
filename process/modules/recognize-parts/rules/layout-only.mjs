@@ -1,5 +1,5 @@
-// Domain lookup and a price table stay a picture of the layout until the plan binds a Service Pricing id.
-// That id is the plugin's table. This file does not invent a sign-up URL.
+// A domain lookup stays a picture of the layout. This file does not invent a sign-up URL.
+// A price table and a comparison table are not that picture: each one needs an id and renders that id.
 // A normal search field and a normal link button are unchanged.
 import { textsOf, visibleKids } from './shape.mjs';
 
@@ -29,6 +29,10 @@ function blob(n) {
 
 export function isDomainLookup(n) {
   return DOMAIN.test(blob(n));
+}
+
+export function showsPrice(node) {
+  return PRICE.test(blob(node));
 }
 
 export function layoutOnlyReason(node, root) {

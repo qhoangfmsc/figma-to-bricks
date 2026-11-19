@@ -68,7 +68,7 @@ The file, in this order:
 
 A new `read` keeps typed values and resets `Xác nhận` to `không`.
 
-Blank stays the safe default. Never invent content. The owner writes any words. Before build, read `plan.md` and write `choices.json`. Map each sentence to one enum in `process/modules/missing-content/choices.mjs` by what it means. `part` and `guess` are keep or drop: "xóa", "bỏ", "đừng dựng" are drop. A blank line is the default, not a sentence. Do not add those words to the code. A sentence you cannot map is a question in the same turn. Do not edit `process/` because the words differ. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run. A miss during the run goes to `history/notes/gaps.md`.
+Blank stays the safe default. Never invent content. The owner writes any words. Before build, read `plan.md` and write `choices.json`. Map each sentence to one enum in `process/modules/missing-content/choices.mjs` by what it means. `part` and `guess` are keep or drop: "xóa", "bỏ", "đừng dựng" are drop. A blank line is the default, not a sentence. A blank price id or compare id is not that default: ask for the id and do not build. The drawn words are not the table. Do not add those words to the code. A sentence you cannot map is a question in the same turn. Do not edit `process/` because the words differ. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run. A miss during the run goes to `history/notes/gaps.md`.
 
 ## 3. Build
 

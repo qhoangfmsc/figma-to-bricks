@@ -12,6 +12,7 @@ import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
+import { missingBoundTables } from '../write-bricks/components/price-table.mjs';
 import { carryCompareTables } from '../write-bricks/components/compare-data.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
 import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
@@ -40,6 +41,10 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   requireSignOff(ws, 'build'); // the owner must have reviewed detections.md first
   const tree = ws.readJson('tree.json');
   const detections = ws.readJson('detections.json', null);
+  const unbound = missingBoundTables(tree, detections);
+  if (unbound.length) {
+    throw new Error(unbound.map((gap) => `${gap.kind} "${gap.name}" [${gap.node}] cần id. Bảng này chỉ render dynamic data của id đó.`).join('\n'));
+  }
   bundleOpenPanes(tree, detections);
   const overrides = ws.readJson('overrides.json', { nodes: {} });
   const flats = ws.readJson('assets/manifest.json', {}).flats ?? {};
@@ -74,6 +79,10 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       const carried = (detections?.components ?? []).some((item) => item.component === 'compare-table' && item.params?.table)
         ? carryCompareTables(detections, priced, pairs, vtree.id)
         : priced;
+      const variantGaps = missingBoundTables(vtree, carried);
+      if (variantGaps.length) {
+        throw new Error(variantGaps.map((gap) => `${v.key} ${gap.kind} "${gap.name}" [${gap.node}] cần cùng id. Bảng này chỉ render dynamic data của id đó.`).join('\n'));
+      }
       bundleOpenPanes(vtree, carried);
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {

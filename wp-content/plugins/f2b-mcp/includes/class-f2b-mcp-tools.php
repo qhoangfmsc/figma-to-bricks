@@ -198,7 +198,7 @@ class F2B_MCP_Tools {
 					'properties' => array(
 						'id' => array(
 							'type'        => 'string',
-							'description' => 'Comparison table id, for example bang-so-sanh-maxspeed.',
+							'description' => 'Comparison table id, for example test-section.',
 						),
 					),
 					'required'   => array( 'id' ),
