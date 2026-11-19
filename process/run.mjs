@@ -33,9 +33,9 @@ const from = flag('from');
 const run = only ? [only] : STEPS.slice(from ? STEPS.indexOf(from) : 0);
 if (run.some((s) => !STEPS.includes(s))) throw new Error(`steps: ${STEPS.join(', ')}`);
 
-const ws = resolveWorkspace(target);
+let ws = resolveWorkspace(target);
 const impl = {
-  fetch: () => fetchStep(target, { fixture }),
+  fetch: async () => { ws = await fetchStep(target, { fixture }); },
   tree: () => treeStep(ws.dir),
   detect: () => detectStep(ws.dir),
   export: async () => { await exportStep(ws.dir); for (const v of ws.readJson('responsive.json', { variants: [] }).variants) { console.log(`  [${v.key}]`); await exportStep(join(dirname(ws.dir), v.workspace)); } },

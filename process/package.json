@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "run": "node run.mjs",
-    "test": "node --test test/pipeline.test.mjs test/template-frames.test.mjs test/release-feedback.test.mjs test/staging-css.test.mjs"
+    "test": "node --test test/pipeline.test.mjs test/template-frames.test.mjs test/release-feedback.test.mjs test/staging-css.test.mjs test/workspace-name.test.mjs"
   },
   "dependencies": {
     "playwright": "^1.65.0",

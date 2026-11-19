@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lookReport, normalizeAi, signalRows } from '../modules/single-template/look.mjs';
+import { lookKinds, lookReport, normalizeAi, signalRows } from '../modules/single-template/look.mjs';
 import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { COMPONENTS } from '../modules/write-bricks/components/index.mjs';
 
 const tab = {
   node: '1:1', component: 'tab-switch', status: 'approved', evidence: '5 tabs',
@@ -104,4 +105,46 @@ test('a detected child stays a doubt until the picture and the structure both na
 
 test('an unknown kind is refused', () => {
   assert.throws(() => normalizeAi([{ node: '1', kind: 'widget', see: 'một khối lạ' }]), /không có trong danh sách/);
+});
+
+test('a row of package cards the picture names stays a price table', () => {
+  const signals = signalRows([
+    { node: 'deck', component: 'price-table', status: 'approved', evidence: 'one row of package cards', cite: [{ node: 'deck', field: 'name' }] },
+  ]);
+  const ai = normalizeAi([
+    { node: 'deck', kind: 'price-table', see: 'một hàng thẻ Pier và Berth, mỗi thẻ có giá và nút Order' },
+  ]);
+  const report = lookReport({ shot: 'look.png', signals, ai });
+  assert.equal(report.rows[0].verdict, 'agree');
+  assert.equal(report.rows[0].weight.total, 100);
+  const md = renderTemplatePlan({
+    title: 'T', name: 'S', width: 100,
+    parts: [{ kind: 'price-table', name: 'Deck', node: 'deck', fields: [] }],
+    look: report,
+  });
+  assert.match(md, /Kết luận: dựng price-table/);
+  assert.doesNotMatch(md, /part:deck`: drop/);
+});
+
+test('aligned package cells the picture names stay a comparison table', () => {
+  const signals = signalRows([
+    { node: 'grid', component: 'compare-table', status: 'approved', evidence: 'package row and aligned cells', cite: [{ node: 'grid', field: 'name' }] },
+  ]);
+  const ai = normalizeAi([
+    { node: 'grid', kind: 'compare-table', see: 'hàng tên cột Lane và Quay, các ô thẳng hàng và nút Buy' },
+  ]);
+  const report = lookReport({ shot: 'look.png', signals, ai });
+  assert.equal(report.rows[0].verdict, 'agree');
+  assert.equal(report.ready, true);
+});
+
+test('every built component is a kind the picture may name', () => {
+  const kinds = lookKinds();
+  for (const id of Object.keys(COMPONENTS)) {
+    assert.equal(kinds.has(id), true, id);
+    normalizeAi([{ node: 'n', kind: id, see: 'nhóm này hiện trên ảnh' }]);
+  }
+  for (const id of ['tooltip', 'dropdown', 'select', 'tabs', 'tab-switch']) {
+    assert.equal(kinds.has(id), true, id);
+  }
 });

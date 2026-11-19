@@ -92,7 +92,7 @@ The URL must contain `node-id`: in Figma, right click the frame → *Copy link t
 
 ## Workspace
 
-Scratch for a run is `history/runs/<fileKey>/<node-id>/` inside this repo. `history/runs/` and `history/notes/` are gitignored. `modules/maintenance/clean-work.mjs <fileKey> --apply` deletes one file. A miss during a run is appended to `history/notes/gaps.md`. The run does not edit `process/` or the theme. Rules, `policy.json`, tests and docs stay in the repo. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`) are regenerated from the Figma link by `auto.mjs`.
+Scratch for a run is `history/runs/<fileKey>/{timestamp}-{frame name}/` inside this repo. The same frame keeps that folder. `history/runs/` and `history/notes/` are gitignored. `modules/maintenance/clean-work.mjs <fileKey> --apply` deletes one file. A miss during a run is appended to `history/notes/gaps.md`. The run does not edit `process/` or the theme. Rules, `policy.json`, tests and docs stay in the repo. Per-section files (`overrides.json`, `detections.json`, `baseline.json`, `scorecard.md`) are regenerated from the Figma link by `auto.mjs`.
 
 `<temp>/figma-to-bricks/<fileKey>/<node-id>/` holds everything for one section:
 

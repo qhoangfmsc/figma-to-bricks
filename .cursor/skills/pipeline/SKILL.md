@@ -67,7 +67,7 @@ A tab row is one-label triggers of the same structure. Height does not decide, a
 
 ## Look
 
-A plan conclusion needs the section picture and the reading of that picture. That reading decides the kind: AI is 70. A code detection is a hint. The same kind adds 30. A different kind does not decide. A code-only group stays a hint and is not built. An AI-only group is built at 70. Do not measure pixels off the picture. Do not point the owner at the plan before `node process/template.mjs look` writes that reading.
+A plan conclusion needs the section picture and the reading of that picture. That reading decides the kind: AI is 70. A code detection is a hint. The same kind adds 30. A different kind does not decide. A code-only group stays a hint and is not built. An AI-only group is built at 70. The picture may name any id in the component registry. `price-table` and `compare-table` are look kinds even though they are not rows of `SIGNAL_RULES`. `tooltip`, `dropdown`, `select`, and `tabs` are already rows there. Do not measure pixels off the picture. Do not point the owner at the plan before `node process/template.mjs look` writes that reading.
 
 ## Popup
 

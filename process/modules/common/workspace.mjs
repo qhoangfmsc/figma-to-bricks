@@ -1,8 +1,9 @@
 // Scratch for one Figma node lives in history/runs inside this repo (gitignored).
-// A run creates history/runs/<fileKey>/<nodeId>/. maintenance/clean-work.mjs removes one file.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+// A run creates history/runs/<fileKey>/{timestamp}-{frame name}/. maintenance/clean-work.mjs removes one file.
+// The same frame keeps that folder. The node id is not the folder name.
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { parseFigmaUrl } from '../read-figma/url.mjs';
 
 const REPO = fileURLToPath(new URL('../../../', import.meta.url));
@@ -15,12 +16,44 @@ export function workRoot() {
 
 const WORK = workRoot();
 
-export function resolveWorkspace(arg) {
+export const legacyRunDir = (nodeId) => String(nodeId).replace(':', '-');
+
+// "{timestamp}-{name}". The name keeps its spaces and hyphens. A slash would become another folder.
+export function runDirName(name, now = Date.now()) {
+  const clean = String(name ?? '').replace(/[\\/\0]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean || !Number.isFinite(now)) return '';
+  return `${now}-${clean}`;
+}
+
+function metaNodeId(dir) {
+  const file = join(dir, 'meta.json');
+  if (!existsSync(file)) return '';
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')).nodeId ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function findRunDir(root, fileKey, nodeId) {
+  const parent = join(root, fileKey);
+  if (!existsSync(parent)) return '';
+  const legacy = legacyRunDir(nodeId);
+  const hits = readdirSync(parent)
+    .map((entry) => join(parent, entry))
+    .filter((dir) => {
+      try { return statSync(dir).isDirectory(); } catch { return false; }
+    })
+    .filter((dir) => metaNodeId(dir) === nodeId || basename(dir) === legacy);
+  return hits.find((dir) => basename(dir) !== legacy) ?? hits[0] ?? '';
+}
+
+export function resolveWorkspace(arg, root = WORK) {
   if (!arg) throw new Error('Pass a Figma URL or a workspace directory');
   let dir, ref = null;
   if (/^https?:\/\//.test(arg)) {
     ref = parseFigmaUrl(arg);
-    dir = join(WORK, ref.fileKey, ref.nodeId.replace(':', '-'));
+    dir = findRunDir(root, ref.fileKey, ref.nodeId) || join(root, ref.fileKey, legacyRunDir(ref.nodeId));
   } else {
     dir = resolve(arg);
     if (!existsSync(dir)) throw new Error(`Workspace not found: ${dir}`);
@@ -41,6 +74,18 @@ export function resolveWorkspace(arg) {
     writeJson: (name, data) => writeFileSync(file(name), JSON.stringify(data, null, 2) + '\n'),
     writeText: (name, text) => writeFileSync(file(name), text),
   };
+}
+
+// The first fetch names the folder. A later fetch of the same frame keeps it.
+export function nameWorkspace(ws, name, now = Date.now()) {
+  const legacy = ws.ref?.nodeId ? legacyRunDir(ws.ref.nodeId) : '';
+  const folder = runDirName(name, now);
+  if (!legacy || !folder || basename(ws.dir) !== legacy) return ws;
+  let dest = join(dirname(ws.dir), folder);
+  let stamp = now;
+  while (existsSync(dest)) dest = join(dirname(ws.dir), runDirName(name, stamp += 1));
+  renameSync(ws.dir, dest);
+  return resolveWorkspace(dest);
 }
 
 export const safeId = (id) => id.replace(/[^A-Za-z0-9_-]/g, '_');

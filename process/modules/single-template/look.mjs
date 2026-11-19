@@ -3,11 +3,14 @@
 import { writeFileSync } from 'node:fs';
 import { download, getRenders } from '../read-figma/api.mjs';
 import { SIGNAL_RULES, childKindIds, isSignal } from '../recognize-parts/kinds.mjs';
+import { COMPONENTS } from '../write-bricks/components/index.mjs';
 
 export const LOOK_FILE = 'look.json';
 export const PLAN_MODEL = 'plan-model.json';
 
-export const lookKinds = () => new Set([...Object.keys(SIGNAL_RULES), ...childKindIds(), 'pagination', 'block']);
+// A kind the picture may name is a component the registry builds, a part of that component, or a plain block.
+// price-table and compare-table are registry components. They are not rows of SIGNAL_RULES.
+export const lookKinds = () => new Set([...Object.keys(SIGNAL_RULES), ...Object.keys(COMPONENTS), ...childKindIds(), 'pagination', 'block']);
 
 export const AI_WEIGHT = 70;
 export const CODE_WEIGHT = 30;

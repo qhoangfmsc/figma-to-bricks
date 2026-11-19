@@ -42,7 +42,7 @@ A link changed after this read makes the plan stale. Read again. Do not build on
 
 `read` writes `look.png` (Figma's render of the section), `look.json` (the signals), and a `plan.md` that says it is not ready. Do not point the owner at that file yet. Do not build in the same turn.
 
-Read `look.png`. For every signal in `look.json`, write one line `{ "node", "kind", "see" }`. `kind` is what the picture shows (`PART_RULES`, or `block`). `see` is one sentence. A group the picture shows that no signal claimed is a line with that `kind` and the node you can point at, or no node. Do not measure pixels. Do not copy the signal's kind unless the picture shows that kind.
+Read `look.png`. For every signal in `look.json`, write one line `{ "node", "kind", "see" }`. `kind` is what the picture shows: a component id the registry builds (`price-table`, `compare-table`, `tabs`, `tooltip`, `dropdown`, `select`, and the rest of that registry), a part of that component, or `block`. `see` is one sentence. A group the picture shows that no signal claimed is a line with that `kind` and the node you can point at, or no node. Do not measure pixels. Do not copy the signal's kind unless the picture shows that kind.
 
 Write that list to `look-ai.json` in the desktop workspace, then:
 

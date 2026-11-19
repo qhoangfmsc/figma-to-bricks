@@ -11,7 +11,7 @@
 //   assets/manifest.json      sha256 / size / natural dimensions of each asset
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
-import { resolveWorkspace, safeId } from '../common/workspace.mjs';
+import { nameWorkspace, resolveWorkspace, safeId } from '../common/workspace.mjs';
 import { download, getImageFills, getNode, getRenders } from '../read-figma/api.mjs';
 import { collectImageRefs, collectSvgRoots } from '../read-figma/nodes.mjs';
 import { imageInfo, sha256 } from '../common/image-info.mjs';
@@ -72,6 +72,10 @@ export async function fetchStep(urlOrDir, { fixture } = {}) {
     manifest.svgs[basename(f, '.svg')] = { file: `svg/${f}`, bytes: buf.length, sha256: sha256(buf), ...(head && { width: Number(head[1]), height: Number(head[2]) }) };
   }
   ws.writeJson('assets/manifest.json', manifest);
+  if (ws.ref) {
+    const raw = ws.readJson('raw.json');
+    ws = nameWorkspace(ws, raw.nodes?.[ws.ref.nodeId]?.document?.name);
+  }
 
   console.log(`  raw.json + ${Object.keys(manifest.images).length} images + ${Object.keys(manifest.svgs).length} svg -> ${ws.dir}`);
   return ws;
