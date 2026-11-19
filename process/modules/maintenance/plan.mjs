@@ -5,14 +5,14 @@
 //   node process/modules/maintenance/plan.mjs "<figma url>" confirm                validates every value and sets the line `Xác nhận: có` (the owner can also edit that line by hand)
 // <figma url> is the same link that was given to auto.mjs. A plan marked `Xác nhận: có` is applied. A missing mark does not stop the upload to WP_URL.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { resolveWorkspace } from '../common/workspace.mjs';
+import { fileShelf } from '../common/workspace.mjs';
 import { parseFigmaUrl } from '../read-figma/url.mjs';
 import { planPaths, parsePlan, filled, confirmPlan, loadConfirmed, validateAnswers } from '../missing-content/index.mjs';
 
 const [url, cmd, ...rest] = process.argv.slice(2);
 if (!url || !/^https?:\/\//.test(url)) { console.error('usage: plan.mjs "<figma url>" status | set <key> "<value>" | confirm'); process.exit(1); }
 const nodeKey = parseFigmaUrl(url).nodeId.replace(':', '-');
-const dir = resolveWorkspace(url).dir.replace(/[^/]+$/, ''); // <temp>/figma-to-bricks/<fileKey>/
+const dir = fileShelf(parseFigmaUrl(url).fileKey);
 const { md } = planPaths(dir, nodeKey);
 
 function status() {

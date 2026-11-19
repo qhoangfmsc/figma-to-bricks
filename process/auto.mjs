@@ -8,7 +8,7 @@
 import { runLines } from './modules/common/spawn-lines.mjs';
 import { Progress, screenOf } from './modules/common/progress.mjs';
 import { dirname, join } from 'node:path';
-import { resolveWorkspace } from './modules/common/workspace.mjs';
+import { fileShelf, resolveWorkspace } from './modules/common/workspace.mjs';
 import { fetchStep } from './modules/build-steps/01-fetch.mjs';
 import { treeStep } from './modules/build-steps/02-tree.mjs';
 import { detectStep } from './modules/build-steps/03-detect.mjs';
@@ -191,7 +191,7 @@ const planned = wholePage ? writePlan(ref.fileKey, ref.nodeId, designName, plan.
   : existsSync(plansFile(ref.fileKey, ref.nodeId)) ? JSON.parse(readFileSync(plansFile(ref.fileKey, ref.nodeId), 'utf8')) : null;
 const titleOf = (s) => planned?.sections.find((x) => x.id === s.id)?.title ?? sectionTitles(designName, [s])[0];
 const done = [];
-const progress = new Progress({ dir: resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, ''), node: ref.nodeId.replace(':', '-'), title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, sections, screens: plan.screens });
+const progress = new Progress({ dir: fileShelf(ref.fileKey), node: ref.nodeId.replace(':', '-'), title: `${plan.base.name} (${ref.fileKey} ${ref.nodeId})`, sections, screens: plan.screens });
 // section k+1 is prepared (Figma, network) while section k is finished on WP_URL; a failure of either stops only that section
 const sectionState = (s) => { const f = join(resolveWorkspace(urlOf(s.id)).dir, 'nodes.state.json'); if (!existsSync(f)) return null; const fr = Object.values(JSON.parse(readFileSync(f, 'utf8')).frames); return { frames: fr.length, done: fr.length > 0 && fr.every((x) => x.done), failing: fr.reduce((a, x) => a + (x.summary?.fail ?? 0), 0) }; };
 // a section that is DONE already still belongs in the page report: its frames, template and designer list come from the files of the earlier run
@@ -209,7 +209,7 @@ const prepared = [];
 
 // A filled plan is applied. A missing confirmation does not stop the upload: the template is created on WP_URL.
 const nodeKey = ref.nodeId.replace(':', '-');
-const planDir = resolveWorkspace(urlOf(plan.base.id)).dir.replace(/[^/]+$/, '');
+const planDir = fileShelf(ref.fileKey);
 if (askOwner) {
   const bad = planProblems(planDir, nodeKey);
   if (bad.length) { console.log(`\n== PLAN marked "Xác nhận: có" but a value is wrong, nothing was built:\n${bad.map((p) => `   - ${p}`).join('\n')}\n   Fix it in plan-${nodeKey}.md and run again.`); process.exit(3); }

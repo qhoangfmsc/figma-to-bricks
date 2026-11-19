@@ -35,7 +35,7 @@ Dán link Desktop, link phải có `node-id`. Có Widescreen, Tablet, Mobile th�
 
 Chat ghi `plan.md` rồi tạo template trên `WP_URL`. Không hỏi xác nhận upload. Bước so với Figma mở nút View on frontend của template đó (`?bricks_preview=`), không mở canvas `?bricks=run`. Bạn tự gắn template vào trang.
 
-Plan, ảnh so và báo cáo nằm trong `history/runs/<fileKey>/` (không vào git).
+Plan, ảnh so và báo cáo nằm trong `history/runs/{timestamp}-{tên-frame}/` (không vào git). Khoảng trắng trong tên frame thành dấu `-`.
 
 ## MCP
 Cursor chạy `node mcp/f2b-mcp.mjs`. File này đọc `WP_URL` và `MCP_TOKEN` trong `.env`, gọi `WP_URL/wp-json/f2b-mcp/v1/mcp`. Đổi site thì sửa `.env` rồi reload MCP.

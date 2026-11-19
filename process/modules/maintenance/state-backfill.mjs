@@ -4,16 +4,16 @@
 // Fingerprints stay empty until the next real verify fills them. Rows that are not about a node (look regions, page checks) keep no id.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { workRoot } from '../common/workspace.mjs';
+import { runsOfFile } from '../common/workspace.mjs';
 import { computeStates, frameDone, summarize } from '../common/node-state.mjs';
 
 const fileKey = process.argv[2];
 if (!fileKey) { console.error('usage: node process/modules/maintenance/state-backfill.mjs <fileKey>'); process.exit(1); }
-const root = join(workRoot(), fileKey);
+const dirs = runsOfFile(fileKey);
+if (!dirs.length) { console.error(`no workspace folder for ${fileKey}`); process.exit(1); }
 const j = (f) => JSON.parse(readFileSync(f, 'utf8'));
 let n = 0;
-for (const d of readdirSync(root)) {
-  const dir = join(root, d);
+for (const dir of dirs) {
   if (!existsSync(join(dir, 'scorecard.md')) || !existsSync(join(dir, 'verify.json'))) continue;
   const limits = existsSync(join(dir, 'limits.json')) ? j(join(dir, 'limits.json')).accepted ?? [] : [];
   const out = { frames: {} };

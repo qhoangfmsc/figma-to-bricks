@@ -17,7 +17,7 @@ import { collectImageRefs, collectSvgRoots } from '../read-figma/nodes.mjs';
 import { imageInfo, sha256 } from '../common/image-info.mjs';
 
 export async function fetchStep(urlOrDir, { fixture } = {}) {
-  const ws = resolveWorkspace(urlOrDir);
+  let ws = resolveWorkspace(urlOrDir);
   const images = join(ws.dir, 'assets/images');
   const svgs = join(ws.dir, 'assets/svg');
   const svgFailed = []; // svg roots Figma could not render

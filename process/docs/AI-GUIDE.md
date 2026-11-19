@@ -25,7 +25,7 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `auto.mjs`, `figma/discover.mjs` | one link -> Bricks (see README "Autopilot"); discover finds the other breakpoint frames of a section | |
 | `modules/common/` | `env.mjs` (`.env` is the one site), `workspace.mjs` (work paths), `image-info.mjs`, `qa.mjs` (headless Playwright and webp) | small cross-cutting helpers |
 | `test/`, `fixtures/` | offline tests (`npm test --prefix process`) | every rule change gets a test |
-| `history/runs/<fileKey>/{timestamp}-{frame name}/` | generated data per section; the same frame keeps that folder. Deleted by `maintenance/clean-work.mjs`. A miss during a run is `history/notes/gaps.md` | per task |
+| `history/runs/{timestamp}-{frame-name}/` | generated data per section; spaces in the frame name are hyphens. The same frame keeps that folder. `meta.json` holds the file key. File-level files live in `history/runs/.files/<fileKey>/`. Deleted by `maintenance/clean-work.mjs`. A miss during a run is `history/notes/gaps.md` | per task |
 
 ### Text widths and line breaks: the font build comes first
 

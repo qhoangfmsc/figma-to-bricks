@@ -10,11 +10,11 @@
 // The diff is against bricks.pushed.json, the template as it was last sent to WordPress (written by --apply; the first run of a workspace takes the
 // bricks.json on disk), so running the script twice never hides a change that was not pushed yet.
 // A change of decide/ or policy.json decides differently and still needs auto.mjs.
-import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { resolveWorkspace, workRoot } from '../common/workspace.mjs';
+import { fileShelf, resolveWorkspace, runsOfFile } from '../common/workspace.mjs';
 import { treeStep } from '../build-steps/02-tree.mjs';
 import { buildStep } from '../build-steps/05-build.mjs';
 import { gate, signOff } from '../sign-off/index.mjs';
@@ -25,9 +25,9 @@ const apply = args.includes('--apply');
 const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerCase();
 if (!fileKey) { console.error('usage: node process/modules/maintenance/rebuild-diff.mjs <fileKey> [--apply] [--only=Name]'); process.exit(1); }
 
-const root = join(workRoot(), fileKey);
+const shelf = fileShelf(fileKey);
 const j = (f) => JSON.parse(readFileSync(f, 'utf8'));
-const dirs = readdirSync(root).map((d) => join(root, d)).filter((d) => existsSync(join(d, 'raw.json')));
+const dirs = runsOfFile(fileKey).filter((d) => existsSync(join(d, 'raw.json')));
 const sections = dirs.filter((d) => existsSync(join(d, 'scorecard.md')) && existsSync(join(d, 'meta.json')) && existsSync(join(d, 'bricks.json')))
   .filter((d) => !only || j(join(d, 'tree.json')).name.toLowerCase().includes(only));
 if (!sections.length) { console.error('no section with a scorecard and a bricks.json: run auto.mjs first'); process.exit(1); }
@@ -47,7 +47,7 @@ const frames = new Set();
 for (const d of sections) {
   frames.add(d);
   const r = existsSync(join(d, 'responsive.json')) ? j(join(d, 'responsive.json')) : { variants: [] };
-  for (const v of r.variants) frames.add(join(root, v.workspace));
+  for (const v of r.variants) frames.add(join(dirname(d), v.workspace));
 }
 for (const d of frames) {
   if (!existsSync(join(d, 'raw.json'))) { console.error(`! ${d}: raw.json missing, this frame keeps its old tree`); continue; }
@@ -85,8 +85,8 @@ for (const d of sections) {
   console.log(`${rows.length ? '~' : '='} ${name.padEnd(20)} ${rows.length ? `${rows.length} change(s)${expectRows.length ? ` (${expectRows.length} expected boxes)` : ''}` : 'unchanged'}`);
   if (rows.length) changed.push(d);
 }
-writeFileSync(join(root, 'rebuild-diff.md'), out.join('\n'));
-console.log(`\n${changed.length}/${sections.length} section(s) changed -> ${join(root, 'rebuild-diff.md')}`);
+writeFileSync(join(shelf, 'rebuild-diff.md'), out.join('\n'));
+console.log(`\n${changed.length}/${sections.length} section(s) changed -> ${join(shelf, 'rebuild-diff.md')}`);
 
 if (apply) {
   for (const d of changed) {

@@ -4,18 +4,19 @@
 //   node process/modules/maintenance/prune-limits.mjs <fileKey> --apply
 // An entry is USED when a node of its frame is `limit` with its reason (a cascade: with "follows from <root>"), a `look` entry when the frame still has look rows
 // that fail. Run it after a verify; an entry that is dropped by mistake comes back as a failing node, never as a silent pass.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { workRoot } from '../common/workspace.mjs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { runsOfFile } from '../common/workspace.mjs';
 
 const fileKey = process.argv[2];
 const apply = process.argv.includes('--apply');
 if (!fileKey) { console.error('usage: node process/modules/maintenance/prune-limits.mjs <fileKey> [--apply]'); process.exit(1); }
-const root = join(workRoot(), fileKey);
+const dirs = runsOfFile(fileKey);
+if (!dirs.length) { console.error(`no workspace folder for ${fileKey}`); process.exit(1); }
 const j = (f) => JSON.parse(readFileSync(f, 'utf8'));
 let kept = 0, dropped = 0;
-for (const d of readdirSync(root)) {
-  const dir = join(root, d);
+for (const dir of dirs) {
+  const d = basename(dir);
   if (!existsSync(join(dir, 'limits.json')) || !existsSync(join(dir, 'nodes.state.json'))) continue;
   const st = j(join(dir, 'nodes.state.json')).frames;
   const lim = j(join(dir, 'limits.json'));

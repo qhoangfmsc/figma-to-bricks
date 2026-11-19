@@ -4,7 +4,7 @@ Workflow đang chạy không sửa `process/` hay theme. Lệch thì ghi `histor
 
 ## Phase 1 — Khóa cách làm (2026-11-09)
 
-- Chỗ làm việc chuyển từ thư mục tạm của máy sang `history/runs/<fileKey>/`. `history/runs/` và `history/notes/` không vào git.
+- Chỗ làm việc chuyển từ thư mục tạm của máy sang `history/runs/`. `history/runs/` và `history/notes/` không vào git. Một run là `history/runs/{timestamp}-{tên-frame}/`. Khoảng trắng trong tên frame thành dấu `-`. File key nằm trong `meta.json`.
 - Danh sách trang nằm ở `history/urls.md`.
 - Plan nhận câu tự do. Câu không hiểu thì hỏi, không bắt đúng một chữ, không sửa code vì một câu chữ khác.
 - Chỉ dựng bằng `/generate-template-from-figma`. Một trang được tách section trong chat theo cây Figma.

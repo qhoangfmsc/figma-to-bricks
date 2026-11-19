@@ -3,20 +3,21 @@
 //   node process/modules/maintenance/todo.mjs <fileKey>              every section: DONE, or the failing nodes with the check, what Figma has and what the page has
 //   node process/modules/maintenance/todo.mjs <fileKey> --only=Name  one section
 // A node that is `ok`, `minor` or an accepted `limit` is never printed: nobody has to look at it again until its input (fingerprint) changes.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { workRoot } from '../common/workspace.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { runsOfFile } from '../common/workspace.mjs';
 
 const args = process.argv.slice(2);
 const fileKey = args.find((a) => !a.startsWith('--'));
 const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerCase();
 if (!fileKey) { console.error('usage: node process/modules/maintenance/todo.mjs <fileKey> [--only=Name]'); process.exit(1); }
-const root = join(workRoot(), fileKey);
+const dirs = runsOfFile(fileKey);
+if (!dirs.length) { console.error(`no workspace folder for ${fileKey}`); process.exit(1); }
 const j = (f) => JSON.parse(readFileSync(f, 'utf8'));
 
 let open = 0, sections = 0, done = 0;
-for (const d of readdirSync(root).sort()) {
-  const dir = join(root, d);
+for (const dir of dirs.sort()) {
+  const d = basename(dir);
   if (!existsSync(join(dir, 'nodes.state.json')) || !existsSync(join(dir, 'scorecard.md'))) continue;
   const name = j(join(dir, 'tree.json')).name;
   if (only && !name.toLowerCase().includes(only)) continue;

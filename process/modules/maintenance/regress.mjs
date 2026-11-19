@@ -7,10 +7,10 @@
 // A section is WORSE when a frame's look score grows by more than 1.0 (/255) or its real mismatches grow by more than 3. Exit code 1 when any is worse.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileShelf, runsOfFile } from '../common/workspace.mjs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Progress } from '../common/progress.mjs';
-import { workRoot } from '../common/workspace.mjs';
 import { bridge } from '../write-bricks/bridge.mjs';
 
 const args = process.argv.slice(2);
@@ -19,11 +19,11 @@ const save = args.includes('--save');
 const noRebuild = args.includes('--no-rebuild'); // compare the numbers on disk with the baseline (after auto.mjs re-decided and rebuilt the sections)
 const only = (args.find((a) => a.startsWith('--only=')) ?? '').slice(7).toLowerCase();
 if (!fileKey) { console.error('usage: node process/modules/maintenance/regress.mjs <fileKey> [--save] [--only=Name]'); process.exit(1); }
-const root = join(workRoot(), fileKey);
+const root = fileShelf(fileKey);
 const baselineFile = join(root, 'baseline.json');
 const j = (f) => JSON.parse(readFileSync(f, 'utf8'));
 
-const sections = readdirSync(root).map((d) => join(root, d)).filter((d) => existsSync(join(d, 'scorecard.md')) && existsSync(join(d, 'verify.json')) && existsSync(join(d, 'meta.json')));
+const sections = runsOfFile(fileKey).filter((d) => existsSync(join(d, 'scorecard.md')) && existsSync(join(d, 'verify.json')) && existsSync(join(d, 'meta.json')));
 const numbers = (dir) => {
   const out = {};
   for (const f of readdirSync(dir).filter((n) => /^verify(\..+)?\.json$/.test(n) && !n.endsWith('.figma.json'))) {
