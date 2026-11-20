@@ -1,10 +1,9 @@
 // The usual slider is one row of cards. That row is the slide.
 // Two or more rows of the same card, every row inside the column, are the special case: one page.
 // The next page is the dash count. A row that hangs out of the frame is the next slide, not this page.
+import { shapeRole } from '../node-type.mjs';
+
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
-const treeSig = (n) => `${n.type}[${visibleKids(n).map(treeSig).join(',')}]`;
-const stem = (name) => String(name ?? '').trim().toLowerCase().replace(/[\s._-]*\d+$/, '');
-const GENERIC = /^(text|frame|group|rectangle|instance|container|image|vector|ellipse|line)$/;
 
 function fits(frame, child) {
   if (!frame?.box || !child?.box) return false;
@@ -19,8 +18,6 @@ export function pageCards(frame, slides) {
   const rows = slides.map((row) => visibleKids(row));
   if (rows.some((cards) => cards.length < 2)) return null;
   const cards = rows.flat();
-  if (new Set(cards.map(treeSig)).size === 1) return cards;
-  const stems = cards.map((card) => stem(card.name)).filter(Boolean);
-  if (stems.length === cards.length && new Set(stems).size === 1 && !GENERIC.test(stems[0])) return cards;
+  if (new Set(cards.map((card) => shapeRole(card, visibleKids))).size === 1) return cards;
   return null;
 }

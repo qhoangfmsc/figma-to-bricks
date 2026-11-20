@@ -1,10 +1,11 @@
+import { FillType, isType, isText, shapeRole } from '../node-type.mjs';
+import { PartKind, isKind, childId } from '../kinds.mjs';
 // Candidate carousels: a row of similar cards, plus at least one carousel sign.
 //   - the cards overflow the row (the next slides are cut off)
 //   - the layer is named slider / carousel / swiper
 //   - a pagination (the component, or a thin strip of dashes) sits on it
 //   - prev / next buttons are drawn (Navigation Position=Left/Right, or an angle-left / angle-right glyph)
-// Cards count as similar when their trees match, or when their names match once a trailing number is removed
-// ("_award-card 1" and "_award-card"): the picture inside is sometimes a frame and sometimes a rectangle.
+// Cards count as similar when each one has the same slots. A picture slot stays one slot when Figma types it as a frame on one card and a rectangle on the next.
 // A navigation row and the pagination are controls, not slides. A plain row of cards that all fit, with none of the signs, is a grid.
 // A row of short links that rules/menu.mjs claims is a menu stays a menu, even when the frame cuts it off.
 // One drawn slide plus arrow buttons (a benchmark image) is a slider too: the other slides are not in the frame.
@@ -14,12 +15,11 @@
 // A Figma component named Pagination counts the same, Dash or Dot. The switches that are on are the slide count.
 // Three marks of one size are not that row. A short frame whose name merely contains "dash" is not evidence.
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
-const sig = (n) => `${n.type}[${visibleKids(n).map(sig).join(',')}]`;
 const NAME = /slider|carousel|swiper|slides?\b/i;
 const PAGINATION = /^(pagination|dots|pager)$/i;
 const NAV_FRAME = /^(navigation|arrows?|controls)$/i;
 const stem = (name) => String(name ?? '').trim().toLowerCase().replace(/[\s._-]*\d+$/, '');
-const GENERIC = /^(text|frame|group|rectangle|instance|container|image|vector|ellipse|line)$/;
+import { textsOf } from './shape.mjs';
 import { detectMenus } from '../../recognize-parts/rules/menu.mjs';
 import { pageCards } from '../../recognize-parts/rules/carousel-page.mjs';
 import { paginationMarks } from '../../write-bricks/components/carousel.mjs';
@@ -35,7 +35,7 @@ function paginationCite(n) {
 }
 
 function solidPaint(n) {
-  const f = (n.fills ?? []).find((x) => x.visible !== false && x.type === 'SOLID');
+  const f = (n.fills ?? []).find((x) => x.visible !== false && isType(x, FillType.SOLID));
   return { hex: String(f?.hex ?? '').toLowerCase(), alpha: f?.opacity ?? f?.alpha ?? 1 };
 }
 
@@ -49,14 +49,17 @@ function darkness(hex) {
 // One active mark (longer or darker) and any number of idle marks of one size. The total is the slide count.
 // Three marks of one size are not this row. The layer name is not the evidence.
 function markRow(n) {
-  if (!n) return null;
-  const marks = visibleKids(n).filter((c) => c.box && c.type !== 'TEXT' && !visibleKids(c).some((k) => k.type === 'TEXT'));
+  if (!n || !isStrip(n)) return null;
+  const marks = visibleKids(n).filter((c) => c.box && !isText(c) && textsOf(c).length === 0);
   if (marks.length < 2) return null;
   if (!marks.every((c) => {
     const short = Math.min(c.box.w, c.box.h);
     const long = Math.max(c.box.w, c.box.h);
-    const dash = short <= 8 && long <= 40;
-    const dot = long <= 16 && short >= 4 && (long - short) / long <= 0.25;
+    if (short <= 0 || long <= 0) return false;
+    const rowLong = Math.max(n.box?.w ?? 0, n.box?.h ?? 0);
+    if (rowLong > 0 && long > rowLong * 0.75) return false;
+    const dash = long >= short * 2.5;
+    const dot = (long - short) / long <= 0.25;
     return dash || dot;
   })) return null;
   const described = marks.map((c) => ({ c, long: Math.max(c.box.w, c.box.h), ...solidPaint(c) }));
@@ -100,7 +103,9 @@ export function dashRowFromSvg(text) {
 
 function isStrip(n) {
   if (!n?.box?.w || !n?.box?.h) return true;
-  return n.box.h <= 24 || n.box.w >= n.box.h * 3 || (n.box.w <= 24 && n.box.h >= n.box.w * 3);
+  const long = Math.max(n.box.w, n.box.h);
+  const short = Math.min(n.box.w, n.box.h);
+  return long >= short * 3;
 }
 
 function storedDashRow(n) {
@@ -153,7 +158,7 @@ function arrowSide(n) {
   const pos = String(n?.props?.Position ?? '');
   if (/^left$/i.test(pos)) return 'prev';
   if (/^right$/i.test(pos)) return 'next';
-  const g = [n, ...(n.children ?? [])].filter((c) => c.type === 'TEXT').map((c) => c.text?.characters ?? '').join(' ').toLowerCase();
+  const g = [n, ...(n.children ?? [])].filter((c) => isText(c)).map((c) => c.text?.characters ?? '').join(' ').toLowerCase();
   if (/angle-left|chevron-left|arrow-left|caret-left/.test(g)) return 'prev';
   if (/angle-right|chevron-right|arrow-right|caret-right/.test(g)) return 'next';
   return null;
@@ -177,10 +182,7 @@ function arrowPair(nodes) {
 
 function similar(slides) {
   if (slides.length < 2) return false;
-  if (new Set(slides.map(sig)).size === 1) return true;
-  const stems = slides.map((s) => stem(s.name)).filter(Boolean);
-  // "Text" / "Frame 12" is not a repeated card. "_award-card 1" and "_award-card" are.
-  return stems.length === slides.length && new Set(stems).size === 1 && !GENERIC.test(stems[0]);
+  return new Set(slides.map((slide) => shapeRole(slide, visibleKids))).size === 1;
 }
 
 // The repeated card is one tree, however many times it is drawn. A fade rectangle has no children, so it is not a card.
@@ -191,7 +193,7 @@ function treeSig(n) {
 function repeatedCards(nodes) {
   const groups = new Map();
   for (const n of nodes) {
-    if (!visibleKids(n).length && n.type !== 'TEXT') continue;
+    if (!visibleKids(n).length && !isText(n)) continue;
     const key = treeSig(n);
     const list = groups.get(key) ?? [];
     list.push(n);
@@ -211,7 +213,7 @@ function crosses(frame, child) {
 function iconButton(n) {
   if (arrowSide(n)) return true;
   if (/icon\s*btn\s*=\s*yes/i.test(`${n.component ?? ''} ${n.componentSet ?? ''}`)) return true;
-  const hasText = [n, ...visibleKids(n)].some((c) => c.type === 'TEXT' && String(c.text?.characters ?? '').trim());
+  const hasText = [n, ...visibleKids(n)].some((c) => isText(c) && String(c.text?.characters ?? '').trim());
   return !!(n.svg || n.svgText) && !hasText;
 }
 
@@ -276,13 +278,13 @@ export function detectCarousels(tree) {
     const pag = paginationNear(n, parent);
     const pagInside = !!(pag && kids.includes(pag));
     const last = slides.at(-1);
-    // A few pixels past the frame is a label sticking out, not the next slide.
-    const overflow = !!(last?.box && n.box && last.box.x + last.box.w > n.box.w + 40);
+    const past = last?.box ? Math.max(last.box.w * 0.2, 0.5) : 0.5;
+    const overflow = !!(last?.box && n.box && last.box.x + last.box.w > n.box.w + past);
     // The row itself may be "Frame 12". The repeated child component "Slider Item …" is the slider.
     const slideNamed = slides.length >= 2 && slides.every((s) => NAME.test(`${s.componentSet ?? ''} ${s.component ?? ''}`));
     const onlyArrows = slides.length > 0 && slides.every((s) => iconButton(s));
     const row = n.layout?.mode === 'HORIZONTAL' && !n.layout.wrap && !onlyArrows && (
-      (slides.length >= 3 && similar(slides) && (overflow || named || pag || arrows || slideNamed))
+      (slides.length >= 3 && similar(slides) && (overflow || pag || arrows || slideNamed))
       || peek
     );
     // Mobile draws one card plus the same arrows. Two cards and arrows is still that slider.
@@ -305,7 +307,7 @@ export function detectCarousels(tree) {
       const shown = peek && !similar(slides) ? cards : slides;
       const navFrames = controls.filter((c) => NAV_FRAME.test(c.name ?? '') && !arrowSide(c)).map((c) => c.id);
       found.push({
-        component: 'carousel', node: n.id, level: named ? 'E1' : 'E2', confidence: onlyPaged || page ? 'medium' : (signs >= 2 ? 'high' : 'medium'),
+        component: PartKind.CAROUSEL, node: n.id, level: named ? 'E1' : 'E2', confidence: onlyPaged || page ? 'medium' : (signs >= 2 ? 'high' : 'medium'),
         cite: [
           { node: n.id, field: 'layout.mode', equals: n.layout.mode },
           ...(peek ? [{ node: (n.clip === true ? n : parent).id, field: 'clip', equals: true }] : []),
@@ -341,7 +343,7 @@ export function detectCarousels(tree) {
     kids.forEach((c) => walk(c, n));
   })(tree, null);
   // One icon pair belongs to the carousel above it, or the one below when that is the only neighbor.
-  const byNode = new Map(found.filter((c) => c.component === 'carousel').map((c) => [c.node, c]));
+  const byNode = new Map(found.filter((c) => isKind(c, PartKind.CAROUSEL)).map((c) => [c.node, c]));
   (function claim(n) {
     if (n?.layout?.mode === 'VERTICAL') {
       const kids = visibleKids(n);
@@ -359,7 +361,7 @@ export function detectCarousels(tree) {
     visibleKids(n).forEach(claim);
   })(tree);
   const used = new Set(found.map((c) => c.params?.pagination).filter(Boolean));
-  const sliders = new Set(found.filter((c) => c.component === 'carousel' && c.confidence !== 'low').map((c) => c.node));
+  const sliders = new Set(found.filter((c) => isKind(c, PartKind.CAROUSEL) && c.confidence !== 'low').map((c) => c.node));
   (function stray(n, inSlider) {
     if (!n || n.visible === false) return;
     const host = inSlider || sliders.has(n.id);
@@ -368,7 +370,7 @@ export function detectCarousels(tree) {
     const marks = drawn || storedDashRow(n);
     if (!host && !used.has(n.id) && (cite || marks)) {
       found.push({
-        component: 'pagination_carousel',
+        component: childId(PartKind.CAROUSEL, 'pagination'),
         node: n.id,
         level: 'E2',
         confidence: 'low',
@@ -378,7 +380,7 @@ export function detectCarousels(tree) {
         evidence: cite
           ? `component "${n.componentSet || n.name}" is the slider dash row, not its own component, so the plan asks`
           : `"${n.name}" has one active mark and ${marks.count - 1} thinner marks (${marks.count} items) and is not on a slider, so the plan asks`,
-        params: { hold: true, of: 'carousel', ...(marks && { itemCount: marks.count }) },
+        params: { hold: true, of: PartKind.CAROUSEL, ...(marks && { itemCount: marks.count }) },
         note: null,
       });
       return;

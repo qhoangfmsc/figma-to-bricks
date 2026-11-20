@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectProduction } from '../modules/recognize-parts/rules/production-widgets.mjs';
@@ -37,7 +38,14 @@ test('a row of equal pictures is a gallery and a clipped overflowing row is not'
     box: box(0, 0, 200, 80),
     children: [picture('a', 0), picture('b', 136), picture('c', 272)],
   });
-  assert.equal(detectProduction(spilling).some((c) => c.component === 'gallery'), false);
+  assert.equal(detectProduction(spilling).some((c) => isKind(c, PartKind.GALLERY)), false);
+  const pair = frame('pair', {
+    box: box(0, 0, 260, 80),
+    layout: { mode: 'HORIZONTAL', gap: 16, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [picture('p', 0), picture('q', 136)],
+  });
+  assert.equal(detectProduction(pair)[0].component, 'gallery');
+  assert.equal(detectProduction(pair)[0].params.columns, 2);
 });
 
 test('a track with a shorter fill is a progress bar at that percent', () => {
@@ -72,7 +80,7 @@ test('a track with a shorter fill is a progress bar at that percent', () => {
       ],
     })],
   });
-  assert.equal(detectProduction(titled).some((c) => c.component === 'progress'), false);
+  assert.equal(detectProduction(titled).some((c) => isKind(c, PartKind.PROGRESS)), false);
 });
 
 test('the same star four times is a rating, three lines are a hamburger, and a side panel is an offcanvas', () => {
@@ -86,6 +94,15 @@ test('the same star four times is a rating, three lines are a hamburger, and a s
   assert.equal(rating.component, 'rating');
   assert.equal(rating.params.rating, 4);
   assert.equal(rating.params.maxRating, 4);
+  const gem = (id, x) => frame(id, { box: box(x, 0, 40, 40), component: 'Gem', svg: { file: 'svg/gem.svg' } });
+  const gems = frame('gems', {
+    box: box(0, 0, 88, 40),
+    layout: { mode: 'HORIZONTAL', gap: 8, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [gem('g1', 0), gem('g2', 48)],
+  });
+  const two = detectProduction(gems)[0];
+  assert.equal(two.component, 'rating');
+  assert.equal(two.params.maxRating, 2);
 
   const burger = frame('burger', {
     box: box(0, 0, 24, 24),
@@ -135,6 +152,22 @@ test('a label, a chevron, and a vertical list are a dropdown', () => {
   assert.equal(list.settings._hidden._cssClasses, 'brx-dropdown-content');
 });
 
+test('a dropdown with no drawn list still builds the control', () => {
+  const text = (id, characters) => ({ id, type: 'TEXT', name: id, box: box(0, 0, 40, 20), sizing, text: { characters, fontFamily: 'Inter', fontSize: 14 } });
+  const tree = frame('item', {
+    box: box(0, 0, 120, 32),
+    layout: { mode: 'HORIZONTAL', gap: 8, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [text('label', 'Topics'), frame('chev', { box: box(70, 4, 12, 12), svg: { file: 'svg/chev.svg' } })],
+  });
+  const built = buildTemplate(tree, {
+    overrides: {},
+    detections: { components: [{ id: 'd0', status: 'approved', component: PartKind.DROPDOWN, node: 'item', params: { text: 'Topics', list: null } }] },
+    salt: 'closed',
+  });
+  assert.equal(built.template.content.find((e) => e.name === 'dropdown').settings.text, 'Topics');
+  assert.equal(built.template.content.some((e) => e.settings?._hidden?._cssClasses === 'brx-dropdown-content'), false);
+});
+
 test('a tinted sentence bar is an alert and the first picture of a link bar is a logo', () => {
   const sentence = frame('bar', {
     box: box(0, 0, 480, 48),
@@ -150,6 +183,28 @@ test('a tinted sentence bar is an alert and the first picture of a link bar is a
   const built = buildTemplate(sentence, { overrides: {}, detections: { components: [{ id: 'd0', status: 'approved', ...alert }] }, salt: 'al' }).template.content.find((e) => e.name === 'alert');
   assert.equal(built.settings.content, 'Đơn của bạn đã được ghi nhận');
   assert.equal(built.settings.type, undefined);
+  const note = frame('note', {
+    box: box(0, 0, 80, 20),
+    layout: { mode: 'HORIZONTAL', gap: 4, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    fills: [{ type: 'SOLID', hex: '#fff4e5', alpha: 1 }],
+    children: [
+      frame('bell', { box: box(0, 4, 12, 12), svg: { file: 'svg/bell.svg' } }),
+      { id: 'copy2', type: 'TEXT', name: 'copy2', box: box(16, 2, 60, 16), sizing, text: { characters: 'All set', fontFamily: 'Inter', fontSize: 12 } },
+    ],
+  });
+  assert.equal(detectProduction(note)[0].component, 'alert');
+  assert.equal(detectProduction(note)[0].params.content, 'All set');
+  const chip = frame('chip', {
+    box: box(12, 12, 70, 24),
+    layout: { mode: 'HORIZONTAL', gap: 4, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    fills: [{ type: 'SOLID', hex: '#fff4e5', alpha: 1 }],
+    children: [
+      frame('dot', { box: box(4, 6, 12, 12), svg: { file: 'svg/dot.svg' } }),
+      { id: 'chip-copy', type: 'TEXT', name: 'chip-copy', box: box(20, 4, 44, 16), sizing, text: { characters: 'New plan', fontFamily: 'Inter', fontSize: 12 } },
+    ],
+  });
+  const board = frame('board', { box: box(0, 0, 480, 200), children: [chip] });
+  assert.equal(detectProduction(board).some((item) => item.component === 'alert'), false);
 
   const mark = frame('brand', { box: box(0, 16, 96, 32), svg: { file: 'svg/brand.svg' } });
   const link = (id, characters, x) => ({ id, type: 'TEXT', name: id, box: box(x, 20, 60, 20), sizing, text: { characters, fontFamily: 'Inter', fontSize: 14 } });
@@ -158,7 +213,7 @@ test('a tinted sentence bar is an alert and the first picture of a link bar is a
     layout: { mode: 'HORIZONTAL', gap: 24, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     children: [mark, link('a', 'Sản phẩm', 140), link('b', 'Giá', 220)],
   });
-  const logo = detectProduction(header).find((c) => c.component === 'logo');
+  const logo = detectProduction(header).find((c) => isKind(c, PartKind.LOGO));
   assert.equal(logo.params.file, 'svg/brand.svg');
   const logoEl = buildTemplate(header, { overrides: {}, detections: { components: [{ id: 'd0', status: 'approved', ...logo }] }, salt: 'logo' }).template.content.find((e) => e.name === 'logo');
   assert.equal(logoEl.settings.logoHeight, '32px');
@@ -168,7 +223,7 @@ test('a quote icon in the corner of a card is not an offcanvas', () => {
   const quote = frame('Quote icon', { box: box(16, 12, 24, 24), svg: { file: 'svg/quote.svg' } });
   const card = frame('card', { box: box(440, 0, 360, 300), children: [quote] });
   const page = frame('page', { box: box(0, 0, 800, 400), children: [card] });
-  assert.equal(detectProduction(page).find((c) => c.component === 'offcanvas'), undefined);
+  assert.equal(detectProduction(page).find((c) => isKind(c, PartKind.OFFCANVAS)), undefined);
 });
 
 test('a bullet before a short word is not a progress bar', () => {
@@ -179,7 +234,7 @@ test('a bullet before a short word is not a progress bar', () => {
       { id: 'name', type: 'TEXT', box: box(8, 0, 90, 12), text: { characters: 'com' } },
     ],
   });
-  assert.equal(detectProduction(row).find((c) => c.component === 'progress'), undefined);
+  assert.equal(detectProduction(row).find((c) => isKind(c, PartKind.PROGRESS)), undefined);
 });
 
 test('a logo that contains a picture is not a progress bar', () => {
@@ -193,5 +248,32 @@ test('a logo that contains a picture is not a progress bar', () => {
       ],
     })],
   });
-  assert.equal(detectProduction(logo).find((c) => c.component === 'progress'), undefined);
+  assert.equal(detectProduction(logo).find((c) => isKind(c, PartKind.PROGRESS)), undefined);
+});
+
+test('a short track, a narrow link bar, and a large three-line mark keep their kinds', () => {
+  const track = frame('meter', {
+    box: box(0, 0, 60, 36),
+    children: [frame('rail', {
+      box: box(0, 8, 60, 20),
+      children: [frame('done', { box: box(0, 0, 30, 20), fills: [{ type: 'SOLID', hex: '#2255aa', alpha: 1 }] })],
+    })],
+  });
+  assert.equal(detectProduction(track)[0].component, PartKind.PROGRESS);
+  assert.equal(detectProduction(track)[0].params.bars[0].percentage, 50);
+
+  const brand = frame('mark', { box: box(0, 8, 40, 20), svg: { file: 'svg/mark.svg' } });
+  const link = (id, characters, x) => ({ id, type: 'TEXT', name: id, box: box(x, 10, 70, 16), sizing, text: { characters, fontFamily: 'Inter', fontSize: 14 } });
+  const bar = frame('bar', {
+    box: box(0, 0, 200, 36),
+    layout: { mode: 'HORIZONTAL', gap: 12, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [brand, link('docs', 'Docs', 52), link('bill', 'Billing history for the account', 130)],
+  });
+  assert.equal(detectProduction(bar).find((item) => isKind(item, PartKind.LOGO)).params.file, 'svg/mark.svg');
+
+  const menu = frame('menu', {
+    box: box(0, 0, 64, 64),
+    children: [8, 28, 48].map((y, index) => frame(`line${index}`, { box: box(12, y, 40, 8), fills: [{ type: 'SOLID', hex: '#111111', alpha: 1 }] })),
+  });
+  assert.equal(detectProduction(menu)[0].component, PartKind.HAMBURGER);
 });

@@ -1,7 +1,10 @@
+import { PartKind, isKind, isChild } from '../modules/recognize-parts/kinds.mjs';
+import { NodeType } from '../modules/recognize-parts/node-type.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { detectCarousels, dashRowFromSvg } from '../modules/recognize-parts/rules/carousel.mjs';
+import { detectDividers } from '../modules/recognize-parts/rules/divider.mjs';
 import { checkCites } from '../modules/recognize-parts/cite.mjs';
 import carousel, { paginationMarks } from '../modules/write-bricks/components/carousel.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
@@ -14,6 +17,67 @@ const svgOf = (id, file) => readFileSync(new URL(`../fixtures/sections/${id}/ass
 
 const card = (id, x) => ({ id, name: 'card', type: 'FRAME', box: { x, y: 0, w: 100, h: 60, absX: x, absY: 0 }, children: [{ id: id + 't', type: 'TEXT', text: { characters: 'Card' } }] });
 const rowOf = (children, extra = {}) => ({ id: 'r', name: 'root', children: [{ id: 'row', name: 'Row', layout: { mode: 'HORIZONTAL', wrap: false, gap: 20 }, box: { x: 0, y: 0, w: 400, h: 60, absX: 0, absY: 0 }, children, ...extra }] });
+
+test('the same card stays one carousel when one picture is a frame and the next is a rectangle', () => {
+  const picture = (id, type) => ({ id, type, box: { x: 0, y: 0, w: 80, h: 40 }, children: [] });
+  const slide = (id, x, type) => ({
+    id, type: NodeType.FRAME,
+    box: { x, y: 0, w: 200, h: 80, absX: x, absY: 0 },
+    children: [
+      picture(`${id}p`, type),
+      { id: `${id}cap`, type: NodeType.FRAME, children: [{ id: `${id}w`, type: NodeType.TEXT, text: { characters: 'Orbit' } }] },
+    ],
+  });
+  const row = {
+    id: 'row', type: NodeType.FRAME, layout: { mode: 'HORIZONTAL', wrap: false },
+    box: { x: 0, y: 0, w: 400, h: 80, absX: 0, absY: 0 },
+    children: [slide('a', 0, NodeType.FRAME), slide('b', 220, NodeType.RECTANGLE), slide('c', 440, NodeType.FRAME)],
+  };
+  const hit = detectCarousels({ id: 'root', type: NodeType.FRAME, children: [row] }).find((item) => item.node === 'row');
+  assert.equal(hit?.component, PartKind.CAROUSEL);
+});
+
+test('a dash row under a card row is that carousel, and the section stays a section', () => {
+  const slide = (id, x) => ({
+    id, type: NodeType.FRAME, name: 'Orbit',
+    box: { x, y: 0, w: 180, h: 120, absX: x, absY: 0 },
+    children: [{ id: `${id}t`, type: NodeType.TEXT, text: { characters: 'Orbit' }, box: { x: 8, y: 8, w: 80, h: 20, absX: x + 8, absY: 8 } }],
+  });
+  const mark = (id, x, w, hex) => ({
+    id, type: NodeType.RECTANGLE, name: 'mark',
+    box: { x, y: 0, w, h: 4, absX: x, absY: 0 },
+    fills: [{ type: 'SOLID', hex, alpha: 1 }],
+    children: [],
+  });
+  const row = {
+    id: 'row', type: NodeType.FRAME, name: 'Row',
+    layout: { mode: 'HORIZONTAL', wrap: false },
+    box: { x: 0, y: 40, w: 560, h: 120, absX: 0, absY: 40 },
+    children: [slide('a', 0), slide('b', 200), slide('c', 400)],
+  };
+  const dashes = {
+    id: 'dashes', type: NodeType.FRAME, name: 'marks',
+    layout: { mode: 'HORIZONTAL', wrap: false },
+    box: { x: 180, y: 180, w: 88, h: 4, absX: 180, absY: 180 },
+    children: [mark('d1', 0, 12, '#c5c5c6'), mark('d2', 20, 12, '#c5c5c6'), mark('d3', 40, 24, '#222222')],
+  };
+  const section = {
+    id: 'section', type: NodeType.FRAME, name: 'Section',
+    layout: { mode: 'VERTICAL', wrap: false },
+    box: { x: 0, y: 0, w: 800, h: 220, absX: 0, absY: 0 },
+    children: [
+      { id: 'heading', type: NodeType.TEXT, text: { characters: 'Featured' }, box: { x: 0, y: 0, w: 120, h: 28, absX: 0, absY: 0 } },
+      row,
+      dashes,
+    ],
+  };
+  const found = detectCarousels(section);
+  const hit = found.find((item) => isKind(item, PartKind.CAROUSEL));
+  assert.equal(hit?.node, 'row');
+  assert.equal(hit.params.pagination, 'dashes');
+  assert.equal(found.some((item) => item.node === 'section'), false);
+  assert.equal(detectDividers(section).some((item) => item.node === 'dashes'), false);
+});
 
 test('three cards that fit, with no pagination and no arrows, are a grid', () => {
   const found = detectCarousels(rowOf([0, 1, 2].map((i) => card('c' + i, i * 120))));
@@ -35,7 +99,7 @@ test('award cards with different inner trees and a Pagination sibling are one ca
   assert.equal(marks.idle.w, 20);
   assert.equal(marks.active.w, 32);
   assert.equal(marks.idle.alpha, 0.24);
-  const det = { id: 'd1', component: 'carousel', node: hit.node, status: 'approved', params: hit.params };
+  const det = { id: 'd1', component: PartKind.CAROUSEL, node: hit.node, status: 'approved', params: hit.params };
   const node = tree.children.find((c) => c.id === '2121:2708');
   assert.equal(carousel.mergedNodes(det, node, { root: tree, readAsset: (f) => svgOf('2121-2699', f) }).includes('2121:2709'), true);
   const b = buildTemplate(tree, { detections: { components: [det] }, readAsset: (f) => svgOf('2121-2699', f), salt: 'award' });
@@ -70,7 +134,7 @@ test('case-study row: three cards, the navigation is not a slide, and both arrow
   const marks = paginationMarks(svgOf('2172-3669', 'svg/2172_3712.svg'));
   assert.equal(marks.items.length, 5);
   assert.equal(marks.active.hex.toLowerCase(), '#007cfc');
-  const det = { id: 'd1', component: 'carousel', node: '2172:3675', status: 'approved', params: hit.params };
+  const det = { id: 'd1', component: PartKind.CAROUSEL, node: '2172:3675', status: 'approved', params: hit.params };
   const b = buildTemplate(tree, { detections: { components: [det] }, readAsset: (f) => svgOf('2172-3669', f), salt: 'car' });
   const slider = b.template.content.find((e) => e.id === b.mapping['2172:3675'].bricksId);
   assert.equal(slider.name, 'slider-nested');
@@ -106,7 +170,7 @@ test('one clipped image with arrow buttons is a slider, and a review grid of two
   assert.equal(hit.params.next, '2130:2414');
   assert.equal(checkCites(hit.cite, bench).join(';'), '');
   const review = detectCarousels(treeOf('2130-2725'));
-  assert.equal(review.filter((c) => c.component === 'carousel').length, 0);
+  assert.equal(review.filter((c) => isKind(c, PartKind.CAROUSEL)).length, 0);
   assert.equal(review.find((c) => c.node === '2130:2738')?.component, 'pagination_carousel');
   const mobile = detectCarousels(treeOf('2134-3050')).find((c) => c.node === '2134:3056');
   assert.equal(mobile?.params.allowSingle, true);
@@ -165,7 +229,7 @@ test('one card plus a dash or dot row is a slider, and three equal marks are not
   assert.equal(found.find((c) => c.node === 'loose'), undefined);
   const stray = found.find((c) => c.node === 'dashes');
   assert.equal(stray.component, 'pagination_carousel');
-  assert.equal(stray.params.of, 'carousel');
+  assert.equal(stray.params.of, PartKind.CAROUSEL);
   assert.equal(stray.params.hold, true);
   assert.equal(stray.params.itemCount, 3);
   assert.equal(found.find((c) => c.node === 'decoy'), undefined);
@@ -178,22 +242,6 @@ test('one card plus a dash or dot row is a slider, and three equal marks are not
   assert.equal(built.mapping.dots.skipped.startsWith('merged into carousel'), true);
   assert.equal(built.mapping.dashes.skipped, 'waiting for the plan');
   assert.ok(built.template.content.find((e) => e.label === 'Dashboard chip'));
-  const phone = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-16827/tree.json', import.meta.url), 'utf8'));
-  const phoneHits = detectCarousels(phone);
-  const cardHit = phoneHits.find((c) => c.node === '1:16862');
-  assert.equal(cardHit.confidence, 'medium');
-  assert.equal(cardHit.params.pagination, '1:16886');
-  assert.equal(cardHit.params.itemCount, 3);
-  assert.equal(cardHit.cite.find((c) => c.node === '1:16886').equals, 'Pagination');
-  assert.equal(checkCites(cardHit.cite, phone).join(';'), '');
-  const looseHit = phoneHits.find((c) => c.node === '1:16861');
-  assert.equal(looseHit, undefined);
-  const ratings = phoneHits.find((c) => c.node === '1:16832');
-  assert.equal(ratings.component, 'carousel');
-  assert.equal(ratings.params.pagination, '1:16861');
-  assert.equal(ratings.params.itemCount, 3);
-  assert.equal(ratings.params.allowSingle, undefined);
-  assert.equal(phoneHits.filter((c) => c.component === 'carousel').length, 2);
 });
 
 test('one svg of a longer dash and any number of shorter faded dashes is the slider row', () => {
@@ -213,7 +261,7 @@ test('one svg of a longer dash and any number of shorter faded dashes is the sli
   assert.equal(hit.params.pagination, 'svgdots');
   assert.equal(hit.params.itemCount, 5);
   const plain = { ...dots, id: 'plain', svgText: svg([stroke(2, 12, 1), stroke(26, 12, 1), stroke(50, 12, 1)].join('')) };
-  assert.equal(detectCarousels({ ...frame, children: [band('r1', 0, ['a', 'b']), band('r2', 200, ['c', 'd']), plain] }).find((c) => c.component === 'carousel'), undefined);
+  assert.equal(detectCarousels({ ...frame, children: [band('r1', 0, ['a', 'b']), band('r2', 200, ['c', 'd']), plain] }).find((c) => isKind(c, PartKind.CAROUSEL)), undefined);
 });
 
 test('rows of the same card that sit inside the frame are one page of the slider', () => {
@@ -272,13 +320,13 @@ test('rows of the same card that sit inside the frame are one page of the slider
 test('a desktop slider stays a slider on mobile unless a mobile frame draws something else', () => {
   const tree = { id: 'row', name: 'Slider', children: [] };
   const questions = [{ group: 'mobileform', node: 'row', label: 'Slider "Slider"', value: 'mobile vẫn là slider' }];
-  const parts = screenParts(tree, [{ component: 'carousel', node: 'row', status: 'approved', params: {} }], questions, 'FILE');
+  const parts = screenParts(tree, [{ component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: {} }], questions, 'FILE');
   assert.match(parts[0].note, /Không tự đổi/);
   assert.equal(parts[0].fields[0].value, 'mobile vẫn là slider');
   assert.deepEqual(parts[0].children, ['Pagination: không', 'Nút trước: không', 'Nút sau: không']);
-  const drawn = screenParts(tree, [{ component: 'carousel', node: 'row', status: 'approved', params: { pagination: 'dots', prev: 'pv', next: 'nx' } }], questions, 'FILE');
+  const drawn = screenParts(tree, [{ component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: { pagination: 'dots', prev: 'pv', next: 'nx' } }], questions, 'FILE');
   assert.deepEqual(drawn[0].children, ['Pagination: `dots` — nghi ngờ', 'Nút trước: `pv` — nghi ngờ', 'Nút sau: `nx` — nghi ngờ']);
-  const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [{ id: 'd1', component: 'carousel', node: 'row', status: 'approved', params: {} }] } };
+  const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [{ id: 'd1', component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: {} }] } };
   const missed = applyAnswers({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { 'mobileform:row': 'làm hàng kéo ở điện thoại' });
   assert.deepEqual(missed.unused, ['mobileform:row']);
   applyAnswers({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { 'mobileform:row': { choice: 'slider', note: 'làm hàng kéo ở điện thoại' } });
@@ -380,6 +428,6 @@ test('a square illustration svg is not a pagination row', () => {
   const dash = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#111111" d="M0 0H32V4H0Z"/><path fill="#111111" opacity="0.3" d="M40 0H52V4H40Z"/><path fill="#111111" opacity="0.3" d="M60 0H72V4H60Z"/></svg>';
   const art = { id: 'art', name: 'Group', type: 'GROUP', box: { x: 0, y: 0, w: 74, h: 74 }, svgText: dash, children: [] };
   const dots = { id: 'dots', name: 'Pagination', type: 'FRAME', box: { x: 0, y: 0, w: 120, h: 8 }, svgText: dash, children: [] };
-  assert.equal(detectCarousels(art).find((c) => c.component === 'pagination_carousel'), undefined);
+  assert.equal(detectCarousels(art).find((c) => isChild(c, PartKind.CAROUSEL, 'pagination')), undefined);
   assert.equal(detectCarousels(dots).find((c) => c.node === 'dots')?.component, 'pagination_carousel');
 });

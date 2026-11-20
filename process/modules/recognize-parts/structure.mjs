@@ -1,6 +1,7 @@
 // Sibling frames that share a shape, whether or not the layer is named "tab" or "slider".
 // The confirm plan shows this list. The chat compares it with the picture before anyone approves a component.
 // A group already claimed, or whose items are already claimed one by one, is left out.
+import { NodeType, isType, isText } from './node-type.mjs';
 import { visibleKids } from '../write-bricks/components/helpers.mjs';
 
 const GENERIC = /^(frame|group|rectangle|instance|component|container|image|vector|ellipse|line|text)(\s+\d+)?$/i;
@@ -22,7 +23,7 @@ function sampleText(n) {
   let hit = '';
   (function walk(x) {
     if (!x || x.visible === false || hit) return;
-    if (x.type === 'TEXT' && !x.svg && x.text?.characters?.trim()) hit = x.text.characters.trim().replace(/\s+/g, ' ').slice(0, 48);
+    if (isText(x) && !x.svg && x.text?.characters?.trim()) hit = x.text.characters.trim().replace(/\s+/g, ' ').slice(0, 48);
     for (const c of x.children ?? []) walk(c);
   })(n);
   return hit;
@@ -33,7 +34,7 @@ export function unclaimedRepeats(tree, components) {
   const found = [];
   (function walk(n) {
     if (!n || n.visible === false) return;
-    const kids = visibleKids(n).filter((k) => k.type !== 'TEXT' && k.type !== 'LINE');
+    const kids = visibleKids(n).filter((k) => !isText(k) && !isType(k, NodeType.LINE));
     let held = new Set();
     if (!skip.has(n.id) && kids.length >= 2) {
       const groups = new Map();

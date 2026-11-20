@@ -1,14 +1,19 @@
 // Candidate tabs: a container with exactly two visible children, a horizontal bar of >= 2 title frames and a content frame below it.
 // A name or an Active variant raises confidence. The same shape with a generic name is still proposed, at low confidence, and the plan asks.
+import { isText, BoxType } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { repeatedSet } from '../../write-bricks/components/tab-switch.mjs';
+import { priceFrames } from '../../write-bricks/components/price-table.mjs';
+import { showsPrice } from './layout-only.mjs';
+import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
-const BOX = new Set(['FRAME', 'GROUP', 'INSTANCE', 'COMPONENT']);
+const BOX = new Set(BoxType);
 const NAME = /\btabs?\b|tab[ _-]?(menu|item|bar|title|list)/i;
 const PANEL = /tab\s*panel/i;
 const hasPanel = (n) => PANEL.test(n?.name ?? '') || visibleKids(n).some(hasPanel);
 const ACTIVE_KEY = /active|selected|current|state/i, ACTIVE_VAL = /^(true|active|selected|current|on|default)$/i;
-const hasText = (n) => n.type === 'TEXT' && !n.svg && n.text?.characters?.trim() || visibleKids(n).some(hasText);
+const hasText = (n) => isText(n) && !n.svg && n.text?.characters?.trim() || visibleKids(n).some(hasText);
 
 const activeOf = (title) => {
   for (const [key, value] of Object.entries(title.props ?? {})) if (ACTIVE_KEY.test(key) && (value === true || typeof value === 'string')) return { key, value, on: value === true || ACTIVE_VAL.test(String(value)) };
@@ -16,16 +21,23 @@ const activeOf = (title) => {
 };
 
 export function detectTabs(tree) {
+  const priced = new Set();
+  const mark = (node) => { if (!node) return; priced.add(node.id); visibleKids(node).forEach(mark); };
+  for (const frame of [...priceFrames(tree), ...compareFrames(tree)]) mark(frame);
   const found = [];
   (function walk(n) {
     if (n.visible === false) return;
+    if (priced.has(n.id)) {
+      visibleKids(n).forEach(walk);
+      return;
+    }
     const kids = visibleKids(n);
     if (kids.length === 2) {
       const [bar, content] = kids;
       const titles = visibleKids(bar);
       const ok = bar.layout?.mode === 'HORIZONTAL' && titles.length >= 2 && titles.every((t) => BOX.has(t.type) && hasText(t)) && visibleKids(content).length >= 1
         && content.box.absY >= bar.box.absY + bar.box.h - 1;
-      if (ok) {
+      if (ok && !priced.has(n.id) && !priced.has(content.id) && !showsPrice(n) && !showsPrice(bar) && !showsPrice(content)) {
         const acts = titles.map(activeOf);
         const variants = new Set(titles.map((t) => t.componentSet ?? t.name)).size === 1 && acts.every(Boolean) && acts.some((a) => a.on) && acts.some((a) => !a.on);
         const named = NAME.test(n.name) || NAME.test(bar.name) || titles.some((t) => NAME.test(t.name) || NAME.test(t.componentSet ?? ''));
@@ -42,7 +54,7 @@ export function detectTabs(tree) {
           }
           if (variants) { const on = titles[acts.findIndex((a) => a.on)]; cite.push({ node: on.id, field: `props.${acts.find((a) => a.on).key}`, equals: acts.find((a) => a.on).value }); }
           found.push({
-            component: 'tabs', node: n.id, level: hinted ? 'E1' : 'E2', confidence: variants && named ? 'high' : hinted ? 'medium' : 'low', cite,
+            component: PartKind.TABS, node: n.id, level: hinted ? 'E1' : 'E2', confidence: variants && named ? 'high' : hinted ? 'medium' : 'low', cite,
             evidence: `"${n.name}": a tab bar "${bar.name}" with ${titles.length} titles and a content frame "${content.name}" ${variants ? '(one title is active)' : hinted ? '(named like tabs)' : '(shape only)'}`,
             params: { tabs_bar: bar.id, tabs_data: content.id, tabsActive: acts.filter((a) => a?.on).length, tabsIdle: titles.length - acts.filter((a) => a?.on).length },
             note: `${titles.length} tabs, Figma draws the open pane; the Plan asks for the content of the others`,

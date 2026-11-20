@@ -1,10 +1,11 @@
 // COMPONENT tabs (basic): [tab bar with >= 2 titles] + [content frame holding the pane(s)].
-// Bricks 1.12.3: the two children are plain blocks. The menu block contains tab-menu > tab-title. The pane block contains tab-pane.
-//   source: includes/elements/tabs-nested.php (get_nestable_children)
+// Bricks 1.12.3 nestable children: tabs-nested > block.tab-menu > div.tab-title, and tabs-nested > block.tab-content > block.tab-pane.
+//   source: includes/elements/tabs-nested.php (get_nestable_children). Selectors are `> .tab-menu` and `> .tab-content`.
 // BASIC: Figma normally draws ONE open pane. Missing panes become EMPTY panes (never invented text) and are warned.
 // The first tab is the open one (Bricks default); styling of the active title is not read.
 // params: content.panes { titleNodeId: text } (what the owner typed in the Plan for a tab whose pane Figma does not draw: a pane block with the settings of the
 //         drawn pane and a text with the typography of its first text)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { CONTAINER, visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
 
@@ -23,11 +24,11 @@ export function emptyTabs(node) {
 }
 
 export default {
-  id: 'tabs',
+  id: PartKind.TABS,
   status: 'implemented',
   label: 'Tabs (basic)',
   figma: 'a container with exactly two visible children: the tab bar (>= 2 title frames) and the content frame (the pane(s))',
-  bricks: '`tabs-nested`: a plain block around tab-menu > tab-title, and a plain block of tab-pane',
+  bricks: '`tabs-nested` > `tab-menu` > `tab-title`, and `tab-content` > `tab-pane`',
   limits: 'panes that Figma does not draw come from the Plan (blank = empty pane); the active-title style and which tab is open in Figma are not read (Bricks 1.9.8 opens the first tab, there is no openTab setting)',
   kind: () => 'tabs-nested',
 
@@ -53,8 +54,8 @@ export default {
     const out = {
       // The theme root is a column. A horizontal bar beside the panes needs a row. The pane rules keep one pane open.
       [node.id]: { css: [...(node.layout?.mode === 'HORIZONTAL' ? flexDirectionCss(node) : []), ...tabsChromeCss()], bundle: [bar.id, content.id] },
-      [bar.id]: { kind: 'block', settings: hidden('tab-menu'), plainParent: 'Menu' },
-      [content.id]: { kind: 'block', extraChildren: Array.from({ length: titles.length - panes.length }, (_, i) => {
+      [bar.id]: { kind: 'block', settings: hidden('tab-menu') },
+      [content.id]: { kind: 'block', settings: hidden('tab-content'), extraChildren: Array.from({ length: titles.length - panes.length }, (_, i) => {
         const text = det?.params?.content?.panes?.[titles[panes.length + i].id];
         return text
           ? { name: 'block', label: `Pane ${panes.length + i + 1}`, settings: hidden('tab-pane'), like: sample.id, drop: ['_display'], children: [{ name: 'text-basic', label: 'Content', settings: {}, ...(sampleText && { like: sampleText.id }), text }] }

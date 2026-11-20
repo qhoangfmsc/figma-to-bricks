@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
@@ -78,13 +79,35 @@ test('a short menu that fits is a menu and not a slider', () => {
   assert.equal(found[0].node, 'menu');
   assert.equal(checkCites(found[0].cite, tree).join(';'), '');
   assert.equal(detectCarousels(tree).length, 0);
-  const det = { id: 'd1', component: 'menu', node: 'menu', status: 'approved', params: found[0].params };
+  const det = { id: 'd1', component: PartKind.MENU, node: 'menu', status: 'approved', params: found[0].params };
   const built = buildTemplate(tree, { detections: { components: [det] }, salt: 'menufit' }).template.content;
   const rowEl = built.find((e) => e.label === '_menu');
   assert.equal(rowEl.name, 'block');
   assert.equal(rowEl.settings.tag, 'ul');
   assert.ok(built.filter((e) => e.label === '_sub-menu-item').every((e) => e.settings.tag === 'li'));
   assert.equal(built.find((e) => e.label === 'Item Slide').settings.tag, 'nav');
+});
+
+test('a tall row of labels is a menu when each label fills its item', () => {
+  const label = (id, x, words) => ({
+    id, name: 'Link', type: 'FRAME',
+    box: { x, y: 0, w: 120, h: 96, absX: x, absY: 0 },
+    layout: { mode: 'HORIZONTAL', wrap: false },
+    children: [{ id: `${id}t`, name: 'Label', type: 'TEXT', box: { x: 8, y: 16, w: 100, h: 64, absX: x + 8, absY: 16 }, text: { characters: words } }],
+  });
+  const tree = {
+    id: 'root', name: 'Bar', type: 'FRAME',
+    box: { x: 0, y: 0, w: 400, h: 96, absX: 0, absY: 0 },
+    children: [{
+      id: 'links', name: 'Links', type: 'FRAME',
+      layout: { mode: 'HORIZONTAL', wrap: false },
+      box: { x: 0, y: 0, w: 280, h: 96, absX: 0, absY: 0 },
+      children: [label('a', 0, 'North'), label('b', 140, 'South')],
+    }],
+  };
+  const found = detectMenus(tree);
+  assert.equal(found[0]?.component, PartKind.MENU);
+  assert.equal(found[0]?.node, 'links');
 });
 
 test('a clipping parent that cuts the row adds the inner slider even when the menu box is wider', () => {
@@ -159,7 +182,7 @@ test('menu items that run past the frame become a slider of those items, not a s
   assert.deepEqual(found[0].params.controls, ['nav']);
   assert.equal(detectCarousels(tree).length, 0);
 
-  const det = { id: 'd1', component: 'menu-slider', node: 'menu', status: 'approved', params: { ...found[0].params, links: { ml0: '#a' } } };
+  const det = { id: 'd1', component: PartKind.MENU_SLIDER, node: 'menu', status: 'approved', params: { ...found[0].params, links: { ml0: '#a' } } };
   const b = buildTemplate(tree, { detections: { components: [det] }, salt: 'menuslide' });
   const elements = b.template.content;
   const slider = elements.find((e) => e.label === '_menu');
@@ -204,7 +227,7 @@ test('a drawn Active item is the selected link, and a click moves that look', ()
   items[1].children[0].fills = [{ type: 'SOLID', hex: '#525666', alpha: 1 }];
   const tree = row(items, { w: 300, arrows: true });
   const found = detectMenus(tree)[0];
-  const det = { id: 'd1', component: 'menu-slider', node: 'menu', status: 'approved', params: found.params };
+  const det = { id: 'd1', component: PartKind.MENU_SLIDER, node: 'menu', status: 'approved', params: found.params };
   const elements = buildTemplate(tree, { detections: { components: [det] }, salt: 'menuactive' }).template.content;
   const first = elements.find((e) => e.label === '_sub-menu-item');
   assert.equal(first.settings._cssClasses, 'is-active');

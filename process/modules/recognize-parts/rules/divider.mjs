@@ -1,8 +1,10 @@
-// A divider is a line: one side is at most 2px and the other is at least 40px.
+// A divider is a line: the short side is a small fraction of the long side.
 // The layer name is a hint. The box is the evidence. A checkbox square is not a line.
 // A scroll track or thumb is the bar of that scroll, not a divider element.
+import { FillType, isType, isText, LineType } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { detectScrollLists } from './scroll.mjs';
-const LINE = new Set(['FRAME', 'RECTANGLE', 'LINE', 'VECTOR', 'INSTANCE', 'COMPONENT', 'GROUP']);
+const LINE = new Set(LineType);
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 
@@ -11,14 +13,21 @@ function lineOf(n) {
   const h = n.box?.h ?? 0;
   const thin = Math.min(w, h);
   const long = Math.max(w, h);
-  if (!LINE.has(n.type) || thin <= 0 || thin > 2 || long < 40) return null;
-  if (kids(n).some((c) => c.type === 'TEXT')) return null;
+  if (!LINE.has(n.type) || thin <= 0 || long <= 0 || thin / long > 0.08) return null;
+  if (kids(n).some((c) => isText(c))) return null;
+  const marks = kids(n).filter((child) => {
+    const side = Math.min(child.box?.w ?? 0, child.box?.h ?? 0);
+    const span = Math.max(child.box?.w ?? 0, child.box?.h ?? 0);
+    return side > 0 && span > 0 && side / span <= 0.35;
+  });
+  if (marks.length >= 2) return null;
   return { w, h, thin, long, horizontal: w >= h };
 }
 
 export function detectDividers(tree) {
   const bar = new Set();
   for (const scroll of detectScrollLists(tree)) {
+    if (scroll.node) bar.add(scroll.node);
     if (scroll.params?.track) bar.add(scroll.params.track);
     if (scroll.params?.thumb) bar.add(scroll.params.thumb);
   }
@@ -27,9 +36,9 @@ export function detectDividers(tree) {
     if (!n || n.visible === false) return;
     const line = lineOf(n);
     if (line && !bar.has(n.id)) {
-      const fill = (n.fills ?? []).find((f) => f.visible !== false && f.type === 'SOLID' && f.hex);
+      const fill = (n.fills ?? []).find((f) => f.visible !== false && isType(f, FillType.SOLID) && f.hex);
       found.push({
-        component: 'divider',
+        component: PartKind.DIVIDER,
         node: n.id,
         level: 'E2',
         confidence: 'high',

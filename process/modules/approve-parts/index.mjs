@@ -19,15 +19,9 @@
 //   icons (svg)            decorative: aria-hidden
 //   images                 alt "" (decorative) and listed for the designer; eager in the first section, lazy below the fold
 import { readFileSync } from 'node:fs';
-import { closedItems, drawnAnswer, syncNotes } from '../write-bricks/components/accordion.mjs';
-import { visibleKids, firstText } from '../write-bricks/components/helpers.mjs';
-import { MISSING } from '../missing-content/choices.mjs';
-import { tabInventory } from '../write-bricks/components/tabs.mjs';
-import { switchInventory, tabQuestions } from '../write-bricks/components/tab-switch.mjs';
-import { paneQuestionLabel } from '../missing-content/index.mjs';
-import { menuLabels } from '../write-bricks/components/menu.mjs';
 import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
-import { isSignal } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind, isAnyKind, ListKind, isPaginationHint } from '../recognize-parts/kinds.mjs';
+import { decideCandidate } from './kind-decisions.mjs';
 import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../write-bricks/components/price-table.mjs';
 import { compareFrames, BUY_BUTTON_FIELDS, buyAttrKey } from '../write-bricks/components/compare-table.mjs';
 
@@ -76,157 +70,10 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     if (c.status !== 'proposed') continue;
     const node = find(tree, c.node);
     if (!node) continue;
-    if (c.component === 'search') {
-      if (c.confidence === 'high') {
-        c.status = 'approved';
-        c.note = 'autopilot: a search field. The form uses the WordPress home URL';
-        log('search', node, 'approved', c.evidence ?? '', 'high');
-      } else {
-        c.status = 'proposed';
-        c.note = 'autopilot: shape only, the plan asks before it becomes a search field';
-        ask('confirm', c.node, `Ô "${node.name}" là ô tìm kiếm?`, '');
-        log('search', node, 'proposed (shape only)', c.evidence ?? '', c.confidence ?? 'medium');
-      }
-    } else if (c.component === 'video') {
-      if (c.params?.url) {
-        c.status = 'approved';
-        c.note = 'autopilot: a video, the address came from the plan';
-        log('video', node, 'approved', c.evidence ?? '', 'high');
-      } else {
-        c.status = 'proposed';
-        c.note = 'autopilot: the picture stays until the plan has a video address';
-        ask('video', c.node, node.name || 'Video', '');
-        log('video', node, 'proposed (no address)', c.evidence ?? '', 'high');
-      }
-    } else if (c.component === 'divider') {
-      c.status = 'approved';
-      c.note = 'autopilot: a line, the divider element';
-      log('divider', node, 'approved', c.evidence ?? '', 'high');
-    } else if (c.component === 'flat-image') {
-      if (hasText(node)) { c.status = 'rejected'; c.note = 'autopilot: the subtree holds real text, so it is not a picture'; log('flat-image', node, 'rejected', `contains ${textsIn(node).length} visible text(s): text must stay selectable`); }
-      else { c.status = 'approved'; c.note = 'autopilot: decoration without text, exported as one picture by Figma'; log('flat-image', node, 'approved', 'art layers without text: one picture rendered by Figma is exact', 'medium'); }
-    } else if (c.component === 'checkbox' || c.component === 'switch' || c.component === 'radio') {
-      if (c.confidence === 'high') {
-        c.status = 'approved';
-        c.note = `autopilot: a ${c.component}, native form field`;
-        log(c.component, node, 'approved', c.evidence ?? '', 'high');
-      } else {
-        c.status = 'proposed';
-        c.note = 'autopilot: shape only, the plan asks before it becomes a control';
-        log(c.component, node, 'proposed (shape only)', c.evidence ?? '', c.confidence ?? 'medium');
-      }
-    } else if (c.component === 'button') {
-      const label = textsIn(node)[0]?.text.characters.trim().slice(0, 40) ?? node.name;
-      if (c.params?.role === 'layout') {
-        c.status = 'approved';
-        c.note = 'autopilot: layout only. Domain search and price tables are not actions in this project';
-        log('button', node, 'approved (layout)', `label "${label}"`, 'high');
-      } else if (c.params?.role === 'close' || c.params?.role === 'action') {
-        c.status = 'approved';
-        c.note = 'autopilot: this button closes the popup. It is a button element, not a link';
-        log('button', node, 'approved (close)', `label "${label}"`, 'high');
-      } else if (c.confidence === 'low') {
-        c.status = 'proposed'; c.note = 'autopilot: button shape only, the plan asks before it becomes a button';
-        log('button', node, 'proposed (shape only)', `label "${label}"`, 'low');
-        ask('confirm', node.id, `Nút "${label}"`);
-      } else {
-        c.status = 'approved'; c.note = 'autopilot: button, link "#" until the designer gives the URL';
-        log('button', node, 'approved', `label "${label}" with a frame look`);
-        designer.push(`Link URL (and target) of the button "${label}" [${node.id}]`);
-        ask('link', node.id, `Nút "${label}"`);
-      }
-    } else if (c.component === 'form' && c.params?.submit && ((c.params.fields?.length >= 2) || (c.params.overlay === true && c.params.fields?.length >= 1)) && c.confidence === 'low') {
-      c.status = 'proposed'; c.note = 'autopilot: form shape only, the plan asks';
-      log('form', node, 'proposed (shape only)', c.evidence ?? '', 'low');
-      ask('confirm', node.id, `Form "${node.name}"`);
-    } else if (c.component === 'form' && c.params?.submit && ((c.params.fields?.length >= 2) || (c.params.overlay === true && c.params.fields?.length >= 1))) {
-      c.status = 'approved'; c.note = 'autopilot: a real Bricks form; submit saves the entry (Save submission)';
-      log('form', node, `approved (${c.params.fields.length} fields, submit ${c.params.submit})`, `input-like frames with placeholders and a submit button; types from their texts: ${c.params.fields.map((f) => f.type).join(', ')}`, 'medium');
-      // the error message the designer drew for a field ("Form field / Email" <-> "Error message / Email", outside the section): the Figma text, never invented
-      const stem = (f) => (find(tree, f.node)?.name ?? '').replace(/^.*\/\s*/, '').trim().toLowerCase();
-      for (const f of c.params.fields) { const e = f.type !== 'checkbox' && formErrors[stem(f)]; if (e) { f.error = e.text; f.errorNode = e.node; c.params.errorStyle ??= { ...e.style, gap: e.gap }; } }
-      const withError = c.params.fields.filter((f) => f.error), without = c.params.fields.filter((f) => !f.error && f.type !== 'checkbox');
-      if (withError.length) log('form', node, `error messages from Figma on ${withError.length} field(s)`, withError.map((f) => `${stem(f)} [${f.errorNode}]`).join(', '), 'high');
-      designer.push(`Form "${node.name}" [${node.id}]: submit saves the entry (Save submission). No email recipient${without.length ? `. error messages for the fields Figma has no error frame for (${without.map(stem).join(', ')})` : ''}`);
-    } else if (c.component === 'accordion') {
-      const guess = c.confidence === 'low', closed = closedItems(node);
-      c.status = guess ? 'proposed' : 'approved';
-      c.note = guess ? 'autopilot: found by its shape only: the Plan asks whether it is an accordion' : 'autopilot: an FAQ / accordion, structure from Figma; the answers of the closed items come from the Plan';
-      log('accordion', node, guess ? 'proposed (shape only: asked in the Plan)' : `approved (${kids(node).length} items, ${closed.length} closed)`, c.evidence ?? '', guess ? 'low' : c.confidence ?? 'medium');
-      for (const item of visibleKids(node)) {
-        const question = (firstText(visibleKids(item)[0])?.text?.characters ?? item.name).replace(/\s+/g, ' ').trim();
-        const drawn = drawnAnswer(item);
-        ask('answer', item.id, `"${question.slice(0, 90)}"`, drawn || MISSING);
-        if (!drawn) designer.push(`Answer to the FAQ question "${question.slice(0, 60)}" [${item.id}]`);
-      }
-      const notes = syncNotes(node);
-      if (notes.length) ask('sync', node.id, `"${node.name}": ${notes.join('; ')}`);
-      if (guess) ask('confirm', node.id, `"${node.name}" (${kids(node).length} mục)`);
-    } else if ((c.component === 'tabs' || c.component === 'tab-switch') && c.confidence === 'low') {
-      c.status = 'proposed'; c.note = 'autopilot: tab shape only, the plan asks';
-      log(c.component, node, 'proposed (shape only)', c.evidence ?? '', 'low');
-      ask('confirm', node.id, `Tabs "${node.name}"`);
-    } else if (c.component === 'tabs' || c.component === 'tab-switch') {
-      const rows = c.component === 'tab-switch' ? switchInventory(node) : tabInventory(node);
-      const missing = rows.filter((row) => !row.drawn);
-      c.status = 'approved';
-      c.note = 'autopilot: every tab is listed on the screen with the content Figma drew; a Figma link replaces that pane, typed text fills a pane Figma does not draw';
-      log(c.component, node, `approved (${rows.length} tab(s), ${missing.length} not drawn)`, c.evidence ?? '', c.confidence ?? (c.component === 'tab-switch' ? 'high' : 'medium'));
-      for (const row of rows) ask('pane', row.title.id, paneQuestionLabel(row));
-      for (const q of tabQuestions(node)) ask(q.group, node.id, q.label);
-      for (const row of missing) designer.push(`Content of the tab "${String(row.label).slice(0, 60)}" [${row.title.id}]`);
-    } else if ((c.component === 'menu' || c.component === 'menu-slider') && c.confidence === 'low') {
-      c.status = 'proposed'; c.note = 'autopilot: menu shape only, the plan asks';
-      log(c.component, node, 'proposed (shape only)', c.evidence ?? '', 'low');
-      ask('confirm', node.id, `Menu "${node.name}"`);
-    } else if (c.component === 'menu' || c.component === 'menu-slider') {
-      const labels = menuLabels(node);
-      const slider = c.component === 'menu-slider';
-      c.status = 'approved';
-      c.note = slider
-        ? 'autopilot: a menu slider (drag and arrows, no loop, no autoplay); the URLs come from the Plan'
-        : 'autopilot: a menu, nav > ul > li > text-link; the URLs come from the Plan';
-      log(c.component, node, `approved (${labels.length} items${slider ? ', menu slider' : ''})`, c.evidence ?? '', c.confidence ?? 'medium');
-      for (const t of labels) ask('link', t.id, `Mục menu "${t.text.characters.trim().slice(0, 40)}"`);
-      designer.push(`Link URLs of the ${labels.length} menu items in "${node.name}" (${labels.slice(0, 12).map((t) => t.text.characters.trim()).join(', ')}), written as "#"`);
-    } else if (c.component === 'select') {
-      const label = textsIn(node)[0]?.text.characters.trim().slice(0, 40) ?? node.name;
-      c.status = 'approved';
-      c.note = 'autopilot: a closed dropdown. The option list comes from the plan';
-      log('select', node, 'approved', c.evidence ?? '', 'high');
-      ask('options', node.id, `Dropdown "${label}"`);
-    } else if (['gallery', 'progress', 'rating', 'alert', 'logo', 'hamburger', 'dropdown', 'offcanvas', 'scroll'].includes(c.component) && c.confidence === 'high') {
-      c.status = 'approved';
-      c.note = `autopilot: ${c.component}, from the production widget map and the 1.12.3 element`;
-      log(c.component, node, 'approved', c.evidence ?? '', 'high');
-    } else if (['gallery', 'progress', 'rating', 'alert', 'logo', 'hamburger', 'dropdown', 'offcanvas', 'scroll'].includes(c.component)) {
-      c.status = 'proposed';
-      c.note = 'autopilot: shape only, the plan asks';
-      ask('confirm', node.id, `${c.component} "${node.name}"`);
-      log(c.component, node, 'proposed (shape only)', c.evidence ?? '', c.confidence ?? 'medium');
-    } else if (c.component === 'readmore') {
-      c.status = 'approved'; c.note = 'autopilot: "Xem thêm" opens the clipped text (a click toggles a class, no JS); nothing to ask';
-      log('readmore', node, 'approved', c.evidence ?? '', c.confidence ?? 'medium');
-    } else if (isSignal(c.component) || c.component === 'pagination') {
-      c.status = 'proposed';
-      c.note = 'autopilot: a hint for the component it belongs to, not an element';
-      log(c.component, node, 'hint', c.evidence ?? '', c.confidence ?? 'high');
-    } else if (c.component === 'carousel' && c.confidence === 'low') {
-      c.status = 'proposed'; c.note = 'autopilot: slider shape only, the plan asks';
-      log('carousel', node, 'proposed (shape only)', c.evidence ?? '', 'low');
-      ask('confirm', node.id, `Slider "${node.name}"`);
-    } else if (c.component === 'carousel') {
-      c.status = 'approved'; c.note = 'autopilot: a slider (Bricks slider-nested), always loop and autoplay; dashes follow the items and the active dash follows the slide that is in front; the Plan sets the item count and the full set';
-      log('carousel', node, 'approved', c.evidence ?? '', c.confidence ?? 'medium');
-      const control = new Set([c.params?.pagination, c.params?.prev, c.params?.next, ...(c.params?.controls ?? [])].filter(Boolean));
-      const nSlides = Math.max(1, kids(node).filter((k) => !control.has(k.id)).length);
-      ask('autoplay', node.id, `Slider "${node.name}"`);
-      ask('count', node.id, `Slider "${node.name}"`, String(nSlides));
-      ask('items', node.id, `Slider "${node.name}"`);
-      // A desktop-only frame stays a slider. A pasted mobile frame that detects as something else is built as that frame drew it.
-      ask('mobileform', node.id, `Slider "${node.name}"`, 'slider');
-    } else {
-      c.status = 'rejected'; c.note = `autopilot: ${c.component} needs content only the designer has`;
+    const tools = { ask, log, designer, formErrors, findNode: (id) => find(tree, id), textsIn, kids, hasText };
+    if (!decideCandidate(c, node, tools)) {
+      c.status = 'rejected';
+      c.note = `autopilot: ${c.component} needs content only the designer has`;
       log(c.component, node, 'rejected', 'needs content the Figma file does not contain', 'medium');
       needs.push(`${c.component} candidate on "${node.name}" [${node.id}] was left as blocks: ${c.evidence ?? ''}`);
     }
@@ -234,15 +81,15 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
 
   // a checkbox or switch row is that control, not a second button, and not a field of an approved form
   const holds = (root, id) => !!root && (root.id === id || (root.children ?? []).some((c) => holds(c, id)));
-  for (const choice of det.components.filter((c) => (c.component === 'checkbox' || c.component === 'switch' || c.component === 'radio' || c.component === 'search' || c.component === 'video') && c.status !== 'rejected')) {
+  for (const choice of det.components.filter((c) => (isKind(c, PartKind.CHECKBOX) || isKind(c, PartKind.SWITCH) || isKind(c, PartKind.RADIO) || isKind(c, PartKind.SEARCH) || isKind(c, PartKind.VIDEO)) && c.status !== 'rejected')) {
     const choiceNode = find(tree, choice.node);
-    for (const b of det.components.filter((c) => c.component === 'button' && c.status !== 'rejected' && (c.node === choice.node || c.node === choice.params?.fieldNode || c.node === choice.params?.buttonNode))) {
+    for (const b of det.components.filter((c) => isKind(c, PartKind.BUTTON) && c.status !== 'rejected' && (c.node === choice.node || c.node === choice.params?.fieldNode || c.node === choice.params?.buttonNode))) {
       b.status = 'rejected';
       b.note = `autopilot: this row is a ${choice.component}, not a button`;
       for (let i = designer.length - 1; i >= 0; i--) if (designer[i].includes(`[${b.node}]`)) designer.splice(i, 1);
       for (let i = questions.length - 1; i >= 0; i--) if (questions[i].node === b.node && (questions[i].group === 'link' || questions[i].group === 'confirm')) questions.splice(i, 1);
     }
-    for (const f of det.components.filter((c) => c.component === 'form' && c.status === 'approved')) {
+    for (const f of det.components.filter((c) => isKind(c, PartKind.FORM) && c.status === 'approved')) {
       const formNode = find(tree, f.node);
       if (formNode && choiceNode && formNode.id !== choice.node && holds(formNode, choice.node)) {
         choice.status = 'rejected';
@@ -252,15 +99,15 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   }
 
   // a button that is the submit of an approved form is part of the form element, not a second button
-  for (const f of det.components.filter((c) => c.component === 'form' && c.status === 'approved')) {
-    for (const b of det.components.filter((c) => c.component === 'button' && c.status === 'approved' && c.node === f.params?.submit)) {
+  for (const f of det.components.filter((c) => isKind(c, PartKind.FORM) && c.status === 'approved')) {
+    for (const b of det.components.filter((c) => isKind(c, PartKind.BUTTON) && c.status === 'approved' && c.node === f.params?.submit)) {
       b.status = 'rejected'; b.note = 'autopilot: the submit button of a form, merged into the form element';
       for (let i = questions.length - 1; i >= 0; i--) if (questions[i].group === 'link' && questions[i].node === b.node) questions.splice(i, 1); // no link to ask for: the form submits
     }
   }
 
   // the toggle of an approved "read more" is a <button>, not a link: nothing to ask for its URL
-  for (const r of det.components.filter((c) => c.component === 'readmore' && c.status === 'approved')) {
+  for (const r of det.components.filter((c) => isKind(c, PartKind.READMORE) && c.status === 'approved')) {
     for (let i = questions.length - 1; i >= 0; i--) if (questions[i].group === 'link' && questions[i].node === r.params?.button) questions.splice(i, 1);
     for (let i = designer.length - 1; i >= 0; i--) if (designer[i].includes(`[${r.params?.button}]`)) designer.splice(i, 1);
   }
@@ -269,8 +116,8 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   walk(tree, (n) => {
     if (n === tree || !['GROUP', 'FRAME', 'COMPONENT', 'INSTANCE'].includes(n.type) || hasText(n)) return;
     if (!kids(n).some((c) => c.isMask)) return;
-    if (det.components.some((c) => c.component === 'flat-image' && c.node === n.id)) return;
-    det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: 'flat-image', node: n.id, level: 'E2', confidence: 'medium',
+    if (det.components.some((c) => isKind(c, PartKind.FLAT_IMAGE) && c.node === n.id)) return;
+    det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: PartKind.FLAT_IMAGE, node: n.id, level: 'E2', confidence: 'medium',
       cite: [{ node: n.id, field: 'type', equals: n.type }, { node: kids(n).find((c) => c.isMask).id, field: 'isMask', equals: true }], evidence: `${n.type} "${n.name}" holds a mask layer and no text`, params: { alt: '', link: null, scale: 2 }, note: 'autopilot: a masked decoration is rendered by Figma as one picture (CSS has no equivalent of a Figma mask)' });
     log('flat-image', n, 'approved (masked decoration)', 'contains a mask layer and no text: only Figma can render it exactly', 'high');
   });
@@ -317,13 +164,13 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     for (const [pid, { r, ids }] of byParent) {
       const parent = find(tree, pid);
       if (!parent) continue;
-      const exists = det.components.some((c) => c.component === 'semantic' && c.node === parent.id);
-      if (det.components.some((c) => c.node === parent.id && ['accordion', 'tabs', 'menu', 'menu-slider', 'carousel', 'form'].includes(c.component) && c.status === 'approved')) continue; // that component is the list
+      const exists = det.components.some((c) => isKind(c, PartKind.SEMANTIC) && c.node === parent.id);
+      if (det.components.some((c) => c.node === parent.id && isAnyKind(c, ListKind) && c.status === 'approved')) continue;
       const ks = kids(parent);
       // every child is a repeated item, or every child is the same kind of thing as the first (a menu whose 10th item has a different badge)
       const all = ks.length === ids.size && ks.every((k) => ids.has(k.id)) || ks.length >= 2 && ks.every((k) => k.name === ks[0].name && k.type === ks[0].type) && [...ids].every((id) => ks.some((k) => k.id === id));
       if (all && !exists) {
-        det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: 'semantic', node: parent.id, level: 'E2', confidence: 'medium',
+        det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: PartKind.SEMANTIC, node: parent.id, level: 'E2', confidence: 'medium',
           cite: [{ node: parent.id, field: 'name', equals: parent.name }], evidence: `FRAME "${parent.name}" holds ${ids.size} items of the same structure ("${r.itemName}")`, params: { tag: 'ul', itemTag: 'li' }, note: 'autopilot: a group of repeated items is a list' });
         log('list', parent, 'ul > li', `${ids.size} repeated items fill the container`, 'medium');
       } else if (!exists) needs.push(`"${parent.name}" [${parent.id}] holds ${ids.size} repeated items next to other children: left as blocks`);
@@ -337,8 +184,8 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
       if (!['INSTANCE', 'FRAME', 'COMPONENT'].includes(n.type) || !NAV_ITEM.test(`${n.name ?? ''} ${n.component ?? ''}`)) return;
       const ts = textsIn(n);
       if (ts.length !== 1 || hand.has(ts[0].id) || det.components.some((c) => c.node === ts[0].id)) return;
-      if (det.components.some((c) => (c.component === 'menu' || c.component === 'menu-slider') && c.status === 'approved' && find(find(tree, c.node) ?? { children: [] }, ts[0].id))) return; // a label of an approved menu is built by the menu
-      det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: 'link', node: ts[0].id, level: 'E2', confidence: 'medium',
+      if (det.components.some((c) => (isKind(c, PartKind.MENU) || isKind(c, PartKind.MENU_SLIDER)) && c.status === 'approved' && find(find(tree, c.node) ?? { children: [] }, ts[0].id))) return; // a label of an approved menu is built by the menu
+      det.components.push({ id: `d${Math.max(0, ...det.components.map((c) => Number(c.id.slice(1)) || 0)) + 1}`, status: 'approved', source: 'ai', component: PartKind.LINK, node: ts[0].id, level: 'E2', confidence: 'medium',
         cite: [{ node: ts[0].id, field: 'type', equals: 'TEXT' }], evidence: `TEXT "${ts[0].text.characters.trim().slice(0, 40)}" is the only label of the menu item "${n.name}"`, params: { link: null }, note: 'autopilot: a menu item label is a link, "#" until the designer gives the URL' });
       labels.push(ts[0].text.characters.trim());
       ask('link', ts[0].id, `Mục menu "${ts[0].text.characters.trim().slice(0, 40)}"`);
@@ -367,11 +214,11 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   if (imgIndex) log('images', null, `alt "" + ${firstSection ? 'eager' : 'lazy'} on ${imgIndex} image(s)`, 'alt text is content only the designer has', 'high');
 
   const bars = new Set();
-  for (const scroll of det.components.filter((c) => c.component === 'scroll')) {
+  for (const scroll of det.components.filter((c) => isKind(c, PartKind.SCROLL))) {
     if (scroll.params?.track) bars.add(scroll.params.track);
     if (scroll.params?.thumb) bars.add(scroll.params.thumb);
   }
-  for (const line of det.components.filter((c) => c.component === 'divider' && bars.has(c.node))) {
+  for (const line of det.components.filter((c) => isKind(c, PartKind.DIVIDER) && bars.has(c.node))) {
     line.status = 'rejected';
     line.note = 'autopilot: this line is the scroll bar, not a divider';
     log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
@@ -386,12 +233,12 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     askRegister(frame.id);
   }
   for (const item of det.components) {
-    if (item.component !== 'price-table' || item.status === 'rejected') continue;
+    if (!isKind(item, PartKind.PRICE_TABLE) || item.status === 'rejected') continue;
     ask('price', item.node, `Bảng giá "${find(tree, item.node)?.name || item.node}"`);
     askRegister(item.node);
   }
   for (const item of det.components) {
-    if (item.component !== 'compare-table' || item.status === 'rejected') continue;
+    if (!isKind(item, PartKind.COMPARE_TABLE) || item.status === 'rejected') continue;
     ask('compare', item.node, `Bảng so sánh "${find(tree, item.node)?.name || item.node}"`);
     askRegister(item.node, BUY_BUTTON_FIELDS, buyAttrKey);
   }

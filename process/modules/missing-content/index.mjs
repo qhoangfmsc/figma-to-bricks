@@ -1,3 +1,4 @@
+import { PartKind, isKind, isAnyKind } from '../recognize-parts/kinds.mjs';
 // THE PLAN: the one document the owner reads and fills before anything is built (owner decision 2026-10-29: "after you look at Figma
 // and detect, ask only what you really need: values to list, content to fill in, short and clear, with a link to the place in Figma;
 // once I confirm, run to the end").
@@ -20,7 +21,9 @@ import { firstText } from '../write-bricks/components/helpers.mjs';
 import { parseFigmaUrl } from '../read-figma/url.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
 import { resolveWorkspace } from '../common/workspace.mjs';
-import { choiceOf, MISSING, REPEAT_COMPONENT } from './choices.mjs';
+import { choiceOf, MISSING, PlanGroup, REPEAT_COMPONENT } from './choices.mjs';
+import { paneQuestionLabel } from './pane-label.mjs';
+import { applySubmitChoice } from './submit-answer.mjs';
 import { PRICE_ID } from '../write-bricks/components/price-data.mjs';
 import { COMPARE_ID } from '../write-bricks/components/compare-data.mjs';
 import { compareFrames } from '../write-bricks/components/compare-table.mjs';
@@ -193,6 +196,14 @@ export const GROUPS = {
     value: '',
     check: (v) => (String(v ?? '').length <= 2000 ? null : 'dài quá 2000 ký tự'),
   },
+  submit: {
+    title: (n) => `Chữ trên nút gửi của ${n} form`,
+    field: 'Nút gửi',
+    heading: (name) => `${name || 'Form này'} không vẽ nút gửi. Nút đó ghi chữ gì?`,
+    summary: 'Tool đã thêm một nút gửi. Viết chữ trên nút. Để trống thì nút hiện chưa có chữ. Ghi drop nếu đây không phải form.',
+    value: '[Chưa có value]',
+    check: (v) => (String(v ?? '').length <= 80 ? null : 'chữ trên nút ngắn hơn 80 ký tự'),
+  },
   pattr: {
     title: () => 'Attribute nút đăng ký',
     field: 'Attribute nút đăng ký',
@@ -276,12 +287,7 @@ function plainName(name) {
   return who;
 }
 
-export function paneQuestionLabel(row) {
-  const name = String(row.label ?? '').slice(0, 40);
-  if (row.active && row.drawn) return `${name} đang mở, đang có: ${row.drawn}. Để nguyên cũng được, hoặc dán link khung khác.`;
-  if (!row.drawn) return `${name} chưa vẽ nội dung. Dán link khung của tab này, hoặc viết nội dung vào.`;
-  return `${name} đang có: ${row.drawn}`;
-}
+export { paneQuestionLabel };
 
 // What the tab box means. Empty keeps the pane Figma already drew. A Figma link is that tab's full frame.
 // Typed text fills a tab Figma did not draw; it does not replace a card that is already in the frame.
@@ -537,11 +543,15 @@ export function applyAnswers(ws, answers) {
         ok = true;
         break;
       case 'options': {
-        const entry = det.components.find((item) => item.component === 'select' && item.node === node && item.status !== 'rejected');
+        const entry = det.components.find((item) => isKind(item, PartKind.SELECT) && item.node === node && item.status !== 'rejected');
         if (!entry) break;
         if (picked.choice === 'list') entry.params = { ...(entry.params ?? {}), values: picked.values };
         entry.status = 'approved';
         ok = true;
+        break;
+      }
+      case PlanGroup.SUBMIT: {
+        ok = applySubmitChoice(det.components, node, picked);
         break;
       }
       case 'pattr': {
@@ -576,14 +586,14 @@ export function applyAnswers(ws, answers) {
         if (!findIn(node)) break;
         if (picked.choice === 'unset') { ok = true; break; }
         if (picked.choice !== 'id' || !PRICE_ID.test(picked.id ?? '')) break;
-        let entry = det.components.find((item) => item.component === 'price-table' && item.node === node);
+        let entry = det.components.find((item) => isKind(item, PartKind.PRICE_TABLE) && item.node === node);
         const detectionId = 'p' + createHash('sha1').update(node).digest('hex').slice(0, 8);
         if (!entry) {
           det.components.push({
             id: detectionId,
             status: 'approved',
             source: 'plan',
-            component: 'price-table',
+            component: PartKind.PRICE_TABLE,
             node,
             confidence: 'high',
             params: { id: picked.id },
@@ -602,14 +612,14 @@ export function applyAnswers(ws, answers) {
         if (!findIn(node)) break;
         if (picked.choice === 'unset') { ok = true; break; }
         if (picked.choice !== 'id' || !COMPARE_ID.test(picked.id ?? '')) break;
-        let entry = det.components.find((item) => item.component === 'compare-table' && item.node === node);
+        let entry = det.components.find((item) => isKind(item, PartKind.COMPARE_TABLE) && item.node === node);
         const detectionId = 'c' + createHash('sha1').update(`compare|${node}`).digest('hex').slice(0, 8);
         if (!entry) {
           det.components.push({
             id: detectionId,
             status: 'approved',
             source: 'plan',
-            component: 'compare-table',
+            component: PartKind.COMPARE_TABLE,
             node,
             confidence: 'high',
             params: { id: picked.id },
@@ -634,7 +644,7 @@ export function applyAnswers(ws, answers) {
         break;
       }
       case 'video': {
-        const c = det.components.find((x) => x.component === 'video' && x.node === node && x.status !== 'rejected');
+        const c = det.components.find((x) => isKind(x, PartKind.VIDEO) && x.node === node && x.status !== 'rejected');
         if (!c) break;
         switch (picked.choice) {
           case 'url':
@@ -652,7 +662,7 @@ export function applyAnswers(ws, answers) {
       case 'link': {
         const href = picked.choice === 'url' ? picked.href : '#';
         if (picked.choice === 'url' && !/^(#\S*|\/\S*|https?:\/\/\S+|mailto:\S+|tel:\S+)$/.test(href ?? '')) break;
-        for (const c of det.components.filter((x) => ['button', 'link'].includes(x.component) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = href; ok = true; }
+        for (const c of det.components.filter((x) => isAnyKind(x, [PartKind.BUTTON, PartKind.LINK]) && x.node === node && x.status === 'approved')) { (c.params ??= {}).link = href; ok = true; }
         const menu = !ok && (holder('menu', node) || holder('menu-slider', node));
         if (menu) { deep(menu, ['params', 'links', node], href); ok = true; }
         break;
@@ -671,8 +681,8 @@ export function applyAnswers(ws, answers) {
         break;
       }
       case 'pane': {
-        const rowsOf = (c) => (c.component === 'tab-switch' ? switchInventory(findIn(c.node)) : tabInventory(findIn(c.node)));
-        const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.status !== 'rejected' && rowsOf(x).some((row) => row.title.id === node));
+        const rowsOf = (c) => (isKind(c, PartKind.TAB_SWITCH) ? switchInventory(findIn(c.node)) : tabInventory(findIn(c.node)));
+        const c = det.components.find((x) => (isKind(x, PartKind.TABS) || isKind(x, PartKind.TAB_SWITCH)) && x.status !== 'rejected' && rowsOf(x).some((row) => row.title.id === node));
         if (!c) break;
         switch (picked.choice) {
           case 'figma':
@@ -693,7 +703,7 @@ export function applyAnswers(ws, answers) {
       }
       case 'tabopen':
       case 'tabdata': {
-        const c = det.components.find((x) => (x.component === 'tabs' || x.component === 'tab-switch') && x.node === node && x.status !== 'rejected');
+        const c = det.components.find((x) => (isKind(x, PartKind.TABS) || isKind(x, PartKind.TAB_SWITCH)) && x.node === node && x.status !== 'rejected');
         if (!c) break;
         switch (picked.choice) {
           case 'unset':
@@ -761,8 +771,8 @@ export function applyAnswers(ws, answers) {
         for (const c of of('accordion', node).filter((x) => x.status !== 'rejected')) { deep(c, ['params', 'sync'], picked.choice); ok = true; }
         break;
       case 'act': {
-        const button = det.components.find((c) => c.component === 'button' && c.node === node && c.status === 'approved');
-        const opener = det.components.find((c) => c.component === 'readmore' && c.status === 'approved' && c.params?.button === node);
+        const button = det.components.find((c) => isKind(c, PartKind.BUTTON) && c.node === node && c.status === 'approved');
+        const opener = det.components.find((c) => isKind(c, PartKind.READMORE) && c.status === 'approved' && c.params?.button === node);
         const mode = picked.choice === 'link' ? 'link' : picked.choice === 'none' ? 'none' : 'toggle';
         if (button && mode === 'link' && picked.href) { (button.params ??= {}).link = picked.href; ok = true; }
         if (opener) { (opener.params ??= {}).buttonMode = mode; ok = true; }
@@ -838,7 +848,7 @@ export function applyAnswers(ws, answers) {
           if (picked.choice === 'accordion') {
             c.status = 'approved';
             c.note = `${c.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
-            for (const l of det.components.filter((x) => x.component === 'semantic' && x.node === node)) { l.status = 'rejected'; l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)'; }
+            for (const l of det.components.filter((x) => isKind(x, PartKind.SEMANTIC) && x.node === node)) { l.status = 'rejected'; l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)'; }
           }
           ok = true;
         }
@@ -894,7 +904,7 @@ export function shareFilledContent(baseWs) {
 
     const ownersOf = (c) => { const prefer = partner(c); return prefer ? [prefer, ...sameKind(c).filter((x) => x !== prefer)] : sameKind(c); };
 
-    for (const c of baseDet.components.filter((x) => x.component === 'accordion' && live(x))) {
+    for (const c of baseDet.components.filter((x) => isKind(x, PartKind.ACCORDION) && live(x))) {
       const pool = ownersOf(c).flatMap((comp) => kids(find(vTree, comp.node) ?? {}).map((item) => ({ id: item.id, text: spoken(item), comp })));
       for (const [itemId, text] of Object.entries(c.params?.content?.answers ?? {})) {
         if (!text) continue;
@@ -911,7 +921,7 @@ export function shareFilledContent(baseWs) {
       if (c.status === 'approved' && /confirmed by the owner/.test(c.note ?? '') && hit.status === 'proposed') {
         hit.status = 'approved';
         hit.note = `${hit.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
-        for (const l of vComps.filter((x) => x.component === 'semantic' && x.node === hit.node && live(x))) {
+        for (const l of vComps.filter((x) => isKind(x, PartKind.SEMANTIC) && x.node === hit.node && live(x))) {
           l.status = 'rejected';
           l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)';
         }
@@ -919,10 +929,10 @@ export function shareFilledContent(baseWs) {
       }
     }
 
-    for (const c of baseDet.components.filter((x) => (x.component === 'tabs' || x.component === 'tab-switch') && live(x))) {
+    for (const c of baseDet.components.filter((x) => (isKind(x, PartKind.TABS) || isKind(x, PartKind.TAB_SWITCH)) && live(x))) {
       const pool = ownersOf(c).flatMap((comp) => {
         const node = find(vTree, comp.node) ?? {};
-        const titles = comp.component === 'tab-switch' ? tabTitles(node) : kids(kids(node)[0] ?? {});
+        const titles = isKind(comp, PartKind.TAB_SWITCH) ? tabTitles(node) : kids(kids(node)[0] ?? {});
         return titles.map((title) => ({ id: title.id, text: spoken(title), comp }));
       });
       const panes = c.params?.content?.panes ?? {};
@@ -942,7 +952,7 @@ export function shareFilledContent(baseWs) {
       }
     }
 
-    for (const c of baseDet.components.filter((x) => (x.component === 'menu' || x.component === 'menu-slider') && live(x))) {
+    for (const c of baseDet.components.filter((x) => (isKind(x, PartKind.MENU) || isKind(x, PartKind.MENU_SLIDER)) && live(x))) {
       const pool = ownersOf(c).flatMap((comp) => kids(find(vTree, comp.node) ?? {}).map((item) => firstText(item)).filter(Boolean).map((t) => ({ id: t.id, text: spoken(t), comp })));
       for (const [labelId, href] of Object.entries(c.params?.links ?? {})) {
         if (!href) continue;
@@ -955,7 +965,7 @@ export function shareFilledContent(baseWs) {
       }
     }
 
-    for (const c of baseDet.components.filter((x) => (x.component === 'button' || x.component === 'link') && live(x) && x.params?.link)) {
+    for (const c of baseDet.components.filter((x) => (isKind(x, PartKind.BUTTON) || isKind(x, PartKind.LINK)) && live(x) && x.params?.link)) {
       const pool = sameKind(c).map((comp) => ({ id: comp.node, text: spoken(find(vTree, comp.node)), comp }));
       const hit = take(c.node, pool);
       if (!hit) continue;
@@ -965,7 +975,7 @@ export function shareFilledContent(baseWs) {
       mark();
     }
 
-    for (const c of baseDet.components.filter((x) => x.component === 'carousel' && live(x))) {
+    for (const c of baseDet.components.filter((x) => isKind(x, PartKind.CAROUSEL) && live(x))) {
       const hit = partner(c);
       if (!hit) continue;
       if (typeof c.params?.autoplay === 'boolean' && hit.params?.autoplay === undefined) { (hit.params ??= {}).autoplay = c.params.autoplay; mark(); }
@@ -978,7 +988,7 @@ export function shareFilledContent(baseWs) {
       if (c.params?.items && !hit.params?.items) { (hit.params ??= {}).items = valueOf(c.params.items); mark(); }
     }
 
-    for (const c of baseDet.components.filter((x) => x.component === 'form' && live(x))) {
+    for (const c of baseDet.components.filter((x) => isKind(x, PartKind.FORM) && live(x))) {
       const hit = partner(c);
       if (!hit) continue;
       const baseFields = c.params?.fields ?? [];
@@ -996,7 +1006,7 @@ export function shareFilledContent(baseWs) {
       if (c.params?.errorStyle && !hit.params?.errorStyle) { (hit.params ??= {}).errorStyle = valueOf(c.params.errorStyle); mark(); }
     }
 
-    for (const c of baseDet.components.filter((x) => x.component === 'readmore' && live(x))) {
+    for (const c of baseDet.components.filter((x) => isKind(x, PartKind.READMORE) && live(x))) {
       const hit = partner(c);
       if (!hit) continue;
       if (c.params?.expand && !hit.params?.expand) { (hit.params ??= {}).expand = valueOf(c.params.expand); mark(); }

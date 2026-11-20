@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // A price table and a comparison table render the tool's data, not the words Figma drew.
 // Figma chooses the layout: a pill row is cycle tabs, a closed field is a cycle dropdown,
 // and a card row may scroll or stay a slider. The query repeats every package, cycle and feature row.
@@ -55,9 +56,9 @@ export function boundTableGaps(content, detections) {
   const lines = [];
   for (const item of detections?.components ?? []) {
     if (item.status === 'rejected' || !item.params?.id || !item.params?.table) continue;
-    const gaps = item.component === 'price-table'
+    const gaps = isKind(item, PartKind.PRICE_TABLE)
       ? priceTableGaps(content, item.params.table, item.params.id)
-      : item.component === 'compare-table'
+      : isKind(item, PartKind.COMPARE_TABLE)
         ? compareTableGaps(content, item.params.table, item.params.id)
         : [];
     if (gaps.length) lines.push(`${item.component} ${item.params.id} thiếu ${gaps.join(', ')}. Figma chỉ là layout. Data của id phải ra đủ chu kỳ, gói hoặc dòng tính năng.`);

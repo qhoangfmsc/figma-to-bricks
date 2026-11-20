@@ -5,13 +5,14 @@
 // params: tag (required) · itemTag (each visible child gets it, e.g. ul > li) · childTags { nodeId: tag } (explicit, wins over itemTag)
 //         link (url for tag a; empty -> '#', reported) · itemLink (true: children with itemTag a become links to '#') · id (css id, anchor target)
 //         alts { nodeId: text } (alt text of image descendants, only what the owner gave) · caption (node id of a text that becomes figcaption and the alt of images in a figure)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { addCustomCss } from '../../write-bricks/render/utils/css.mjs';
 import { tagSettings, tagReset, linkSetting, visibleKids, findNode, MISSING_URL } from '../../write-bricks/components/helpers.mjs';
 
 const ALLOWED = new Set(['div', 'section', 'header', 'footer', 'main', 'nav', 'article', 'aside', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'figure', 'figcaption', 'a', 'address', 'p', 'span', 'h2', 'h3', 'h4']);
 
 export default {
-  id: 'semantic',
+  id: PartKind.SEMANTIC,
   status: 'implemented',
   label: 'Semantic tags (ul/li, dl, figure, article, nav, a…)',
   figma: 'a container that a developer would write as a list / definition list / figure / article / nav / link card',

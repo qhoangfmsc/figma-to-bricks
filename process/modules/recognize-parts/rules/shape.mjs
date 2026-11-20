@@ -1,3 +1,4 @@
+import { NodeType, FillType, isType, isText } from '../node-type.mjs';
 // Shared shape tests. A layer name is not an input here.
 // Popup, form, menu, and choice all read the same box, fill, and icon facts.
 
@@ -5,13 +6,13 @@ export const visibleKids = (n) => (n?.children ?? []).filter((c) => c && c.visib
 
 export function textsOf(n, out = []) {
   if (!n || n.visible === false) return out;
-  if (n.type === 'TEXT' && !n.svg && n.text?.characters?.trim()) out.push(n);
+  if (isText(n) && !n.svg && n.text?.characters?.trim()) out.push(n);
   visibleKids(n).forEach((c) => textsOf(c, out));
   return out;
 }
 
 export function dimFill(n) {
-  const fill = (n?.fills ?? []).find((f) => f.type === 'SOLID' || f.type === 'GRADIENT_LINEAR');
+  const fill = (n?.fills ?? []).find((f) => isType(f, FillType.SOLID) || isType(f, FillType.GRADIENT_LINEAR));
   if (!fill) return false;
   return (fill.alpha ?? 1) * (n.opacity ?? 1) <= 0.75;
 }
@@ -31,14 +32,16 @@ export function centeredCard(card, root) {
 function isCloseMark(n, parent) {
   if (!n?.box || !parent?.box) return false;
   const { w, h, x, y } = n.box;
-  if (w < 8 || h < 8 || w > 40 || h > 40) return false;
-  const corner = (x + w > parent.box.w - 48 && y < 48) || (x < 48 && y < 48);
+  const limit = Math.min(parent.box.w, parent.box.h);
+  if (limit <= 0 || w < limit * 0.02 || h < limit * 0.02 || w > limit * 0.18 || h > limit * 0.18) return false;
+  const cornerReach = Math.min(parent.box.w, parent.box.h) * 0.16;
+  const corner = (x + w > parent.box.w - cornerReach && y < cornerReach) || (x < cornerReach && y < cornerReach);
   if (!corner) return false;
   const label = textsOf(n).map((t) => t.text.characters.trim()).join('');
   if (/^[×xX✕✖]$/.test(label)) return true;
   const name = `${n.name ?? ''} ${n.component ?? ''} ${n.svg?.file ?? ''}`;
   if (/\b(close|dismiss|times)\b/i.test(name) || /\bx\b/i.test(name)) return true;
-  return n.type === 'VECTOR' && !n.svg;
+  return isType(n, NodeType.VECTOR) && !n.svg;
 }
 
 // The mark may sit inside a header. Coordinates are added up from this frame.
@@ -67,8 +70,8 @@ export function popupCard(root) {
   if (!dimFill(root)) return null;
   const card = visibleKids(root).find((c) => centeredCard(c, root));
   if (!card?.box) return null;
-  const fill = (root.fills ?? []).find((f) => f.type === 'SOLID' || f.type === 'GRADIENT_LINEAR');
-  const backdrop = fill?.type === 'SOLID' && fill.hex ? { hex: fill.hex, alpha: (fill.alpha ?? 1) * (root.opacity ?? 1) } : null;
+  const fill = (root.fills ?? []).find((f) => isType(f, FillType.SOLID) || isType(f, FillType.GRADIENT_LINEAR));
+  const backdrop = isType(fill, FillType.SOLID) && fill.hex ? { hex: fill.hex, alpha: (fill.alpha ?? 1) * (root.opacity ?? 1) } : null;
   return { card, backdrop, width: Math.round(card.box.w) };
 }
 
@@ -90,7 +93,7 @@ export function isGlyph(n) {
   if (!n || n.visible === false) return false;
   if (n.svg) return true;
   const font = n.text?.fontFamily ?? '';
-  if (n.type === 'TEXT' && /awesome|material icons/i.test(font)) return true;
+  if (isText(n) && /awesome|material icons/i.test(font)) return true;
   return visibleKids(n).some(isGlyph);
 }
 
@@ -102,7 +105,7 @@ export function isIconMark(n) {
 function isTrack(n) {
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
-  if (h < 16 || h > 44 || w < h * 1.55 || w > h * 2.9) return false;
+  if (h <= 0 || w < h * 1.55 || w > h * 2.9) return false;
   return radiusMin(n) >= h / 2 - 1;
 }
 
@@ -111,7 +114,7 @@ function knobOf(track) {
     const w = c.box?.w ?? 0;
     const h = c.box?.h ?? 0;
     const th = track.box?.h ?? 0;
-    return Math.abs(w - h) <= 4 && w >= th * 0.45 && w <= th;
+    return w > 0 && h > 0 && Math.abs(w - h) / Math.max(w, h) <= 0.2 && w >= th * 0.45 && w <= th;
   });
 }
 
@@ -123,10 +126,11 @@ export function containsChoice(n) {
 
 // A compact filled or stroked control. A plain text link has neither.
 export function isPressable(n) {
-  if (!n?.box || n.type === 'TEXT') return false;
-  const h = n.box.h ?? 0;
-  if (h < 32 || h > 72) return false;
-  if (textsOf(n).length !== 1) return false;
-  const filled = (n.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
+  if (!n?.box || isText(n) || textsOf(n).length !== 1) return false;
+  const text = textsOf(n)[0];
+  const textH = text?.box?.h ?? 0;
+  const boxH = n.box.h ?? 0;
+  if (textH > 0 && boxH > textH * 2.5) return false;
+  const filled = (n.fills ?? []).some((f) => isType(f, FillType.SOLID) && (f.alpha ?? 1) > 0.5);
   return filled || !!n.stroke;
 }

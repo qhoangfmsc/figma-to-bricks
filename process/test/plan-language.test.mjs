@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { choiceOf, resolvePlan } from '../modules/missing-content/choices.mjs';
@@ -61,14 +62,14 @@ test('those readings change the template the way the sentence asked', () => {
     'overrides.json': { nodes: { pic: { alt: '' } } },
     'detections.json': {
       components: [
-        { id: 'c1', component: 'carousel', node: 'row', status: 'approved', params: {} },
-        { id: 'c2', component: 'button', node: 'btn', status: 'approved', params: {} },
-        { id: 'c8', component: 'button', node: 'old', status: 'approved', params: {} },
-        { id: 'c3', component: 'accordion', node: 'card', status: 'proposed', params: {} },
-        { id: 'c4', component: 'form', node: 'list', status: 'proposed', params: {} },
-        { id: 'c5', component: 'accordion', node: 'faq', status: 'proposed', params: {} },
-        { id: 'c6', component: 'button', node: 'more', status: 'approved', params: {} },
-        { id: 'c7', component: 'readmore', node: 'clip', status: 'approved', params: { button: 'more' } },
+        { id: 'c1', component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: {} },
+        { id: 'c2', component: PartKind.BUTTON, node: 'btn', status: 'approved', params: {} },
+        { id: 'c8', component: PartKind.BUTTON, node: 'old', status: 'approved', params: {} },
+        { id: 'c3', component: PartKind.ACCORDION, node: 'card', status: 'proposed', params: {} },
+        { id: 'c4', component: PartKind.FORM, node: 'list', status: 'proposed', params: {} },
+        { id: 'c5', component: PartKind.ACCORDION, node: 'faq', status: 'proposed', params: {} },
+        { id: 'c6', component: PartKind.BUTTON, node: 'more', status: 'approved', params: {} },
+        { id: 'c7', component: PartKind.READMORE, node: 'clip', status: 'approved', params: { button: 'more' } },
       ],
     },
   });
@@ -88,7 +89,7 @@ test('those readings change the template the way the sentence asked', () => {
   assert.equal(det.components.find((c) => c.id === 'c3').status, 'rejected');
   assert.equal(det.components.find((c) => c.id === 'c4').status, 'proposed');
   assert.equal(det.components.find((c) => c.id === 'c5').status, 'approved');
-  assert.equal(det.components.find((c) => c.node === 'list' && c.component === 'accordion').status, 'approved');
+  assert.equal(det.components.find((c) => c.node === 'list' && isKind(c, PartKind.ACCORDION)).status, 'approved');
   assert.equal(det.components.find((c) => c.id === 'c7').params.buttonMode, 'toggle');
   assert.equal(ov.nodes.pic.alt, '');
 });

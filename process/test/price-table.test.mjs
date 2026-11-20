@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
@@ -7,7 +8,7 @@ import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 import { decide } from '../modules/approve-parts/index.mjs';
 import { screenParts } from '../modules/single-template/parts.mjs';
-import { REGISTER_BUTTON_FIELDS, missingBoundTables, priceFrames, registerAttrKey } from '../modules/write-bricks/components/price-table.mjs';
+import { REGISTER_BUTTON_FIELDS, missingBoundTables, priceFrames, registerAttrKey, stepPriceCard } from '../modules/write-bricks/components/price-table.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value) => ({
@@ -113,8 +114,8 @@ test('a bound table renders one pill, one card and one info row as query loops',
   const tree = treeOf();
   const built = buildTemplate(tree, {
     detections: { components: [
-      { id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } },
-      { id: 'buy', status: 'approved', source: 'rule', component: 'button', node: 'c1b', params: {} },
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'starter-cloud', table: parsed.table } },
+      { id: 'buy', status: 'approved', source: 'rule', component: PartKind.BUTTON, node: 'c1b', params: {} },
     ] },
     salt: 'price',
   });
@@ -178,7 +179,7 @@ test('a cycle word inside the only card stays in that card, and the pill row is 
     frame('deck', 'cards', [0, 48, 200, 200], [card, frame('nav', 'arrows', [0, 0, 40, 40], [text('navt', 'Next')])], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'orbit-desk', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'orbit-desk', table: parsed.table } }] },
     salt: 'orbit',
   });
   const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
@@ -197,6 +198,55 @@ test('a cycle word inside the only card stays in that card, and the pill row is 
   assert.equal(built.mapping.buy?.skipped, undefined);
   assert.equal(built.mapping.note?.skipped, undefined);
   assert.equal(el('nav').settings.hasLoop, undefined);
+  assert.equal(el('nav').settings._attributes[0].name, 'data-vnx-sp-next');
+});
+
+test('controls beside one card step that card, and a wrapped pill row stays wrapped', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'birch-plan',
+    unit: '/wk',
+    button: 'Join',
+    cycles: [{ label: 'Spring', badge: '' }, { label: 'Autumn', badge: '' }],
+    rows: ['Soil'],
+    packages: [
+      { name: 'Birch', prices: [{ sale: '4', total: '16', promo: 'Note', code: 'BB' }, { sale: '3', total: '18', promo: 'Note', code: 'BB' }], info: ['Deep'], links: ['https://example.com/a', 'https://example.com/b'] },
+    ],
+  }));
+  const pill = (id, label) => frame(id, 'pill', [0, 0, 80, 32], [text(`${id}t`, label)]);
+  const card = frame('card', 'card', [40, 0, 180, 160], [
+    text('name', 'Birch'),
+    text('amount', '4'),
+    text('unit', '/wk'),
+    frame('buy', 'buy', [0, 80, 80, 28], [text('buyt', 'Join')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 360, 240], [
+    frame('bar', 'cycles', [0, 0, 180, 72], [pill('s1', 'Spring'), pill('s2', 'Autumn')], { layoutMode: 'HORIZONTAL', layoutWrap: 'WRAP' }),
+    frame('deck', 'cards', [0, 80, 260, 160], [
+      frame('back', 'back', [0, 60, 32, 32], [text('backt', 'Back')]),
+      card,
+      frame('onward', 'onward', [228, 60, 32, 32], [text('onwardt', 'Onward')]),
+    ], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'birch-plan', table: parsed.table } }] },
+    salt: 'birch',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('bar').settings._flexWrap, 'wrap');
+  assert.equal(el('back').settings._attributes[0].name, 'data-vnx-sp-prev');
+  assert.equal(el('onward').settings._attributes[0].name, 'data-vnx-sp-next');
+  assert.equal(el('card').settings._attributes[0].name, 'data-vnx-sp-card');
+  const cards = [{ offsetLeft: 0 }, { offsetLeft: 180 }, { offsetLeft: 360 }];
+  const pane = {
+    scrollLeft: 180,
+    querySelectorAll: () => cards,
+    scrollTo({ left }) { this.scrollLeft = left; },
+  };
+  const root = { querySelector: () => pane };
+  stepPriceCard({ closest: () => root }, 1);
+  assert.equal(pane.scrollLeft, 360);
+  stepPriceCard({ closest: () => root }, -1);
+  assert.equal(pane.scrollLeft, 180);
 });
 
 test('another table with different words uses the same tags', () => {
@@ -225,7 +275,7 @@ test('another table with different words uses the same tags', () => {
     frame('deck', 'cards', [0, 40, 360, 140], [card('a', 'Starter', '3', 'Fast', 'AA'), card('b', 'Growth', '6', 'Faster', 'BB')], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'studio-plan', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'studio-plan', table: parsed.table } }] },
     salt: 'studio',
   });
   const textOf = (id) => built.template.content.find((item) => item.id === built.mapping[id].bricksId).settings.text;
@@ -274,7 +324,7 @@ test('one package row is the price table, and it needs a loaded id', () => {
   ]) } } }, 'r', { images: {}, svgs: {} });
   assert.deepEqual(priceFrames(tree).map((item) => item.id), ['deck']);
   assert.deepEqual(missingBoundTables(tree, { components: [] }).map((gap) => gap.node), ['deck']);
-  const loaded = { components: [{ component: 'price-table', status: 'approved', node: 'deck', params: { id: 'lane-pier', table: { packages: [{ name: 'Lane' }] } } }] };
+  const loaded = { components: [{ component: PartKind.PRICE_TABLE, status: 'approved', node: 'deck', params: { id: 'lane-pier', table: { packages: [{ name: 'Lane' }] } } }] };
   assert.deepEqual(missingBoundTables(tree, loaded), []);
 });
 
@@ -298,7 +348,7 @@ test('a card title that is not the stored package name is still the name slot', 
     ],
   };
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'deck', params: { id: 'lane-pier', table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'deck', params: { id: 'lane-pier', table } }] },
     salt: 'lane',
   });
   const textOf = (id) => built.template.content.find((item) => item.id === built.mapping[id].bricksId).settings.text;
@@ -324,7 +374,7 @@ test('a cycle pill whose words are not in the table is still that one cycle sour
     ],
   };
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'lane-pier', table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'lane-pier', table } }] },
     salt: 'cycles',
   });
   const texts = built.template.content.map((item) => item.settings?.text).filter((value) => typeof value === 'string');
@@ -349,7 +399,7 @@ test('a card keeps tags when the drawn words differ by case from the table', () 
     frame('deck', 'cards', [0, 40, 400, 160], [card('a', 'basic'), card('b', 'plus')], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'ap', params: { id: 'starter-cloud', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'ap', params: { id: 'starter-cloud', table: parsed.table } }] },
     salt: 'case',
   });
   const textOf = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId)?.settings.text;
@@ -372,7 +422,7 @@ test('a vertical card row stays a column, and the loop copies the resting pill',
     frame('deck', 'cards', [0, 48, 140, 180], [card('a', 'Basic'), card('b', 'Plus')], { layoutMode: 'VERTICAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
     salt: 'rest',
   });
   const content = built.template.content;
@@ -381,6 +431,96 @@ test('a vertical card row stays a column, and the loop copies the resting pill',
   assert.equal(built.mapping.hot.skipped.startsWith('merged into'), true);
   assert.equal(content.find((item) => item.id === built.mapping['deck#open']?.bricksId).settings._direction, 'column');
   assert.match(el('bar').settings._cssCustom, /brx-open/);
+});
+
+test('the open cycle pill keeps a gradient and the resting pill is the loop', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'cabin-loft',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Season', badge: '' }, { label: 'Winter', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '30', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/c', 'https://example.com/c2'] },
+      { name: 'Loft', prices: [{ sale: '70', total: '70', promo: '', code: '' }, { sale: '55', total: '55', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/l', 'https://example.com/l2'] },
+    ],
+  }));
+  const gradient = {
+    type: 'GRADIENT_LINEAR',
+    gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }, { x: 0, y: 1 }],
+    gradientStops: [
+      { position: 0, color: { r: 0.067, g: 0.133, b: 0.2, a: 1 } },
+      { position: 1, color: { r: 0.8, g: 0.267, b: 0.067, a: 1 } },
+    ],
+  };
+  const pill = (id, label, state, fills) => ({
+    id, name: 'pill', type: 'INSTANCE', componentId: 'pill-comp',
+    componentProperties: { 'State#9:1': { type: 'VARIANT', value: state } },
+    absoluteBoundingBox: box(0, 0, 90, 32),
+    layoutMode: 'HORIZONTAL',
+    children: [text(`${id}t`, label)],
+    ...(fills ? { fills } : {}),
+  });
+  const card = (id, name) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, name), text(`${id}p`, '40'), text(`${id}u`, '/wk')]);
+  const tree = normalizeRoot({ nodes: { r: {
+    components: { 'pill-comp': { name: 'State=Default', componentSetId: 'pill-set' } },
+    componentSets: { 'pill-set': { name: 'Cycle pill' } },
+    document: frame('r', 'Plans', [0, 0, 400, 200], [
+      frame('bar', 'cycles', [0, 0, 280, 32], [
+        pill('hot', 'Season', 'Hover', [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 0.12 } }]),
+        pill('on', 'Season', 'Active', [gradient]),
+        pill('off', 'Winter', 'Default'),
+      ], { layoutMode: 'HORIZONTAL' }),
+      frame('deck', 'cards', [0, 48, 360, 80], [card('a', 'Cabin'), card('b', 'Loft')], { layoutMode: 'HORIZONTAL' }),
+    ]),
+  } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'cabin-loft', table: parsed.table } }] },
+    salt: 'season',
+  });
+  const content = built.template.content;
+  const el = (id) => content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('off').settings.query.objectType, 'vnxsp_cycle__cabin-loft');
+  assert.equal(built.mapping.on.skipped.startsWith('merged into'), true);
+  assert.equal(built.mapping.hot.skipped.startsWith('merged into'), true);
+  assert.equal(el('off').settings._gradient, undefined);
+  assert.match(el('bar').settings._cssCustom, /\.tab-title\.brx-open \{ background-image: linear-gradient/);
+  assert.equal(el('r').settings.openTab, '0');
+});
+
+test('one painted pill among plain pills is the open tab, with no variant and no badge', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'dawn-dusk',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Dawn', badge: '' }, { label: 'Noon', badge: '' }, { label: 'Dusk', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '30', promo: '', code: '' }, { sale: '20', total: '20', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/a', 'https://example.com/b', 'https://example.com/c'] },
+      { name: 'Loft', prices: [{ sale: '70', total: '70', promo: '', code: '' }, { sale: '55', total: '55', promo: '', code: '' }, { sale: '40', total: '40', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/d', 'https://example.com/e', 'https://example.com/f'] },
+    ],
+  }));
+  const pill = (id, label, fills) => frame(id, 'pill', [0, 0, 90, 32], [text(`${id}t`, label)], fills ? { fills } : {});
+  const card = (id, name) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, name), text(`${id}p`, '40'), text(`${id}u`, '/wk')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 200], [
+    frame('bar', 'cycles', [0, 0, 300, 32], [
+      pill('early', 'Dawn'),
+      pill('mid', 'Noon', [{ type: 'SOLID', color: { r: 0.1, g: 0.45, b: 0.3, a: 1 } }]),
+      pill('late', 'Dusk'),
+    ], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 360, 80], [card('a', 'Cabin'), card('b', 'Loft')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'dawn-dusk', table: parsed.table } }] },
+    salt: 'dawn',
+  });
+  const content = built.template.content;
+  const el = (id) => content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('early').settings.query.objectType, 'vnxsp_cycle__dawn-dusk');
+  assert.equal(built.mapping.mid.skipped.startsWith('merged into'), true);
+  assert.equal(built.mapping.late.skipped.startsWith('merged into'), true);
+  assert.match(el('bar').settings._cssCustom, /\.tab-title\.brx-open \{ background-color: #1a734d/);
+  assert.equal(el('r').settings.openTab, '1');
 });
 
 test('a mark beside one card stays out of the loop', () => {
@@ -394,7 +534,7 @@ test('a mark beside one card stays out of the loop', () => {
     frame('deck', 'cards', [0, 40, 280, 110], [body('plain', 'Basic'), frame('wrap', 'plan', [140, 0, 120, 110], [ribbon, body('inner', 'Plus')])], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
     salt: 'ribbon',
   });
   const content = built.template.content;
@@ -416,7 +556,7 @@ test('a closed cycle field becomes a dropdown and a clipped card row scrolls', (
     frame('deck', 'cards', [0, 60, 400, 120], [card('a', 'Basic'), card('b', 'Plus')], { layoutMode: 'HORIZONTAL', clipsContent: true }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
     salt: 'drop',
   });
   const content = built.template.content;
@@ -453,18 +593,18 @@ test('a bound table is the same table on another frame', () => {
   const table = { packages: [{ name: 'Basic' }], cycles: [{ label: 'Year' }] };
   const carried = carryPriceTables(
     { components: [
-      { id: 'desk', component: 'price-table', status: 'approved', node: 'desk-box', params: { id: 'starter-cloud', table } },
-      { id: 'desk-2', component: 'price-table', status: 'approved', node: 'desk-other', params: { id: 'starter-cloud', table } },
+      { id: 'desk', component: PartKind.PRICE_TABLE, status: 'approved', node: 'desk-box', params: { id: 'starter-cloud', table } },
+      { id: 'desk-2', component: PartKind.PRICE_TABLE, status: 'approved', node: 'desk-other', params: { id: 'starter-cloud', table } },
     ] },
     { components: [
-      { id: 'local', component: 'price-table', status: 'approved', node: 'phone-box', params: { id: 'other-table' } },
-      { id: 'keep', component: 'button', status: 'approved', node: 'phone-btn', params: {} },
+      { id: 'local', component: PartKind.PRICE_TABLE, status: 'approved', node: 'phone-box', params: { id: 'other-table' } },
+      { id: 'keep', component: PartKind.BUTTON, status: 'approved', node: 'phone-btn', params: {} },
     ] },
     new Map([['phone-box', 'desk-box']]),
     'phone',
   );
-  assert.equal(carried.components.find((item) => item.component === 'button').id, 'keep');
-  const prices = carried.components.filter((item) => item.component === 'price-table');
+  assert.equal(carried.components.find((item) => isKind(item, PartKind.BUTTON)).id, 'keep');
+  const prices = carried.components.filter((item) => isKind(item, PartKind.PRICE_TABLE));
   assert.equal(prices.length, 1);
   const price = prices[0];
   assert.equal(price.node, 'phone-box');
@@ -503,7 +643,7 @@ test('a drawn amount that is not in the table still becomes the sale tag', () =>
     ]),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'starter-cloud', table: parsed.table } }] },
     salt: 'sample',
   });
   const sample = built.template.content.find((item) => item.id === built.mapping.sample?.bricksId);
@@ -541,7 +681,7 @@ test('an info line binds the row name, the value, the extra, the discount and th
     frame('deck', 'cards', [0, 40, 440, 140], [card, frame('other', 'plan', [220, 0, 200, 140], [text('on', 'Crew'), text('op', '6')])], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: { mark: { file: 'svg/mark.svg' } } });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'seat-plan', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'seat-plan', table: parsed.table } }] },
     salt: 'seats',
   });
   const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
@@ -556,6 +696,104 @@ test('an info line binds the row name, the value, the extra, the discount and th
   assert.equal(built.template.content.find((item) => item.label === 'No').settings.icon.icon, 'fa-solid fa-xmark');
   assert.equal(built.template.content.find((item) => item.label === 'Highlight').settings.icon.icon, 'fa-solid fa-star');
   assert.equal(el('line').settings.query.objectType, 'vnxsp_row__seat-plan');
+});
+
+test('the picture names the open cycle pill when the paints match', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'early-late',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Morning', badge: '' }, { label: 'Evening', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '30', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/a', 'https://example.com/b'] },
+      { name: 'Loft', prices: [{ sale: '70', total: '70', promo: '', code: '' }, { sale: '55', total: '55', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/c', 'https://example.com/d'] },
+    ],
+  }));
+  const pill = (id, label) => frame(id, 'pill', [0, 0, 90, 32], [text(`${id}t`, label)]);
+  const card = (id, name) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, name), text(`${id}p`, '40'), text(`${id}u`, '/wk')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 200], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [pill('morn', 'Morning'), pill('eve', 'Evening')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 360, 80], [card('a', 'Cabin'), card('b', 'Loft')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'early-late', table: parsed.table, selected: 'eve' } }] },
+    salt: 'evening',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('morn').settings.query.objectType, 'vnxsp_cycle__early-late');
+  assert.equal(built.mapping.eve.skipped.startsWith('merged into'), true);
+  assert.equal(el('r').settings.openTab, '1');
+});
+
+test('two pills with the same paint and no selected item stay on the first cycle', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'dawn-plan',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Dawn', badge: '' }, { label: 'Dusk', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '30', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/a', 'https://example.com/b'] },
+      { name: 'Loft', prices: [{ sale: '70', total: '70', promo: '', code: '' }, { sale: '55', total: '55', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/c', 'https://example.com/d'] },
+    ],
+  }));
+  const pill = (id, label) => frame(id, 'pill', [0, 0, 90, 32], [text(`${id}t`, label)]);
+  const card = (id, name) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, name), text(`${id}p`, '30'), text(`${id}u`, '/wk')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 200], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [pill('dawn', 'Dawn'), pill('dusk', 'Dusk')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 360, 80], [card('a', 'Cabin'), card('b', 'Loft')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'dawn-plan', table: parsed.table } }] },
+    salt: 'same-paint',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('r').settings.openTab, '0');
+});
+
+test('a confirmed price row does not take a cycle pill that sits outside it', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'cabin-loft',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Morning', badge: '' }, { label: 'Evening', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '30', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/a', 'https://example.com/b'] },
+      { name: 'Loft', prices: [{ sale: '70', total: '70', promo: '', code: '' }, { sale: '55', total: '55', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/c', 'https://example.com/d'] },
+    ],
+  }));
+  const pill = (id, label) => frame(id, 'pill', [0, 0, 80, 32], [text(`${id}t`, label)]);
+  const card = (id, name) => frame(id, 'card', [0, 0, 160, 80], [text(`${id}n`, name), text(`${id}p`, '$40'), text(`${id}u`, '/wk')]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 240], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [pill('morn', 'Morning'), pill('eve', 'Evening')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 360, 120], [card('a', 'Cabin'), card('b', 'Loft')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'deck', params: { id: 'cabin-loft', table: parsed.table, confirm: 'ok' } }] },
+    salt: 'locked',
+  });
+  assert.equal(built.mapping.morn.skipped, undefined);
+  assert.equal(built.mapping.morn.bricksId != null, true);
+  const pillEl = built.template.content.find((item) => item.id === built.mapping.morn.bricksId);
+  assert.equal(pillEl.settings.hasLoop, undefined);
+});
+
+test('a row of amount cards is a price table without a currency from one file', () => {
+  const card = (id, name, amount, unit) => frame(id, 'card', [0, 0, 160, 120], [
+    text(`${id}n`, name),
+    text(`${id}p`, amount),
+    text(`${id}u`, unit),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Rates', [0, 0, 400, 160], [
+    frame('deck', 'row', [0, 0, 400, 140], [card('a', 'Berth', '$49', '/mo'), card('b', 'Quay', '$80', '/mo')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  assert.deepEqual(priceFrames(tree).map((item) => item.id), ['deck']);
+  const specs = normalizeRoot({ nodes: { r: { document: frame('r', 'Specs', [0, 0, 400, 80], [
+    frame('row', 'row', [0, 0, 400, 40], [frame('a', 'line', [0, 0, 160, 24], [text('at', '8 GB')]), frame('b', 'line', [180, 0, 160, 24], [text('bt', '16 GB')])], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  assert.deepEqual(priceFrames(specs).map((item) => item.id), []);
 });
 
 test('a drawn price pair asks for a table id', () => {
@@ -597,7 +835,7 @@ test('a filled category is on the register button and the other attributes stay 
     [registerAttrKey('r', 'data-product-category')]: 'Cloud desk',
     [registerAttrKey('r', 'data-product-name')]: '{vnx_sp_name}',
   });
-  const entry = files['detections.json'].components.find((item) => item.component === 'price-table');
+  const entry = files['detections.json'].components.find((item) => isKind(item, PartKind.PRICE_TABLE));
   entry.params.table = parsed.table;
   const built = buildTemplate(tree, { detections: files['detections.json'], salt: 'attrs' });
   const button = built.template.content.find((item) => item.id === built.mapping.c1b.bricksId);

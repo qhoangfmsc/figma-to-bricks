@@ -4,6 +4,10 @@ import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
 import { submissionName } from '../modules/write-bricks/components/form.mjs';
+import { decide } from '../modules/approve-parts/index.mjs';
+import { applyAnswers } from '../modules/missing-content/index.mjs';
+import { MISSING, PlanGroup, SubmitChoice } from '../modules/missing-content/choices.mjs';
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, b) => ({
@@ -27,10 +31,27 @@ function built(doc, params, title) {
   const tree = normalizeRoot({ nodes: { r: { document: doc } } }, 'r', { images: {}, svgs: {} });
   return buildTemplate(tree, {
     overrides: title ? { template: { title } } : {}, salt: 'form',
-    detections: { version: 1, sections: [], components: [{ id: 'd1', component: 'form', node: 'frm', status: 'approved', params }] },
+    detections: { version: 1, sections: [], components: [{ id: 'd1', component: PartKind.FORM, node: 'frm', status: 'approved', params }] },
   });
 }
 const formOf = (b) => b.template.content.find((e) => e.name === 'form').settings;
+
+test('a row of amount cards is not a form', () => {
+  const tag = (id) => ({
+    id, name: id, type: 'FRAME', absoluteBoundingBox: box(0, 0, 160, 28),
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }],
+    children: [text(`${id}t`, 'Save more', { x: 4, y: 4, w: 150, h: 20 })],
+  });
+  const card = (id, amount) => ({
+    id, name: id, type: 'FRAME', absoluteBoundingBox: box(0, 0, 200, 180),
+    children: [text(`${id}a`, amount, { x: 8, y: 8, w: 80, h: 24 }), tag(`${id}g`)],
+  });
+  const tree = normalizeRoot({ nodes: { r: { document: {
+    id: 'r', name: 'Section', type: 'FRAME', absoluteBoundingBox: box(0, 0, 440, 180), layoutMode: 'HORIZONTAL',
+    children: [card('a', '$49'), card('b', '$62')],
+  } } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectForms(tree).some((item) => item.node === 'r'), false);
+});
 
 test('each field keeps its own height and a short field keeps its share of the row', () => {
   const b = built({
@@ -147,7 +168,7 @@ test('a frame named dropdown is a select, and a closed list keeps that one line'
     }],
   };
   const found = detectForms(tree);
-  assert.equal(found[0].params.fields[0].type, 'select');
+  assert.equal(found[0].params.fields[0].type, 'text');
   assert.deepEqual(found[0].params.actions, ['save-submission']);
   const closed = built({
     id: 'r', name: 'Section', type: 'FRAME',
@@ -180,7 +201,7 @@ test('save submission stays, a missing action is dropped, and a date field is a 
       ],
     }],
   };
-  assert.equal(detectForms(tree)[0].params.fields[0].type, 'datepicker');
+  assert.equal(detectForms(tree)[0].params.fields[0].type, 'text');
   const b = built({
     id: 'r', name: 'Section', type: 'FRAME',
     absoluteBoundingBox: box(0, 0, 400, 160),
@@ -247,8 +268,8 @@ test('repeated inputs stay a form, and the submit button is not one of the field
   const b = buildTemplate(normalized, {
     overrides: { template: { title: 'LDP IT_PROSPEAK - Section' } }, salt: 'form',
     detections: { version: 1, sections: [], components: [
-      { id: 'd1', component: 'form', node: 'frm', status: 'approved', params: { fields: [{ node: 'a', type: 'text', placeholder: 'Họ và Tên' }, { node: 'b', type: 'email', placeholder: 'Email' }, { node: 'btn', type: 'text', placeholder: 'ĐĂNG KÝ NGAY' }], submit: 'btn', actions: ['save-submission'] } },
-      { id: 'd2', component: 'semantic', node: 'frm', status: 'approved', params: { tag: 'ul', itemTag: 'li' } },
+      { id: 'd1', component: PartKind.FORM, node: 'frm', status: 'approved', params: { fields: [{ node: 'a', type: 'text', placeholder: 'Họ và Tên' }, { node: 'b', type: 'email', placeholder: 'Email' }, { node: 'btn', type: 'text', placeholder: 'ĐĂNG KÝ NGAY' }], submit: 'btn', actions: ['save-submission'] } },
+      { id: 'd2', component: PartKind.SEMANTIC, node: 'frm', status: 'approved', params: { tag: 'ul', itemTag: 'li' } },
     ] },
   });
   const form = b.template.content.find((e) => e.name === 'form');
@@ -258,4 +279,59 @@ test('repeated inputs stay a form, and the submit button is not one of the field
   assert.equal(form.settings.showLabels, undefined);
   assert.deepEqual(form.settings.actions, ['save-submission']);
   assert.equal(form.settings.submissionFormName, 'LDP IT_PROSPEAK - Section / Form');
+});
+
+test('a narrow field and an agree row without a checkbox name are still a form', () => {
+  const mark = { id: 'box', name: 'Mark', type: 'FRAME', visible: true, box: { w: 16, h: 16 }, children: [] };
+  const agree = { id: 'agree', name: 'Agree', type: 'FRAME', visible: true, box: { w: 280, h: 24 }, children: [mark, { id: 'agreet', type: 'TEXT', text: { characters: 'I agree to the terms of this form today' }, box: { h: 20, w: 200 } }] };
+  const field = (id, word) => ({
+    id, name: 'Field', type: 'FRAME', visible: true, box: { w: 80, h: 40 },
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }],
+    children: [{ id: `${id}t`, type: 'TEXT', text: { characters: word, lineHeightPx: 20 }, box: { h: 20, w: 70 } }],
+  });
+  const send = { id: 'send', name: 'Button', type: 'FRAME', visible: true, box: { w: 80, h: 36 }, fills: [{ type: 'SOLID', color: { r: 0, g: 0.3, b: 0.8, a: 1 } }], children: [{ id: 'sendt', type: 'TEXT', text: { characters: 'Send' }, box: { h: 20, w: 40 } }] };
+  const form = { id: 'frm', name: 'Join', type: 'FRAME', visible: true, box: { w: 280, h: 200 }, layout: { mode: 'VERTICAL' }, children: [field('one', 'Given name for the account holder'), field('two', 'City'), agree, send] };
+  const found = detectForms({ id: 'root', children: [form] });
+  assert.equal(found[0]?.component, PartKind.FORM);
+  assert.equal(found[0].params.fields.at(-1).type, 'checkbox');
+  assert.equal(found[0].params.fields[0].type, 'text');
+});
+
+test('two fields and no button are still a form, and the plan asks the button text', () => {
+  const field = (id, y, h, word) => ({
+    id, name: 'Field', type: 'FRAME', visible: true,
+    box: { x: 0, y, w: 80, h },
+    fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }],
+    children: [{ id: `${id}t`, type: 'TEXT', visible: true, text: { characters: word, lineHeightPx: 20 }, box: { h: id === 'two' ? 48 : 20, w: 70 } }],
+  });
+  const form = {
+    id: 'frm', name: 'Join', type: 'FRAME', visible: true, box: { w: 280, h: 240 }, layout: { mode: 'VERTICAL' },
+    children: [field('one', 0, 16, 'Given name'), field('two', 24, 200, 'Where should we write back')],
+  };
+  const found = detectForms({ id: 'root', children: [form] });
+  assert.equal(found[0]?.component, PartKind.FORM);
+  assert.equal(found[0].params.submit, null);
+  assert.deepEqual(found[0].params.fields.map((item) => item.type), ['text', 'textarea']);
+  const files = {
+    'tree.json': { id: 'root', children: [form] },
+    'facts.json': { repeats: [] },
+    'overrides.json': { nodes: {} },
+    'detections.json': { components: [{ ...found[0], id: 'f1', status: 'proposed', source: 'rule' }] },
+  };
+  const ws = { readJson: (name, fallback) => files[name] ?? fallback, writeJson: (name, value) => { files[name] = value; } };
+  const asked = decide(ws, {}).questions.find((item) => item.group === PlanGroup.SUBMIT && item.node === 'frm');
+  assert.equal(asked.label, 'Nút gửi của "Join"');
+  assert.equal(files['detections.json'].components[0].status, 'approved');
+  const drawn = built({
+    id: 'r', name: 'Section', type: 'FRAME', absoluteBoundingBox: box(0, 0, 320, 200), layoutMode: 'VERTICAL',
+    children: [{
+      id: 'frm', name: 'Join', type: 'FRAME', absoluteBoundingBox: box(0, 0, 280, 120), layoutMode: 'VERTICAL',
+      children: [input('one', { x: 0, y: 0, w: 80, h: 16 }, 'Given name'), input('two', { x: 0, y: 24, w: 80, h: 40 }, 'City')],
+    }],
+  }, { fields: found[0].params.fields, submit: null, actions: ['save-submission'] });
+  assert.equal(formOf(drawn).submitButtonText, MISSING);
+  applyAnswers(ws, { [`${PlanGroup.SUBMIT}:frm`]: { choice: SubmitChoice.TEXT, text: 'Send now' } });
+  assert.equal(files['detections.json'].components[0].params.submitText, 'Send now');
+  applyAnswers(ws, { [`${PlanGroup.SUBMIT}:frm`]: { choice: SubmitChoice.DROP } });
+  assert.equal(files['detections.json'].components[0].status, 'rejected');
 });

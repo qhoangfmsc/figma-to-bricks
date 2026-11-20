@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
 // The "Bộ item" answer is a Figma link of the frame that holds every slide, in order.
 // The link is fetched beside THIS section (not into another section's workspace) and those items replace the slides drawn in the frame.
 // perPage stays the number that fit the frame, so a longer set still shows the same window.
@@ -70,7 +71,7 @@ export function graftSlides(tree, hostId, sourceTree, keepIds = []) {
 
 export async function attachSlideFrames(ws, { log = () => {} } = {}) {
   const det = ws.readJson('detections.json', { components: [] });
-  const jobs = det.components.filter((c) => c.component === 'carousel' && c.status === 'approved' && c.params?.items?.kind === 'figma');
+  const jobs = det.components.filter((c) => isKind(c, PartKind.CAROUSEL) && c.status === 'approved' && c.params?.items?.kind === 'figma');
   if (!jobs.length) return;
   const tree = ws.readJson('tree.json');
   for (const c of jobs) {

@@ -4,6 +4,7 @@
 // The node is the TEXT of the number. "80,000+" -> countTo 80000, thousand separator, suffix "+"; "97%" -> 97, suffix "%".
 // Not applicable: no digit, a decimal point or a dot as thousand separator (ambiguous), mixed styles.
 // params: none.  Count-up duration is Bricks' default (Figma does not say).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { typography } from '../../write-bricks/render/text.mjs';
 
 const parse = (str) => {
@@ -13,7 +14,7 @@ const parse = (str) => {
 };
 
 export default {
-  id: 'counter',
+  id: PartKind.COUNTER,
   status: 'implemented',
   label: 'Counter',
   figma: 'a TEXT node with a number (optionally prefix / suffix such as +, %)',

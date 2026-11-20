@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
 // A tab answer can be a Figma link of that tab's full frame. The frame is fetched beside this section
 // and replaces the pane of the same index, or is added when Figma drew no pane. The same sources are
 // already copied onto tablet and mobile tabs that match, so each of those workspaces is grafted too.
@@ -154,7 +155,7 @@ export function bundleOpenPane(host, { activeId, dataName } = {}) {
 export function bundleOpenPanes(tree, detections) {
   const byHost = new Map();
   for (const c of detections?.components ?? []) {
-    if (c.component !== 'tab-switch' && c.component !== 'tabs') continue;
+    if (!isKind(c, PartKind.TAB_SWITCH) && !isKind(c, PartKind.TABS)) continue;
     byHost.set(c.node, { activeId: c.params?.content?.activeTitleId, dataName: c.params?.content?.dataName });
   }
   let wrapped = 0;
@@ -199,14 +200,14 @@ export function graftTabPane(tree, hostId, titleIndex, sourceTree, options) {
 
 export async function attachTabFrames(ws, { log = () => {} } = {}) {
   const det = ws.readJson('detections.json', { components: [] });
-  const jobs = det.components.filter((c) => (c.component === 'tabs' || c.component === 'tab-switch') && c.status === 'approved' && c.params?.content?.sources);
+  const jobs = det.components.filter((c) => (isKind(c, PartKind.TABS) || isKind(c, PartKind.TAB_SWITCH)) && c.status === 'approved' && c.params?.content?.sources);
   if (!jobs.length) return { grafted: 0 };
   const tree = ws.readJson('tree.json');
   let grafted = 0;
   for (const c of jobs) {
     const node = findNode(tree, c.node);
     if (!node) continue;
-    const titles = c.component === 'tab-switch' ? tabTitles(node) : visibleKids(visibleKids(node)[0] ?? {});
+    const titles = isKind(c, PartKind.TAB_SWITCH) ? tabTitles(node) : visibleKids(visibleKids(node)[0] ?? {});
     const sources = Object.entries(c.params.content.sources)
       .filter(([, source]) => source?.kind === 'figma')
       .map(([titleId, source]) => ({ titleId, source, index: titles.findIndex((t) => t.id === titleId) }))

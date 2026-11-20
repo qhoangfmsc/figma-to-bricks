@@ -7,6 +7,7 @@
 // An icon child (one svg, before or after the label) becomes the button's own icon (`icon` svg, `iconPosition`, `iconGap`).
 // params: link (url -> the button becomes an <a>; missing -> '#', reported) · tag (optional html tag, default span)
 // Not applicable (kept as block, with a warning): more than one icon or other children, no label, mixed-style label.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { applyText } from '../../write-bricks/render/text.mjs';
 import { addCustomCss, px } from '../../write-bricks/render/utils/css.mjs';
 import { addHoverFade } from '../../write-bricks/render/utils/interactions.mjs';
@@ -36,7 +37,7 @@ const label = (node) => visibleChildren(node).find((c) => c.type === 'TEXT' && !
 const iconOf = (node) => visibleChildren(node).find((c) => c !== label(node) && svgNode(c));
 
 export default {
-  id: 'button',
+  id: PartKind.BUTTON,
   status: 'implemented',
   label: 'Button',
   figma: 'frame / instance whose visible children are its text label and at most one svg icon',

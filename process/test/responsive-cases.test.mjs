@@ -94,6 +94,18 @@ test('one desktop frame keeps the components and makes them use the screen below
   assert.equal(by('icon')['_width:mobile_portrait'], undefined);
 });
 
+test('a tab menu the frame already wraps is not forced onto one line', () => {
+  const template = {
+    content: [
+      el('menu', 0, 'block', { _cssClasses: 'tab-menu', _direction: 'row', _flexWrap: 'wrap', _width: '320px' }),
+    ],
+  };
+  fitSoloTemplate(template);
+  fitFluid(template);
+  const css = template.content[0].settings._cssCustom ?? '';
+  assert.equal(/flex-wrap:\s*nowrap/.test(css), false);
+});
+
 test('an absolute content frame joins the flow below desktop and a pinned icon stays', () => {
   const template = {
     content: [
@@ -668,6 +680,25 @@ test('a one-line title wraps below desktop and a tab label stays on one line', (
   assert.equal(line['_widthMin:tablet_portrait'], '0px');
   assert.equal(line['_typography:tablet_portrait']['white-space'], 'normal');
   assert.equal(label['_typography:tablet_portrait'], undefined);
+});
+
+test('a pasted phone frame keeps the direction and wrap it drew', () => {
+  const base = {
+    tree: { id: 'sec', name: 'Section', children: [{ id: 'row', name: 'Row', children: [] }] },
+    template: { content: [el('sec', 0, 'section', {}), el('row', 'sec', 'block', { _direction: 'row', _flexWrap: 'nowrap' })] },
+    mapping: { sec: { bricksId: 'sec' }, row: { bricksId: 'row' } },
+  };
+  const phone = {
+    key: 'mobile_portrait',
+    maxWidth: 478,
+    tree: { id: 'msec', name: 'Section', children: [{ id: 'mrow', name: 'Row', children: [] }] },
+    template: { content: [el('msec', 0, 'section', {}), el('mrow', 'msec', 'block', { _direction: 'column', _flexWrap: 'wrap' })] },
+    mapping: { msec: { bricksId: 'msec' }, mrow: { bricksId: 'mrow' } },
+  };
+  const row = mergeResponsive({ base, variants: [phone] }).template.content.find((item) => item.id === 'row').settings;
+  assert.equal(row._direction, 'row');
+  assert.equal(row['_direction:mobile_portrait'], 'column');
+  assert.equal(row['_flexWrap:mobile_portrait'], 'wrap');
 });
 
 test('desktop tabs and mobile blocks are two versions; accordion and form stay on both', () => {

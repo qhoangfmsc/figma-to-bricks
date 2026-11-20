@@ -5,12 +5,13 @@
 // Used values (all from the node): fill, corner radius, padding, text color / font / size / weight / line-height, drop shadow, max-width.
 // Not reproduced (reported): the caret is a rotated square in Figma, the theme draws a 4px border triangle in the bubble color.
 // params: none.  The detection's node is the bubble.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { lineHeightPx } from '../../write-bricks/policy.mjs';
 import { cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 import { firstText } from '../../write-bricks/components/helpers.mjs';
 
 export default {
-  id: 'tooltip-style',
+  id: PartKind.TOOLTIP_STYLE,
   status: 'implemented',
   label: 'Tooltip look',
   figma: 'a tooltip bubble drawn on its own (fill, radius, padding, one text, shadow)',

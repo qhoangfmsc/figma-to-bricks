@@ -1,8 +1,9 @@
 // A line. Bricks 1.12.3 element `divider` (includes/elements/divider.php): height, width, style, direction, color.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { colorObj, px } from '../render/utils/css.mjs';
 
 export default {
-  id: 'divider',
+  id: PartKind.DIVIDER,
   status: 'implemented',
   label: 'Divider',
   figma: 'a line: one side at most 2px, the other at least 40px (`rules/divider.mjs`)',

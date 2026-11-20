@@ -8,6 +8,7 @@
 // would give back the same `nav > ul` without any of that, so the plain blocks are exact and the same element a developer can edit. When a Figma file
 // draws the hamburger and the open panel, nav-nested is the element to use (CATALOG.md).
 // params: links { textNodeId: url } (what the owner typed in the Plan; missing -> '#' and the Plan keeps asking)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { tagSettings, tagReset, linkSetting, visibleKids, rowId, MISSING_URL } from '../../write-bricks/components/helpers.mjs';
 import { ComponentState, componentState } from '../../write-bricks/components/states.mjs';
 import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
@@ -63,7 +64,7 @@ export function activePatch(node, item) {
 }
 
 export default {
-  id: 'menu',
+  id: PartKind.MENU,
   status: 'implemented',
   label: 'Menu (nav > ul > li > text-link)',
   figma: 'a horizontal row of >= 2 link-like items (one short text each, no picture), named like a menu, that fits in its frame',

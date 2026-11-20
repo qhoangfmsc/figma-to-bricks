@@ -1,11 +1,12 @@
 // Widgets this project owns, written with the Bricks 1.12.3 control keys.
 // includes/elements/image-gallery.php, progress-bar.php, rating.php, alert.php, logo.php, toggle.php, dropdown.php, offcanvas.php.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { colorObj, px } from '../render/utils/css.mjs';
 
 const ok = { ok: true, warnings: [] };
 
 export const gallery = {
-  id: 'gallery',
+  id: PartKind.GALLERY,
   status: 'implemented',
   label: 'Gallery',
   figma: 'three or more pictures of one size and no arrows (`rules/production-widgets.mjs`)',
@@ -28,7 +29,7 @@ export const gallery = {
 };
 
 export const progress = {
-  id: 'progress',
+  id: PartKind.PROGRESS,
   status: 'implemented',
   label: 'Progress',
   figma: 'a track with a shorter fill. The fill width is the percent',
@@ -53,7 +54,7 @@ export const progress = {
 };
 
 export const rating = {
-  id: 'rating',
+  id: PartKind.RATING,
   status: 'implemented',
   label: 'Rating',
   figma: 'a row of the same star mark',
@@ -76,7 +77,7 @@ export const rating = {
 };
 
 export const alert = {
-  id: 'alert',
+  id: PartKind.ALERT,
   status: 'implemented',
   label: 'Alert',
   figma: 'a short tinted bar with one icon and one sentence',
@@ -95,7 +96,7 @@ export const alert = {
 };
 
 export const logo = {
-  id: 'logo',
+  id: PartKind.LOGO,
   status: 'implemented',
   label: 'Logo',
   figma: 'the first picture in a short wide bar that also has links',
@@ -116,7 +117,7 @@ export const logo = {
 };
 
 export const hamburger = {
-  id: 'hamburger',
+  id: PartKind.HAMBURGER,
   status: 'implemented',
   label: 'Hamburger',
   figma: 'three stacked lines in a small square',
@@ -131,7 +132,7 @@ export const hamburger = {
 };
 
 export const dropdown = {
-  id: 'dropdown',
+  id: PartKind.DROPDOWN,
   status: 'implemented',
   label: 'Dropdown',
   figma: 'one short label, one small chevron, and a vertical list',
@@ -139,13 +140,14 @@ export const dropdown = {
   limits: 'Item URLs are # until the plan has them. The chevron stays the Bricks caret',
   kind: () => 'dropdown',
   check(_node, det) {
-    if (!det.params?.text || !det.params?.list) return { ok: false, reason: 'a dropdown needs a label and a list' };
+    if (!det.params?.text) return { ok: false, reason: 'a dropdown needs the label it shows' };
     return ok;
   },
   apply(ctx, det) {
     ctx.s.text = det.params.text;
   },
   descendants(_node, det) {
+    if (!det.params?.list) return {};
     return {
       [det.params.list]: { settings: { tag: 'ul', _hidden: { _cssClasses: 'brx-dropdown-content' } } },
     };
@@ -153,7 +155,7 @@ export const dropdown = {
 };
 
 export const offcanvas = {
-  id: 'offcanvas',
+  id: PartKind.OFFCANVAS,
   status: 'implemented',
   label: 'Offcanvas',
   figma: 'a tall panel against the left or right edge, with a close mark',

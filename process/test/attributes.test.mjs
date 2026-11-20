@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
@@ -120,7 +121,7 @@ test('a slider list keeps cross-axis align and leaves the axis Splide translates
     counterAxisAlignItems: 'MAX',
     children: [card('a', 0), card('b', 116)],
   }]), {
-    detections: { components: [{ id: 'd1', status: 'approved', component: 'carousel', node: 'row', params: {} }] },
+    detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.CAROUSEL, node: 'row', params: {} }] },
   });
   const row = settings(built, 'row');
   assert.equal(built.template.content.find((e) => e.id === built.mapping.row.bricksId).name, 'slider-nested');

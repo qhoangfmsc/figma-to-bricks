@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -35,7 +36,7 @@ test('typed text fills only a tab Figma did not draw; a link is stored for every
         { id: 'cnt', children: [{ id: 'p1', name: 'Pane', children: [text('p1t', 'Đang mở')] }] },
       ],
     });
-    ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
+    ws.writeJson('detections.json', { components: [{ id: 'd', component: PartKind.TABS, node: 'tabs', status: 'approved', params: {} }] });
     ws.writeJson('overrides.json', { nodes: {} });
     applyAnswers(ws, {
       'pane:tb1': { choice: 'text', text: 'gõ đè' },
@@ -45,7 +46,7 @@ test('typed text fills only a tab Figma did not draw; a link is stored for every
     assert.equal(params.content.panes, undefined);
     assert.equal(params.content.sources.tb2.nodeId, '12:3');
     assert.equal(params.content.sources.tb1, undefined);
-    ws.writeJson('detections.json', { components: [{ id: 'd', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
+    ws.writeJson('detections.json', { components: [{ id: 'd', component: PartKind.TABS, node: 'tabs', status: 'approved', params: {} }] });
     applyAnswers(ws, { 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'pane:tb1': { choice: 'keep' } });
     const again = ws.readJson('detections.json').components[0].params;
     assert.equal(again.content.panes.tb2, 'Gói hai');
@@ -71,7 +72,7 @@ test('the confirm screen names every tab and the content Figma drew', () => {
   assert.equal(rows[0].drawn, 'VPS NVME 1');
   assert.equal(rows[1].drawn, '');
   const questions = rows.map((row) => ({ group: 'pane', node: row.title.id, label: paneQuestionLabel(row), key: `pane:${row.title.id}`, value: 'chưa có nội dung' }));
-  const [part] = screenParts(tree, [{ component: 'tab-switch', node: 'r', status: 'approved', params: {} }], questions, 'FILE');
+  const [part] = screenParts(tree, [{ component: PartKind.TAB_SWITCH, node: 'r', status: 'approved', params: {} }], questions, 'FILE');
   assert.match(part.note, /link khung/);
   assert.match(part.fields[0].title, /VPS NVMe/);
   assert.match(part.fields[0].title, /đang có: VPS NVME 1/);
@@ -198,13 +199,13 @@ test('a tab link is copied onto the breakpoint that has that tab, and skipped wh
         { id: 'bar', children: [row('tt1', 'Tab', 'Tổng quan'), row('tt2', 'Tab', 'Chi tiết'), row('tt3', 'Tab', 'Chỉ desktop')] },
         { id: 'body', children: [{ id: 'pane', name: 'Pane', children: [] }] },
       ] }],
-    }, { components: [{ id: 'd', component: 'tabs', status: 'approved', node: 'tabs', params: { content: { panes: { tt3: 'Chỉ desktop' }, sources: { tt2: source } } } }] });
+    }, { components: [{ id: 'd', component: PartKind.TABS, status: 'approved', node: 'tabs', params: { content: { panes: { tt3: 'Chỉ desktop' }, sources: { tt2: source } } } }] });
     write(mob, {
       id: 'mroot', children: [{ id: 'mtabs', name: 'Tabs', children: [
         { id: 'mbar', children: [row('mtt1', 'Tab', 'Tổng quan'), row('mtt2', 'Tab', 'Chi tiết')] },
         { id: 'mbody', children: [{ id: 'mpane', name: 'Pane', children: [] }] },
       ] }],
-    }, { components: [{ id: 'd', component: 'tabs', status: 'approved', node: 'mtabs', params: {} }] });
+    }, { components: [{ id: 'd', component: PartKind.TABS, status: 'approved', node: 'mtabs', params: {} }] });
     writeFileSync(join(desk, 'responsive.json'), JSON.stringify({ variants: [{ key: 'mobile_portrait', workspace: 'mob', maxWidth: 478 }] }));
     const base = { dir: desk, readJson: (name, fallback) => { try { return JSON.parse(readFileSync(join(desk, name), 'utf8')); } catch { return fallback; } } };
     assert.equal(shareFilledContent(base).copied, 1);

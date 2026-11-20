@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
 // The "Nội dung khi mở" answer is either extra text (handled at render) or a Figma link of the expanded frame.
 // The link is fetched into a side folder of THIS section. It is not written to the OS temp scratch of that node,
 // because that folder may already be another section's workspace.
@@ -96,7 +97,7 @@ export function copyAssets(from, ws) {
 
 export async function attachExpandFrames(ws, { log = () => {} } = {}) {
   const det = ws.readJson('detections.json', { components: [] });
-  const jobs = det.components.filter((c) => c.component === 'readmore' && c.status === 'approved' && c.params?.expand?.kind === 'figma');
+  const jobs = det.components.filter((c) => isKind(c, PartKind.READMORE) && c.status === 'approved' && c.params?.expand?.kind === 'figma');
   if (!jobs.length) return;
   const tree = ws.readJson('tree.json');
   for (const c of jobs) {

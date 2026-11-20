@@ -2,6 +2,17 @@
 // This module only accepts a choice. It does not match synonyms.
 import { PRICE_ID } from '../write-bricks/components/price-data.mjs';
 import { COMPARE_ID } from '../write-bricks/components/compare-data.mjs';
+import { PartKind } from '../recognize-parts/kinds.mjs';
+
+export const SubmitChoice = {
+  UNSET: 'unset',
+  TEXT: 'text',
+  DROP: 'drop',
+};
+
+export const PlanGroup = {
+  SUBMIT: 'submit',
+};
 
 export const Choice = {
   type: ['section', 'header', 'footer', 'popup', 'content', 'archive', 'search', 'error'],
@@ -30,17 +41,18 @@ export const Choice = {
   compare: ['unset', 'id'],
   pattr: ['unset', 'text'],
   options: ['unset', 'list'],
+  submit: Object.values(SubmitChoice),
 };
 
 export const MISSING = '[Chưa có value]';
 
 export const REPEAT_COMPONENT = {
-  slider: 'carousel',
-  tab: 'tabs',
-  menu: 'menu',
-  form: 'form',
-  accordion: 'accordion',
-  button: 'button',
+  slider: PartKind.CAROUSEL,
+  tab: PartKind.TABS,
+  menu: PartKind.MENU,
+  form: PartKind.FORM,
+  accordion: PartKind.ACCORDION,
+  button: PartKind.BUTTON,
 };
 
 const DEFAULTS = {
@@ -70,6 +82,7 @@ const DEFAULTS = {
   compare: { choice: 'unset' },
   pattr: { choice: 'unset' },
   options: { choice: 'unset' },
+  submit: { choice: SubmitChoice.UNSET },
 };
 
 export function choiceOf(group, value) {
@@ -89,6 +102,15 @@ export function choiceOf(group, value) {
     const lines = typeof value === 'string' ? value.split(/\n+/).map((item) => item.trim()).filter(Boolean) : [];
     if (!lines.length || (lines.length === 1 && lines[0] === MISSING)) return { choice: 'unset' };
     return { choice: 'list', values: lines };
+  }
+  if (group === PlanGroup.SUBMIT) {
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === SubmitChoice.DROP) return { choice: SubmitChoice.DROP };
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === SubmitChoice.UNSET) return { choice: SubmitChoice.UNSET };
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.choice === SubmitChoice.TEXT) return { choice: SubmitChoice.TEXT, text: String(value.text ?? '').trim() };
+    const written = typeof value === 'string' ? value.trim() : '';
+    if (!written || written === MISSING) return { choice: SubmitChoice.UNSET };
+    if (written === SubmitChoice.DROP) return { choice: SubmitChoice.DROP };
+    return { choice: SubmitChoice.TEXT, text: written };
   }
   if (!allowed) return null;
   if (value && typeof value === 'object' && !Array.isArray(value) && allowed.includes(value.choice)) {

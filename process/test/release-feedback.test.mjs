@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -125,8 +126,8 @@ test('a checkbox row and a switch row become a native checkbox field, with one h
     ],
   });
   const found = detectChoices(tree);
-  const box = found.find((c) => c.component === 'checkbox');
-  const sw = found.find((c) => c.component === 'switch');
+  const box = found.find((c) => isKind(c, PartKind.CHECKBOX));
+  const sw = found.find((c) => isKind(c, PartKind.SWITCH));
   assert.equal(box.node, 'row');
   assert.equal(box.params.checked, true);
   assert.equal(box.confidence, 'high');
@@ -178,7 +179,7 @@ test('a switch paints the Figma pill and knob, and keeps the label on the side i
       }),
     ],
   });
-  const sw = detectChoices(tree).find((c) => c.component === 'switch');
+  const sw = detectChoices(tree).find((c) => isKind(c, PartKind.SWITCH));
   assert.equal(sw.params.checked, false);
   assert.equal(sw.params.markNode, 'track');
   const form = buildTemplate(tree, {
@@ -261,7 +262,7 @@ test('a circle beside a label is a radio and a thin line is a divider', () => {
     ],
   });
   const line = detectDividers(tree).find((c) => c.node === 'line');
-  const radio = detectChoices(tree).find((c) => c.component === 'radio');
+  const radio = detectChoices(tree).find((c) => isKind(c, PartKind.RADIO));
   assert.equal(line.params.direction, 'horizontal');
   assert.equal(line.params.length, 200);
   assert.equal(line.params.thickness, 1);
@@ -301,7 +302,23 @@ test('a badge sitting on an icon is not a radio', () => {
       ] },
     ],
   };
-  assert.equal(detectChoices({ id: 'root', children: [bell, dot] }).some((c) => c.component === 'radio'), false);
+  assert.equal(detectChoices({ id: 'root', children: [bell, dot] }).some((c) => isKind(c, PartKind.RADIO)), false);
+});
+
+test('a large square beside a sentence is still a checkbox', () => {
+  const tree = mini({
+    children: [kid('row', {
+      name: 'Terms',
+      layoutMode: 'HORIZONTAL',
+      absoluteBoundingBox: { x: 0, y: 0, width: 280, height: 56 },
+      children: [
+        kid('mark', { absoluteBoundingBox: { x: 0, y: 4, width: 48, height: 48 }, children: [kid('tick', { absoluteBoundingBox: { x: 12, y: 12, width: 24, height: 24 } })] }),
+        txt('lab', 'Keep me posted', { absoluteBoundingBox: { x: 60, y: 14, width: 160, height: 24 } }),
+      ],
+    })],
+  });
+  const box = detectChoices(tree).find((c) => isKind(c, PartKind.CHECKBOX));
+  assert.equal(box?.node, 'row');
 });
 
 test('a wide field with an icon is a search, and a picture with a play mark waits for a video address', () => {
@@ -328,8 +345,8 @@ test('a wide field with an icon is a search, and a picture with a play mark wait
       }),
     ],
   } } } }, 'r', { images: { poster: { file: 'images/poster.png', width: 640, height: 360 } }, svgs: {} });
-  const search = detectMedia(tree).find((c) => c.component === 'search');
-  const video = detectMedia(tree).find((c) => c.component === 'video');
+  const search = detectMedia(tree).find((c) => isKind(c, PartKind.SEARCH));
+  const video = detectMedia(tree).find((c) => isKind(c, PartKind.VIDEO));
   assert.equal(search.node, 'find');
   assert.equal(search.confidence, 'high');
   assert.equal(search.params.placeholder, 'Search products');
@@ -638,11 +655,11 @@ test('a field beside a Tìm Kiếm button is a search submit, not two buttons', 
     })],
   });
   const found = runRules(tree).components;
-  const search = found.find((c) => c.component === 'search');
+  const search = found.find((c) => isKind(c, PartKind.SEARCH));
   assert.equal(search.node, 'bar');
   assert.equal(search.params.buttonText, 'Tìm Kiếm');
   assert.equal(search.params.placeholder, 'Tìm kiếm bài viết');
-  assert.equal(found.some((c) => c.component === 'button' && (c.node === 'field' || c.node === 'go')), false);
+  assert.equal(found.some((c) => isKind(c, PartKind.BUTTON) && (c.node === 'field' || c.node === 'go')), false);
   const built = buildTemplate(tree, { detections: { components: [{ ...search, id: 'd1', status: 'approved' }] } });
   const el = built.template.content.find((e) => e.id === built.mapping.bar.bricksId);
   assert.equal(el.name, 'search');
@@ -675,9 +692,9 @@ test('a domain lookup and a price table stay layout, with no search action and n
     })],
   });
   const found = runRules(domain).components;
-  assert.equal(found.some((c) => c.component === 'search'), false);
-  assert.equal(found.some((c) => c.component === 'button' && c.node === 'field'), false);
-  const button = found.find((c) => c.component === 'button' && c.node === 'go');
+  assert.equal(found.some((c) => isKind(c, PartKind.SEARCH)), false);
+  assert.equal(found.some((c) => isKind(c, PartKind.BUTTON) && c.node === 'field'), false);
+  const button = found.find((c) => isKind(c, PartKind.BUTTON) && c.node === 'go');
   assert.equal(button.params.role, 'layout');
   const built = buildTemplate(domain, { detections: { components: [{ ...button, id: 'd1', status: 'approved' }] } });
   const el = built.template.content.find((e) => e.id === built.mapping.go.bricksId);
@@ -737,7 +754,7 @@ test('confirm and close labels are buttons that close a popup, a plain label sta
     fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }],
     children: [txt('lab', 'Xác nhận và Lưu')],
   })] });
-  const built = buildTemplate(tree, { overrides: { template: { type: 'popup' } }, detections: { components: [{ id: 'd1', component: 'button', node: 'save', status: 'approved', params: { role: 'action' } }] } });
+  const built = buildTemplate(tree, { overrides: { template: { type: 'popup' } }, detections: { components: [{ id: 'd1', component: PartKind.BUTTON, node: 'save', status: 'approved', params: { role: 'action' } }] } });
   const el = built.template.content.find((e) => e.id === built.mapping.save.bricksId);
   assert.equal(el.settings._cursor, 'pointer');
   assert.equal(el.settings.tag, 'button');
@@ -756,9 +773,9 @@ test('an accept button on a section hides that section, and a row of buttons sta
     ],
   })] });
   const built = buildTemplate(tree, { detections: { components: [
-    { id: 'd1', component: 'semantic', node: 'row', status: 'approved', params: { tag: 'ul', itemTag: 'li' } },
-    { id: 'd2', component: 'button', node: 'open', status: 'approved', params: { role: 'open', popupId: '528' } },
-    { id: 'd3', component: 'button', node: 'need', status: 'approved', params: { role: 'link' } },
+    { id: 'd1', component: PartKind.SEMANTIC, node: 'row', status: 'approved', params: { tag: 'ul', itemTag: 'li' } },
+    { id: 'd2', component: PartKind.BUTTON, node: 'open', status: 'approved', params: { role: 'open', popupId: '528' } },
+    { id: 'd3', component: PartKind.BUTTON, node: 'need', status: 'approved', params: { role: 'link' } },
   ] } });
   const row = built.template.content.find((e) => e.id === built.mapping.row.bricksId);
   const open = built.template.content.find((e) => e.id === built.mapping.open.bricksId);
@@ -795,7 +812,7 @@ test('a button with a popup id opens that popup instead of linking to #', () => 
     fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }],
     children: [txt('lab', 'Cài đặt')],
   })] });
-  const built = buildTemplate(tree, { detections: { components: [{ id: 'd1', component: 'button', node: 'open', status: 'approved', params: { popupId: 528 } }] } });
+  const built = buildTemplate(tree, { detections: { components: [{ id: 'd1', component: PartKind.BUTTON, node: 'open', status: 'approved', params: { popupId: 528 } }] } });
   const el = built.template.content.find((e) => e.id === built.mapping.open.bricksId);
   assert.equal(el.settings.link, undefined);
   assert.equal(el.settings._interactions[0].action, 'show');
@@ -816,7 +833,7 @@ test('a call-to-action button is not a search field', () => {
       ],
     }],
   };
-  assert.equal(detectMedia(tree).find((c) => c.component === 'search'), undefined);
+  assert.equal(detectMedia(tree).find((c) => isKind(c, PartKind.SEARCH)), undefined);
 });
 
 test('a centered vector on a masked picture is a play mark', () => {
@@ -833,5 +850,5 @@ test('a centered vector on a masked picture is a play mark', () => {
       ],
     }],
   };
-  assert.equal(detectMedia(tree).find((c) => c.component === 'video')?.node, 'shot');
+  assert.equal(detectMedia(tree).find((c) => isKind(c, PartKind.VIDEO))?.node, 'shot');
 });

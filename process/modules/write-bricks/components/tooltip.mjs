@@ -5,6 +5,7 @@
 // params: text (the tooltip text; empty = no bubble is built) · position is kept for the plan enum
 //         popup (optional node id: a tooltip bubble drawn loose in Figma; its visible text is the tooltip text, the node itself is
 //         merged, i.e. not built). The detection's `node` is always the TRIGGER (the icon), never the popup.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { px } from '../../write-bricks/render/utils/css.mjs';
 
 export const POSITIONS = ['top', 'top-left', 'top-right', 'bottom', 'bottom-left', 'bottom-right', 'left', 'right'];
@@ -53,7 +54,7 @@ function popupText(n, out = []) {
 const resolveText = (det, root) => det.params?.text || (det.params?.popup && findNode(root, det.params.popup) ? popupText(findNode(root, det.params.popup)).join(' ') : '');
 
 export default {
-  id: 'tooltip',
+  id: PartKind.TOOLTIP,
   status: 'implemented',
   label: 'Tooltip',
   figma: 'icon (info / question glyph) next to a label; the tooltip text comes from params.text',

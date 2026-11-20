@@ -3,6 +3,7 @@
 // The lines of a price card stay inside that card. These rows sit outside the columns and line up under them.
 // One column, one group, one row and one cell stay. Query loops repeat them.
 // The plugin resolves vnxcmp_{pkg|group|row}__{id} and {vnx_cmp_*} at request time.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { queryType } from '../../write-bricks/components/compare-data.mjs';
 import { colorObj, px } from '../../write-bricks/render/utils/css.mjs';
@@ -713,7 +714,7 @@ function bound(node, det, root) {
 }
 
 export default {
-  id: 'compare-table',
+  id: PartKind.COMPARE_TABLE,
   status: 'implemented',
   label: 'Comparison table',
   figma: 'a package row plus feature groups whose rows line up one cell per package',

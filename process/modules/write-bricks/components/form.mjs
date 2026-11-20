@@ -32,6 +32,8 @@ import { typography } from '../../write-bricks/render/text.mjs';
 import { boxLook, findNode, firstText, jsonParam, rowId, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { lineHeightFor } from '../../write-bricks/render/text.mjs';
 import { paintSwitch, switchOption } from './choice-control.mjs';
+import { MISSING } from '../../missing-content/choices.mjs';
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 
 // form.php type select. `step` is not a type. `date` / `time` are not types: the control is datepicker.
 const FIELD_TYPES = new Set(['email', 'text', 'textarea', 'tel', 'number', 'url', 'checkbox', 'select', 'radio', 'file', 'datepicker', 'password', 'rememberme', 'html', 'hidden']);
@@ -135,7 +137,7 @@ function applyActionForm({ node, inner: t, root, warn, designTitle, s, fileKey }
 }
 
 export default {
-  id: 'form',
+  id: PartKind.FORM,
   status: 'implemented',
   label: 'Form',
   figma: 'a container with labeled input frames and a submit button frame (listed in params.fields / params.submit with citations)',
@@ -180,7 +182,7 @@ export default {
     const fields = (jsonParam(det.params?.fields) ?? []).filter((f) => f?.node && f.node !== det.params?.submit);
     if (!Array.isArray(fields) || !fields.length) return { ok: false, reason: 'params.fields is empty: list the input frames [{ node, type, label, placeholder }] (the AI pass proposes them with citations)' };
     for (const [i, f] of fields.entries()) if (!f.node || !findNode(root, f.node)) return { ok: false, reason: `params.fields[${i}].node ${f.node} is not in the tree` };
-    if (!det.params?.submit || !findNode(root, det.params.submit)) return { ok: false, reason: 'params.submit must be the node id of the submit button frame' };
+    if (det.params?.submit && !findNode(root, det.params.submit)) return { ok: false, reason: 'params.submit must be the node id of the submit button frame' };
     return { ok: true, warnings: [`${fields.length} field(s): submit saves the entry under the Figma name. Bricks only shows Save submission after the site setting is on`] };
   },
 
@@ -336,7 +338,11 @@ export default {
     }
 
     // ---- submit ----
-    const submit = findNode(root, det.params.submit);
+    const submit = det.params?.submit ? findNode(root, det.params.submit) : null;
+    if (!submit) {
+      const given = typeof det.params?.submitText === 'string' ? det.params.submitText.trim() : '';
+      t.submitButtonText = given || MISSING;
+    } else {
     const sl = boxLook(submit, warn);
     const btnText = firstText(submit);
     if (btnText) {
@@ -364,6 +370,7 @@ export default {
     const labelShadow = (btnText?.effects ?? []).filter((e) => e.type === 'DROP_SHADOW');
     if (labelShadow.length) decls.push(`text-shadow: ${labelShadow.map((e) => `${px(e.x)} ${px(e.y)} ${px(e.blur)} ${cssColor(e)}`).join(', ')};`);
     addCustomCss(t, decls.join(' '), ' button[type=submit]');
+    }
 
     const extra = jsonParam(det.params?.settings);
     if (extra && typeof extra === 'object') Object.assign(t, deepMerge(t, extra));

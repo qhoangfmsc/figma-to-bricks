@@ -2,15 +2,12 @@
 // AI is 70. A code hint that names the same kind adds 30. A code-only row stays a hint.
 import { writeFileSync } from 'node:fs';
 import { download, getRenders } from '../read-figma/api.mjs';
-import { SIGNAL_RULES, childKindIds, isSignal } from '../recognize-parts/kinds.mjs';
-import { COMPONENTS } from '../write-bricks/components/index.mjs';
+import { SIGNAL_RULES, isSignal, lookKinds } from '../recognize-parts/kinds.mjs';
+import { confirmNode } from '../recognize-parts/confirm-node.mjs';
 
 export const LOOK_FILE = 'look.json';
 export const PLAN_MODEL = 'plan-model.json';
-
-// A kind the picture may name is a component the registry builds, a part of that component, or a plain block.
-// price-table and compare-table are registry components. They are not rows of SIGNAL_RULES.
-export const lookKinds = () => new Set([...Object.keys(SIGNAL_RULES), ...Object.keys(COMPONENTS), ...childKindIds(), 'pagination', 'block']);
+export { lookKinds };
 
 export const AI_WEIGHT = 70;
 export const CODE_WEIGHT = 30;
@@ -77,8 +74,23 @@ export function normalizeAi(groups) {
     const see = String(group?.see ?? '').replace(/\s+/g, ' ').trim();
     if (!kinds.has(kind)) throw new Error(`Loại "${kind}" không có trong danh sách component.`);
     if (!see) throw new Error(`Nhóm ${node || kind} thiếu câu mô tả trên ảnh.`);
-    return { node, kind, see };
+    return { node, kind, see, ...readingOf(group) };
   });
+}
+
+// The picture names the open item and the parts it saw. A missing part is null.
+// Null does not cancel the component. A node id is the part to render.
+function readingOf(group) {
+  const selected = group?.selected ? String(group.selected) : '';
+  const children = {};
+  const raw = group?.children;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    for (const [key, value] of Object.entries(raw)) {
+      if (!/^[a-z0-9_-]+$/i.test(key)) continue;
+      children[key] = value == null || value === '' ? null : String(value);
+    }
+  }
+  return { selected, children };
 }
 
 export function lookReport(look) {
@@ -122,9 +134,12 @@ export function lookReport(look) {
       ...child,
       review: 'doubt',
       structure: (signal.cite ?? []).some((cite) => cite.startsWith(`${child.node}.`) || cite === child.node),
-      image: (ai ?? []).some((group) => group.kind === child.id || group.node === child.node),
+      image: (ai ?? []).some((group) => group.kind === child.id || group.node === child.node || group.children?.[child.id]),
     }));
-    return { ...signal, verdict, review, structure, weight, children, see: chosen?.see ?? '', aiKind: chosen?.kind ?? '' };
+    return {
+      ...signal, verdict, review, structure, weight, children, see: chosen?.see ?? '', aiKind: chosen?.kind ?? '',
+      selected: chosen?.selected ?? '', parts: chosen?.children ?? {},
+    };
   });
   const extras = (ai ?? []).filter((group) => !group.node || !signals.some((signal) => signal.node === group.node));
   const reviewed = new Set(['agree', 'differ', 'doubt', 'hint', 'ai']);
@@ -154,13 +169,15 @@ export function applyAiDecisions(ws, report) {
     if (row.verdict === 'agree') {
       item.status = 'approved';
       item.note = `AI ${row.weight.ai}%${row.weight.code ? ` + code ${row.weight.code}%` : ''}`;
+      keepReading(item, row);
+      settle(ws, item);
     } else if (row.verdict === 'differ') {
       item.status = 'rejected';
       item.note = `AI ${row.weight.ai}% thấy block. Code chỉ gợi ý.`;
     } else if (row.verdict === 'ai') {
       item.status = 'rejected';
       item.note = `Code gợi ý ${row.kind}. AI ${row.weight.ai}% thấy ${row.aiKind}.`;
-      adopt(components, row.node, row.aiKind, row.see, row.weight);
+      adopt(components, row.node, row.aiKind, row.see, row.weight, row, ws);
     } else if (row.verdict === 'hint' && item.status === 'approved') {
       item.status = 'proposed';
       item.note = `Code gợi ý ${row.weight.code}%. AI chưa gọi tên.`;
@@ -168,22 +185,24 @@ export function applyAiDecisions(ws, report) {
   }
   for (const extra of report.extras ?? []) {
     if (!extra.node || extra.kind === 'block' || isSignal(extra.kind)) continue;
-    adopt(components, extra.node, extra.kind, extra.see, weightOf(AI_WEIGHT, 0));
+    adopt(components, extra.node, extra.kind, extra.see, weightOf(AI_WEIGHT, 0), extra, ws);
   }
   det.components = components;
   ws.writeJson('detections.json', det);
 }
 
-function adopt(components, node, kind, see, weight) {
+function adopt(components, node, kind, see, weight, reading, ws) {
   const existing = components.find((entry) => entry.node === node && entry.component === kind);
   if (existing && existing.status !== 'rejected') {
     existing.status = 'approved';
     existing.weight = weight;
     existing.note = `AI ${weight.ai}%. Code không quyết định.`;
     if (!existing.cite?.length) existing.cite = [{ node, field: 'name' }];
+    keepReading(existing, reading);
+    settle(ws, existing);
     return;
   }
-  components.push({
+  const created = {
     id: `ai${String(node).replace(/\W/g, '').slice(0, 8)}`,
     status: 'approved',
     source: 'ai',
@@ -195,5 +214,41 @@ function adopt(components, node, kind, see, weight) {
     evidence: see,
     params: {},
     note: `AI ${weight.ai}%. Code không quyết định.`,
-  });
+  };
+  keepReading(created, reading);
+  settle(ws, created);
+  components.push(created);
+}
+
+function settle(ws, entry) {
+  if (!entry || entry.status !== 'approved') return;
+  const tree = typeof ws?.readJson === 'function' ? ws.readJson('tree.json', null) : null;
+  if (!tree) return;
+  const result = confirmNode(tree, entry.component, entry.node);
+  entry.params = { ...(entry.params ?? {}), confirm: result.confirm };
+  if (result.confirm === 'ok') return;
+  entry.status = 'proposed';
+  if (result.confirm === 'again') {
+    entry.node = result.node;
+    entry.note = 'Picture node widened one step. The picture must confirm this frame.';
+    return;
+  }
+  entry.note = 'Frame does not match the component shape. The plan asks. Not built.';
+}
+
+function keepReading(entry, reading) {
+  if (!reading) return;
+  const params = { ...(entry.params ?? {}) };
+  if (reading.selected) params.selected = reading.selected;
+  const parts = reading.parts ?? reading.children;
+  if (parts && typeof parts === 'object') {
+    params.children = { ...(params.children ?? {}), ...parts };
+    const rules = SIGNAL_RULES[entry.component]?.childComponent ?? [];
+    for (const [id, node] of Object.entries(parts)) {
+      const rule = rules.find((child) => child.id === id);
+      if (!rule?.param) continue;
+      params[rule.param] = node || null;
+    }
+  }
+  entry.params = params;
 }

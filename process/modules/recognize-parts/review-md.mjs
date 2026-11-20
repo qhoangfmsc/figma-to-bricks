@@ -1,7 +1,7 @@
 // detections.json + facts -> detections.md: THE sheet the owner reads against the Figma file before anything is built.
 // Pure formatting. Repeated candidates (55 tooltips from one designer flag) are shown as one group; the ids stay in detections.json.
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
-import { isSignal } from '../recognize-parts/kinds.mjs';
+import { PartKind, isSignal, isKind } from '../recognize-parts/kinds.mjs';
 import { findNode, nodePath } from '../recognize-parts/index.mjs';
 import { DEFAULTS } from '../write-bricks/defaults.mjs';
 
@@ -39,10 +39,10 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
 
   // what the front end still needs from the designer / is not built yet
   const missing = [];
-  const noText = det.components.filter((c) => c.component === 'tooltip' && c.status !== 'rejected' && !c.params?.text && !c.params?.popup);
+  const noText = det.components.filter((c) => isKind(c, PartKind.TOOLTIP) && c.status !== 'rejected' && !c.params?.text && !c.params?.popup);
   if (noText.length) missing.push(`**${noText.length} tooltip text(s)**: the icons exist (${noText.slice(0, 3).map((c) => c.id).join(', ')}…) but the copy is not in Figma. Ask the designer, then \`review.mjs <ws> set <id> text="…"\`.`);
-  for (const c of det.components.filter((x) => x.component === 'flat-image' && x.status !== 'rejected' && !x.params?.link)) missing.push(`**link of the banner ${c.id}** (\`${c.node}\`): Figma has no URL; if the banner is clickable set \`link=\`.`);
-  for (const c of det.components.filter((x) => x.component === 'tooltip' && x.params?.popup && x.node === x.params.popup && x.status !== 'rejected')) missing.push(`**trigger of the loose tooltip bubble ${c.id}**: which icon shows "${cell(c.evidence.match(/text "([^"]+)"/)?.[1] ?? '')}"? (\`review.mjs <ws> set ${c.id} node=<icon id>\`)`);
+  for (const c of det.components.filter((x) => isKind(x, PartKind.FLAT_IMAGE) && x.status !== 'rejected' && !x.params?.link)) missing.push(`**link of the banner ${c.id}** (\`${c.node}\`): Figma has no URL; if the banner is clickable set \`link=\`.`);
+  for (const c of det.components.filter((x) => isKind(x, PartKind.TOOLTIP) && x.params?.popup && x.node === x.params.popup && x.status !== 'rejected')) missing.push(`**trigger of the loose tooltip bubble ${c.id}**: which icon shows "${cell(c.evidence.match(/text "([^"]+)"/)?.[1] ?? '')}"? (\`review.mjs <ws> set ${c.id} node=<icon id>\`)`);
   const notBuilt = [];
   if (facts?.interactions?.length) notBuilt.push(`**hover** on ${facts.interactions.length} node(s) (${facts.interactions.slice(0, 3).map((i) => `${i.name} \`${i.node}\``).join(', ')}): Figma draws the hover as another variant; ${DEFAULTS.hover ? `the build uses the owner default (opacity ${DEFAULTS.hover.opacity}), not that variant's real values.` : 'the build writes no hover (no default; the variant\'s real values are not read yet).'}`);
   if (facts?.hygiene && facts.hygiene.genericPct >= 10) notBuilt.push(`**layer names**: ${facts.hygiene.genericPct}% are Figma defaults (Frame 1234…), so names were not trusted as evidence.`);

@@ -23,7 +23,7 @@ Module: `process/modules/write-bricks/components/price-table.mjs`
 | Icon dòng | `yes` là `fa-check`, `no` là `fa-xmark`, `highlight` là `fa-star`. Ẩn khi ô icon rỗng. |
 | Copy mã | attribute `data-vnx-sp-copy` |
 
-Ba vòng lặp lồng nhau. Khung vẽ một hàng pill thì pill là tab. Khung vẽ một ô đóng (một nhãn chu kỳ và một icon, không có hàng pill) thì ô đó dùng shell mặc định của `select`. Bảng giá chỉ gắn query chu kỳ và tag `{vnx_sp_cycle}` / `{vnx_sp_cycle_badge}`. Bấm một chu kỳ thì Bricks mở pane của chu kỳ đó, nên giá trong thẻ đổi theo. Hàng thẻ nằm ngang và bị cắt thì scroll ngang, không thêm mũi tên. Mọi breakpoint dùng cùng id và cùng tag. Đây là default của bảng giá.
+Ba vòng lặp lồng nhau. Khung vẽ một hàng pill thì pill là tab. Pill mở là pill không cùng vẻ với các pill còn lại. Nền của nó, loại nào cũng được, đi theo tab mở. Pill hover không phải pill nghỉ. Khung vẽ một ô đóng (một nhãn chu kỳ và một icon, không có hàng pill) thì ô đó dùng shell mặc định của `select`. Bảng giá chỉ gắn query chu kỳ và tag `{vnx_sp_cycle}` / `{vnx_sp_cycle_badge}`. Bấm một chu kỳ thì Bricks mở pane của chu kỳ đó, nên giá trong thẻ đổi theo. Hàng thẻ nằm ngang và bị cắt thì scroll ngang, không thêm mũi tên. Mọi breakpoint dùng cùng id và cùng tag. Đây là default của bảng giá.
 
 Không có id, hoặc id không đúng chữ thường và dấu gạch, thì build dừng. Không gắn tag và không giữ chữ đã vẽ làm dữ liệu.
 

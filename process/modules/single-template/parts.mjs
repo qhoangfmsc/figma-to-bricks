@@ -5,7 +5,7 @@ import { findNode, firstText } from '../write-bricks/components/helpers.mjs';
 import { GROUPS, itemHeading, keyOf, figmaLink } from '../missing-content/index.mjs';
 import { MISSING } from '../missing-content/choices.mjs';
 import { unclaimedRepeats } from '../recognize-parts/structure.mjs';
-import { isSignal, SIGNAL_RULES } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind, isSignal, isPaginationHint, SIGNAL_RULES } from '../recognize-parts/kinds.mjs';
 
 const HINT = {
   link: 'Viết địa chỉ, ví dụ vietnix.vn/bang-gia. Chưa có thì ghi chưa có.',
@@ -26,12 +26,29 @@ const HINT = {
   compare: 'Bắt buộc. Ghi id bảng so sánh, ví dụ test-section. Không có id thì không dựng.',
 };
 const KIND = {
-  button: 'Nút', checkbox: 'Checkbox', switch: 'Switch', readmore: 'Xem thêm', semantic: 'Khối', accordion: 'Accordion', tabs: 'Tab', 'tab-switch': 'Tabs Component', menu: 'Menu',
-  'menu-slider': 'Menu slider', carousel: 'Slider', form: 'Form', link: 'Link', 'flat-image': 'Ảnh', 'icon-list': 'Danh sách icon',
-  breadcrumbs: 'Breadcrumb', counter: 'Số', countdown: 'Đếm ngược', tooltip: 'Tooltip', 'tooltip-style': 'Tooltip',
-  scroll: 'Scroll',
-  'price-table': 'price-table',
-  'compare-table': 'compare-table',
+  [PartKind.BUTTON]: 'Nút',
+  [PartKind.CHECKBOX]: 'Checkbox',
+  [PartKind.SWITCH]: 'Switch',
+  [PartKind.READMORE]: 'Xem thêm',
+  [PartKind.SEMANTIC]: 'Khối',
+  [PartKind.ACCORDION]: 'Accordion',
+  [PartKind.TABS]: 'Tab',
+  [PartKind.TAB_SWITCH]: 'Tabs Component',
+  [PartKind.MENU]: 'Menu',
+  [PartKind.MENU_SLIDER]: 'Menu slider',
+  [PartKind.CAROUSEL]: 'Slider',
+  [PartKind.FORM]: 'Form',
+  [PartKind.LINK]: 'Link',
+  [PartKind.FLAT_IMAGE]: 'Ảnh',
+  [PartKind.ICON_LIST]: 'Danh sách icon',
+  [PartKind.BREADCRUMBS]: 'Breadcrumb',
+  [PartKind.COUNTER]: 'Số',
+  [PartKind.COUNTDOWN]: 'Đếm ngược',
+  [PartKind.TOOLTIP]: 'Tooltip',
+  [PartKind.TOOLTIP_STYLE]: 'Tooltip',
+  [PartKind.SCROLL]: 'Scroll',
+  [PartKind.PRICE_TABLE]: 'price-table',
+  [PartKind.COMPARE_TABLE]: 'compare-table',
 };
 const TAB_NOTE = 'Mỗi nút là một tab. Phần bên dưới là nội dung của tab đang mở. Tab chưa vẽ thì dán link khung đó, hoặc viết nội dung vào. Để trống là giữ như bản vẽ.';
 const SLIDER_NOTE = 'Chỉ có khung desktop thì mobile vẫn là slider. Có link mobile thì dựng đúng thứ khung đó vẽ, kể cả khi không phải slider. Không tự đổi slider thành hàng kéo.';
@@ -46,12 +63,12 @@ const clip = (s) => String(s ?? '').trim().replace(/\s+/g, ' ').slice(0, 48);
 
 function partName(tree, component) {
   const node = findNode(tree, component.node);
-  if (component.component === 'readmore' && component.params?.button) {
+  if (isKind(component, PartKind.READMORE) && component.params?.button) {
     const label = firstText(findNode(tree, component.params.button))?.text?.characters;
     if (label) return clip(label);
   }
   const text = node && firstText(node)?.text?.characters;
-  if (component.component === 'button' || component.component === 'link') return clip(text || node?.name || component.node);
+  if (isKind(component, PartKind.BUTTON) || isKind(component, PartKind.LINK)) return clip(text || node?.name || component.node);
   return clip(node?.name || component.node);
 }
 
@@ -60,16 +77,16 @@ function withTitle(field, name, kind) {
 }
 
 function fallbackField(component, readmoreButtons) {
-  if (component.component === 'button' && readmoreButtons.has(component.node)) {
+  if (isKind(component, PartKind.BUTTON) && readmoreButtons.has(component.node)) {
     return { group: 'act' };
   }
-  if (component.component === 'readmore') return { group: 'expand' };
-  if (component.component === 'semantic') return { group: 'keep' };
+  if (isKind(component, PartKind.READMORE)) return { group: 'expand' };
+  if (isKind(component, PartKind.SEMANTIC)) return { group: 'keep' };
   return null;
 }
 
 function detailOf(tree, component) {
-  if (component.component !== 'form') return '';
+  if (!isKind(component, PartKind.FORM)) return '';
   const labels = (component.params?.fields ?? []).map((f) => clip(f.label || f.placeholder)).filter(Boolean);
   const submit = findNode(tree, component.params?.submit);
   const button = clip(submit && firstText(submit)?.text?.characters);
@@ -118,8 +135,8 @@ function fieldOf(q, fileKey) {
 // approved components, deepest owner wins a question, plus a fallback field when the rules asked nothing.
 // A component with nothing to type is still listed: step 2 is where the owner sees what was recognized.
 export function screenParts(tree, components, questions, fileKey) {
-  const approved = (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination');
-  const readmoreButtons = new Set(approved.filter((c) => c.component === 'readmore').map((c) => c.params?.button).filter(Boolean));
+  const approved = (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && !isPaginationHint(c));
+  const readmoreButtons = new Set(approved.filter((c) => isKind(c, PartKind.READMORE)).map((c) => c.params?.button).filter(Boolean));
   const ranked = [...approved].sort((a, b) => depthOf(tree, b.node) - depthOf(tree, a.node));
   const buckets = new Map(approved.map((c) => [c.node + ':' + c.component, []]));
   const loose = [];
@@ -134,12 +151,12 @@ export function screenParts(tree, components, questions, fileKey) {
     const name = partName(tree, c);
     const kind = KIND[c.component] || c.component;
     let fields = (buckets.get(c.node + ':' + c.component) ?? []).map((q) => withTitle(fieldOf(q, fileKey), name, kind));
-    if (c.component === 'form') fields = fields.filter((field) => field.group !== 'confirm');
+    if (isKind(c, PartKind.FORM)) fields = fields.filter((field) => field.group !== 'confirm');
     if (!fields.length) {
       const fb = fallbackField(c, readmoreButtons);
       if (fb) fields = [withTitle(fieldOf({ ...fb, node: c.node, label: '' }, fileKey), name, kind)];
     }
-    const note = c.component === 'tabs' || c.component === 'tab-switch' ? TAB_NOTE : c.component === 'carousel' ? SLIDER_NOTE : '';
+    const note = isKind(c, PartKind.TABS) || isKind(c, PartKind.TAB_SWITCH) ? TAB_NOTE : isKind(c, PartKind.CAROUSEL) ? SLIDER_NOTE : '';
     const detail = detailOf(tree, c);
     const children = childFacts(tree, c);
     const ids = walkIds(findNode(tree, c.node) ?? { id: c.node });
@@ -165,7 +182,7 @@ export function planInventory(tree, components, fileKey = '') {
   const line = (c) => ({ node: c.node, label: `${KIND[c.component] || c.component} "${partName(tree, c)}"`, value: '' });
   return {
     found: (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component)).map(line),
-    open: (components ?? []).filter((c) => c.status === 'proposed' && !isSignal(c.component) && c.component !== 'pagination').map((c) => ({
+    open: (components ?? []).filter((c) => c.status === 'proposed' && !isSignal(c.component) && !isPaginationHint(c)).map((c) => ({
       ...line(c),
       evidence: String(c.evidence ?? '').replace(/\s+/g, ' ').trim(),
       figma: link(c.node),

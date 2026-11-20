@@ -4,13 +4,15 @@
 // A bubble drawn loose in the file (a "Tooltip" instance with a text) is proposed as well, with its text, but its trigger is unknown.
 // The tooltip TEXT is usually not in Figma: it stays null (and is listed as "missing from Figma") unless a popup node holds it.
 // Position comes from the bubble's arrow when there is one (arrow on the top edge = the bubble opens below the trigger).
+import { isText } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { ICON_FONT } from '../../read-figma/nodes.mjs';
 
 const GLYPH = /(^|-)(info|question|exclamation|help)(-|$)/i;
 const FLAG = /tooltip/i;
 
 function texts(n, out = []) {
-  if (n.type === 'TEXT' && n.text?.characters) out.push(n.text.characters.trim());
+  if (isText(n) && n.text?.characters) out.push(n.text.characters.trim());
   for (const c of n.children ?? []) texts(c, out);
   return out;
 }
@@ -18,14 +20,15 @@ const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false)
 // first readable (non-icon) text inside a node, depth first
 function labelIn(n) {
   if (n.visible === false) return null;
-  if (n.type === 'TEXT') return n.text?.characters && !ICON_FONT.test(n.text.fontFamily ?? '') ? n : null;
+  if (isText(n)) return n.text?.characters && !ICON_FONT.test(n.text.fontFamily ?? '') ? n : null;
   for (const c of n.children ?? []) { const f = labelIn(c); if (f) return f; }
   return null;
 }
 
 // a small rotated square on one edge of the bubble is its arrow: the arrow side tells where the bubble opens
 function arrowPosition(bubble) {
-  const a = (bubble.children ?? []).find((c) => c.visible !== false && Math.abs(Math.abs(c.rotation ?? 0) - Math.PI / 4) < 0.05 && c.box.w < 24 && c.box.h < 24);
+  const limit = Math.min(bubble.box?.w ?? 0, bubble.box?.h ?? 0);
+  const a = (bubble.children ?? []).find((c) => c.visible !== false && c.box && Math.abs(Math.abs(c.rotation ?? 0) - Math.PI / 4) < 0.05 && limit > 0 && c.box.w <= limit * 0.45 && c.box.h <= limit * 0.45);
   if (!a) return null;
   const { w, h } = bubble.box;
   const cx = a.box.x + a.box.w / 2, cy = a.box.y + a.box.h / 2;
@@ -37,7 +40,7 @@ export function detectTooltips(tree) {
   const found = [];
   (function walk(n, chain) {
     if (n.visible === false) return;
-    if (n.type === 'TEXT' && ICON_FONT.test(n.text?.fontFamily ?? '') && GLYPH.test(n.text.characters.trim()) && chain.length) {
+    if (isText(n) && ICON_FONT.test(n.text?.fontFamily ?? '') && GLYPH.test(n.text.characters.trim()) && chain.length) {
       // the icon is often wrapped alone in an "Icon" frame: climb while the wrapper holds only that icon
       let top = n, i = chain.length - 1;
       while (i > 0 && visibleKids(chain[i]).length === 1) { top = chain[i]; i--; }
@@ -57,7 +60,7 @@ export function detectTooltips(tree) {
         if (flag && flag[1] === true) { level = 'E1'; confidence = 'high'; cite.push({ node: flagged[0].id, field: `props.${flag[0]}`, equals: true }); why += `; the designer flagged it: "${flagged[0].name}" has ${flag[0]} = true`; }
         else if (flag) { confidence = 'low'; cite.push({ node: flagged[0].id, field: `props.${flag[0]}`, equals: false }); note = `CONFLICT: the icon is drawn but the designer set ${flag[0]} = false on "${flagged[0].name}"; ` + (note ?? ''); }
         if (popupText) { why += `; popup text found in "${popup.name}"`; cite.push({ node: popup.id, field: 'name' }); }
-        found.push({ component: 'tooltip', node: n.id, level, confidence, evidence: why, cite, params: { text: null, ...(popupText && { popup: popup.id }), position: 'top' }, note });
+        found.push({ component: PartKind.TOOLTIP, node: n.id, level, confidence, evidence: why, cite, params: { text: null, ...(popupText && { popup: popup.id }), position: 'top' }, note });
       }
     }
     for (const c of n.children ?? []) walk(c, [...chain, n]);
@@ -67,13 +70,13 @@ export function detectTooltips(tree) {
   const used = new Set(found.map((f) => f.params.popup).filter(Boolean));
   (function loose(n) {
     if (n.visible === false) return;
-    if (/tooltip/i.test(n.name) && n.type !== 'TEXT' && !used.has(n.id)) {
+    if (/tooltip/i.test(n.name) && !isText(n) && !used.has(n.id)) {
       const text = texts(n).join(' ');
       if (text) {
         const arrow = arrowPosition(n);
         const variant = n.props && Object.keys(n.props).length ? ` (component variant: ${Object.entries(n.props).map(([k, v]) => `${k}=${v}`).join(', ')})` : '';
         found.push({
-          component: 'tooltip', node: n.id, level: 'E2', confidence: 'low',
+          component: PartKind.TOOLTIP, node: n.id, level: 'E2', confidence: 'low',
           evidence: `"${n.name}" ${n.type} is a tooltip bubble with the text "${text}" drawn on its own (${Math.round(n.box.w)}×${Math.round(n.box.h)}), not attached to any icon${variant}${arrow ? `; its arrow is on the ${arrow.position === 'bottom' ? 'top' : arrow.position === 'top' ? 'bottom' : arrow.position === 'right' ? 'left' : 'right'} edge, so it opens ${arrow.position}` : ''}`,
           cite: [{ node: n.id, field: 'name' }, ...(arrow ? [arrow.cite] : [])],
           params: { text: null, popup: n.id, position: arrow?.position ?? 'top' },

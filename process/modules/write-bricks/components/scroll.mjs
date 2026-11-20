@@ -1,6 +1,7 @@
 // The drawn bar names the scroll: a darker thumb on a lighter track, in one frame.
 // Those two shapes are not elements. A line div cannot be dragged, and it stays painted when the text already fits.
 // The browser scrollbar uses their two colors and appears only while the content overflows.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { detectScrollLists } from '../../recognize-parts/rules/scroll.mjs';
 
 function paint(node) {
@@ -48,7 +49,7 @@ function findNode(n, id) {
 }
 
 export default {
-  id: 'scroll',
+  id: PartKind.SCROLL,
   status: 'implemented',
   label: 'Scroll',
   figma: 'a darker block lying on a lighter block, in one frame, beside repeated items or text that run past the container (`rules/scroll.mjs`)',

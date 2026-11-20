@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // COMPONENT flat-image: a whole node (banner, hero art, illustration) shipped as ONE picture rendered by Figma.
 // Why: a front-end developer does not rebuild a banner from 100 layers (rotated blurred images, vectors, 3 copies of a heading
 // to fake a 3D effect). They put one image there. Figma renders it, so rotation / blur / opacity / rounded corners are exact.
@@ -21,11 +22,11 @@ export const defaultAlt = (node) => [...new Set(visibleTexts(node))].join(' ');
 
 // approved flat-image detections -> what step 4 must export
 export const exportJobs = (detections) => (detections?.components ?? [])
-  .filter((c) => c.status === 'approved' && c.component === 'flat-image')
+  .filter((c) => c.status === 'approved' && isKind(c, PartKind.FLAT_IMAGE))
   .map((c) => ({ node: c.node, scale: Number(c.params?.scale) || 2 }));
 
 export default {
-  id: 'flat-image',
+  id: PartKind.FLAT_IMAGE,
   status: 'implemented',
   label: 'Flat image (banner / artwork)',
   figma: 'container made mostly of images, vectors and decoration (rotation, blur), possibly with text and a button drawn inside',

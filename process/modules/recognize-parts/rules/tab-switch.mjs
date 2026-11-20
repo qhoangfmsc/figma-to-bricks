@@ -1,12 +1,21 @@
 // A Tab List whose panel is not its sibling (the price table: the list sits beside the period bar, the
 // panel is under the card). The two-child pair is left to detect/rules/tabs.mjs.
+import { PartKind } from '../kinds.mjs';
 import { inspect, inspectClassic, listsIn, isTabList, isNamedTabBar, isActionBar, rowTitles, activeTitle, dividerOf, hasDivider } from '../../write-bricks/components/tab-switch.mjs';
 import { priceFrames } from '../../write-bricks/components/price-table.mjs';
 import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 import { detectMenus } from './menu.mjs';
+import { showsPrice } from './layout-only.mjs';
+import { textsOf } from './shape.mjs';
+
+function wordTitle(node) {
+  return rowTitles(node).some((title) => /\p{L}/u.test(textsOf(title).map((text) => text.text.characters).join(' ')));
+}
 
 const holds = (node, id) => !!node && (node.id === id || visibleKids(node).some((child) => holds(child, id)));
 const inPricingTable = (tree, id) => [...priceFrames(tree), ...compareFrames(tree)].some((frame) => holds(frame, id));
+const ownsPrice = (tree, node) => inPricingTable(tree, node.id) || visibleKids(node).some((child) => inPricingTable(tree, child.id));
+const besidePrice = (tree, parent, node) => !!parent && visibleKids(parent).some((child) => child.id !== node.id && (inPricingTable(tree, child.id) || ownsPrice(tree, child)));
 
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const contains = (n, id) => !!n && (n.id === id || visibleKids(n).some((c) => contains(c, id)));
@@ -42,10 +51,10 @@ export function detectTabSwitches(tree) {
     if (!chosen) continue;
     const host = chosen.host;
     const panels = chosen.panels;
-    if (found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels) || inPricingTable(tree, host.id)) continue;
+    if (found.some((f) => f.node === host.id) || coveredByTabs(host, list, panels) || ownsPrice(tree, host)) continue;
     const titles = visibleKids(list);
     found.push({
-      component: 'tab-switch', node: host.id, level: 'E1', confidence: 'high',
+      component: PartKind.TAB_SWITCH, node: host.id, level: 'E1', confidence: 'high',
       cite: [{ node: list.id, field: 'name', equals: list.name }, { node: panels[0].id, field: 'name', equals: panels[0].name }],
       evidence: `"${host.name}": Tab List "${list.name}" (${titles.length} titles) switches "${panels[0].name}"`,
       params: tabParts(list.id, panels[0]?.id, titles.length, null),
@@ -61,10 +70,10 @@ export function detectTabSwitches(tree) {
 function detectNamedTabRows(tree, claimed, menus) {
   const found = [];
   const taken = new Set(claimed.map((f) => f.node));
-  (function walk(n) {
+  (function walk(n, parent) {
     if (n.visible === false) return;
     if (taken.has(n.id)) {
-      visibleKids(n).forEach((child) => walk(child));
+      visibleKids(n).forEach((child) => walk(child, n));
       return;
     }
     const kids = visibleKids(n);
@@ -73,14 +82,14 @@ function detectNamedTabRows(tree, claimed, menus) {
     const onePaneEach = info?.panels?.length > 0 && info.panels.length === info.titles.length && !info.dataItems;
     const classicPair = kids.length === 2 && bar && onePaneEach;
     if (classicPair) {
-      kids.forEach((child) => { if (child.id !== bar.id) walk(child); });
+      kids.forEach((child) => { if (child.id !== bar.id) walk(child, n); });
       return;
     }
     const loose = info?.list && isActionBar(info.list) && !isTabList(info.list);
     if (loose && info.titles.length >= 2) {
       // The page that holds this section also matches. The section that holds the bar and the pane is the component.
       const tighter = kids.some((child) => inspect(child)?.list?.id === info.list.id);
-        if (!tighter && !inPricingTable(tree, n.id)) {
+        if (!tighter && !ownsPrice(tree, n) && !showsPrice(info.list)) {
         const open = info.titles[Number.isInteger(info.active) ? info.active : 0];
         const marked = Object.entries(open.props ?? {}).find(([key, value]) => /state|active|selected|property\s*1/i.test(key) && /^(selected|active|current|on|true)$/i.test(String(value)));
         const divider = dividerOf(info.list, info.titles);
@@ -89,7 +98,7 @@ function detectNamedTabRows(tree, claimed, menus) {
         if (divider) cite.push({ node: divider.id, field: 'type', equals: divider.type });
         if (!marked && !divider) cite.push({ node: open.id, field: 'name', equals: open.name });
         found.push({
-          component: 'tab-switch', node: n.id, level: 'E1', confidence: marked || divider || isNamedTabBar(info.list) ? 'high' : 'medium',
+          component: PartKind.TAB_SWITCH, node: n.id, level: 'E1', confidence: marked || divider || isNamedTabBar(info.list) ? 'high' : 'medium',
           cite,
           evidence: `"${n.name}": ${info.titles.length} tab(s)${info.list ? ` in "${info.list.name}"` : ''}, ${info.dataItems?.length ? `${info.dataItems.length} item(s) of the open tab` : `${info.panels.length} content frame(s)`} drawn`,
           params: tabParts(info.list.id, info.paneParent?.id || info.panels?.[0]?.id, info.titles.length, Number.isInteger(info.active) ? info.active : null),
@@ -98,7 +107,7 @@ function detectNamedTabRows(tree, claimed, menus) {
         return;
       }
     }
-    const bare = !info && isActionBar(n) && !isTabList(n) && !menus.has(n.id);
+    const bare = !info && isActionBar(n) && !isTabList(n) && !menus.has(n.id) && !ownsPrice(tree, n) && !besidePrice(tree, parent, n) && !showsPrice(n) && wordTitle(n);
     if (bare) {
       const titles = rowTitles(n);
       const active = activeTitle(titles, n);
@@ -106,7 +115,7 @@ function detectNamedTabRows(tree, claimed, menus) {
       if (strong && titles.length >= 2) {
         const open = titles[Number.isInteger(active.index) ? active.index : 0];
         found.push({
-          component: 'tab-switch', node: n.id, level: 'E1', confidence: strong ? 'high' : 'medium',
+          component: PartKind.TAB_SWITCH, node: n.id, level: 'E1', confidence: strong ? 'high' : 'medium',
           cite: [{ node: n.id, field: 'layout.mode', equals: 'HORIZONTAL' }, { node: open.id, field: 'name', equals: open.name }],
           evidence: `"${n.name}": ${titles.length} tab(s), no content frame in this node`,
           params: tabParts(n.id, '', titles.length, Number.isInteger(active.index) ? active.index : null),
@@ -115,7 +124,7 @@ function detectNamedTabRows(tree, claimed, menus) {
         return;
       }
     }
-    kids.forEach(walk);
-  })(tree);
+    kids.forEach((child) => walk(child, n));
+  })(tree, null);
   return found;
 }

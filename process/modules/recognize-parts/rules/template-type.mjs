@@ -4,6 +4,7 @@
 // Popup cases are structural: a dim full-frame backdrop with a centered card, a dim fill on the frame itself
 // with a centered card, a close mark on a dialog (the mark may sit inside the card), a picture plus a close mark,
 // or a small newsletter card that also has a close mark.
+import { FillType, isType, isText } from '../node-type.mjs';
 import { centeredCard, covers, dimFill, hasClose, textsOf, visibleKids } from './shape.mjs';
 
 export const TEMPLATE_TYPES = ['header', 'footer', 'content', 'section', 'popup', 'archive', 'search', 'error'];
@@ -33,10 +34,10 @@ function nameHint(n, re) {
 function linkTexts(n) {
   const out = [];
   for (const c of kids(n)) {
-    if (c.type === 'TEXT' && c.text?.characters?.trim() && c.text.characters.trim().length <= 32) out.push(c);
-    else if (c.type !== 'TEXT') {
+    if (isText(c) && c.text?.characters?.trim() && c.text.characters.trim().length <= 32) out.push(c);
+    else if (!isText(c)) {
       const inner = textsOf(c);
-      const filled = (c.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.9);
+      const filled = (c.fills ?? []).some((f) => isType(f, FillType.SOLID) && (f.alpha ?? 1) > 0.9);
       if (inner.length === 1 && inner[0].text.characters.trim().length <= 32 && !filled) out.push(inner[0]);
     }
   }
@@ -63,7 +64,7 @@ function popupCases(tree) {
       cases.push({ type: 'popup', confidence: 'high', id: 'close-on-card', reason: 'Một thẻ nhỏ hơn khung có nút đóng ở góc. Đây là popup.' });
     }
   }
-  const picture = direct.find((c) => (c.fills ?? []).some((f) => f.type === 'IMAGE') && covers(c, tree));
+  const picture = direct.find((c) => (c.fills ?? []).some((f) => isType(f, FillType.IMAGE)) && covers(c, tree));
   if (picture && hasClose(tree)) {
     cases.push({ type: 'popup', confidence: 'high', id: 'lightbox', reason: 'Một ảnh gần kín khung và một nút đóng. Đây là popup.' });
   }

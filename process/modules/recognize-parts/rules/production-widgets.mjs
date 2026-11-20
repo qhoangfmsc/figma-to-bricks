@@ -1,5 +1,7 @@
 // Widgets this project owns, matched by shape.
 // A layer name does not decide. Numbers come from the tree.
+import { NodeType, FillType, isType, isText } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { hasClose, textsOf, visibleKids } from './shape.mjs';
 import { priceFrames } from '../../write-bricks/components/price-table.mjs';
 import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
@@ -7,11 +9,11 @@ import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 const kids = visibleKids;
 
 function solid(n) {
-  return (n?.fills ?? []).find((f) => f.type === 'SOLID' && f.visible !== false);
+  return (n?.fills ?? []).find((f) => isType(f, FillType.SOLID) && f.visible !== false);
 }
 
 function imageFile(n) {
-  const fill = (n?.fills ?? []).find((f) => f.type === 'IMAGE' && f.asset?.file);
+  const fill = (n?.fills ?? []).find((f) => isType(f, FillType.IMAGE) && f.asset?.file);
   if (fill) return fill.asset.file;
   for (const c of kids(n)) {
     const file = imageFile(c);
@@ -38,7 +40,7 @@ function cite(node, field, equals) {
 
 function detectGallery(n) {
   const items = kids(n).filter(isPicture);
-  if (items.length < 3 || items.length !== kids(n).filter((k) => k.type !== 'TEXT').length) return null;
+  if (items.length < 2 || items.length !== kids(n).filter((k) => !isText(k)).length) return null;
   if (!similar(items, 'h') || !similar(items, 'w')) return null;
   if (items.some((item) => (item.box?.x ?? 0) < -1 || (item.box?.x ?? 0) + item.box.w > (n.box?.w ?? 0) + 1)) return null;
   const images = items.map(imageFile).filter(Boolean);
@@ -49,7 +51,7 @@ function detectGallery(n) {
     rows.set(y, (rows.get(y) ?? 0) + 1);
   }
   return {
-    component: 'gallery',
+    component: PartKind.GALLERY,
     node: n.id,
     confidence: 'high',
     cite: [cite(n.id, 'type', n.type), cite(items[0].id, 'type', items[0].type)],
@@ -63,15 +65,22 @@ function detectGallery(n) {
   };
 }
 
+function along(node) {
+  const w = node.box?.w ?? 0;
+  const h = node.box?.h ?? 0;
+  if (w <= 0 || h <= 0 || w === h) return null;
+  return w > h ? 'w' : 'h';
+}
+
 function barOf(n) {
-  const track = kids(n).find((c) => (c.box?.w ?? 0) >= 80 && (c.box?.h ?? 0) >= 4 && (c.box?.h ?? 0) <= 28);
+  const track = kids(n).find((child) => along(child));
   if (!track) return null;
-  const pictured = (node) => (node.fills ?? []).some((f) => f.type === 'IMAGE') || (node.children ?? []).some((c) => c.visible !== false && pictured(c));
+  const pictured = (node) => (node.fills ?? []).some((fill) => isType(fill, FillType.IMAGE)) || (node.children ?? []).some((child) => child.visible !== false && pictured(child));
   if (pictured(track)) return null;
-  // A title row with a badge is not a track. A track may show a percent, not a sentence.
-  const words = textsOf(track).map((t) => t.text.characters.trim()).filter((t) => t && !/%$/.test(t));
-  if (words.some((t) => !/^\d{1,3}$/.test(t))) return null;
-  const fill = kids(track).find((c) => solid(c) && (c.box?.w ?? 0) > (c.box?.h ?? 0) && c.box.w < track.box.w - 1);
+  const words = textsOf(track).map((text) => text.text.characters.trim()).filter((text) => text && !/%$/.test(text));
+  if (words.some((text) => !/^\d{1,3}$/.test(text))) return null;
+  const axis = along(track);
+  const fill = kids(track).find((child) => solid(child) && along(child) === axis && child.box[axis] < track.box[axis] - 0.5);
   if (!fill) return null;
   const label = textsOf(n).find((t) => !kids(track).some((c) => c.id === t.id));
   const percentText = textsOf(n).map((t) => t.text.characters.trim()).find((t) => /%$/.test(t));
@@ -88,9 +97,15 @@ function barOf(n) {
 
 function besideScroll(n) {
   if (!n?.box) return false;
-  const thin = kids(n).filter((c) => c.box && ((c.box.h <= 28 && c.box.w >= 80) || (c.box.w <= 28 && c.box.h >= 80)));
+  const thin = kids(n).filter((child) => {
+    const axis = along(child);
+    if (!axis) return false;
+    const long = Math.max(child.box.w, child.box.h);
+    const short = Math.min(child.box.w, child.box.h);
+    return short / long <= 0.35;
+  });
   if (!thin.length) return false;
-  return kids(n).some((c) => c.box && !thin.includes(c) && textsOf(c).length > 0 && (c.box.x + c.box.w > n.box.w + 40 || c.box.y + c.box.h > n.box.h + 40));
+  return kids(n).some((child) => child.box && !thin.includes(child) && textsOf(child).length > 0 && (child.box.x + child.box.w > n.box.w + 0.5 || child.box.y + child.box.h > n.box.h + 0.5));
 }
 
 function detectProgress(n) {
@@ -100,9 +115,9 @@ function detectProgress(n) {
   const own = barOf(n);
   const bars = direct.length ? direct : own ? [own] : [];
   if (!bars.length) return null;
-  if (direct.length && direct.length < kids(n).filter((k) => k.type !== 'TEXT').length) return null;
+  if (direct.length && direct.length < kids(n).filter((k) => !isText(k)).length) return null;
   return {
-    component: 'progress',
+    component: PartKind.PROGRESS,
     node: n.id,
     confidence: 'high',
     cite: [cite(n.id, 'type', n.type)],
@@ -113,13 +128,17 @@ function detectProgress(n) {
 
 function detectRating(n) {
   if (n.layout?.mode !== 'HORIZONTAL') return null;
-  const marks = kids(n).filter((c) => (c.box?.w ?? 0) >= 8 && c.box.w <= 32 && Math.abs(c.box.w - c.box.h) <= 4);
-  if (marks.length < 4 || marks.length !== kids(n).length) return null;
+  const marks = kids(n).filter((c) => {
+    const w = c.box?.w ?? 0;
+    const h = c.box?.h ?? 0;
+    return w > 0 && h > 0 && Math.abs(w - h) / Math.max(w, h) <= 0.25;
+  });
+  if (marks.length < 2 || marks.length !== kids(n).length) return null;
   const names = marks.map((c) => c.component || c.svg?.file || '').filter(Boolean);
   if (new Set(names).size !== 1) return null;
   const full = marks.filter((c) => (c.opacity ?? 1) >= 0.9 && ((solid(c)?.alpha ?? 1) >= 0.9 || !solid(c)));
   return {
-    component: 'rating',
+    component: PartKind.RATING,
     node: n.id,
     confidence: 'high',
     cite: [cite(marks[0].id, 'type', marks[0].type)],
@@ -134,36 +153,32 @@ function detectRating(n) {
   };
 }
 
-function detectAlert(n) {
-  if (n.layout?.mode !== 'HORIZONTAL') return null;
-  const h = n.box?.h ?? 0;
-  const w = n.box?.w ?? 0;
-  if (h < 36 || h > 80 || w < 240 || !solid(n)) return null;
+function detectAlert(n, parent) {
+  if (n.layout?.mode !== 'HORIZONTAL' || !solid(n)) return null;
+  if (parent?.box?.w && n.box?.w && n.box.w < parent.box.w * 0.55) return null;
   const texts = textsOf(n);
-  const icon = kids(n).find((c) => c.svg && (c.box?.w ?? 0) <= 32);
-  if (texts.length !== 1 || !icon) return null;
-  const sentence = texts[0].text.characters.trim();
-  if (sentence.length < 24 || !sentence.includes(' ')) return null;
+  const icon = kids(n).find((c) => c.svg);
+  if (texts.length !== 1 || !icon || !texts[0].text.characters.trim()) return null;
   return {
-    component: 'alert',
+    component: PartKind.ALERT,
     node: n.id,
     confidence: 'high',
-    cite: [cite(texts[0].id, 'type', 'TEXT')],
+    cite: [cite(texts[0].id, 'type', NodeType.TEXT)],
     evidence: `a tinted bar with one icon and "${texts[0].text.characters.trim().slice(0, 40)}"`,
     params: { content: texts[0].text.characters.trim(), dismissable: hasClose(n) },
   };
 }
 
 function detectLogo(n, parent) {
-  if (!parent?.box || parent.box.h < 40 || parent.box.h > 140 || parent.box.w < 320) return null;
+  if (!parent?.box || parent.layout?.mode !== 'HORIZONTAL') return null;
   const first = kids(parent)[0];
   if (first?.id !== n.id) return null;
   const file = n.svg?.file || imageFile(n);
-  if (!file || (n.box?.h ?? 0) < 16 || n.box.h > parent.box.h || (n.box?.w ?? 0) > 240) return null;
-  const links = textsOf(parent).filter((t) => t.text.characters.trim().length <= 24);
+  if (!file || (n.box?.h ?? 0) <= 0 || n.box.h > parent.box.h) return null;
+  const links = textsOf(parent);
   if (links.length < 2) return null;
   return {
-    component: 'logo',
+    component: PartKind.LOGO,
     node: n.id,
     confidence: 'high',
     cite: [cite(n.id, 'type', n.type)],
@@ -175,13 +190,13 @@ function detectLogo(n, parent) {
 function detectHamburger(n) {
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
-  if (w < 16 || w > 48 || Math.abs(w - h) > 8) return null;
-  const lines = kids(n).filter((c) => (c.box?.h ?? 99) <= 4 && (c.box?.w ?? 0) >= 12);
+  if (w <= 0 || h <= 0 || Math.abs(w - h) / Math.max(w, h) > 0.25) return null;
+  const lines = kids(n).filter((child) => (child.box?.w ?? 0) > (child.box?.h ?? 0));
   if (lines.length !== 3 || lines.length !== kids(n).length) return null;
   const ordered = [...lines].sort((a, b) => a.box.y - b.box.y);
   if (!(ordered[0].box.y < ordered[1].box.y && ordered[1].box.y < ordered[2].box.y)) return null;
   return {
-    component: 'hamburger',
+    component: PartKind.HAMBURGER,
     node: n.id,
     confidence: 'high',
     cite: [cite(lines[0].id, 'type', lines[0].type)],
@@ -192,15 +207,15 @@ function detectHamburger(n) {
 
 function detectDropdown(n) {
   if (n.layout?.mode !== 'HORIZONTAL') return null;
-  const texts = kids(n).filter((c) => c.type === 'TEXT' && (c.text?.characters?.trim().length ?? 0) <= 32);
-  const mark = kids(n).find((c) => (c.svg || c.type === 'VECTOR') && (c.box?.w ?? 99) <= 16);
+  const texts = kids(n).filter((child) => isText(child) && child.text?.characters?.trim());
+  const mark = kids(n).find((child) => child.svg || isType(child, NodeType.VECTOR));
   const list = kids(n).find((c) => c.layout?.mode === 'VERTICAL' && textsOf(c).length >= 2);
   if (texts.length !== 1 || !mark || !list) return null;
   return {
-    component: 'dropdown',
+    component: PartKind.DROPDOWN,
     node: n.id,
     confidence: 'high',
-    cite: [cite(texts[0].id, 'type', 'TEXT'), cite(list.id, 'layout.mode', 'VERTICAL')],
+    cite: [cite(texts[0].id, 'type', NodeType.TEXT), cite(list.id, 'layout.mode', 'VERTICAL')],
     evidence: `"${texts[0].text.characters.trim()}" opens ${textsOf(list).length} items`,
     params: { text: texts[0].text.characters.trim(), list: list.id },
   };
@@ -208,13 +223,13 @@ function detectDropdown(n) {
 
 function detectOffcanvas(n, parent) {
   if (!parent?.box || !n.box) return null;
-  if (n.box.w > parent.box.w * 0.85 || n.box.w < 200 || n.box.h < parent.box.h * 0.7) return null;
-  const onLeft = n.box.x <= 8;
-  const onRight = parent.box.w - (n.box.x + n.box.w) <= 8;
+  if (n.box.w >= parent.box.w || n.box.h < parent.box.h * 0.7) return null;
+  const onLeft = n.box.x <= 0.5;
+  const onRight = parent.box.w - (n.box.x + n.box.w) <= 0.5;
   if (!onLeft && !onRight) return null;
   if (!hasClose(n)) return null;
   return {
-    component: 'offcanvas',
+    component: PartKind.OFFCANVAS,
     node: n.id,
     confidence: 'high',
     cite: [cite(n.id, 'type', n.type)],
@@ -233,7 +248,7 @@ export function detectProduction(tree) {
   const claimed = new Set();
   (function walk(n, parent) {
     if (!n || n.visible === false || claimed.has(n.id)) return;
-    const alert = detectAlert(n);
+    const alert = detectAlert(n, parent);
     const hit = detectGallery(n) || detectProgress(n) || detectRating(n) || (alert && !insidePricing(tree, n.id) ? alert : null) || detectLogo(n, parent) || detectHamburger(n) || detectDropdown(n) || detectOffcanvas(n, parent);
     if (hit) {
       found.push({ ...hit, level: 'E2', note: null });

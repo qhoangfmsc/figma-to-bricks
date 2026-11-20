@@ -5,6 +5,7 @@
 // The theme draws a separator line after every title and gives .title a 10px right margin: both are switched off explicitly.
 // params: items (optional node ids; default = every visible child) · separator (optional node id of a divider line drawn between rows: its stroke
 //         becomes a bottom border on each row but the last, gradient strokes via border-image).  Each item needs one text, an icon is optional (svg).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { typography } from '../../write-bricks/render/text.mjs';
 import { addCustomCss, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
@@ -21,7 +22,7 @@ function rowOf(item) {
 }
 
 export default {
-  id: 'icon-list',
+  id: PartKind.ICON_LIST,
   status: 'implemented',
   label: 'Icon list',
   figma: 'a vertical container whose children are rows of one icon + one text',

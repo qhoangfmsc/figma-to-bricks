@@ -36,7 +36,7 @@ import { siblingStatePatches } from '../../write-bricks/components/states.mjs';
 import { closeMarkIds, popupCard } from '../../recognize-parts/rules/shape.mjs';
 import { isDomainLookup } from '../../recognize-parts/rules/layout-only.mjs';
 import { detectActionForms } from '../../recognize-parts/rules/form.mjs';
-import { isSignal } from '../../recognize-parts/kinds.mjs';
+import { PartKind, isSignal, isKind, isAnyKind, StateKind, isPaginationHint } from '../../recognize-parts/kinds.mjs';
 import { resolvedRole } from '../../write-bricks/components/button.mjs';
 
 export { deepMerge };
@@ -54,7 +54,7 @@ export function overflowsSideways(frame) {
 }
 
 export function buildTemplate(root, { overrides = {}, detections = null, flats = {}, readAsset, salt = '', fileKey = '' } = {}) {
-  markPeekScroll(root);
+  markPeekScroll(root, detections);
   const nodeOv = overrides.nodes ?? {};
   // only APPROVED detections change the build (see detect/index.mjs); proposed / rejected nodes stay plain blocks
   // One node, one component. A list tag (semantic) must not replace a real widget on the same frame: a form of repeated inputs was built as a block.
@@ -63,34 +63,34 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const compareReady = new Set();
   const compareSkipped = [];
   for (const c of detections?.components ?? []) {
-    if (c.status !== 'approved' || c.component !== 'price-table') continue;
+    if (c.status !== 'approved' || !isKind(c, PartKind.PRICE_TABLE)) continue;
     const node = findNode(root, c.node);
     if (node && priceTable.check(node, c, { root }).ok) priceReady.add(c.node);
   }
   for (const c of detections?.components ?? []) {
-    if (c.status !== 'approved' || c.component !== 'compare-table') continue;
+    if (c.status !== 'approved' || !isKind(c, PartKind.COMPARE_TABLE)) continue;
     const node = findNode(root, c.node);
     if (node && compareTable.check(node, c, { root }).ok) compareReady.add(c.node);
   }
   const approved = new Map();
-  for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && c.component !== 'pagination')) {
-    if (c.component === 'price-table' && !priceReady.has(c.node)) { priceSkipped.push(c); continue; }
-    if (c.component === 'compare-table' && !compareReady.has(c.node)) { compareSkipped.push(c); continue; }
-    if ((c.component === 'tab-switch' || c.component === 'tabs') && priceReady.has(c.node)) continue;
+  for (const c of (detections?.components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && !isPaginationHint(c))) {
+    if (isKind(c, PartKind.PRICE_TABLE) && !priceReady.has(c.node)) { priceSkipped.push(c); continue; }
+    if (isKind(c, PartKind.COMPARE_TABLE) && !compareReady.has(c.node)) { compareSkipped.push(c); continue; }
+    if ((isKind(c, PartKind.TAB_SWITCH) || isKind(c, PartKind.TABS)) && priceReady.has(c.node)) continue;
     const prev = approved.get(c.node);
-    if (prev && c.component === 'semantic') continue;
+    if (prev && isKind(c, PartKind.SEMANTIC)) continue;
     approved.set(c.node, c);
   }
   for (const found of detectActionForms(root)) {
-    if ([...approved.values()].some((d) => d.component === 'form' && d.node === found.node)) continue;
+    if ([...approved.values()].some((d) => isKind(d, PartKind.FORM) && d.node === found.node)) continue;
     approved.set(found.node, { id: `action-${found.node}`, status: 'approved', source: 'rule', ...found });
   }
   // A dash strip that is only a question must not become a line of blocks while the plan is still asking.
   const held = new Set();
   for (const c of detections?.components ?? []) {
-    if (isSignal(c.component) || c.component === 'pagination' || c.params?.hold) held.add(c.node);
+    if (isSignal(c.component) || isPaginationHint(c) || c.params?.hold) held.add(c.node);
     if (c.status === 'approved') continue;
-    if (c.component === 'carousel' && c.params?.pagination) held.add(c.params.pagination);
+    if (isKind(c, PartKind.CAROUSEL) && c.params?.pagination) held.add(c.params.pagination);
   }
   const elements = [];
   const mapping = {};
@@ -147,7 +147,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   const contentRoot = stage?.card ?? root;
   const closing = new Set(popup ? closeMarkIds(contentRoot) : []);
   const dismiss = !popup && [...approved.values()].some((det) => {
-    if (det.component !== 'button' || det.params?.popupId) return false;
+    if (!isKind(det, PartKind.BUTTON) || det.params?.popupId) return false;
     const n = findNode(root, det.node);
     const text = (n?.children ?? []).find((c) => c && c.visible !== false && c.type === 'TEXT' && !c.svg);
     return resolvedRole(text?.text?.characters, det.params?.role) === 'action';
@@ -430,18 +430,18 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (!node) continue; // detect step reports stale nodes
     const comp = COMPONENTS[det.component];
     const isCrop = isImageLeaf(node) && node.fills.find((f) => f.type === 'IMAGE')?.scaleMode === 'CROP';
-    const actionHosts = [...approved.values()].filter((d) => d.component === 'form' && d.params?.kind === 'action');
+    const actionHosts = [...approved.values()].filter((d) => isKind(d, PartKind.FORM) && d.params?.kind === 'action');
     const insideAction = (id) => actionHosts.some((d) => {
       const host = findNode(root, d.node);
       return host && host.id !== id && containsNode(host, id);
     });
-    if ((det.component === 'switch' || det.component === 'checkbox') && insideAction(det.node)) continue;
-    if (det.component === 'button' && actionHosts.some((d) => d.params?.submit === det.node)) continue;
-    if (det.component === 'search' && isDomainLookup(node)) {
+    if ((isKind(det, PartKind.SWITCH) || isKind(det, PartKind.CHECKBOX)) && insideAction(det.node)) continue;
+    if (isKind(det, PartKind.BUTTON) && actionHosts.some((d) => d.params?.submit === det.node)) continue;
+    if (isKind(det, PartKind.SEARCH) && isDomainLookup(node)) {
       warn(node, 'domain lookup stays layout; the action is outside this project');
       continue;
     }
-    if (det.component === 'semantic' && det.params?.itemTag === 'li') {
+    if (isKind(det, PartKind.SEMANTIC) && det.params?.itemTag === 'li') {
       const kids = (node.children ?? []).filter((c) => c && c.visible !== false);
       const control = (id) => ['button', 'form', 'search', 'switch'].includes(approved.get(id)?.component);
       if (kids.length > 0 && kids.every((c) => control(c.id))) {
@@ -467,7 +467,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     const src = comp.pageScript();
     if (src) scripts.push(src);
   }
-  const stateOwners = [...plan.entries()].filter(([, { det }]) => ['accordion', 'menu', 'menu-slider', 'tabs', 'tab-switch'].includes(det.component)).map(([id]) => id);
+  const stateOwners = [...plan.entries()].filter(([, { det }]) => isAnyKind(det, StateKind)).map(([id]) => id);
   for (const [id, extra] of Object.entries(siblingStatePatches(root, stateOwners))) {
     const prev = patches.get(id) ?? {};
     patches.set(id, {

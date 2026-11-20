@@ -4,51 +4,65 @@
 // Consent rows (a small checkbox + a statement) between them become checkbox fields.
 // Params for components/form.mjs: fields [{ node, type, label, placeholder, required }] in drawing order, submit (node id). Types are inferred from
 // the visible text only (e-mail / phone words). Submit stores the entry (save-submission). The form name is filled at build from the Figma file, the section and this frame.
+import { NodeType, FillType, isType, isText, HolderType } from '../node-type.mjs';
 import { isActionBar } from '../../write-bricks/components/tab-switch.mjs';
+import { PartKind, isKind } from '../kinds.mjs';
 import { classifyChoice } from './choice.mjs';
 import { centeredCard, covers, dimFill, hasClose, textsOf, visibleKids } from './shape.mjs';
+import { showsPrice } from './layout-only.mjs';
+import { shapeRole } from '../node-type.mjs';
 
 const SAVE = /\blưu\b|\bluu\b|\bsave\b/i;
-
-const HOLDERS = new Set(['FRAME', 'INSTANCE', 'COMPONENT']);
+const HOLDERS = new Set(HolderType);
 const BUTTON = /\b(button|btn|cta)\b/i;
 const kidsOf = visibleKids;
 const hasSvg = (n) => n.visible !== false && (!!n.svg || kidsOf(n).some(hasSvg));
-const has = (n, re) => re.test(n.name ?? '') || kidsOf(n).some((c) => has(c, re));
 
 export const isInputLike = (n) => {
-  if (!HOLDERS.has(n.type) || n.visible === false || !n.fills?.some((f) => f.type === 'SOLID')) return false;
-  if (n.box.h < 28 || n.box.h > 140 || n.box.w < 120) return false;
+  if (!HOLDERS.has(n.type) || n.visible === false || !n.fills?.some((f) => isType(f, FillType.SOLID))) return false;
   const kids = kidsOf(n);
-  const texts = kids.filter((k) => k.type === 'TEXT' && !k.svg);
+  const texts = kids.filter((k) => isText(k) && !k.svg);
   // icon instances sit in the same box as the placeholder and hold no text of their own
-  return texts.length === 1 && kids.every((k) => k === texts[0] || hasSvg(k) || textsOf(k).length === 0) && texts[0].text.characters.length <= 120;
+  return texts.length === 1 && kids.every((k) => k === texts[0] || hasSvg(k) || textsOf(k).length === 0);
 };
 export const isButtonLike = (n) => {
   if (!HOLDERS.has(n.type) || n.visible === false || textsOf(n).length !== 1) return false;
   if (BUTTON.test(n.name ?? '') || BUTTON.test(n.componentSet ?? n.component ?? '')) return true;
   const kids = kidsOf(n);
-  const texts = kids.filter((k) => k.type === 'TEXT' && !k.svg);
+  const texts = kids.filter((k) => isText(k) && !k.svg);
   const icons = kids.filter((k) => texts[0] && k !== texts[0] && hasSvg(k));
   const oneLabel = texts.length === 1 && kids.length === 1 + icons.length && icons.length <= 1;
-  const h = n.box?.h ?? 0;
   // A header puts the title and a corner icon at opposite ends. A button keeps them together.
   const sorted = kids.filter((k) => k.box).sort((a, b) => a.box.x - b.box.x);
   const gap = sorted.length >= 2 ? sorted.at(-1).box.x - (sorted[0].box.x + sorted[0].box.w) : 0;
   const spread = n.box?.w > 0 && gap > n.box.w * 0.4;
-  return oneLabel && h >= 32 && h <= 72 && !isInputLike(n) && !spread;
+  const drawn = (n.fills ?? []).some((fill) => fill.visible !== false) || (n.strokes ?? []).length > 0 || n.radius;
+  return oneLabel && drawn && !isInputLike(n) && !spread;
 };
-export const isConsent = (n) => HOLDERS.has(n.type) && n.visible !== false && n.box.h <= 140 && has(n, /check\s?box|consent/i) && textsOf(n).length >= 1;
+// A chip hugs its label. A badge is as tall as it is wide. A field leaves room past one line of text.
+export const isFieldBox = (n) => {
+  if (!isInputLike(n) || isButtonLike(n)) return false;
+  const w = n.box?.w ?? 0;
+  const h = n.box?.h ?? 0;
+  if (w <= 0 || h <= 0) return false;
+  const text = textsOf(n)[0];
+  const lines = text?.text?.lineHeightPx && text.box?.h ? Math.round(text.box.h / text.text.lineHeightPx) : 1;
+  if (lines >= 2) return true;
+  if (w < h * 1.6) return false;
+  const bordered = (n.strokes ?? []).length > 0 || !!n.stroke?.paints?.length;
+  if (bordered) return true;
+  const textW = text?.box?.w ?? 0;
+  return !(textW > w * 0.93);
+};
+export const isConsent = (n) => {
+  if (!HOLDERS.has(n.type) || n.visible === false || textsOf(n).length < 1) return false;
+  const statement = textsOf(n)[0];
+  return kidsOf(n).some((child) => !isText(child) && (child.box?.w ?? 0) > 0 && (child.box.w < (statement.box?.w ?? Infinity)));
+};
 
-function fieldType(text, node, textNode) {
-  if (/e-?mail/i.test(text)) return 'email';
-  if (/điện thoại|dien thoai|phone|zalo|\btel\b|sđt/i.test(text)) return 'tel';
-  if (/select|dropdown|combo|\bchọn\b/i.test(`${node.name ?? ''} ${node.component ?? ''}`)) return 'select';
-  if (/\bradio\b/i.test(`${node.name ?? ''} ${node.component ?? ''}`)) return 'radio';
-  if (/datepicker|calendar|\bdate\b|ngày sinh|ngay sinh/i.test(`${text} ${node.name ?? ''}`)) return 'datepicker';
-  // a placeholder Figma wraps over two or more lines needs a multi-line control (an input shows one line)
+function fieldType(_text, node, textNode) {
   const lines = textNode?.text?.lineHeightPx ? Math.round(textNode.box.h / textNode.text.lineHeightPx) : 1;
-  if (/lời nhắn|nội dung|ghi chú|message|comment/i.test(text) || node.box.h > 100 || lines >= 2) return 'textarea';
+  if (lines >= 2) return 'textarea';
   return 'text';
 }
 
@@ -57,7 +71,7 @@ const containsId = (n, id) => n.id === id || kidsOf(n).some((c) => containsId(c,
 function inputBoxes(n) {
   const boxes = [];
   (function walk(x) {
-    if (x !== n && isInputLike(x)) { boxes.push(x); return; }
+    if (x !== n && isFieldBox(x)) { boxes.push(x); return; }
     kidsOf(x).forEach(walk);
   })(n);
   return boxes;
@@ -131,7 +145,7 @@ export function detectActionForms(tree) {
   (function walk(n) {
     if (!n || n.visible === false) return;
     const choice = classifyChoice(n);
-    if (choice?.component === 'switch') {
+    if (isKind(choice, PartKind.SWITCH)) {
       switches.push({ node: n, choice });
       return;
     }
@@ -164,13 +178,13 @@ export function detectActionForms(tree) {
       };
     });
     found.push({
-      component: 'form',
+      component: PartKind.FORM,
       node: host.id,
       level: 'E2',
       confidence: 'high',
       cite: [
         { node: host.id, field: 'name', equals: host.name },
-        { node: fields[0].node, field: 'type', equals: 'FRAME' },
+        { node: fields[0].node, field: 'type', equals: NodeType.FRAME },
         { node: save.id, field: 'type', equals: save.type },
       ],
       evidence: `${host.type} "${host.name}": action popup, ${fields.length} switch(es) and submit "${buttonText(save).slice(0, 40)}"`,
@@ -198,23 +212,40 @@ export function detectForms(tree) {
       return;
     }
     const submit = kids.find(isButtonLike);
+    // Three labeled peers in one horizontal row are a bar of choices, not a column of fields.
+    const labeled = kids.filter((child) => textsOf(child).length >= 1);
+    if (n.layout?.mode === 'HORIZONTAL' && labeled.length >= 3) {
+      kids.forEach((c) => walk(c, n));
+      return;
+    }
+    // Peer chips in one horizontal row are one control, not a column of fields.
+    const roles = kids.map((child) => shapeRole(child, kidsOf));
+    if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && new Set(roles).size === 1) {
+      kids.forEach((c) => walk(c, n));
+      return;
+    }
+    // A row of package cards is a price table. Each card is not a field.
+    if (kids.filter((child) => showsPrice(child)).length >= 2) {
+      kids.forEach((c) => walk(c, n));
+      return;
+    }
     // The submit control is often a filled frame with one text, so it also looks like an input. It is the button, not a field.
-    const direct = kids.filter((k) => k !== submit && isInputLike(k));
-    const grouped = direct.length >= 2 ? [] : kids.filter((k) => k !== submit).flatMap((k) => {
+    const direct = kids.filter((k) => k !== submit && isFieldBox(k));
+    const grouped = direct.length >= 2 ? [] : kids.filter((k) => k !== submit && !showsPrice(k)).flatMap((k) => {
       const boxes = inputBoxes(k);
       return boxes.length === 1 ? [{ wrap: k, box: boxes[0] }] : [];
     });
     // A dim child, a close mark anywhere in this frame, or this card sitting on a dim parent.
     const overlay = kids.some((k) => covers(k, n) && dimFill(k)) || hasClose(n) || (!!parent && dimFill(parent) && centeredCard(n, parent));
     const minFields = overlay ? 1 : 2;
-    const useDirect = !!submit && direct.length >= minFields && grouped.length < 2;
-    const useGrouped = !!submit && !useDirect && grouped.length >= minFields;
+    const useDirect = direct.length >= minFields && grouped.length < 2;
+    const useGrouped = !useDirect && grouped.length >= minFields;
     if (useDirect || useGrouped) {
       const fields = [];
       const firstBox = useDirect ? direct[0] : grouped[0].box;
       if (useDirect) {
         for (const k of kids) {
-          if (k !== submit && isInputLike(k)) fields.push(fieldFromBox(k, k));
+          if (k !== submit && isFieldBox(k)) fields.push(fieldFromBox(k, k));
           else if (isConsent(k)) {
             const statement = [...textsOf(k)].sort((a, b) => b.text.characters.length - a.text.characters.length)[0];
             fields.push({ node: k.id, type: 'checkbox', label: statement.text.characters.trim().replace(/\s+/g, ' '), labelNode: statement.id, required: false });
@@ -231,12 +262,15 @@ export function detectForms(tree) {
         }
       }
       const count = useDirect ? direct.length : grouped.length;
+      const button = submit ? textsOf(submit)[0]?.text?.characters?.trim().slice(0, 40) : '';
       found.push({
-        component: 'form', node: n.id, level: 'E2', confidence: count >= 3 ? 'high' : 'medium',
-        cite: [{ node: n.id, field: 'name', equals: n.name }, { node: firstBox.id, field: 'type', equals: firstBox.type }, { node: submit.id, field: 'type', equals: submit.type }],
-        evidence: `${n.type} "${n.name}": ${count} input-like frame(s) (light fill + one placeholder text) and a button "${textsOf(submit)[0].text.characters.trim().slice(0, 40)}"`,
-        params: { fields, submit: submit.id, actions: ['save-submission'], ...(overlay && count < 2 ? { overlay: true } : {}) },
-        note: 'submit saves the entry (Bricks Save submission). Form name is the Figma file, the section and this frame. The site setting Save form submissions in database has to be on',
+        component: PartKind.FORM, node: n.id, level: 'E2', confidence: count >= 3 ? 'high' : 'medium',
+        cite: [{ node: n.id, field: 'name', equals: n.name }, { node: firstBox.id, field: 'type', equals: firstBox.type }, ...(submit ? [{ node: submit.id, field: 'type', equals: submit.type }] : [])],
+        evidence: `${n.type} "${n.name}": ${count} input-like frame(s) (light fill + one placeholder text)${submit ? ` and a button "${button}"` : ' and no submit button drawn'}`,
+        params: { fields, submit: submit?.id ?? null, actions: ['save-submission'], ...(overlay && count < 2 ? { overlay: true } : {}) },
+        note: submit
+          ? 'submit saves the entry (Bricks Save submission). Form name is the Figma file, the section and this frame. The site setting Save form submissions in database has to be on'
+          : 'no submit is drawn, so one is added. The plan asks what it says. Submit saves the entry (Bricks Save submission)',
       });
     }
     kids.forEach((c) => walk(c, n));

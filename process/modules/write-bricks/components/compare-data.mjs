@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // Comparison table payload from VNX_Compare_Table_Store_Center, the shape GET /wp-json/vnx_api/compare-table/{id} returns.
 // Money is stored as an integer. The tag prints it with a dot as the thousands separator, and the drawn text is matched to that.
 
@@ -72,12 +73,14 @@ export function queryType(kind, id) {
   return `vnxcmp_${kind}__${id}`;
 }
 
+// The id bound on the base frame is the same id on every breakpoint.
+// The node may be the paired wrapper. A table drawn inside that wrapper still uses this id.
 export function carryCompareTables(baseDetections, variantDetections, pairs, variantRootId) {
-  const bound = (baseDetections?.components ?? []).filter((item) => item.component === 'compare-table' && item.status === 'approved' && item.params?.id && item.params?.table);
+  const bound = (baseDetections?.components ?? []).filter((item) => isKind(item, PartKind.COMPARE_TABLE) && item.status === 'approved' && item.params?.id && item.params?.table);
   if (!bound.length) return variantDetections;
   const baseToVariant = new Map();
   for (const [variantId, baseId] of pairs ?? []) baseToVariant.set(baseId, variantId);
-  const rest = (variantDetections?.components ?? []).filter((item) => item.component !== 'compare-table');
+  const rest = (variantDetections?.components ?? []).filter((item) => !isKind(item, PartKind.COMPARE_TABLE));
   const byTable = new Map();
   for (const item of bound) {
     const paired = baseToVariant.get(item.node);
@@ -98,7 +101,7 @@ export function carryCompareTables(baseDetections, variantDetections, pairs, var
 
 export async function attachCompareData(ws, reader) {
   const det = ws.readJson('detections.json', { components: [] });
-  const pending = (det.components ?? []).filter((item) => item.component === 'compare-table' && item.params?.id && !item.params.table);
+  const pending = (det.components ?? []).filter((item) => isKind(item, PartKind.COMPARE_TABLE) && item.params?.id && !item.params.table);
   if (!pending.length) return [];
   const errors = [];
   for (const item of pending) {

@@ -3,12 +3,13 @@
 //   source: includes/elements/text-link.php (controls: text, link)
 // Typography comes from the text node; hover fades like every link / button (owner default, bricks/defaults.mjs).
 // params: link (url; missing -> '#')
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { applyText } from '../../write-bricks/render/text.mjs';
 import { addHoverFade } from '../../write-bricks/render/utils/interactions.mjs';
 import { linkSetting, MISSING_URL } from '../../write-bricks/components/helpers.mjs';
 
 export default {
-  id: 'link',
+  id: PartKind.LINK,
   status: 'implemented',
   label: 'Text link (basic)',
   figma: 'a TEXT node used as a link (underlined / colored / named link)',

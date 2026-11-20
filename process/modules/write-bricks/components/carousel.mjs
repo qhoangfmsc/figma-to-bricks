@@ -8,6 +8,7 @@
 // follows whichever item is in front as the loop moves. The slider always starts at the first item. Dash size and color still come from the drawn dashes.
 // params: perPage · pagination (node id) · controls (node ids merged, not slides) · allowSingle (one drawn slide + arrows)
 //         prev / next (arrow buttons) · itemCount · items · autoplay (false turns it off) · settings (raw Bricks settings, deep-merged; type stays loop when two or more slides are drawn)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { boxLook, findNode, jsonParam, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
@@ -161,7 +162,7 @@ function placePagination(s, node, pag) {
 const radiusOf = (rx) => ({ top: px(rx), right: px(rx), bottom: px(rx), left: px(rx) });
 
 export default {
-  id: 'carousel',
+  id: PartKind.CAROUSEL,
   status: 'implemented',
   label: 'Carousel',
   figma: 'a horizontal row of similar cards, one slide with arrow buttons, or one card with a Pagination instance inside the frame',

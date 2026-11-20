@@ -32,6 +32,14 @@ export const PartKind = {
   SELECT: 'select',
   OFFCANVAS: 'offcanvas',
   SCROLL: 'scroll',
+  PRICE_TABLE: 'price-table',
+  COMPARE_TABLE: 'compare-table',
+  LINK: 'link',
+  SEMANTIC: 'semantic',
+  ICON_LIST: 'icon-list',
+  COUNTER: 'counter',
+  COUNTDOWN: 'countdown',
+  TOOLTIP_STYLE: 'tooltip-style',
 };
 
 const tabsBar = {
@@ -56,16 +64,18 @@ const none = [];
 // childComponent is the parts the plan names. param is the key already stored on the detection.
 export const SIGNAL_RULES = {
   [PartKind.BUTTON]: {
-    shape: 'One text, at most one icon, height 32–56, and a fill, stroke, radius, or padding.',
+    shape: 'One text, at most one icon, and a fill, stroke, radius, or padding. Height does not decide.',
     hint: 'button, btn, cta',
     anv: 'Button Frame, or text that is a click target',
     childComponent: none,
   },
   [PartKind.FORM]: {
-    shape: 'Two or more text fields plus a button. One text field is enough on a dim overlay or beside a close mark. Switch, checkbox, and radio rows stay their own controls.',
+    shape: 'Text fields and a submit control. One text field is enough on a dim overlay or beside a close mark. Switch, checkbox, and radio rows stay their own controls. A missing field does not cancel the form.',
     hint: 'none',
     anv: 'Form Frame',
-    childComponent: none,
+    childComponent: [
+      { id: 'form_submit', param: 'submit', label: 'Nút gửi', shape: 'The submit control. Absent when the frame draws no submit.', hint: 'none' },
+    ],
   },
   [PartKind.CHECKBOX]: {
     shape: 'A small square beside one label. An icon glyph (svg or icon font, no stroke box) is not a square.',
@@ -106,7 +116,7 @@ export const SIGNAL_RULES = {
         id: 'pagination_carousel',
         param: 'pagination',
         label: 'Pagination',
-        shape: 'The dash or dot row. One active mark, darker or longer, and any number of idle marks of one size. Child layers, one svg of those strokes, or the Dash and Dot switches that are on. The total is the slide count. A layer name alone is not this row.',
+        shape: 'The dash or dot row. One mark does not share the idle look. Darker, longer, or a selected variant are ways that difference shows. Any number of idle marks share one look. Child layers, one svg of those strokes, or the Dash and Dot switches that are on. The total is the slide count. A layer name alone is not this row.',
         hint: 'pagination, dots, pager',
       },
       {
@@ -162,7 +172,7 @@ export const SIGNAL_RULES = {
     childComponent: none,
   },
   [PartKind.DIVIDER]: {
-    shape: 'A line: one side at most 2px, the other at least 40px.',
+    shape: 'A line: one side is far thinner than the other. The thin side is the stroke.',
     hint: 'none',
     anv: 'not in the layout table',
     childComponent: none,
@@ -186,7 +196,7 @@ export const SIGNAL_RULES = {
     childComponent: none,
   },
   [PartKind.GALLERY]: {
-    shape: 'Three or more pictures of one size, in a row or a grid, with no arrows.',
+    shape: 'Pictures of one size, in a row or a grid, with no arrows. A clipped row that overflows is a carousel.',
     hint: 'none',
     anv: 'image-gallery',
     childComponent: none,
@@ -198,13 +208,13 @@ export const SIGNAL_RULES = {
     childComponent: none,
   },
   [PartKind.RATING]: {
-    shape: 'A row of the same star mark, at least four.',
+    shape: 'A row of the same star mark. The count is however many the row draws.',
     hint: 'none',
     anv: 'rating. The icon name is not invented',
     childComponent: none,
   },
   [PartKind.ALERT]: {
-    shape: 'A short tinted bar with one icon and one sentence.',
+    shape: 'A tinted bar with one icon and one sentence.',
     hint: 'none',
     anv: 'alert. The info/success type is not guessed from the color',
     childComponent: none,
@@ -222,16 +232,20 @@ export const SIGNAL_RULES = {
     childComponent: none,
   },
   [PartKind.SELECT]: {
-    shape: 'A short wide bordered control. One value, and a small mark after that value. A label above the control is optional. The option list is not drawn.',
+    shape: 'A short wide bordered control. One value, and a small mark after that value. A label above the control is optional. The option list may be absent.',
     hint: 'none',
     anv: 'dropdown. The list comes from the plan',
-    childComponent: none,
+    childComponent: [
+      { id: 'select_list', param: 'values', label: 'Các lựa chọn', shape: 'The option lines. Absent when the list is not drawn. The plan then asks.', hint: 'none' },
+    ],
   },
   [PartKind.DROPDOWN]: {
-    shape: 'One short label, one small chevron, and a vertical list of labels.',
+    shape: 'One short label and one small chevron. A vertical list of labels may sit with them. No list does not cancel the dropdown.',
     hint: 'none',
     anv: 'dropdown',
-    childComponent: none,
+    childComponent: [
+      { id: 'dropdown_list', param: 'list', label: 'Danh sách', shape: 'The vertical labels. Absent when the list is closed.', hint: 'none' },
+    ],
   },
   [PartKind.OFFCANVAS]: {
     shape: 'A tall panel against the left or right edge, with a close mark.',
@@ -260,6 +274,62 @@ export const SIGNAL_RULES = {
       },
     ],
   },
+  [PartKind.PRICE_TABLE]: {
+    shape: 'A row of package cards. Each card has a name, an amount, and a sign-up control. Cycle pills may sit with the row. A missing arrow does not cancel the table.',
+    hint: 'none',
+    anv: 'Service Pricing. The words are slots. The data is one id',
+    childComponent: [
+      { id: 'price_cycle', param: 'cycle', label: 'Chu kỳ', shape: 'The cycle pills. Absent when the frame draws one closed cycle field.', hint: 'none' },
+      { id: 'price_card', param: 'card', label: 'Thẻ gói', shape: 'One package card. The loop repeats it.', hint: 'none' },
+      { id: 'price_row', param: 'row', label: 'Dòng thông tin', shape: 'One info line inside the card. Absent when the card draws no lines.', hint: 'none' },
+    ],
+  },
+  [PartKind.COMPARE_TABLE]: {
+    shape: 'One package row and groups of cells that line up, one cell per package. A missing expand control does not cancel the table.',
+    hint: 'none',
+    anv: 'Comparison table. The words are slots. The data is one id',
+    childComponent: [
+      { id: 'compare_column', param: 'column', label: 'Cột gói', shape: 'One package column. The loop repeats it.', hint: 'none' },
+      { id: 'compare_group', param: 'group', label: 'Nhóm dòng', shape: 'One feature group. Absent when the table draws a single list.', hint: 'none' },
+      { id: 'compare_row', param: 'row', label: 'Dòng so sánh', shape: 'One aligned feature row.', hint: 'none' },
+    ],
+  },
+  [PartKind.LINK]: {
+    shape: 'One text label that is a control and has no filled button body.',
+    hint: 'none',
+    anv: 'text-link. The URL comes from the plan',
+    childComponent: none,
+  },
+  [PartKind.SEMANTIC]: {
+    shape: 'A container whose visible children repeat one item shape. Accordion, tab, menu, slider, form, and a bound table already own their children.',
+    hint: 'none',
+    anv: 'ul, ol, dl. A part of a bound table is not this list',
+    childComponent: none,
+  },
+  [PartKind.ICON_LIST]: {
+    shape: 'A vertical list of rows. Each row is one icon and one text.',
+    hint: 'none',
+    anv: 'list element',
+    childComponent: none,
+  },
+  [PartKind.COUNTER]: {
+    shape: 'One text whose content is a number, with an optional prefix or suffix.',
+    hint: 'none',
+    anv: 'counter',
+    childComponent: none,
+  },
+  [PartKind.COUNTDOWN]: {
+    shape: 'A row of time units. Each unit is a number and a label.',
+    hint: 'none',
+    anv: 'countdown. The target date comes from the plan',
+    childComponent: none,
+  },
+  [PartKind.TOOLTIP_STYLE]: {
+    shape: 'One bubble drawn once: a fill, a radius, and one text. It is not the icon beside a label.',
+    hint: 'none',
+    anv: 'the tooltip bubble style, not a tooltip instance',
+    childComponent: none,
+  },
 };
 
 export function childById(id) {
@@ -272,4 +342,30 @@ export function childById(id) {
 
 export const partRule = (kind) => SIGNAL_RULES[kind] ?? childById(kind);
 export const isSignal = (kind) => childById(kind) != null;
+export const isKind = (entry, kind) => entry?.component === kind;
+export const isAnyKind = (entry, kinds) => kinds.some((kind) => isKind(entry, kind));
+export const childId = (kind, param) => (SIGNAL_RULES[kind]?.childComponent ?? []).find((child) => child.param === param)?.id;
+export const isChild = (entry, kind, param) => entry?.component === childId(kind, param);
+export const isPaginationHint = (entry) => isChild(entry, PartKind.CAROUSEL, 'pagination');
+
+export const WidgetKind = [
+  PartKind.GALLERY,
+  PartKind.PROGRESS,
+  PartKind.RATING,
+  PartKind.ALERT,
+  PartKind.LOGO,
+  PartKind.HAMBURGER,
+  PartKind.DROPDOWN,
+  PartKind.OFFCANVAS,
+  PartKind.SCROLL,
+];
+
+export const ChoiceKind = [PartKind.CHECKBOX, PartKind.SWITCH, PartKind.RADIO];
+export const TabKind = [PartKind.TABS, PartKind.TAB_SWITCH];
+export const MenuKind = [PartKind.MENU, PartKind.MENU_SLIDER];
+export const ListKind = [PartKind.ACCORDION, PartKind.TABS, PartKind.MENU, PartKind.MENU_SLIDER, PartKind.CAROUSEL, PartKind.FORM];
+export const StateKind = [PartKind.ACCORDION, PartKind.MENU, PartKind.MENU_SLIDER, PartKind.TABS, PartKind.TAB_SWITCH];
 export const childKindIds = () => [...new Set(Object.values(SIGNAL_RULES).flatMap((rule) => (rule.childComponent ?? []).map((child) => child.id)))];
+
+// The only set of names the picture may use. A part id is not in this set.
+export const lookKinds = () => new Set([...Object.keys(SIGNAL_RULES), 'block']);

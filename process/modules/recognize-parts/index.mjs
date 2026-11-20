@@ -25,7 +25,7 @@ import { detectProduction } from '../recognize-parts/rules/production-widgets.mj
 import { detectSelects } from '../recognize-parts/rules/select.mjs';
 import { detectScrollLists } from '../recognize-parts/rules/scroll.mjs';
 import { COMPONENTS } from '../write-bricks/components/index.mjs';
-import { isSignal, partRule } from '../recognize-parts/kinds.mjs';
+import { PartKind, isSignal, partRule, isKind } from '../recognize-parts/kinds.mjs';
 import { checkCites, findNode } from '../recognize-parts/cite.mjs';
 
 export const STATUSES = ['proposed', 'approved', 'rejected'];
@@ -45,13 +45,13 @@ export function runRules(tree) {
   const components = [...detectTooltips(tree), ...detectButtons(tree), ...detectFlatImages(tree), ...detectCarousels(tree), ...detectForms(tree), ...detectAccordions(tree), ...detectTabs(tree), ...detectTabSwitches(tree), ...detectBreadcrumbs(tree), ...detectMenus(tree), ...detectReadMore(tree), ...detectChoices(tree), ...detectDividers(tree), ...detectMedia(tree), ...detectProduction(tree), ...detectSelects(tree), ...detectScrollLists(tree)].map((c) => ({ status: 'proposed', source: 'rule', kind: c.component, ...c }));
   const claimed = new Set();
   for (const c of components) {
-    if (c.component !== 'search') continue;
+    if (!isKind(c, PartKind.SEARCH)) continue;
     if (c.params?.fieldNode) claimed.add(c.params.fieldNode);
     if (c.params?.buttonNode) claimed.add(c.params.buttonNode);
   }
   return {
     sections: detectSections(tree),
-    components: components.filter((c) => !(c.component === 'button' && claimed.has(c.node))),
+    components: components.filter((c) => !(isKind(c, PartKind.BUTTON) && claimed.has(c.node))),
   };
 }
 

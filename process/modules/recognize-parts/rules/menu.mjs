@@ -6,6 +6,8 @@
 // A row of short links with no menu name is still proposed, at low confidence. A taller row of cards is not a menu. Vertical link lists are lists (rules in decide).
 // Items that fit the frame stay a plain menu. Items that run past the clip (or start before it) become a slider of those items: the arrows drawn
 // beside the row (angle-left / angle-right, often inside a Navigation frame) are that slider's arrows.
+import { FillType, isType, isText } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { hasDivider, isActionBar } from '../../write-bricks/components/tab-switch.mjs';
 import { isLinkRow } from '../../recognize-parts/rules/links.mjs';
 import { containsChoice, isPressable, textsOf } from './shape.mjs';
@@ -93,16 +95,16 @@ export function detectMenus(tree) {
       return;
     }
     const chip = (k) => {
-      if ((k.box?.h ?? 0) > 28 || (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45 || textsOf(k).length !== 1) return false;
-      if ((k.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5)) return true;
+      if ((k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45 || textsOf(k).length !== 1) return false;
+      if ((k.fills ?? []).some((f) => isType(f, FillType.SOLID) && (f.alpha ?? 1) > 0.5)) return true;
       const inner = (k.children ?? []).filter((c) => c.visible !== false);
-      return inner.length === 1 && (inner[0].fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
+      return inner.length === 1 && (inner[0].fills ?? []).some((f) => isType(f, FillType.SOLID) && (f.alpha ?? 1) > 0.5);
     };
     if (isBreadcrumbRow(n)) {
       kids.forEach((c) => walk(c, [n, ...trail]));
       return;
     }
-    const titleAndBadge = kids.some((k) => k.type === 'TEXT' && (k.box?.w ?? 0) >= (n.box?.w ?? 0) * 0.45) && kids.some(chip);
+    const titleAndBadge = kids.length === 2 && kids.some(chip) && kids.some((item) => !chip(item) && textsOf(item).length === 1);
     const words = (k) => textsOf(k).map((t) => t.text.characters).join(' ').replace(/\s+/g, ' ').trim();
     const quantity = (text) => {
       if (!text || text.length > 32 || !/\d/.test(text)) return false;
@@ -111,8 +113,8 @@ export function detectMenus(tree) {
     };
     const factRow = kids.some((k) => quantity(words(k))) && kids.some((k) => words(k) && !quantity(words(k)));
     const mark = (k) => {
-      if ((k.box?.h ?? 0) > 40) return false;
-      const solid = (node) => (node.fills ?? []).some((f) => f.type === 'SOLID' && (f.alpha ?? 1) > 0.5);
+      if ((n.box?.h ?? 0) > 0 && (k.box?.h ?? 0) >= n.box.h) return false;
+      const solid = (node) => (node.fills ?? []).some((f) => isType(f, FillType.SOLID) && (f.alpha ?? 1) > 0.5);
       return solid(k) || visibleKids(k).some(solid);
     };
     const headingAndMark = kids.length === 2 && kids.some((chip) => {
@@ -123,8 +125,14 @@ export function detectMenus(tree) {
     if (n.layout?.mode === 'HORIZONTAL' && kids.length >= 2 && isLinkRow(kids) && !kids.some(containsChoice) && !titleAndBadge && !headingAndMark && !factRow && !actionBar && layoutOnlyReason(n, tree) !== 'price') {
       const itemNamed = kids.every((k) => ITEM.test(`${k.name} ${k.componentSet ?? ''}`));
       const namedNode = [n, ...trail].find((x) => ROW.test(x.name ?? '')), rowNamed = !!namedNode;
-      const short = kids.every((k) => (k.box?.h ?? 0) <= 48);
-      if ((itemNamed || rowNamed || short)) {
+      const lineLike = kids.every((item) => {
+        const line = textsOf(item)[0];
+        const textH = line?.box?.h ?? 0;
+        const boxH = item.box?.h ?? 0;
+        if (textH <= 0 || boxH <= 0) return false;
+        return boxH <= textH * 2.5;
+      });
+      if ((itemNamed || rowNamed || lineLike)) {
         const cite = [{ node: n.id, field: 'layout.mode', equals: 'HORIZONTAL' }];
         if (itemNamed) cite.push({ node: kids[0].id, field: 'name', equals: kids[0].name });
         if (rowNamed) cite.push({ node: namedNode.id, field: 'name', equals: namedNode.name });
@@ -138,7 +146,7 @@ export function detectMenus(tree) {
           if (arrows.controls.length) params.controls = arrows.controls;
         }
         found.push({
-          component: scroll ? 'menu-slider' : 'menu', node: n.id, level: itemNamed || rowNamed ? 'E1' : 'E2', confidence: itemNamed && rowNamed ? 'high' : itemNamed || rowNamed ? 'medium' : 'low', cite,
+          component: scroll ? PartKind.MENU_SLIDER : PartKind.MENU, node: n.id, level: itemNamed || rowNamed ? 'E1' : 'E2', confidence: itemNamed && rowNamed ? 'high' : itemNamed || rowNamed ? 'medium' : 'low', cite,
           evidence: `"${n.name}" is a horizontal row of ${kids.length} link-like items (${kids.slice(0, 4).map((k) => `"${k.name}"`).join(', ')}${kids.length > 4 ? ', …' : ''})${itemNamed ? ' named like menu items' : ''}${rowNamed ? ', in a frame named like a menu' : ''}${scroll ? '; the items run past the frame' : ''}`,
           params,
           note: scroll

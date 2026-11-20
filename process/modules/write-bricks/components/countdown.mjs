@@ -11,6 +11,7 @@
 //         separator (optional node id of a separator TEXT; default: the TEXT children between the units)
 // Not applicable (stays a block, warned): units that are not "one number text + one label text", different typography or box between units,
 //   separators that differ from each other.  After the date Bricks keeps counting down to the "Date reached" action (default: zeros).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { typography } from '../../write-bricks/render/text.mjs';
 import { addCustomCss, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 import { findNode, rowId, visibleKids } from '../../write-bricks/components/helpers.mjs';
@@ -54,7 +55,7 @@ function parts(node, det) {
 }
 
 export default {
-  id: 'countdown',
+  id: PartKind.COUNTDOWN,
   status: 'implemented',
   label: 'Countdown',
   figma: 'a horizontal row of time units (number above a label) separated by a colon text',

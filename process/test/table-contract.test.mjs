@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
@@ -66,7 +67,7 @@ test('a price table output keeps every package and the cycle control from the to
   const parsed = priceWidget();
   assert.equal(parsed.error, undefined);
   const built = buildTemplate(priceTree(), {
-    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: 'price-table', node: 'r', params: { id: 'grove-plan', table: parsed.table } }] },
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'grove-plan', table: parsed.table } }] },
     salt: 'grove',
   });
   assert.deepEqual(priceTableGaps(built.template.content, parsed.table, 'grove-plan'), []);
@@ -119,7 +120,7 @@ test('a comparison output keeps every feature row and every package column', () 
     ]),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
-    detections: { components: [{ id: 'cmp', status: 'approved', source: 'plan', component: 'compare-table', node: 'r', params: { id: 'fleet-sheet', table: parsed.table } }] },
+    detections: { components: [{ id: 'cmp', status: 'approved', source: 'plan', component: PartKind.COMPARE_TABLE, node: 'r', params: { id: 'fleet-sheet', table: parsed.table } }] },
     salt: 'fleet',
   });
   assert.deepEqual(compareTableGaps(built.template.content, parsed.table, 'fleet-sheet'), []);

@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // Service Pricing widget_data, the column matrix VNX_Service_Price_Store_Center::widget_data returns.
 // Sections are the three cells in column A that contain "*". Cell parts are split on "|".
 // The words of a table are data. They are not a detection rule.
@@ -90,11 +91,11 @@ export function queryType(kind, id) {
 // A variant detection that names another table is replaced. The node is the paired
 // node in that frame, or the frame root when the base node has no pair.
 export function carryPriceTables(baseDetections, variantDetections, pairs, variantRootId) {
-  const bound = (baseDetections?.components ?? []).filter((item) => item.component === 'price-table' && item.status === 'approved' && item.params?.id && item.params?.table);
+  const bound = (baseDetections?.components ?? []).filter((item) => isKind(item, PartKind.PRICE_TABLE) && item.status === 'approved' && item.params?.id && item.params?.table);
   if (!bound.length) return variantDetections;
   const baseToVariant = new Map();
   for (const [variantId, baseId] of pairs ?? []) baseToVariant.set(baseId, variantId);
-  const rest = (variantDetections?.components ?? []).filter((item) => item.component !== 'price-table');
+  const rest = (variantDetections?.components ?? []).filter((item) => !isKind(item, PartKind.PRICE_TABLE));
   const byTable = new Map();
   for (const item of bound) {
     const paired = baseToVariant.get(item.node);
@@ -116,7 +117,7 @@ export function carryPriceTables(baseDetections, variantDetections, pairs, varia
 // Fills params.table from the site. A table already on the detection is kept, so a later build stays offline.
 export async function attachWidgetData(ws, reader) {
   const det = ws.readJson('detections.json', { components: [] });
-  const pending = (det.components ?? []).filter((item) => item.component === 'price-table' && item.params?.id && !item.params.table);
+  const pending = (det.components ?? []).filter((item) => isKind(item, PartKind.PRICE_TABLE) && item.params?.id && !item.params.table);
   if (!pending.length) return [];
   const errors = [];
   for (const item of pending) {

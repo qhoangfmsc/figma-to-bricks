@@ -1,6 +1,7 @@
+import { PartKind, isKind, isChild, childId } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectScrollLists } from '../modules/recognize-parts/rules/scroll.mjs';
@@ -13,6 +14,7 @@ import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs'
 import { groupQuestions, GROUPS, keyOf, figmaLink } from '../modules/missing-content/index.mjs';
 import { planInventory, screenParts, sectionBlocks } from '../modules/single-template/parts.mjs';
 import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { SavedRun } from './support/saved-run.mjs';
 
 const box = (x, y, w, h) => ({ x, y, w, h, absX: x, absY: y });
 const sizing = { h: 'FIXED', v: 'FIXED' };
@@ -38,6 +40,27 @@ const bar = (id, x, y, w, h, along) => ({
     : [rect(`${id}track`, 0, 12, w, 6, '#f5f5f5', 'ABSOLUTE'), rect(`${id}thumb`, 0, 12, 126, 6, '#d9d9d9')],
 });
 
+test('a thick bar is still a scroll when the thumb is darker and shorter', () => {
+  const rail = {
+    id: 'rail', type: 'FRAME', name: 'rail', visible: true, box: box(0, 420, 240, 36), sizing,
+    children: [
+      rect('railtrack', 0, 0, 240, 28, '#eeeeee'),
+      rect('railthumb', 20, 4, 70, 20, '#444444'),
+    ],
+  };
+  const row = {
+    id: 'wide', type: 'FRAME', name: 'wide', visible: true, box: box(0, 0, 500, 400), sizing,
+    layout: { mode: 'HORIZONTAL', wrap: false, gap: 8, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [card('p', 0), card('q', 320)],
+  };
+  const host = {
+    id: 'host', type: 'FRAME', name: 'host', visible: true, clip: true, box: box(0, 0, 260, 470), sizing,
+    layout: { mode: 'VERTICAL', wrap: false, gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    children: [row, rail],
+  };
+  assert.equal(detectScrollLists(host).some((item) => isKind(item, PartKind.SCROLL)), true);
+});
+
 test('a darker thumb on a lighter track scrolls the items that run past the container', () => {
   const row = {
     id: 'row', type: 'FRAME', name: 'row', visible: true, box: box(24, 0, 977, 414), sizing,
@@ -51,7 +74,7 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
     children: [row, track],
   };
   const found = detectScrollLists(host);
-  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
+  assert.equal(found.filter((c) => isKind(c, PartKind.SCROLL)).length, 1);
   assert.equal(found[0].node, 'track');
   assert.equal(found[0].params.axis, 'x');
   assert.equal(found[0].params.container, 'host');
@@ -77,7 +100,7 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
   assert.equal(rowEl.settings._width, '977px');
   assert.equal(barEl.settings._display, 'none');
   assert.equal(thumbEl, undefined);
-  const named = buildTemplate(section, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'scroll', node: 'track', params: {} }] }, salt: 'named' });
+  const named = buildTemplate(section, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.SCROLL, node: 'track', params: {} }] }, salt: 'named' });
   assert.equal(named.template.content.find((e) => e.label === 'Paragraph').settings._overflow, 'auto');
   assert.equal(named.template.content.find((e) => e.label === 'row').settings._overflow, undefined);
 
@@ -101,7 +124,7 @@ test('a darker thumb on a lighter track scrolls the items that run past the cont
   const second = detectScrollLists(open)[0];
   assert.equal(second.params.axis, 'x');
   assert.equal(second.params.items.length, 4);
-  assert.equal(detectProduction(open).some((c) => c.component === 'progress'), false);
+  assert.equal(detectProduction(open).some((c) => isKind(c, PartKind.PROGRESS)), false);
 
   const fits = { ...host, box: box(0, 0, 1200, 496), children: [{ ...row, box: box(0, 0, 977, 414) }, track] };
   assert.equal(detectScrollLists(fits).length, 0);
@@ -127,7 +150,7 @@ test('a thumb and a track drawn on a text frame scroll that text', () => {
     ],
   };
   const found = detectScrollLists(host);
-  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
+  assert.equal(found.filter((c) => isKind(c, PartKind.SCROLL)).length, 1);
   assert.equal(found[0].node, 'content');
   assert.equal(found[0].params.axis, 'y');
   assert.equal(found[0].params.container, 'content');
@@ -181,30 +204,13 @@ test('a drawn thumb and track scroll the text even when the text box fits the fr
     ],
   };
   const found = detectScrollLists(host);
-  assert.equal(found.filter((c) => c.component === 'scroll').length, 1);
+  assert.equal(found.filter((c) => isKind(c, PartKind.SCROLL)).length, 1);
   assert.equal(found[0].params.axis, 'y');
   assert.equal(found[0].params.list, 'copy');
-  assert.deepEqual(found.filter((c) => c.component !== 'scroll').map((c) => c.component).sort(), ['thumb_scroll', 'track_scroll']);
-  assert.equal(found.find((c) => c.component === 'thumb_scroll').params.of, 'scroll');
-  assert.equal(found.find((c) => c.component === 'track_scroll').params.host, 'content');
+  assert.deepEqual(found.filter((c) => !isKind(c, PartKind.SCROLL)).map((c) => c.component).sort(), [childId(PartKind.SCROLL, 'thumb'), childId(PartKind.SCROLL, 'track')].sort());
+  assert.equal(found.find((c) => isChild(c, PartKind.SCROLL, 'thumb')).params.of, PartKind.SCROLL);
+  assert.equal(found.find((c) => isChild(c, PartKind.SCROLL, 'track')).params.host, 'content');
   assert.equal(detectDividers(host).some((c) => c.node === 'track' || c.node === 'thumb'), false);
-});
-
-test('the enterprise price row in this file is that sideways list', () => {
-  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-4263/tree.json', import.meta.url), 'utf8'));
-  const hit = detectScrollLists(tree).find((c) => c.node === '1:4547');
-  assert.equal(hit.params.axis, 'x');
-  assert.equal(hit.params.container, '1:4361');
-  assert.equal(hit.params.list, '1:4362');
-  assert.equal(hit.params.track, '1:4548');
-  assert.equal(hit.params.thumb, '1:4549');
-  assert.deepEqual(hit.params.items, ['1:4363', '1:4428', '1:4485']);
-  const phone = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-16827/tree.json', import.meta.url), 'utf8'));
-  const text = detectScrollLists(phone).find((c) => c.node === '1:16878');
-  assert.equal(text.params.axis, 'y');
-  assert.equal(text.params.list, '1:16879');
-  assert.equal(text.params.track, '1:16881');
-  assert.equal(text.params.thumb, '1:16882');
 });
 
 function freshPlan(tree, fileKey) {
@@ -249,19 +255,6 @@ function freshPlan(tree, fileKey) {
 }
 
 test('a fresh read lists the scroll in the plan', () => {
-  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-4263/tree.json', import.meta.url), 'utf8'));
-  const drawn = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
-  const scroll = drawn.det.components.find((c) => c.component === 'scroll' && c.node === '1:4547');
-  assert.equal(scroll?.status, 'approved');
-  assert.equal(drawn.det.components.some((c) => c.component === 'thumb_scroll' && c.params.host === '1:4547'), true);
-  assert.match(drawn.plan, /Nút kéo: `1:4549`/);
-  assert.match(drawn.plan, /Thanh kéo: `1:4548`/);
-  assert.doesNotMatch(drawn.plan, /`part:1:4549`/);
-  assert.equal(drawn.det.components.some((c) => c.component === 'progress' && ['1:4361', '1:4547', '1:4548', '1:4549'].includes(c.node)), false);
-  assert.match(drawn.plan, /Loại: Scroll/);
-  assert.match(drawn.plan, /`part:1:4547`:/);
-  assert.match(drawn.plan, /`expect:1:4547`:/);
-
   const row = {
     id: '1:3760', type: 'FRAME', name: 'Frame 1000002517', visible: true, box: box(24, 0, 1308, 410), sizing,
     layout: { mode: 'HORIZONTAL', wrap: false, gap: 16, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
@@ -272,10 +265,10 @@ test('a fresh read lists the scroll in the plan', () => {
     layout: { mode: 'VERTICAL', wrap: false, gap: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     children: [row, bar('1:4000', 24, 410, 728, 18, 'x')],
   };
-  const second = freshPlan(open, 'cLbX6E4TL45F6k2WYE5TCQ');
-  const again = second.det.components.find((c) => c.component === 'scroll' && c.node === '1:4000');
+  const second = freshPlan(open, SavedRun.PRICE_DESKTOP.fileKey);
+  const again = second.det.components.find((c) => isKind(c, PartKind.SCROLL) && c.node === '1:4000');
   assert.equal(again?.status, 'approved');
-  assert.equal(second.det.components.some((c) => c.component === 'progress'), false);
+  assert.equal(second.det.components.some((c) => isKind(c, PartKind.PROGRESS)), false);
   assert.match(second.plan, /Loại: Scroll/);
   assert.match(second.plan, /`part:1:4000`:/);
   assert.match(second.plan, /`expect:1:4000`:/);

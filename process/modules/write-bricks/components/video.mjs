@@ -1,9 +1,10 @@
 // A picture with a play mark. Bricks 1.12.3 element `video` (includes/elements/video.php).
 // The file does not contain the video address. The Plan supplies it. Until then the frame stays a picture.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { youtubeId, vimeoId } from './video-url.mjs';
 
 export default {
-  id: 'video',
+  id: PartKind.VIDEO,
   status: 'implemented',
   label: 'Video',
   figma: 'a picture frame with one play circle near the centre (`rules/media.mjs`)',

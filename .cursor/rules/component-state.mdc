@@ -7,6 +7,8 @@ alwaysApply: true
 
 A drawn state (`rest`, `hover`, `active`, `open`, `focus`, `disabled`, `pressed`, or a selected variant such as `Checked=True`) is a component state. `ComponentState` in `process/modules/write-bricks/components/states.mjs` is the enum. A layer name is not a state.
 
+The selected item is the one that does not share the resting look. A variant property is one way to see it. A fill type, a badge position, and a height are not.
+
 CSS that copies the selected paint onto one item, and leaves it there after another item is chosen, is not a state.
 
 For every state the visitor can enter:

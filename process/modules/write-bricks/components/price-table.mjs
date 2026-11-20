@@ -3,14 +3,18 @@
 // Text that equals a cell of the loaded table becomes {vnx_sp_*}. Other text stays.
 // Bricks 1.12.3 reads hasLoop + query.objectType on block/div (container.php).
 // The plugin resolves vnxsp_{pkg|cycle|row}__{id} and {vnx_sp_*} at request time.
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
+import { FillType, isText, isType } from '../../recognize-parts/node-type.mjs';
 import { visibleKids, hidden, flexDirectionCss } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss } from '../../write-bricks/components/tabs-chrome.mjs';
 import { queryType } from '../../write-bricks/components/price-data.mjs';
 import { cssColor, px } from '../../write-bricks/render/utils/css.mjs';
+import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
 import { peekOf } from '../../write-bricks/render/utils/peek-scroll.mjs';
+import { ComponentState, componentState } from '../../write-bricks/components/states.mjs';
 import { selectOptionHost, selectScript, selectShell } from '../../write-bricks/components/select.mjs';
 import { showsPrice } from '../../recognize-parts/rules/layout-only.mjs';
-import tabSwitch from '../../write-bricks/components/tab-switch.mjs';
+import tabSwitch, { activeTitle } from '../../write-bricks/components/tab-switch.mjs';
 import { compareFrames } from '../../write-bricks/components/compare-table.mjs';
 
 const cache = new WeakMap();
@@ -27,7 +31,7 @@ const unitShape = (word) => /^\/\S{1,12}$/.test(norm(word));
 
 function textsIn(node, out = []) {
   if (!node || node.visible === false) return out;
-  if (node.type === 'TEXT' && !node.svg && node.text?.characters) out.push(node);
+  if (isText(node) && !node.svg && node.text?.characters) out.push(node);
   for (const child of node.children ?? []) textsIn(child, out);
   return out;
 }
@@ -102,17 +106,37 @@ function flowSettings(node) {
     _display: 'flex',
     _direction: horizontal ? 'row' : 'column',
     _alignItems: align,
+    _flexWrap: layout.wrap ? 'wrap' : 'nowrap',
     ...(typeof layout.gap === 'number' ? { [horizontal ? '_columnGap' : '_rowGap']: `${layout.gap}px` } : {}),
   };
 }
 
-function raisedMark(item) {
-  const walk = (node) => {
-    if (!node || node.visible === false) return false;
-    if (node !== item && node.place === 'ABSOLUTE' && node.box && node.box.y < 0) return true;
-    return (node.children ?? []).some(walk);
-  };
-  return walk(item);
+// The loop repeats one pill, so the selected fill cannot stay on that node.
+// Whatever fill that pill has is copied. The fill type is not how the open pill is chosen.
+function titleBackground(title) {
+  const gradient = (title?.fills ?? []).filter((fill) => fill.visible !== false && fill.type === 'GRADIENT_LINEAR').at(-1);
+  if (gradient?.stops?.length && title.box?.w && title.box?.h) {
+    return `background-image: ${linearGradientCss(gradient, title.box.w, title.box.h)}; background-color: transparent;`;
+  }
+  const fill = solidFill(title);
+  return `background-color: ${fill ? cssColor(fill) : 'transparent'};`;
+}
+
+function hoverState(item) {
+  const state = componentState(item);
+  return state === ComponentState.HOVER || state === ComponentState.FOCUS || state === ComponentState.PRESSED;
+}
+
+function pickCyclePair(items, selectedId) {
+  const peers = items.filter((item) => !hoverState(item));
+  const pool = peers.length >= 2 ? peers : items;
+  const named = selectedId ? items.find((item) => item.id === selectedId) : null;
+  const found = activeTitle(pool);
+  const active = named ?? (found.clear && Number.isInteger(found.index) ? pool[found.index] : null);
+  const rest = pool.find((item) => item !== active && componentState(item) === ComponentState.REST)
+    ?? pool.find((item) => item !== active)
+    ?? items.find((item) => item !== active);
+  return { active, rest };
 }
 
 function rowScrolls(node, root) {
@@ -185,7 +209,7 @@ function tagText(patches, id, tag) {
   patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
 }
 
-function bindPrice(node, table, id, root, attrs) {
+function bindPrice(node, table, id, root, attrs, selectedId) {
   const empty = { tabsHost: null, card: null, patches: {}, omit: [], warnings: [], skip: false };
   if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
   const scopeRoot = root ?? node;
@@ -253,15 +277,7 @@ function bindPrice(node, table, id, root, attrs) {
     card = cards.host;
   }
   const pack = packOf(card) ?? table.packages[0];
-  const cardWords = textsIn(card).map((text) => fold(text.text.characters));
   let openAt = 0;
-  let best = -1;
-  table.cycles.forEach((_, index) => {
-    const price = pack.prices[index] ?? {};
-    const score = ['regular', 'sale', 'total', 'tag', 'promoText', 'code'].filter((key) => price[key] && cardWords.includes(fold(price[key]))).length;
-    if (score > best) { best = score; openAt = index; }
-  });
-  const price = pack.prices[openAt] ?? {};
   const infoItemShape = (item) => (hasSvg(item) || hasWords(item, (word) => pack.info.some((info) => same(word, info.text)))) && textsIn(item).length >= 1;
   const rows = bestGroup(card, infoItemShape, 2) ?? bestGroup(card, infoItemShape, 1);
 
@@ -279,8 +295,9 @@ function bindPrice(node, table, id, root, attrs) {
   };
   const omit = [];
   const warnings = [];
-  const cycleProto = cycles?.items.find((item) => !raisedMark(item)) ?? cycles?.items[0];
-  const cycleActive = cycles?.items.find((item) => raisedMark(item));
+  const pair = cycles ? pickCyclePair(cycles.items, selectedId) : { active: null, rest: null };
+  const cycleProto = pair.rest ?? cycles?.items[0];
+  const cycleActive = pair.active;
   if (cycleActive) {
     const label = textsIn(cycleActive).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
     const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
@@ -291,6 +308,7 @@ function bindPrice(node, table, id, root, attrs) {
     const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
     if (index >= 0) openAt = index;
   }
+  const price = pack.prices[openAt] ?? {};
   if (cycles && cycleProto && !cycleField) {
     const kids = visibleKids(cycles.host);
     const pillsOnly = kids.every((item) => item.id === cycleProto.id || !contains(item, card?.id));
@@ -302,11 +320,19 @@ function bindPrice(node, table, id, root, attrs) {
   if (card.id !== cards.host.id) cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
   if (cards.items.length === 1 && cards.items[0].id !== cards.host.id && card.id !== cards.host.id) {
     visibleKids(cards.host).forEach((child) => {
-      if (child.id !== card.id && !contains(child, card.id)) omit.push(child.id);
+      if (child.id !== card.id && !contains(child, card.id) && isPackage(child)) omit.push(child.id);
     });
   }
   if (rows) rows.items.slice(1).forEach((item) => omit.push(item.id));
   if (!cycles) warnings.push('no cycle labels from this table are drawn here, so the first cycle is used');
+
+  const kids = visibleKids(cards.host);
+  const cardIndex = kids.findIndex((child) => child.id === card.id || contains(child, card.id));
+  const sideControl = (item) => item && item.id !== card.id && !contains(item, card.id) && !isPackage(item) && !isCycle(item) && textsIn(item).length <= 1;
+  const flanks = cards.items.length === 1
+    ? { prev: sideControl(kids[cardIndex - 1]) ? kids[cardIndex - 1] : null, next: sideControl(kids[cardIndex + 1]) ? kids[cardIndex + 1] : null }
+    : { prev: null, next: null };
+  const moveCards = !!(flanks.prev || flanks.next);
 
   let tabsHost = null;
   if (cycles) {
@@ -328,11 +354,19 @@ function bindPrice(node, table, id, root, attrs) {
     });
     const activeCss = [];
     if (cycleActive && cycleProto && cycleActive.id !== cycleProto.id) {
-      const fill = solidFill(cycleActive);
-      const label = textsIn(cycleActive).find((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label)));
-      const ink = solidFill(label);
-      if (fill) activeCss.push({ decl: `background-color: ${cssColor(fill)};`, suffix: ' .tab-title.brx-open' });
-      if (ink) activeCss.push({ decl: `color: ${cssColor(ink)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
+      const idleBg = titleBackground(cycleProto);
+      const openBg = titleBackground(cycleActive);
+      if (idleBg !== openBg) {
+        activeCss.push({ decl: idleBg, suffix: ' .tab-title' });
+        activeCss.push({ decl: openBg, suffix: ' .tab-title.brx-open' });
+      }
+      const inkOf = (item) => solidFill(textsIn(item).find((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label))));
+      const idleInk = inkOf(cycleProto);
+      const openInk = inkOf(cycleActive);
+      if (idleInk && openInk && cssColor(idleInk) !== cssColor(openInk)) {
+        activeCss.push({ decl: `color: ${cssColor(idleInk)};`, suffix: ' .tab-title :is(.brxe-text-basic, .brxe-heading)' });
+        activeCss.push({ decl: `color: ${cssColor(openInk)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
+      }
     }
     const scrollNode = (() => {
       let current = cards.host;
@@ -367,13 +401,20 @@ function bindPrice(node, table, id, root, attrs) {
     put(cards.host.id, {
       settings: {
         ...hidden('tab-content'),
+        ...(moveCards ? { _attributes: [{ name: 'data-vnx-sp-deck', value: '1' }] } : {}),
         ...(scrollHere ? { _overflow: 'auto', _width: '100%', _flexWrap: 'nowrap' } : {}),
       },
       ...(scrollHere ? { css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }] } : {}),
       wrapChildren: {
         label: 'Cycle',
-        settings: { ...hidden('tab-pane'), ...loop('cycle', id), ...flowSettings(cards.host) },
+        settings: {
+          ...hidden('tab-pane'),
+          ...loop('cycle', id),
+          ...flowSettings(cards.host),
+          ...(moveCards ? { _overflow: 'auto' } : {}),
+        },
         ...(scrollHere ? { css: [{ decl: 'width: max-content; flex-wrap: nowrap;', suffix: '' }] } : {}),
+        ...(moveCards && !scrollHere ? { css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }] } : {}),
       },
     });
     if (scrollNode && !scrollHere) {
@@ -390,11 +431,15 @@ function bindPrice(node, table, id, root, attrs) {
     put(card.id, {
       settings: {
         ...loop('pkg', id),
+        ...(moveCards ? { _attributes: [{ name: 'data-vnx-sp-card', value: '1' }] } : {}),
         ...(spills(card) ? { _overflow: 'hidden' } : {}),
         ...(peeked && card.box ? { _width: px(card.box.w), _flexShrink: 0, _widthMax: 'none' } : {}),
       },
     });
   }
+  if (moveCards && !tabsHost) put(cards.host.id, { settings: { _attributes: [{ name: 'data-vnx-sp-deck', value: '1' }] } });
+  if (flanks.prev) put(flanks.prev.id, { settings: { _attributes: [{ name: 'data-vnx-sp-prev', value: '1' }] } });
+  if (flanks.next) put(flanks.next.id, { settings: { _attributes: [{ name: 'data-vnx-sp-next', value: '1' }] } });
   if (rows && rows.items[0].type !== 'TEXT') put(rows.items[0].id, { settings: loop('row', id) });
 
   const assign = (textNode, tag) => tagText(patches, textNode.id, tag);
@@ -542,9 +587,26 @@ function bindPrice(node, table, id, root, attrs) {
   return { tabsHost, card, patches, omit, warnings };
 }
 
+export function stepPriceCard(button, direction) {
+  const root = button.closest?.('[data-vnx-sp-deck]');
+  if (!root) return;
+  const pane = root.querySelector('.tab-pane.brx-open') || root.querySelector('.tab-pane') || root;
+  const cards = [...pane.querySelectorAll('[data-vnx-sp-card]')];
+  if (!cards.length) return;
+  const left = pane.scrollLeft || 0;
+  let index = 0;
+  for (let i = 0; i < cards.length; i++) if (cards[i].offsetLeft <= left + 1) index = i;
+  const next = Math.min(cards.length - 1, Math.max(0, index + direction));
+  pane.scrollTo({ left: cards[next].offsetLeft });
+}
+
+function priceCardScript() {
+  return `(function(){${stepPriceCard.toString()}document.addEventListener("click",function(event){var button=event.target&&event.target.closest&&event.target.closest("[data-vnx-sp-prev],[data-vnx-sp-next]");if(!button)return;stepPriceCard(button,button.hasAttribute("data-vnx-sp-prev")?-1:1);});})();`;
+}
+
 function findImage(node) {
   if (!node || node.visible === false) return null;
-  if (node.type !== 'TEXT' && (node.fills ?? []).some((fill) => fill.type === 'IMAGE')) return node;
+  if (!isText(node) && (node.fills ?? []).some((fill) => isType(fill, FillType.IMAGE))) return node;
   for (const child of visibleKids(node)) {
     const found = findImage(child);
     if (found) return found;
@@ -554,7 +616,8 @@ function findImage(node) {
 
 function bound(node, det, root) {
   if (cache.has(det)) return cache.get(det);
-  const value = bindPrice(node, det?.params?.table, det?.params?.id, root ?? node, det?.params?.buttonAttrs);
+  const scope = det?.params?.confirm === 'ok' ? node : (root ?? node);
+  const value = bindPrice(node, det?.params?.table, det?.params?.id, scope, det?.params?.buttonAttrs, det?.params?.selected);
   cache.set(det, value);
   return value;
 }
@@ -578,17 +641,38 @@ export function priceFrames(root) {
   return frames.filter((frame) => !frames.some((other) => other !== frame && contains(other, frame.id)));
 }
 
+function findId(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const child of node.children ?? []) {
+    const found = findId(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function containsId(node, id) {
+  if (!node) return false;
+  if (node.id === id) return true;
+  return (node.children ?? []).some((child) => containsId(child, id));
+}
+
+// One id on a section covers every table frame inside that node. Another breakpoint does not ask again.
 export function missingBoundTables(tree, detections) {
-  const loaded = (kind, id) => (detections?.components ?? []).some((item) => item.component === kind && item.status !== 'rejected' && item.node === id && item.params?.id && item.params?.table?.packages?.length);
+  const loaded = (kind, frameId) => (detections?.components ?? []).some((item) => {
+    if (!isKind(item, kind) || item.status === 'rejected') return false;
+    if (!item.params?.id || !item.params?.table?.packages?.length) return false;
+    return containsId(findId(tree, item.node), frameId);
+  });
   const gap = (kind, frame) => ({ kind, node: frame.id, name: frame.name || frame.id });
   return [
-    ...priceFrames(tree).filter((frame) => !loaded('price-table', frame.id)).map((frame) => gap('price-table', frame)),
-    ...compareFrames(tree).filter((frame) => !loaded('compare-table', frame.id)).map((frame) => gap('compare-table', frame)),
+    ...priceFrames(tree).filter((frame) => !loaded(PartKind.PRICE_TABLE, frame.id)).map((frame) => gap(PartKind.PRICE_TABLE, frame)),
+    ...compareFrames(tree).filter((frame) => !loaded(PartKind.COMPARE_TABLE, frame.id)).map((frame) => gap(PartKind.COMPARE_TABLE, frame)),
   ];
 }
 
 export default {
-  id: 'price-table',
+  id: PartKind.PRICE_TABLE,
   status: 'implemented',
   label: 'Price table',
   figma: 'a drawn card row whose plan names a Service Pricing table id',
@@ -611,6 +695,6 @@ export default {
     return bound(node, det).omit;
   },
   pageScript() {
-    return `${tabSwitch.pageScript()}\n${selectScript()}`;
+    return `${tabSwitch.pageScript()}\n${selectScript()}\n${priceCardScript()}`;
   },
 };

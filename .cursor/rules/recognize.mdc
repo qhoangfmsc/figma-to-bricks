@@ -1,0 +1,14 @@
+---
+description: Recognition uses one catalog. The picture names the component. Code checks the node and copies the frame.
+alwaysApply: true
+---
+
+# Recognition
+
+The catalog is `process/modules/recognize-parts/kinds.mjs`. Fixing a miss is `.cursor/skills/fix-recognition/SKILL.md`. Adding a component is `.cursor/skills/add-component/SKILL.md`. Checking a build is `.cursor/skills/check-template/SKILL.md`. Do not add a second list of component ids.
+
+Layout numbers stay on the frame. The component is the usable reading of that frame. The picture line is `kind`, `node`, `selected`, `children`, `see`. `kind` is a `PartKind` id or `block`. A part id goes in `children`. `null` does not cancel the component.
+
+Code checks the named node once, and may widen one step. A second miss stays a question. The build uses the saved line. A word, a height, a pixel, or a layer name does not decide the kind.
+
+A component check uses `PartKind` through `isKind(entry, PartKind.FORM)` or `isAnyKind(entry, TabKind)`. This is every component, and every later edit. Do not write `component === 'form'` or any other kind as a quoted string. The string lives only in `PartKind`. One decision is one function.

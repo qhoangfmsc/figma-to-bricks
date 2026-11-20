@@ -10,6 +10,7 @@
 // params: independent (default true: items open and close without closing the others, Bricks `independentToggle`) ·
 //         content.answers { itemNodeId: text } (what the owner typed in the Plan for an item Figma draws closed: the new content block takes the
 //         settings of the drawn open item's content, the text takes the typography of its text; without a drawn open item it keeps Bricks defaults).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { px, cssColor } from '../../write-bricks/render/utils/css.mjs';
 import { visibleKids, hidden, firstText, svgNode, ZERO, flexDirectionCss } from '../../write-bricks/components/helpers.mjs';
 import { ComponentState, componentState } from '../../write-bricks/components/states.mjs';
@@ -129,7 +130,7 @@ export function closedItems(node) {
 }
 
 export default {
-  id: 'accordion',
+  id: PartKind.ACCORDION,
   status: 'implemented',
   label: 'Accordion (basic)',
   figma: 'a container of >= 2 items, each with a title row and (when open) a content block',

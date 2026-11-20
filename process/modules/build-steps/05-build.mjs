@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
 // STEP 5  tree.json (+ overrides.json, approved entries of detections.json) -> bricks.json + mapping.json + report.md.  Pure code, no network.
 //   node process/modules/build-steps/05-build.mjs <figma-url | workspace-dir> [--strict]
 // --strict: exit 1 if anything could not be mapped (warnings) or the tree has unhandled raw keys.
@@ -76,10 +77,10 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       const vtree = vws.readJson('tree.json');
       const variantDetections = vws.readJson('detections.json', null);
       const pairs = matchTrees(tree, vtree, { aliases: v.aliases ?? {} }).pairs;
-      const priced = (detections?.components ?? []).some((item) => item.component === 'price-table' && item.params?.table)
+      const priced = (detections?.components ?? []).some((item) => isKind(item, PartKind.PRICE_TABLE) && item.params?.table)
         ? carryPriceTables(detections, variantDetections, pairs, vtree.id)
         : variantDetections;
-      const carried = (detections?.components ?? []).some((item) => item.component === 'compare-table' && item.params?.table)
+      const carried = (detections?.components ?? []).some((item) => isKind(item, PartKind.COMPARE_TABLE) && item.params?.table)
         ? carryCompareTables(detections, priced, pairs, vtree.id)
         : priced;
       const variantGaps = missingBoundTables(vtree, carried);

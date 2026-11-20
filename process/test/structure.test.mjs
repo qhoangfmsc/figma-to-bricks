@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { unclaimedRepeats } from '../modules/recognize-parts/structure.mjs';
@@ -28,5 +29,5 @@ test('a group already approved is not listed again', () => {
     id: 'row', name: 'tabs', type: 'FRAME',
     children: [card('a', 'A'), card('b', 'B')],
   };
-  assert.deepEqual(unclaimedRepeats(tree, [{ node: 'row', status: 'approved', component: 'tabs' }]), []);
+  assert.deepEqual(unclaimedRepeats(tree, [{ node: 'row', status: 'approved', component: PartKind.TABS }]), []);
 });

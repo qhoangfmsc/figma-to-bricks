@@ -2,6 +2,9 @@
 // so a slice of that next item stays on screen. The item that sits fully in the window keeps
 // the width Figma drew. A row whose items all sit inside the clip is not this.
 
+import { PartKind, isKind } from '../../../recognize-parts/kinds.mjs';
+import { detectScrollLists } from '../../../recognize-parts/rules/scroll.mjs';
+
 const shown = (node) => (node?.children ?? []).filter((child) => child && child.visible !== false);
 
 function parentOf(root, id) {
@@ -53,10 +56,20 @@ export function peekOf(row, root) {
   return null;
 }
 
-export function markPeekScroll(root) {
+export function markPeekScroll(root, detections) {
+  const approved = (detections?.components ?? []).filter((item) => item.status === 'approved' && isKind(item, PartKind.SCROLL));
+  const owned = new Set(approved.map((item) => item.params?.list).filter(Boolean));
+  const pending = approved.filter((item) => !item.params?.list);
+  if (pending.length && root) {
+    const byNode = new Map(detectScrollLists(root).filter((item) => isKind(item, PartKind.SCROLL)).map((item) => [item.node, item]));
+    for (const item of pending) {
+      const list = byNode.get(item.node)?.params?.list;
+      if (list) owned.add(list);
+    }
+  }
   const walk = (node) => {
     const hit = peekOf(node, root);
-    if (hit) {
+    if (hit && !owned.has(hit.row.id)) {
       hit.row.__peekScroll = true;
       hit.item.__lockWidth = hit.width;
     }

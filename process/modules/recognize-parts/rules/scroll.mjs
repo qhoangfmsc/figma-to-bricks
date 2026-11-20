@@ -2,17 +2,18 @@
 // The frame beside it holds the repeated items, and those items run past the container.
 // The same pair on its side is a vertical scroll. A row of pictures stays with gallery.
 // Arrows stay with carousel. "Xem thêm" stays with readmore.
+import { FillType, isType, BoxType, ShapeType } from '../node-type.mjs';
+import { PartKind, childId } from '../kinds.mjs';
 import { textsOf, visibleKids } from './shape.mjs';
 
-const SHAPE = new Set(['RECTANGLE', 'ELLIPSE', 'FRAME', 'VECTOR', 'COMPONENT', 'INSTANCE', 'LINE']);
-const BOX = new Set(['FRAME', 'INSTANCE', 'COMPONENT', 'GROUP']);
+const SHAPE = new Set(ShapeType);
+const BOX = new Set(BoxType);
 const READ = /^\s*(xem thêm|đọc thêm|xem tất cả|xem đầy đủ|read more|show more|view more|see more)\s*$/i;
-const PAST = 40;
 
 const flow = (n) => visibleKids(n).filter((c) => c.place !== 'ABSOLUTE' && c.box);
 
 function solid(n) {
-  return (n?.fills ?? []).find((f) => f.type === 'SOLID' && f.visible !== false && f.hex);
+  return (n?.fills ?? []).find((f) => isType(f, FillType.SOLID) && f.visible !== false && f.hex);
 }
 
 function luminance(hex) {
@@ -63,16 +64,25 @@ function overlaps(track, thumb, axis) {
 }
 
 // Two filled shapes. The longer, lighter one is the track. The shorter, darker one is the thumb.
+function barAxis(node) {
+  const w = node.box?.w ?? 0;
+  const h = node.box?.h ?? 0;
+  if (w <= 0 || h <= 0) return null;
+  const long = Math.max(w, h);
+  const short = Math.min(w, h);
+  if (short / long > 0.35) return null;
+  return w >= h ? 'x' : 'y';
+}
+
 function pairFrom(kids, frame) {
-  if (!frame?.box || kids.length !== 2 || !kids.every((c) => c.box)) return null;
-  const horizontal = kids.every((c) => c.box.h <= 18) && Math.max(...kids.map((c) => c.box.w)) >= 40;
-  const vertical = kids.every((c) => c.box.w <= 18) && Math.max(...kids.map((c) => c.box.h)) >= 40;
-  if (horizontal === vertical) return null;
-  const axis = horizontal ? 'x' : 'y';
+  if (!frame?.box || kids.length !== 2 || !kids.every((c) => c.box && barAxis(c))) return null;
+  const axes = kids.map(barAxis);
+  if (axes[0] !== axes[1]) return null;
+  const axis = axes[0];
   const long = axis === 'x' ? 'w' : 'h';
   const [track, thumb] = kids[0].box[long] >= kids[1].box[long] ? kids : [kids[1], kids[0]];
   if (track.box[long] < frame.box[long] * 0.8) return null;
-  if (thumb.box[long] < 8 || thumb.box[long] >= track.box[long] * 0.95) return null;
+  if (thumb.box[long] <= 0 || thumb.box[long] >= track.box[long] * 0.95) return null;
   if (!overlaps(track, thumb, axis)) return null;
   const trackFill = solid(track);
   const thumbFill = solid(thumb);
@@ -107,7 +117,8 @@ function embeddedScroll(frame) {
 function listBeside(container, bar, axis) {
   const along = axis === 'x' ? 'w' : 'h';
   const start = axis === 'x' ? 'x' : 'y';
-  const row = flow(container).find((c) => c.id !== bar.id && c.box && c.box[start] + c.box[along] > container.box[along] + PAST);
+  const slack = Math.max((container.box?.[along] ?? 0) * 0.02, 0.5);
+  const row = flow(container).find((c) => c.id !== bar.id && c.box && c.box[start] + c.box[along] > container.box[along] + slack);
   const items = row ? itemsOf(row) : null;
   if (!row || !items) return null;
   return { list: row, items };
@@ -119,16 +130,16 @@ function cite(node, field, equals) {
 
 function barSignals(bar, hostId) {
   return [
-    ['thumb_scroll', bar.thumb, 'the shorter darker bar of the scroll'],
-    ['track_scroll', bar.track, 'the longer lighter bar of the scroll'],
-  ].map(([component, node, evidence]) => ({
-    component,
+    ['thumb', bar.thumb, 'the shorter darker bar of the scroll'],
+    ['track', bar.track, 'the longer lighter bar of the scroll'],
+  ].map(([param, node, evidence]) => ({
+    component: childId(PartKind.SCROLL, param),
     node: node.id,
     level: 'E1',
     confidence: 'high',
     cite: [cite(node.id, 'type', node.type)],
     evidence,
-    params: { of: 'scroll', host: hostId, hold: true },
+    params: { of: PartKind.SCROLL, host: hostId, hold: true },
     note: 'a scroll hint, not an element',
   }));
 }
@@ -141,7 +152,7 @@ export function detectScrollLists(tree) {
     if (embedded && !readMoreAfter(parent, n) && !hasArrows(n) && !hasArrows(embedded.region)) {
       const count = embedded.items?.length ?? 0;
       found.push({
-        component: 'scroll',
+        component: PartKind.SCROLL,
         node: n.id,
         level: 'E1',
         confidence: 'high',
@@ -167,7 +178,7 @@ export function detectScrollLists(tree) {
     const beside = bar && parent ? listBeside(parent, n, bar.axis) : null;
     if (bar && beside && !readMoreAfter(parent, n) && !hasArrows(parent) && !hasArrows(beside.list)) {
       found.push({
-        component: 'scroll',
+        component: PartKind.SCROLL,
         node: n.id,
         level: 'E1',
         confidence: 'high',

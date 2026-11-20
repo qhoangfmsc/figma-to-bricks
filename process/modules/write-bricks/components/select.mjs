@@ -4,6 +4,7 @@
 // The chosen item shows a check. A price table reuses this shell and only
 // fills the list with its cycle loop.
 
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { cssColor } from '../render/utils/css.mjs';
 
 const CHEVRON = 'content: ""; width: 8px; height: 8px; margin-left: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); flex: none;';
@@ -130,7 +131,7 @@ function padCssOf(node) {
 }
 
 export default {
-  id: 'select',
+  id: PartKind.SELECT,
   status: 'implemented',
   label: 'Dropdown',
   figma: 'a short wide bordered control, one value, and a small mark at the end. A label above it is optional',

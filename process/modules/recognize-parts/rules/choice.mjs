@@ -1,9 +1,11 @@
 // A checkbox is a small square beside one label. A switch is a pill track with one knob beside one label.
 // The layer name is a hint. The shape is the evidence. A row already inside a form stays a form field.
+import { NodeType, isText, BoxType } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 import { detectForms } from './form.mjs';
 import { isIconMark } from './shape.mjs';
 
-const HOLDERS = new Set(['FRAME', 'INSTANCE', 'COMPONENT', 'GROUP']);
+const HOLDERS = new Set(BoxType);
 const CHECK_NAME = /\b(checkbox|check box)\b/i;
 const SWITCH_NAME = /\b(switch|toggle)\b/i;
 const RADIO_NAME = /\b(radio)\b/i;
@@ -20,7 +22,7 @@ function radiusMin(n) {
 
 function labelOf(n) {
   if (!n || n.visible === false) return null;
-  if (n.type === 'TEXT' && !n.svg && n.text?.characters?.trim()) return n;
+  if (isText(n) && !n.svg && n.text?.characters?.trim()) return n;
   const inner = kids(n);
   if (inner.length === 1) return labelOf(inner[0]);
   return null;
@@ -29,7 +31,8 @@ function labelOf(n) {
 function isSquare(n) {
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
-  return HOLDERS.has(n.type) && w >= 12 && w <= 32 && h >= 12 && h <= 32 && Math.abs(w - h) <= 4;
+  if (!HOLDERS.has(n.type) || w <= 0 || h <= 0) return false;
+  return Math.abs(w - h) / Math.max(w, h) <= 0.2;
 }
 
 function isCircle(n) {
@@ -40,7 +43,7 @@ function isCircle(n) {
 function isTrack(n) {
   const w = n.box?.w ?? 0;
   const h = n.box?.h ?? 0;
-  if (!HOLDERS.has(n.type) || h < 16 || h > 44 || w < h * 1.55 || w > h * 2.9) return false;
+  if (!HOLDERS.has(n.type) || h <= 0 || w < h * 1.55 || w > h * 2.9) return false;
   return radiusMin(n) >= h / 2 - 1;
 }
 
@@ -49,7 +52,7 @@ function knobOf(track) {
     const w = c.box?.w ?? 0;
     const h = c.box?.h ?? 0;
     const th = track.box?.h ?? 0;
-    return Math.abs(w - h) <= 4 && w >= th * 0.45 && w <= th;
+    return w > 0 && h > 0 && Math.abs(w - h) / Math.max(w, h) <= 0.2 && w >= th * 0.45 && w <= th;
   });
 }
 
@@ -74,7 +77,7 @@ function classify(n) {
   const extras = direct.filter((c) => c !== mark && labelOf(c) !== labelNode);
   const labelHolder = direct.find((c) => c !== mark && labelOf(c) === labelNode);
   const onMark = labelHolder?.box && mark?.box
-    && labelHolder.box.w <= mark.box.w + 4 && labelHolder.box.h <= mark.box.h + 4
+    && labelHolder.box.w <= mark.box.w * 1.15 && labelHolder.box.h <= mark.box.h * 1.15
     && labelHolder.box.x + labelHolder.box.w / 2 >= mark.box.x
     && labelHolder.box.x + labelHolder.box.w / 2 <= mark.box.x + mark.box.w
     && labelHolder.box.y + labelHolder.box.h / 2 >= mark.box.y
@@ -83,7 +86,7 @@ function classify(n) {
   if (knob) {
     const named = SWITCH_NAME.test(n.name ?? '') || SWITCH_NAME.test(n.component ?? '') || SWITCH_NAME.test(track.name ?? '');
     return {
-      component: 'switch',
+      component: PartKind.SWITCH,
       confidence: 'high',
       checked: checkedTrack(track, knob),
       labelNode,
@@ -95,7 +98,7 @@ function classify(n) {
     const named = RADIO_NAME.test(n.name ?? '') || RADIO_NAME.test(n.component ?? '') || RADIO_NAME.test(circle.name ?? '');
     const on = checkedSquare(circle);
     return {
-      component: 'radio',
+      component: PartKind.RADIO,
       confidence: named || on ? 'high' : 'medium',
       checked: on,
       labelNode,
@@ -106,7 +109,7 @@ function classify(n) {
   const named = CHECK_NAME.test(n.name ?? '') || CHECK_NAME.test(n.component ?? '') || CHECK_NAME.test(square.name ?? '');
   const on = checkedSquare(square);
   return {
-    component: 'checkbox',
+    component: PartKind.CHECKBOX,
     confidence: named || on ? 'high' : 'medium',
     checked: on,
     labelNode,
@@ -134,7 +137,7 @@ export function detectChoices(tree) {
         confidence: hit.confidence,
         cite: [
           { node: hit.mark.id, field: 'type', equals: hit.mark.type },
-          { node: hit.labelNode.id, field: 'type', equals: 'TEXT' },
+          { node: hit.labelNode.id, field: 'type', equals: NodeType.TEXT },
         ],
         evidence: hit.evidence,
         params: {

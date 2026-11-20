@@ -1,8 +1,9 @@
 // A pill track, one knob, and one label. Bricks 1.12.3 has no switch element, so the control is a checkbox field.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { applyChoice } from './choice-control.mjs';
 
 export default {
-  id: 'switch',
+  id: PartKind.SWITCH,
   status: 'implemented',
   label: 'Switch',
   figma: 'a row whose children are one fully rounded pill (a knob inside it) and one text label',

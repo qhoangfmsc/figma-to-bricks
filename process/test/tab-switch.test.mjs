@@ -1,8 +1,6 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { detectTabs } from '../modules/recognize-parts/rules/tabs.mjs';
 import { detectTabSwitches } from '../modules/recognize-parts/rules/tab-switch.mjs';
@@ -12,11 +10,8 @@ import { switchInventory, tabQuestions } from '../modules/write-bricks/component
 import { activateOpenTab } from '../modules/write-bricks/components/tabs-chrome.mjs';
 import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs';
-import { detectStep } from '../modules/build-steps/03-detect.mjs';
-import { groupQuestions, GROUPS, keyOf } from '../modules/missing-content/index.mjs';
-import { planInventory, screenParts, sectionBlocks } from '../modules/single-template/parts.mjs';
-import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { decide } from '../modules/approve-parts/index.mjs';
+import { screenParts } from '../modules/single-template/parts.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, rgb) => ({
@@ -63,7 +58,7 @@ test('a tab list with its panel elsewhere is a tab switch, and the period bar is
 
 test('clicking a title switches the pane, and the drawn pill follows the open title', () => {
   const tree = priceTable();
-  const detections = { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'r', params: { content: { panes: { t2: 'Gói SSD' } } } }] };
+  const detections = { components: [{ id: 'd1', status: 'approved', component: PartKind.TAB_SWITCH, node: 'r', params: { content: { panes: { t2: 'Gói SSD' } } } }] };
   const built = buildTemplate(tree, { overrides: {}, detections, salt: 'switch' });
   const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
   assert.equal(el('r').name, 'tabs-nested');
@@ -110,7 +105,7 @@ test('a later drawn title is the open tab', () => {
       frame('p2', 'Tab Panel', [0, 0, 400, 80], [text('b', 'Second', [0, 0, 0])], { layoutMode: 'VERTICAL' }),
     ], { layoutMode: 'VERTICAL' }),
   ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
-  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'r', params: {} }] }, salt: 'later' });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.TAB_SWITCH, node: 'r', params: {} }] }, salt: 'later' });
   const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
   assert.equal(el('r').settings.openTab, '1');
   assert.equal(el('t2').settings._hidden._cssClasses, 'tab-title brx-open');
@@ -295,7 +290,7 @@ test('the open title moves the radio check with the background', () => {
     frame('bar', 'Frame 2147225732', [0, 80, 1140, 64], [control('linux', 'LINUX', false), control('win', 'WINDOWS', true)], { layoutMode: 'HORIZONTAL' }),
     frame('data', 'Service Section', [0, 160, 1140, 200], [frame('c1', 'ServiceCard', [0, 0, 200, 160], [text('n', 'NVME', [0.1, 0.1, 0.1])])], { layoutMode: 'HORIZONTAL' }),
   ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
-  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'host', params: {} }] }, salt: 'radio' });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.TAB_SWITCH, node: 'host', params: {} }] }, salt: 'radio' });
   const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
   const attr = (node, name) => el(node).settings._attributes.find((a) => a.name === name).value;
   assert.equal(el('win').settings._hidden._cssClasses, 'tab-title brx-open');
@@ -353,7 +348,7 @@ test('a pill row with one gradient chip, nested under the title, switches the fr
   assert.equal(rows[0].active, true);
   assert.match(rows[0].drawn, /2 item/);
   assert.equal(rows[1].drawn, '');
-  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'title', params: {} }] }, salt: 'period' });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.TAB_SWITCH, node: 'title', params: {} }] }, salt: 'period' });
   const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
   assert.equal(el('a').settings._hidden._cssClasses, 'tab-title brx-open');
   assert.equal(el('b').settings._hidden._cssClasses, 'tab-title');
@@ -474,61 +469,6 @@ test('stacked tab titles on a mobile frame are not a tab switch', () => {
   assert.equal(detectTabs(tree).length, 0);
 });
 
-function freshPlan(tree, fileKey) {
-  const dir = mkdtempSync(join(tmpdir(), 'f2b-tab-plan-'));
-  try {
-    writeFileSync(join(dir, 'tree.json'), JSON.stringify(tree));
-    const ws = detectStep(dir);
-    const result = decide(ws, { firstSection: false, variant: false, parentBg: null, formErrors: {} });
-    writeDecisionReport(ws, result, tree.name || 'tabs');
-    detectStep(dir);
-    const det = ws.readJson('detections.json');
-    const questions = groupQuestions(result.questions ?? []).flatMap((g) => g.items.map((item) => ({
-      group: g.group,
-      title: GROUPS[g.group].title(1).replace(/ 1 /, ' '),
-      summary: GROUPS[g.group].summary,
-      node: item.node,
-      label: item.label,
-      key: keyOf(g.group, item.node),
-      value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
-      figma: '',
-    })));
-    const inventory = planInventory(tree, det.components, fileKey);
-    const typeQuestion = questions.find((q) => q.group === 'type');
-    const plan = renderTemplatePlan({
-      title: tree.name || 'tabs',
-      name: tree.name,
-      width: tree.box?.w ?? null,
-      variants: [],
-      parts: screenParts(tree, det.components, questions, fileKey),
-      blocks: sectionBlocks(tree, fileKey),
-      open: inventory.open,
-      repeats: inventory.repeats,
-      templateType: {
-        key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
-        value: typeQuestion?.value || 'section',
-      },
-    });
-    return { plan, det };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-test('a fresh plan lists the period bar as tabs, with no earlier expect', () => {
-  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-4263/tree.json', import.meta.url), 'utf8'));
-  const { plan, det } = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
-  const tab = det.components.find((c) => c.component === 'tab-switch' && c.node === '1:4264');
-  assert.equal(tab?.status, 'approved');
-  assert.equal(det.components.some((c) => c.component === 'form' && c.node === '1:4273'), false);
-  assert.equal(det.components.some((c) => c.component === 'menu' && c.node === '1:4273'), false);
-  assert.match(plan, /Tabs Component `_Title`/);
-  assert.match(plan, /`part:1:4264`:/);
-  assert.match(plan, /FIRE WALL ANTI DDOS/);
-  assert.match(plan, /EMAIL/);
-  assert.match(plan, /pane:1:4274/);
-});
-
 test('one block wraps a menu block and a pane block, and an icon between titles is not a title', () => {
   const chip = (id, label, on) => frame(id, 'Zone', [0, 0, 120, 36], [text(`${id}t`, label, [0.1, 0.2, 0.3])], on ? { fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.4, b: 0.9, a: 1 } }] } : {});
   const mark = { id: 'mark', name: 'mark', type: 'VECTOR', absoluteBoundingBox: box(130, 12, 12, 12) };
@@ -539,7 +479,7 @@ test('one block wraps a menu block and a pane block, and an icon between titles 
       frame('ridge', 'Ridge', [300, 48, 280, 200], [text('rt', 'Ridge', [0.1, 0.1, 0.1])], { layoutMode: 'VERTICAL' }),
     ], { layoutMode: 'HORIZONTAL' }),
   ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
-  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: 'tab-switch', node: 'host', params: {} }] }, salt: 'atlas' });
+  const built = buildTemplate(tree, { overrides: {}, detections: { components: [{ id: 'd1', status: 'approved', component: PartKind.TAB_SWITCH, node: 'host', params: {} }] }, salt: 'atlas' });
   const el = (id) => built.template.content.find((e) => e.id === built.mapping[id].bricksId);
   const classes = (id) => el(id).settings._hidden?._cssClasses ?? '';
   assert.equal(el('host').name, 'tabs-nested');
@@ -589,14 +529,17 @@ test('a tabs render with no open class activates the index Figma marked', () => 
   assert.equal(titles.filter((title) => title.classList.contains('brx-open')).length, 1);
 });
 
-test('a fresh plan lists the service bar as tabs, and the button under the open pane stays in that pane', () => {
-  const tree = JSON.parse(readFileSync(new URL('../../history/runs/cLbX6E4TL45F6k2WYE5TCQ/1-12774/tree.json', import.meta.url), 'utf8'));
-  const { plan, det } = freshPlan(tree, 'cLbX6E4TL45F6k2WYE5TCQ');
-  const tab = det.components.find((c) => c.component === 'tab-switch' && c.node === '1:12774');
-  assert.equal(tab?.status, 'approved');
-  assert.match(plan, /Tabs Component `_Title`/);
-  assert.match(plan, /`part:1:12774`:/);
-  assert.match(plan, /Lưu trữ đang mở/);
-  assert.match(plan, /Tốc độ cao chưa vẽ nội dung/);
-  assert.doesNotMatch(plan, /Tốc độ cao đang có: XEM CHI TIẾT/);
+test('a pill row over price cards is not a second tabs component', () => {
+  const pill = (id, label, fill) => frame(id, 'pill', [0, 0, 80, 32], [text(`${id}t`, label, [0.1, 0.1, 0.1])], fill ? { fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.4, b: 0.9, a: 1 } }] } : {});
+  const card = (id, name, amount) => frame(id, 'card', [0, 0, 140, 80], [
+    text(`${id}n`, name, [0.1, 0.1, 0.1]),
+    text(`${id}p`, amount, [0.1, 0.1, 0.1]),
+    text(`${id}u`, '/wk', [0.1, 0.1, 0.1]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 160], [
+    frame('bar', 'cycles', [0, 0, 200, 32], [pill('w', 'Week', false), pill('m', 'Month', true)], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 320, 80], [card('a', 'Solo', '$12'), card('b', 'Duo', '$20')], { layoutMode: 'HORIZONTAL' }),
+  ], { layoutMode: 'VERTICAL' }) } } }, 'r', { images: {}, svgs: {} });
+  assert.equal(detectTabs(tree).length, 0);
+  assert.equal(detectTabSwitches(tree).some((item) => item.node === 'bar' || item.node === 'r'), false);
 });

@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
@@ -47,7 +48,7 @@ test('text stays editable, and an auto-layout row of pictures stays elements', (
 
 test('the combined picture has no custom css; the div sets the box and the image is 100%', () => {
   const tree = section([background()]);
-  const detections = { components: [{ id: 'd1', status: 'approved', component: 'flat-image', node: 'bg', params: {} }] };
+  const detections = { components: [{ id: 'd1', status: 'approved', component: PartKind.FLAT_IMAGE, node: 'bg', params: {} }] };
   const flats = { bg: { file: 'flat/bg.png', width: 800, height: 400, scale: 2 } };
   const built = buildTemplate(tree, { overrides: {}, detections, flats, salt: 'flat' });
   const box = built.template.content.find((e) => e.id === built.mapping.bg.bricksId);

@@ -1,3 +1,4 @@
+import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
@@ -15,10 +16,10 @@ const tree = {
   ],
 };
 const components = [
-  { component: 'readmore', node: 'full', status: 'approved', params: { button: 'btn' } },
-  { component: 'button', node: 'btn', status: 'approved', params: {} },
-  { component: 'semantic', node: 'list', status: 'approved', params: {} },
-  { component: 'flat-image', node: 'pic', status: 'approved', params: {} },
+  { component: PartKind.READMORE, node: 'full', status: 'approved', params: { button: 'btn' } },
+  { component: PartKind.BUTTON, node: 'btn', status: 'approved', params: {} },
+  { component: PartKind.SEMANTIC, node: 'list', status: 'approved', params: {} },
+  { component: PartKind.FLAT_IMAGE, node: 'pic', status: 'approved', params: {} },
 ];
 
 test('step 2 lists one block per component, with the field that block needs', () => {
@@ -50,7 +51,7 @@ test('a form with nothing to type is still listed, with the fields and the submi
     ],
   };
   const parts = screenParts(formTree, [{
-    component: 'form', node: 'left', status: 'approved',
+    component: PartKind.FORM, node: 'left', status: 'approved',
     params: { fields: [{ label: 'Họ tên của bạn' }, { placeholder: 'Email' }], submit: 'go' },
   }], [], 'FILE');
   assert.equal(parts.length, 1);

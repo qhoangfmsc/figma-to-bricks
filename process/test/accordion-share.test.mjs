@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -22,7 +23,7 @@ test('a desktop FAQ answer is copied onto the matching mobile item', () => {
     const mob = join(root, 'mob');
     const tab = join(root, 'tab');
     writeWs(desk, tree('root', 'acc', [item('q1', 'Row', 'Câu 1'), item('q2', 'Row', 'Câu 2')]), {
-      components: [{ id: 'd1', component: 'accordion', status: 'approved', node: 'acc', params: { content: { answers: { q1: 'Trả lời 1', q2: 'Trả lời 2' } } } }],
+      components: [{ id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'acc', params: { content: { answers: { q1: 'Trả lời 1', q2: 'Trả lời 2' } } } }],
     });
     writeFileSync(join(desk, 'responsive.json'), JSON.stringify({
       variants: [
@@ -31,10 +32,10 @@ test('a desktop FAQ answer is copied onto the matching mobile item', () => {
       ],
     }));
     writeWs(mob, tree('mroot', 'macc', [item('mq1', 'Row', 'Câu 1'), item('mq2', 'Row', 'Câu 2')]), {
-      components: [{ id: 'd1', component: 'accordion', status: 'approved', node: 'macc', params: {} }],
+      components: [{ id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'macc', params: {} }],
     });
     writeWs(tab, tree('troot', 'tacc', [item('tq1', 'Mục A', 'Câu 1'), item('tq2', 'Mục B', 'Câu 2')]), {
-      components: [{ id: 'd1', component: 'accordion', status: 'approved', node: 'tacc', params: { content: { answers: { tq2: 'Giữ câu của tablet' } } } }],
+      components: [{ id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'tacc', params: { content: { answers: { tq2: 'Giữ câu của tablet' } } } }],
     });
     const base = {
       dir: desk,
@@ -75,13 +76,13 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
       ],
     }, {
       components: [
-        { id: 'd1', component: 'accordion', status: 'approved', node: 'acc', params: { sync: 'unchanged', content: { answers: { q1: 'Trả lời' } } } },
-        { id: 'd2', component: 'accordion', status: 'approved', node: 'guess', note: 'autopilot: shape · confirmed by the owner in the Plan', params: {} },
-        { id: 'd3', component: 'button', status: 'approved', node: 'btn', params: { link: 'https://vietnix.vn' } },
-        { id: 'd4', component: 'menu', status: 'approved', node: 'menu', params: { links: { 'mi1-t': 'https://a.vn/uu', 'mi2-t': '/gia' } } },
-        { id: 'd5', component: 'tabs', status: 'approved', node: 'tabs', params: { content: { panes: { tt2: 'Nội dung chi tiết' } } } },
-        { id: 'd6', component: 'carousel', status: 'approved', node: 'slide', params: { autoplay: false, settings: { interval: 8000 }, itemCount: 6, items: { kind: 'figma', nodeId: '9:9' } } },
-        { id: 'd7', component: 'readmore', status: 'approved', node: 'more', params: { button: 'btn', buttonMode: 'link', expand: { kind: 'text', text: 'Thêm dòng' } } },
+        { id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'acc', params: { sync: 'unchanged', content: { answers: { q1: 'Trả lời' } } } },
+        { id: 'd2', component: PartKind.ACCORDION, status: 'approved', node: 'guess', note: 'autopilot: shape · confirmed by the owner in the Plan', params: {} },
+        { id: 'd3', component: PartKind.BUTTON, status: 'approved', node: 'btn', params: { link: 'https://vietnix.vn' } },
+        { id: 'd4', component: PartKind.MENU, status: 'approved', node: 'menu', params: { links: { 'mi1-t': 'https://a.vn/uu', 'mi2-t': '/gia' } } },
+        { id: 'd5', component: PartKind.TABS, status: 'approved', node: 'tabs', params: { content: { panes: { tt2: 'Nội dung chi tiết' } } } },
+        { id: 'd6', component: PartKind.CAROUSEL, status: 'approved', node: 'slide', params: { autoplay: false, settings: { interval: 8000 }, itemCount: 6, items: { kind: 'figma', nodeId: '9:9' } } },
+        { id: 'd7', component: PartKind.READMORE, status: 'approved', node: 'more', params: { button: 'btn', buttonMode: 'link', expand: { kind: 'text', text: 'Thêm dòng' } } },
       ],
     });
     writeFileSync(join(desk, 'overrides.json'), JSON.stringify({ nodes: { pic: { alt: 'Diễn giả', reason: 'autopilot: image' } } }));
@@ -102,14 +103,14 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
       ],
     }, {
       components: [
-        { id: 'd1', component: 'accordion', status: 'approved', node: 'macc', params: {} },
-        { id: 'd2', component: 'accordion', status: 'proposed', node: 'mguess', params: {} },
-        { id: 'd3', component: 'semantic', status: 'approved', node: 'mguess', params: {} },
-        { id: 'd4', component: 'button', status: 'approved', node: 'mbtn', params: {} },
-        { id: 'd5', component: 'menu-slider', status: 'approved', node: 'mmenu', params: { links: { 'mmi2-t': '/giu' } } },
-        { id: 'd6', component: 'tabs', status: 'approved', node: 'mtabs', params: {} },
-        { id: 'd7', component: 'carousel', status: 'approved', node: 'mslide', params: {} },
-        { id: 'd8', component: 'readmore', status: 'approved', node: 'mmore', params: { button: 'mbtn' } },
+        { id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'macc', params: {} },
+        { id: 'd2', component: PartKind.ACCORDION, status: 'proposed', node: 'mguess', params: {} },
+        { id: 'd3', component: PartKind.SEMANTIC, status: 'approved', node: 'mguess', params: {} },
+        { id: 'd4', component: PartKind.BUTTON, status: 'approved', node: 'mbtn', params: {} },
+        { id: 'd5', component: PartKind.MENU_SLIDER, status: 'approved', node: 'mmenu', params: { links: { 'mmi2-t': '/giu' } } },
+        { id: 'd6', component: PartKind.TABS, status: 'approved', node: 'mtabs', params: {} },
+        { id: 'd7', component: PartKind.CAROUSEL, status: 'approved', node: 'mslide', params: {} },
+        { id: 'd8', component: PartKind.READMORE, status: 'approved', node: 'mmore', params: { button: 'mbtn' } },
       ],
     });
     writeFileSync(join(mob, 'overrides.json'), JSON.stringify({ nodes: { mpic: { alt: '', reason: 'autopilot: image' }, other: { alt: 'Giữ alt riêng', reason: 'owner' } } }));
@@ -121,11 +122,11 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
     };
     assert.equal(shareFilledContent(base).copied, 13);
     const det = JSON.parse(readFileSync(join(mob, 'detections.json'), 'utf8'));
-    const by = (node) => det.components.find((c) => c.node === node && c.component !== 'semantic');
+    const by = (node) => det.components.find((c) => c.node === node && !isKind(c, PartKind.SEMANTIC));
     assert.equal(by('macc').params.content.answers.mq1, 'Trả lời');
     assert.equal(by('macc').params.sync, 'unchanged');
     assert.equal(by('mguess').status, 'approved');
-    assert.equal(det.components.find((c) => c.component === 'semantic').status, 'rejected');
+    assert.equal(det.components.find((c) => isKind(c, PartKind.SEMANTIC)).status, 'rejected');
     assert.equal(by('mbtn').params.link, 'https://vietnix.vn');
     assert.deepEqual(by('mmenu').params.links, { 'mmi1-t': 'https://a.vn/uu', 'mmi2-t': '/giu' });
     assert.equal(by('mtabs').params.content.panes.mtt2, 'Nội dung chi tiết');
@@ -151,13 +152,13 @@ test('a form error is copied onto the same field, and a frame without the form i
   const plain = join(root, 'plain');
   try {
     writeWs(desk, { id: 'root', name: 'Section', children: [{ id: 'form', name: 'Form', children: [] }] }, {
-      components: [{ id: 'd', component: 'form', status: 'approved', node: 'form', params: { errorStyle: { gap: 4 }, fields: [
+      components: [{ id: 'd', component: PartKind.FORM, status: 'approved', node: 'form', params: { errorStyle: { gap: 4 }, fields: [
         { node: 'n', type: 'text', placeholder: 'Họ và Tên*', error: 'Nhập họ tên' },
         { node: 'e', type: 'email', placeholder: 'Email*', error: 'Email chưa đúng' },
       ] } }],
     });
     writeWs(mob, { id: 'mroot', name: 'Section', children: [{ id: 'mform', name: 'Form', children: [] }] }, {
-      components: [{ id: 'd', component: 'form', status: 'approved', node: 'mform', params: { fields: [
+      components: [{ id: 'd', component: PartKind.FORM, status: 'approved', node: 'mform', params: { fields: [
         { node: 'mn', type: 'text', placeholder: 'Họ và Tên*' },
         { node: 'me', type: 'email', placeholder: 'Email*', error: 'Giữ lỗi riêng' },
       ] } }],

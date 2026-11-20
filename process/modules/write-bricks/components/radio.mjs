@@ -1,8 +1,9 @@
 // A circle plus one label. Bricks 1.12.3 renders it as a form radio field (includes/elements/form.php).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { applyChoice } from './choice-control.mjs';
 
 export default {
-  id: 'radio',
+  id: PartKind.RADIO,
   status: 'implemented',
   label: 'Radio',
   figma: 'a row whose children are one small circle and one text label',

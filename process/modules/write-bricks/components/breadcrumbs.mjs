@@ -3,6 +3,7 @@
 //   source: includes/elements/breadcrumbs.php (homeLabel, gap, separatorType, separatorIcon, itemTypography, currentItemTypography)
 // The node is the row that holds the texts and the separator icon. First text = home label, last text = current page.
 // params: none.  Dynamic on purpose (owner decision): a page called differently from Figma shows its own title.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { typography } from '../../write-bricks/render/text.mjs';
 import { px } from '../../write-bricks/render/utils/css.mjs';
 import { svgIcon, svgNode } from '../../write-bricks/components/helpers.mjs';
@@ -15,7 +16,7 @@ function texts(n, acc = []) {
 }
 
 export default {
-  id: 'breadcrumbs',
+  id: PartKind.BREADCRUMBS,
   status: 'implemented',
   label: 'Breadcrumbs',
   figma: 'a row with a home text, a separator icon and the current page text',

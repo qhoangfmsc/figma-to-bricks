@@ -1,3 +1,5 @@
+import { BoxType } from '../node-type.mjs';
+import { PartKind } from '../kinds.mjs';
 // Candidate accordions (FAQ): a container whose visible children are >= 2 ITEMS that look alike, each item = a title row + (only while open) a content block.
 // Three kinds of evidence, strongest first (CATALOG.md: the designer's own variant > repeated structure > layer name > geometry):
 //   E1 variants   the items are one component and their State property says collapsed on some and expanded on others ("State=Collapsed" / "State=Expand")
@@ -7,7 +9,7 @@
 //                 proposed with confidence "medium" and the Plan asks the owner before it is built.
 // Never claimed: a row of items (tabs, menu), items with more than two children, a single item.
 const visibleKids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
-const BOX = new Set(['FRAME', 'GROUP', 'INSTANCE', 'COMPONENT']);
+const BOX = new Set(BoxType);
 const COLLAPSED = /^(collapsed?|closed?)$/i, EXPANDED = /^(expand(ed)?|open(ed)?)$/i;
 const NAME = /faq|accordion|collaps|question|cau[ -]?hoi|c[âa]u h[ỏo]i/i;
 const sig = (n) => `${n.type}[${visibleKids(n).map(sig).join(',')}]`;
@@ -48,7 +50,7 @@ export function detectAccordions(tree) {
         const how = variants ? `designer variants: ${hasCollapsed && kids.filter((_, i) => states[i]?.kind === 'collapsed').length} collapsed + ${kids.filter((_, i) => states[i]?.kind === 'expanded').length} expanded`
           : namedState ? 'items carry a collapsed / expanded state and the layer is named like an FAQ' : 'a vertical stack where some items show a content block under the title row and the others do not';
         found.push({
-          component: 'accordion', node: n.id, level: variants || namedState ? 'E1' : 'E2', confidence: variants ? 'high' : namedState ? 'medium' : 'low',
+          component: PartKind.ACCORDION, node: n.id, level: variants || namedState ? 'E1' : 'E2', confidence: variants ? 'high' : namedState ? 'medium' : 'low',
           cite,
           evidence: `"${n.name}" holds ${kids.length} items "${kids[0].name}" (${how}); ${open} drawn open`,
           params: {},

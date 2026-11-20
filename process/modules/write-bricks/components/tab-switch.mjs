@@ -5,6 +5,7 @@
 // The script always opens the first title. The drawn pill (the title with the solid fill) is that look, moved
 // with `.brx-open`, because a fill left on the title element would stay put when the other title is clicked.
 // params: content.panes { titleNodeId: text } for a tab whose panel Figma does not draw.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { visibleKids, hidden, firstText, flexDirectionCss, textSnippet } from '../../write-bricks/components/helpers.mjs';
 import { tabsChromeCss, tabsOpenScript } from '../../write-bricks/components/tabs-chrome.mjs';
 import { cssColor } from '../../write-bricks/render/utils/css.mjs';
@@ -359,7 +360,8 @@ export function activeTitle(titles, row = null) {
   if (lined.length > 1) return { index: null, clear: false, reason: 'nhiều tab có gạch chân' };
   const paintedAt = (title) => (title.fills ?? []).some((f) => f.visible !== false && (f.type === 'SOLID' || String(f.type).startsWith('GRADIENT')));
   const filled = titles.map((t, i) => (paintedAt(t) ? i : -1)).filter((i) => i >= 0);
-  if (filled.length === 1 && samePeers(titles)) return { index: filled[0], clear: true, reason: 'fill' };
+  // One extra mark does not make a second control. The fill type is not the test: one painted title beside unpainted peers is the open one.
+  if (filled.length === 1 && (samePeers(titles) || (titles.length === 2 && oneMarkApart(titles[0], titles[1])))) return { index: filled[0], clear: true, reason: 'fill' };
   const painted = paintedOpen(titles);
   if (painted) return painted;
   if (row && hasDivider(row, titles)) {
@@ -379,9 +381,23 @@ export function isActionBar(n) {
   return active.clear === true && Number.isInteger(active.index);
 }
 
+function shapeParts(n) {
+  return visibleKids(n).map((c) => (c.type === 'TEXT' ? 'text' : c.svg ? 'svg' : c.type));
+}
+
 function shapeKey(n) {
-  const kids = visibleKids(n).map((c) => (c.type === 'TEXT' ? 'text' : c.svg ? 'svg' : c.type));
-  return kids.join('+') || n.type;
+  return shapeParts(n).join('+') || n.type;
+}
+
+function oneMarkApart(a, b) {
+  const ka = shapeParts(a);
+  const kb = shapeParts(b);
+  if (ka.join('+') === kb.join('+')) return true;
+  const [long, short] = ka.length >= kb.length ? [ka, kb] : [kb, ka];
+  if (long.length !== short.length + 1) return false;
+  let index = 0;
+  for (const part of long) if (part === short[index]) index += 1;
+  return index === short.length;
 }
 
 // Siblings that share a structure. The layer name is not the group.
@@ -469,7 +485,7 @@ function undrawnPane(title, index, open, det, sample, sampleText) {
 }
 
 export default {
-  id: 'tab-switch',
+  id: PartKind.TAB_SWITCH,
   status: 'implemented',
   label: 'Tab switch',
   figma: 'a row of controls with one drawn open, and the data frame under that row',

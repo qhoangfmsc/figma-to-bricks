@@ -4,6 +4,7 @@
 // It still moves by drag and by the drawn arrows. Each item keeps its own width (autoWidth) and stays a text-link.
 //   source: includes/elements/slider-nested.php (optionsType custom). The link and Active look are the menu's (menu.mjs).
 // params: links { textNodeId: url } · prev / next (arrow buttons) · controls (navigation frame merged, not a slide)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { findNode, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
 import { addCustomCss, colorObj, px } from '../../write-bricks/render/utils/css.mjs';
 import { menuCheck, menuClass, menuItemPatches, navPatch, paintActive } from '../../write-bricks/components/menu.mjs';
@@ -78,7 +79,7 @@ function reserveArrowColumns(s, pad) {
 }
 
 export default {
-  id: 'menu-slider',
+  id: PartKind.MENU_SLIDER,
   status: 'implemented',
   label: 'Menu slider (links that do not fit, drag and arrows, no loop)',
   figma: 'a menu row whose items run past the frame, often with angle-left / angle-right beside it',

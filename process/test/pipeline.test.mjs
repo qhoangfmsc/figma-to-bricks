@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 // Offline tests: raw fixture -> tree -> bricks. No network, no WordPress.   node --test process/test/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -204,11 +205,11 @@ const byFigma = (b, id) => b.template.content.find((e) => e.id === b.mapping[id]
 
 test('detect rules: tooltip icon found through its wrapper, button found, both start as proposed', () => {
   const found = runRules(withIcons());
-  const tip = found.components.find((c) => c.component === 'tooltip');
+  const tip = found.components.find((c) => isKind(c, PartKind.TOOLTIP));
   assert.equal(tip.node, 'q1');
   assert.match(tip.evidence, /Number of domains:/);
   assert.equal(tip.params.text, null); // not in Figma, never invented
-  assert.equal(found.components.find((c) => c.component === 'button').node, 'btn');
+  assert.equal(found.components.find((c) => isKind(c, PartKind.BUTTON)).node, 'btn');
   assert.ok(found.components.every((c) => c.status === 'proposed'));
 });
 
@@ -222,7 +223,7 @@ test('merge keeps human decisions and params, only appends new candidates', () =
   assert.equal(again.detections.components[0].status, 'approved');
   assert.equal(again.detections.components[0].params.text, 'Hello');
   assert.deepEqual(validate(again.detections, tree), []);
-  again.detections.components.push({ id: 'dX', component: 'tooltip', node: 'gone', status: 'approved', params: {} });
+  again.detections.components.push({ id: 'dX', component: PartKind.TOOLTIP, node: 'gone', status: 'approved', params: {} });
   assert.match(validate(again.detections, tree).join(), /stale/);
 });
 
@@ -239,7 +240,7 @@ test('proposed or rejected detections change nothing: the nodes stay blocks', ()
 test('approved tooltip -> a sibling bubble shows on hover; without text the bubble is not built', () => {
   const tree = withIcons();
   const det = mergeDetections(emptyDetections(), runRules(tree)).detections;
-  const tip = det.components.find((c) => c.component === 'tooltip');
+  const tip = det.components.find((c) => isKind(c, PartKind.TOOLTIP));
   tip.status = 'approved';
   const noText = buildWith(tree, det);
   assert.equal(noText.template.content.some((item) => item.settings?._cssClasses === 'f2b-tip'), false);
@@ -262,7 +263,7 @@ test('approved tooltip -> a sibling bubble shows on hover; without text the bubb
 test('approved button -> one button element, label merged, theme defaults overridden', () => {
   const tree = withIcons();
   const det = mergeDetections(emptyDetections(), runRules(tree)).detections;
-  det.components.find((c) => c.component === 'button').status = 'approved';
+  det.components.find((c) => isKind(c, PartKind.BUTTON)).status = 'approved';
   const b = buildWith(tree, det);
   const btn = byFigma(b, 'btn');
   assert.equal(btn.name, 'button');
@@ -276,7 +277,7 @@ test('approved button -> one button element, label merged, theme defaults overri
 
 test('approved but not applicable (form without fields) stays a block and says why', () => {
   const tree = withIcons();
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'form', node: 'row', status: 'approved', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.FORM, node: 'row', status: 'approved', params: {} }] };
   const b = buildWith(tree, det);
   assert.equal(byFigma(b, 'row').name, 'block');
   assert.match(b.warnings.map((w) => w.msg).join(), /form.*params\.fields is empty/);
@@ -314,16 +315,16 @@ const bannerTree = (rootExtra = {}) => mini({
 });
 
 test('flat-image rule: hand-placed artwork container is proposed, an auto-layout grid is not', () => {
-  const found = runRules(bannerTree()).components.filter((c) => c.component === 'flat-image');
+  const found = runRules(bannerTree()).components.filter((c) => isKind(c, PartKind.FLAT_IMAGE));
   assert.deepEqual(found.map((c) => c.node), ['bn']);
   assert.equal(found[0].confidence, 'high'); // rotated layers
-  assert.equal(runRules(bannerTree({ layoutMode: 'HORIZONTAL' })).components.some((c) => c.component === 'flat-image'), false);
+  assert.equal(runRules(bannerTree({ layoutMode: 'HORIZONTAL' })).components.some((c) => isKind(c, PartKind.FLAT_IMAGE)), false);
 });
 
 test('flat-image approved: one image element, subtree merged, alt = unique texts, link optional; not applied without the export', () => {
   const tree = bannerTree();
   const det = mergeDetections(emptyDetections(), runRules(tree)).detections;
-  const d = det.components.find((c) => c.component === 'flat-image');
+  const d = det.components.find((c) => isKind(c, PartKind.FLAT_IMAGE));
   d.status = 'approved';
   const build = (flats) => buildTemplate(tree, { overrides: {}, detections: det, flats, salt: 'f' });
   assert.match(build({}).warnings.map((w) => w.msg).join(), /not exported yet/);
@@ -380,7 +381,7 @@ test('citations are re-checked against the tree: wrong value, missing field, mis
 
 test('an AI candidate without a citation, or with a false one, is a problem the gate refuses', () => {
   const t = withProps();
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'tooltip', node: 'i1', status: 'proposed', source: 'ai', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.TOOLTIP, node: 'i1', status: 'proposed', source: 'ai', params: {} }] };
   assert.match(validate(det, t).join(), /must cite/);
   det.components[0].cite = [{ node: 'i2', field: 'props.Tooltips icon', equals: true }];
   assert.match(validate(det, t).join(), /tree says false/);
@@ -392,7 +393,7 @@ test('tooltip rule: the designer flag makes it E1 / high and the rule cites it',
   const tree = mini({ children: [kid('row', { name: '_Item', type: 'INSTANCE', componentProperties: { 'Tooltips icon#1:0': { type: 'BOOLEAN', value: true } }, layoutMode: 'HORIZONTAL', children: [
     kid('lab', { name: 'Text', children: [txt('t1', 'Domains')] }),
     kid('wrap', { name: 'Icon', children: [txt('q1', 'circle-question', { style: { fontFamily: 'Font Awesome 6 Pro Light' } })] })] })] });
-  const [tip] = runRules(tree).components.filter((c) => c.component === 'tooltip');
+  const [tip] = runRules(tree).components.filter((c) => isKind(c, PartKind.TOOLTIP));
   assert.equal(tip.level, 'E1');
   assert.equal(tip.confidence, 'high');
   assert.deepEqual(validate({ ...emptyDetections(), components: [{ id: 'd1', status: 'proposed', ...tip }] }, tree), []);
@@ -436,7 +437,7 @@ test('carousel: row of identical cards + a thin strip under it -> slider-nested,
     kid('row', { name: 'Awards', layoutMode: 'HORIZONTAL', itemSpacing: 20, absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 60 }, children: [0, 1, 2].map(card) }),
     kid('pag', { name: 'Pagination', type: 'INSTANCE', absoluteBoundingBox: { x: 100, y: 62, width: 200, height: 4 } }),
   ] });
-  const found = runRules(tree).components.find((c) => c.component === 'carousel');
+  const found = runRules(tree).components.find((c) => isKind(c, PartKind.CAROUSEL));
   assert.equal(found.node, 'row');
   assert.equal(found.params.pagination, 'pag');
   const det = approveAll(tree);
@@ -446,13 +447,13 @@ test('carousel: row of identical cards + a thin strip under it -> slider-nested,
   assert.deepEqual([slider.settings.type, slider.settings.perPage, slider.settings.gap, slider.settings.pagination], ['loop', 3, 20, true]);
   assert.equal(b.mapping.pag.skipped, 'merged into carousel ' + det.components[0].id);
   assert.equal(b.template.content.filter((e) => e.parent === slider.id).length, 3); // the slides
-  assert.equal(runRules(mini({ children: [kid('r2', { layoutMode: 'HORIZONTAL', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 60 }, children: [0, 1, 2].map(card) })] })).components.some((c) => c.component === 'carousel'), false); // 3 cards that fit = a grid
+  assert.equal(runRules(mini({ children: [kid('r2', { layoutMode: 'HORIZONTAL', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 60 }, children: [0, 1, 2].map(card) })] })).components.some((c) => isKind(c, PartKind.CAROUSEL)), false); // 3 cards that fit = a grid
 });
 
 test('accordion: title / content get the accordion classes, a closed item gets an EMPTY content block, first open item expands', () => {
   const item = (i, open) => kid(`it${i}`, { name: 'Item', layoutMode: 'VERTICAL', children: [kid(`ti${i}`, { name: 'Title', children: [txt(`tt${i}`, `Q${i}`)] }), ...(open ? [kid(`co${i}`, { name: 'Content', children: [txt(`ct${i}`, `A${i}`)] })] : [])] });
   const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, true), item(2, false), item(3, false)] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] };
   const b = buildWith(tree, det);
   assert.equal(byFigma(b, 'acc').name, 'accordion-nested');
   assert.equal(byFigma(b, 'acc').settings.expandFirstItem, true);
@@ -469,30 +470,22 @@ test('tabs: bar + one open pane -> tab-menu / tab-title divs / tab-content / pan
     kid('bar', { name: 'Bar', layoutMode: 'HORIZONTAL', children: [title(1), title(2), title(3)] }),
     kid('content', { name: 'Content', layoutMode: 'VERTICAL', children: [kid('pane1', { name: 'Pane', children: [txt('pt', 'Hello')] })] }),
   ] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.TABS, node: 'tabs', status: 'approved', params: {} }] };
   const b = buildWith(tree, det);
   assert.equal(byFigma(b, 'tabs').name, 'tabs-nested');
   assert.equal(byFigma(b, 'bar').settings._hidden._cssClasses, 'tab-menu');
-  const menuBox = b.template.content.find((e) => e.id === byFigma(b, 'bar').parent);
-  assert.equal(menuBox.name, 'block');
-  assert.equal(menuBox.settings._hidden, undefined);
-  assert.equal(menuBox.settings._cssClasses, undefined);
-  const wrap = b.template.content.find((e) => e.id === menuBox.parent);
-  assert.equal(wrap.name, 'block');
-  assert.equal(wrap.settings._cssClasses, undefined);
-  assert.equal(wrap.settings._hidden, undefined);
-  assert.equal(wrap.parent, byFigma(b, 'tabs').id);
-  assert.equal(byFigma(b, 'content').parent, wrap.id);
+  assert.equal(byFigma(b, 'bar').parent, byFigma(b, 'tabs').id);
+  assert.equal(byFigma(b, 'content').parent, byFigma(b, 'tabs').id);
+  assert.equal(byFigma(b, 'content').settings._hidden._cssClasses, 'tab-content');
   assert.equal(byFigma(b, 'tt2').name, 'div');
   assert.equal(byFigma(b, 'tt2').settings._hidden._cssClasses, 'tab-title');
-  assert.equal(byFigma(b, 'content').settings._hidden, undefined);
   assert.equal(b.template.content.filter((e) => e.settings._hidden?._cssClasses === 'tab-pane').length, 3);
   assert.match(b.warnings.map((w) => w.msg).join(), /2 empty pane/);
 });
 
 test('link: missing url -> "#"; given url -> that url; no default hover', () => {
   const tree = mini({ children: [txt('lk', 'Read more')] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'link', node: 'lk', status: 'approved', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.LINK, node: 'lk', status: 'approved', params: {} }] };
   const noUrl = byFigma(buildWith(tree, det), 'lk');
   assert.equal(noUrl.name, 'text-link');
   assert.deepEqual(noUrl.settings.link, { type: 'external', url: '#' }); // missing URL -> '#'
@@ -509,7 +502,7 @@ test('form: fields from params, field and submit look read from the cited frames
     txt('l1', 'Email'), input('in1', 'Email', 'you@example.com'),
     kid('btn', { name: 'Submit', layoutMode: 'HORIZONTAL', cornerRadius: 8, fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }], children: [txt('bt', 'Send')] }),
   ] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'form', node: 'frm', status: 'approved', params: {} }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.FORM, node: 'frm', status: 'approved', params: {} }] };
   assert.match(buildWith(tree, det).warnings.map((w) => w.msg).join(), /params\.fields is empty/);
   det.components[0].params = { fields: JSON.stringify([{ node: 'in1', type: 'email', label: 'Email', placeholder: 'you@example.com', required: true, labelNode: 'l1' }]), submit: 'btn' };
   const b = buildWith(tree, det);
@@ -535,7 +528,7 @@ test('form: a note under the button is NOT merged, it is built after the form el
     kid('btn', { name: 'Submit', layoutMode: 'HORIZONTAL', children: [txt('bt', 'Send')] }),
     txt('note', 'We keep your data private'),
   ] })] });
-  const det = detOf({ component: 'form', node: 'frm', params: { fields: [{ node: 'in1', type: 'email' }], submit: 'btn' } });
+  const det = detOf({ component: PartKind.FORM, node: 'frm', params: { fields: [{ node: 'in1', type: 'email' }], submit: 'btn' } });
   const b = buildWith(tree, det);
   const kids = b.template.content.filter((e) => e.parent === byFigma(b, 'frm').id).map((e) => e.name);
   assert.deepEqual(kids, ['form', 'text-basic']);
@@ -614,7 +607,7 @@ const detOf = (...components) => ({ ...emptyDetections(), components: components
 
 test('semantic: ul > li on the container and its children, look untouched', () => {
   const tree = mini({ children: [kid('lst', { name: 'Row', layoutMode: 'VERTICAL', children: [kid('a', { children: [txt('ta', 'A')] }), kid('b', { children: [txt('tb', 'B')] })] })] });
-  const b = buildWith(tree, detOf({ component: 'semantic', node: 'lst', params: { tag: 'ul', itemTag: 'li', id: 'anchor-x' } }));
+  const b = buildWith(tree, detOf({ component: PartKind.SEMANTIC, node: 'lst', params: { tag: 'ul', itemTag: 'li', id: 'anchor-x' } }));
   assert.equal(byFigma(b, 'lst').settings.tag, 'ul');
   assert.equal(byFigma(b, 'lst').settings._cssId, 'anchor-x');
   assert.equal(byFigma(b, 'a').settings.tag, 'li');
@@ -627,7 +620,7 @@ test('semantic: ul > li on the container and its children, look untouched', () =
 
 test('semantic: dl with dt / dd uses the Bricks custom tag; a link card without URL is "#"', () => {
   const tree = mini({ children: [kid('dl', { children: [kid('row', { children: [kid('k', { children: [txt('tk', 'Key')] }), kid('v', { children: [txt('tv', 'Value')] })] })] }), kid('card', { children: [txt('tc', 'Card')] })] });
-  const b = buildWith(tree, detOf({ component: 'semantic', node: 'dl', params: { tag: 'dl', childTags: { k: 'dt', v: 'dd' } } }, { component: 'semantic', node: 'card', params: { tag: 'a' } }));
+  const b = buildWith(tree, detOf({ component: PartKind.SEMANTIC, node: 'dl', params: { tag: 'dl', childTags: { k: 'dt', v: 'dd' } } }, { component: PartKind.SEMANTIC, node: 'card', params: { tag: 'a' } }));
   assert.deepEqual([byFigma(b, 'dl').settings.tag, byFigma(b, 'dl').settings.customTag], ['custom', 'dl']);
   assert.deepEqual([byFigma(b, 'k').settings.tag, byFigma(b, 'k').settings.customTag], ['custom', 'dt']);
   assert.equal(byFigma(b, 'v').settings.customTag, 'dd');
@@ -640,7 +633,7 @@ test('semantic: figure takes its figcaption and the image alt from the caption t
   const tree = mini({ children: [kid('fig', { layoutMode: 'VERTICAL', children: [{ ...kid('img', {}), fills: [{ type: 'IMAGE', imageRef: 'x', scaleMode: 'FILL' }] }, txt('cap', 'Top 5 Thuong Hieu')] })] });
   const tree2 = normalizeRoot({ nodes: { r: { document: { id: 'r', name: 'root', type: 'FRAME', absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 200 }, layoutMode: 'VERTICAL', children: [{ ...kid('fig', { layoutMode: 'VERTICAL', children: [{ ...kid('img', {}), fills: [{ type: 'IMAGE', imageRef: 'x', scaleMode: 'FILL' }] }, txt('cap', 'Top 5 Thuong Hieu')] }) }] } } } }, 'r', { images: { x: { file: 'images/x.png', width: 10, height: 10, sha256: 'z' } }, svgs: {} });
   assert.ok(tree);
-  const b = buildWith(tree2, detOf({ component: 'semantic', node: 'fig', params: { tag: 'figure', caption: 'cap' } }));
+  const b = buildWith(tree2, detOf({ component: PartKind.SEMANTIC, node: 'fig', params: { tag: 'figure', caption: 'cap' } }));
   assert.equal(byFigma(b, 'fig').settings.tag, 'figure');
   assert.equal(byFigma(b, 'cap').settings.customTag, 'figcaption');
   assert.equal(b.template.content.find((e) => e.id === b.mapping['img#image']?.bricksId).settings.altText, 'Top 5 Thuong Hieu');
@@ -659,7 +652,7 @@ test('alt policy: never the layer name; empty alt is reported; brand-logo varian
 
 test('button: an svg icon child becomes the button icon (position from child order), link defaults to "#"', () => {
   const tree = miniSvg({ children: [kid('btn', { name: 'Button', layoutMode: 'HORIZONTAL', itemSpacing: 8, children: [txt('lab', 'Dang ky'), kid('arrow', { name: 'ArrowRight', type: 'INSTANCE', absoluteBoundingBox: { x: 0, y: 0, width: 24, height: 24 } })] })] }, { arrow: 'svg/arrow.svg' });
-  const b = buildWith(tree, detOf({ component: 'button', node: 'btn' }));
+  const b = buildWith(tree, detOf({ component: PartKind.BUTTON, node: 'btn' }));
   const btn = byFigma(b, 'btn');
   assert.equal(btn.name, 'button');
   assert.deepEqual(btn.settings.icon, { library: 'svg', svg: { $asset: 'svg/arrow.svg', size: 'full' } });
@@ -671,7 +664,7 @@ test('button: an svg icon child becomes the button icon (position from child ord
 test('icon-list: rows of icon + text become the Bricks list with title typography and no separator', () => {
   const row = (i) => kid(`r${i}`, { name: 'Check item', layoutMode: 'HORIZONTAL', itemSpacing: 8, children: [kid(`ic${i}`, { name: 'Icon', type: 'INSTANCE' }), txt(`t${i}`, `Row ${i}`)] });
   const tree = miniSvg({ children: [kid('lst', { layoutMode: 'VERTICAL', itemSpacing: 8, children: [row(1), row(2)] })] }, { ic1: 'svg/a.svg', ic2: 'svg/a.svg' });
-  const b = buildWith(tree, detOf({ component: 'icon-list', node: 'lst' }));
+  const b = buildWith(tree, detOf({ component: PartKind.ICON_LIST, node: 'lst' }));
   const l = byFigma(b, 'lst');
   assert.equal(l.name, 'list');
   assert.deepEqual(l.settings.items.map((i) => i.title), ['Row 1', 'Row 2']);
@@ -685,7 +678,7 @@ test('icon-list: rows of icon + text become the Bricks list with title typograph
 
 test('breadcrumbs: home label, current typography and separator icon from the row', () => {
   const tree = miniSvg({ children: [kid('bc', { layoutMode: 'HORIZONTAL', itemSpacing: 12, children: [txt('h', 'Trang chu'), kid('sep', { name: 'angle-right', type: 'INSTANCE' }), txt('c', 'Toi uu')] })] }, { sep: 'svg/sep.svg' });
-  const b = buildWith(tree, detOf({ component: 'breadcrumbs', node: 'bc' }));
+  const b = buildWith(tree, detOf({ component: PartKind.BREADCRUMBS, node: 'bc' }));
   const e = byFigma(b, 'bc');
   assert.equal(e.name, 'breadcrumbs');
   assert.equal(e.settings.homeLabel, 'Trang chu');
@@ -695,7 +688,7 @@ test('breadcrumbs: home label, current typography and separator icon from the ro
 
 test('counter: "80,000+" -> countTo 80000, thousand separator, suffix; text/typography moved to the counter parts', () => {
   const tree = mini({ children: [txt('n', '80,000+'), txt('p', '97%'), txt('bad', 'Hello')] });
-  const b = buildWith(tree, detOf({ component: 'counter', node: 'n' }, { component: 'counter', node: 'p' }, { component: 'counter', node: 'bad' }));
+  const b = buildWith(tree, detOf({ component: PartKind.COUNTER, node: 'n' }, { component: PartKind.COUNTER, node: 'p' }, { component: PartKind.COUNTER, node: 'bad' }));
   const n = byFigma(b, 'n');
   assert.equal(n.name, 'counter');
   assert.deepEqual([n.settings.countTo, n.settings.thousandSeparator, n.settings.suffix], ['80000', true, '+']);
@@ -713,7 +706,7 @@ test('carousel: prev / next frames become the Bricks arrows (size, fill, icon, p
     kid('row', { name: 'Row', layoutMode: 'HORIZONTAL', itemSpacing: 20, absoluteBoundingBox: { x: 0, y: 0, width: 400, height: 60 }, children: [0, 1, 2].map(card).concat([arrow('pv', 0), arrow('nx', 360)]) }),
     kid('dots', { name: 'Pagination', layoutMode: 'HORIZONTAL', itemSpacing: 6, children: [dot('d1', 24, { r: 0, g: 0, b: 1, a: 1 }), dot('d2', 8, { r: 0.5, g: 0.5, b: 0.5, a: 1 }), dot('d3', 8, { r: 0.5, g: 0.5, b: 0.5, a: 1 })] }),
   ] }, { pv: 'svg/left.svg', nx: 'svg/right.svg' });
-  const b = buildWith(tree, detOf({ component: 'carousel', node: 'row', params: { prev: 'pv', next: 'nx', pagination: 'dots' } }));
+  const b = buildWith(tree, detOf({ component: PartKind.CAROUSEL, node: 'row', params: { prev: 'pv', next: 'nx', pagination: 'dots' } }));
   const s = byFigma(b, 'row').settings;
   assert.equal(s.arrows, true);
   assert.deepEqual([s.arrowWidth, s.arrowHeight, s.prevArrowTop, s.nextArrowLeft], ['40px', '40px', '10px', '360px']);
@@ -727,7 +720,7 @@ test('tooltip-style: the drawn bubble becomes root CSS (variables + :after look)
     fills: [{ type: 'SOLID', color: { r: 0, g: 0.486, b: 0.988, a: 1 } }], effects: [{ type: 'DROP_SHADOW', visible: true, color: { r: 0, g: 0, b: 0, a: 0.12 }, offset: { x: 0, y: 1 }, radius: 8, spread: 0 }],
     children: [{ ...txt('bt', 'Number of domains:'), fills: [{ type: 'SOLID', color: { r: 0.99, g: 0.99, b: 0.99, a: 1 } }] }] });
   const tree = mini({ children: [bubble] });
-  const b = buildWith(tree, detOf({ component: 'tooltip-style', node: 'bub' }));
+  const b = buildWith(tree, detOf({ component: PartKind.TOOLTIP_STYLE, node: 'bub' }));
   assert.equal(b.mapping.bub.skipped.startsWith('merged into tooltip-style'), true);
   const root = b.template.content[0].settings._cssCustom;
   assert.match(root, /--bricks-tooltip-bg: #007cfc/);
@@ -755,7 +748,7 @@ test('countdown: units become fields (format + label), the colon is a ::after at
   const txt = (id, chars, extra = {}) => ({ id, name: id, type: 'TEXT', characters: chars, style: { fontFamily: 'Inter', fontSize: extra.size ?? 32, fontWeight: 700, lineHeightPx: extra.lh ?? 40, textAlignHorizontal: 'CENTER' }, fills: [{ type: 'SOLID', color: { r: 0, g: 0, b: 1, a: 1 } }], absoluteBoundingBox: { x: extra.x ?? 0, y: extra.y ?? 0, width: extra.w ?? 58, height: extra.lh ?? 40 } });
   const unit = (id, x, num, label) => kid(id, { type: 'INSTANCE', layoutMode: 'VERTICAL', itemSpacing: 3, primaryAxisAlignItems: 'CENTER', counterAxisAlignItems: 'CENTER', absoluteBoundingBox: { x, y: 0, width: 62, height: 58 }, children: [txt(`${id}n`, num, { x: x + 2 }), txt(`${id}l`, label, { x: x + 2, size: 14, lh: 17.5 })] });
   const values = kid('vals', { layoutMode: 'HORIZONTAL', itemSpacing: 8, absoluteBoundingBox: { x: 0, y: 0, width: 146, height: 58 }, children: [unit('u1', 0, '20', 'Ngày'), txt('sp', ':', { x: 70, y: 18, w: 6, size: 18, lh: 22 }), unit('u2', 84, '00', 'Giờ')] });
-  const det = (params) => ({ components: [{ id: 'd1', status: 'approved', component: 'countdown', node: 'vals', params }] });
+  const det = (params) => ({ components: [{ id: 'd1', status: 'approved', component: PartKind.COUNTDOWN, node: 'vals', params }] });
   const params = { fields: [{ node: 'u1', format: '%D' }, { node: 'u2', format: '%H' }], date: '2026-10-29 19:30', timezone: 'UTC+07:00' };
   const b = buildWith(mini({ children: [values] }), det(params));
   const el = byFigma(b, 'vals');
@@ -1004,9 +997,9 @@ test('autopilot decide: headings from text size, ul/li for repeated items, text-
   ] };
   const facts = { repeats: [{ parent: 'list', parentName: 'List', count: 3, itemName: 'Card', ids: ['it1', 'it2', 'it3'] }] };
   const det = { version: 1, sections: [], components: [
-    { id: 'd1', status: 'proposed', source: 'rule', component: 'flat-image', node: 'deco' },
-    { id: 'd2', status: 'proposed', source: 'rule', component: 'flat-image', node: 'ban' },
-    { id: 'd3', status: 'proposed', source: 'rule', component: 'tooltip', node: 'ic1' },
+    { id: 'd1', status: 'proposed', source: 'rule', component: PartKind.FLAT_IMAGE, node: 'deco' },
+    { id: 'd2', status: 'proposed', source: 'rule', component: PartKind.FLAT_IMAGE, node: 'ban' },
+    { id: 'd3', status: 'proposed', source: 'rule', component: PartKind.TOOLTIP, node: 'ic1' },
   ] };
   const files = { 'tree.json': tree, 'facts.json': facts, 'detections.json': det, 'overrides.json': { nodes: {} } };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
@@ -1020,13 +1013,13 @@ test('autopilot decide: headings from text size, ul/li for repeated items, text-
   assert.deepEqual(ov.ic1.settings._attributes, [{ name: 'aria-hidden', value: 'true' }]);
   assert.equal(ov.img.alt, '');
   assert.equal(ov.img.settings.loading, 'lazy');
-  const list = files['detections.json'].components.find((c) => c.component === 'semantic');
+  const list = files['detections.json'].components.find((c) => isKind(c, PartKind.SEMANTIC));
   assert.deepEqual(list.params, { tag: 'ul', itemTag: 'li' });
   assert.ok(out.designer.some((d) => /Alt text of the image "Photo"/.test(d)));
   // a text-free group holding a mask layer becomes a flat picture
   const files2 = { 'tree.json': { id: 'r', name: 'S', type: 'FRAME', children: [{ id: 'g', name: 'Bg', type: 'GROUP', children: [{ id: 'm', name: 'Mask', type: 'RECTANGLE', isMask: true, children: [] }, { id: 'p', name: 'Pic', type: 'RECTANGLE', children: [] }] }] }, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [] }, 'overrides.json': { nodes: {} } };
   decide({ readJson: (n, fb) => files2[n] ?? fb, writeJson: (n, v) => { files2[n] = v; } }, {});
-  assert.equal(files2['detections.json'].components.find((c) => c.component === 'flat-image' && c.node === 'g').status, 'approved');
+  assert.equal(files2['detections.json'].components.find((c) => isKind(c, PartKind.FLAT_IMAGE) && c.node === 'g').status, 'approved');
   // first section of the page: the title is the h1
   files['overrides.json'] = { nodes: {} };
   decide(ws, { firstSection: true });
@@ -1151,11 +1144,14 @@ test('phase 3 detection: a CTA that is an instance of the Button component is a 
   const [f] = detectForms(tree);
   assert.equal(f.node, 'f');
   assert.equal(f.params.submit, 'cta');
-  assert.deepEqual(f.params.fields.map((x) => x.type), ['text', 'tel', 'email', 'text', 'checkbox']);
+  assert.deepEqual(f.params.fields.map((x) => x.type), ['text', 'text', 'text', 'text', 'checkbox']);
   assert.deepEqual(f.params.fields.map((x) => x.required), [true, true, true, false, false]);
   assert.equal(f.params.fields[0].placeholder, 'Họ và Tên*'); // kept as drawn: Bricks must not append its own " *"
   assert.equal(f.params.fields.at(-1).labelNode, 'cstt'.replace('cstt', 'cst')); // the consent statement carries the label typography
-  assert.ok(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [cta] }).some((b) => b.node === 'cta'));
+  assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [cta] }).length, 0);
+  const filled = (id, h) => ({ ...cta, id, name: 'Frame', componentSet: undefined, box: { w: 160, h }, fills: [{ type: 'SOLID' }] });
+  assert.ok(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [filled('short', 24)] }).some((b) => b.node === 'short'));
+  assert.ok(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [filled('tall', 80)] }).some((b) => b.node === 'tall'));
   // a bare text frame is a label; the same frame with a fill and no Button name is still a button, at low confidence
   const bare = { ...cta, id: 'card', name: 'Problem card / 05 Unpredictable costs', componentSet: undefined };
   assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [bare] }).length, 0);
@@ -1163,7 +1159,7 @@ test('phase 3 detection: a CTA that is an instance of the Button component is a 
   const link = { id: 'lnk', name: 'link-introduction', type: 'INSTANCE', visible: true, componentSet: 'Button link footer', box: { w: 80, h: 20 }, children: [text('lt', 'Giới Thiệu')] };
   assert.equal(detectButtons({ id: 'r', name: 'S', type: 'FRAME', children: [link] }).length, 0);
   // decide: the form is approved and its submit button is not a second button
-  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }, { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'cta', params: {} }] }, 'overrides.json': { nodes: {} } };
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: PartKind.FORM, node: 'f', params: f.params }, { id: 'd2', status: 'proposed', source: 'rule', component: PartKind.BUTTON, node: 'cta', params: {} }] }, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
   const st = Object.fromEntries(files['detections.json'].components.map((c) => [c.component, c.status]));
   assert.deepEqual(st, { form: 'approved', button: 'rejected' });
@@ -1177,7 +1173,7 @@ test('form error messages: decide gives a field the "Error message / X" text the
   const form = { id: 'f', name: 'Registration / Form', type: 'FRAME', visible: true, box: { w: 481, h: 500 }, children: [input('Full name', 'Họ và Tên*'), input('Email', 'Email*'), cta] };
   const tree = { id: 'r', name: 'Section', type: 'FRAME', visible: true, box: { w: 1440, h: 800 }, children: [form] };
   const [f] = detectForms(tree);
-  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: 'form', node: 'f', params: f.params }] } };
+  const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': { version: 1, sections: [], components: [{ id: 'd1', status: 'proposed', source: 'rule', component: PartKind.FORM, node: 'f', params: f.params }] } };
   const formErrors = { email: { text: 'Vui lòng nhập địa chỉ email hợp lệ', node: '2237:7486', gap: 7, style: { fontFamily: 'Inter', fontSize: 12, fontWeight: 400, lineHeightPx: 16, letterSpacing: 0, color: '#ffffff', alpha: 1 } } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { formErrors });
   const fields = files['detections.json'].components[0].params.fields;
@@ -1191,7 +1187,7 @@ test('form error messages: decide gives a field the "Error message / X" text the
     kid('btn', { name: 'Submit', layoutMode: 'HORIZONTAL', fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }], children: [txt('bt', 'Send')] }),
   ] })] });
   const params = { fields: JSON.stringify([{ node: 'in1', type: 'text', placeholder: 'Họ và Tên*', required: true }, { node: 'in2', type: 'email', placeholder: 'Email*', required: true, error: 'Vui lòng nhập địa chỉ email hợp lệ', errorNode: '2237:7486' }]), submit: 'btn', errorStyle: formErrors.email.style && { ...formErrors.email.style, gap: 7 } };
-  const b = buildWith(frm, { ...emptyDetections(), components: [{ id: 'd1', component: 'form', node: 'frm', status: 'approved', params }] });
+  const b = buildWith(frm, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.FORM, node: 'frm', status: 'approved', params }] });
   const el = b.template.content.find((e) => e.name === 'form');
   assert.equal(el?.settings.fields.find((x) => x.type === 'email')?.errorMessage, 'Vui lòng nhập địa chỉ email hợp lệ');
   assert.equal(el.settings.fields.find((x) => x.placeholder === 'Họ và Tên*')?.errorMessage, undefined);
@@ -1209,9 +1205,9 @@ test('navigation: a menu has no heading, its items (several repeat groups) form 
     { parent: 'row', parentName: 'Menu item', count: 2, itemName: 'Menu Item', ids: ['c', 'd'] }] }, 'detections.json': { version: 1, sections: [], components: [] } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { firstSection: false });
   const comps = files['detections.json'].components;
-  assert.ok(comps.some((c) => c.component === 'semantic' && c.node === 'row' && c.params.tag === 'ul' && c.params.itemTag === 'li'));
-  assert.deepEqual(comps.filter((c) => c.component === 'link').map((c) => c.node).sort(), ['at', 'bt', 'ct', 'dt']);
-  assert.ok(comps.filter((c) => c.component === 'link').every((c) => c.status === 'approved' && c.params.link === null));
+  assert.ok(comps.some((c) => isKind(c, PartKind.SEMANTIC) && c.node === 'row' && c.params.tag === 'ul' && c.params.itemTag === 'li'));
+  assert.deepEqual(comps.filter((c) => isKind(c, PartKind.LINK)).map((c) => c.node).sort(), ['at', 'bt', 'ct', 'dt']);
+  assert.ok(comps.filter((c) => isKind(c, PartKind.LINK)).every((c) => c.status === 'approved' && c.params.link === null));
   assert.equal(files['overrides.json']?.nodes?.at?.element, undefined); // no heading override on a menu label
   assert.ok(out.designer.some((d) => /Link URLs of the 4 menu items in "Menu"/.test(d)));
 });
@@ -1668,8 +1664,8 @@ test('plan: lists what was detected, what is only a shape, and a repeated group 
   const files = {
     'tree.json': { id: 'r', children: [{ id: '1:10' }, { id: '1:20' }, { id: '1:30' }] },
     'detections.json': { components: [
-      { id: 'd1', component: 'button', node: '1:10', status: 'approved', params: {} },
-      { id: 'd2', component: 'tabs', node: '1:20', status: 'proposed', params: {} },
+      { id: 'd1', component: PartKind.BUTTON, node: '1:10', status: 'approved', params: {} },
+      { id: 'd2', component: PartKind.TABS, node: '1:20', status: 'proposed', params: {} },
     ] },
     'overrides.json': { nodes: {} },
   };
@@ -1678,7 +1674,7 @@ test('plan: lists what was detected, what is only a shape, and a repeated group 
   const comps = files['detections.json'].components;
   assert.equal(comps.find((c) => c.node === '1:10').status, 'rejected');
   assert.equal(comps.find((c) => c.node === '1:20').status, 'approved');
-  assert.equal(comps.find((c) => c.component === 'carousel' && c.node === '1:30').status, 'approved');
+  assert.equal(comps.find((c) => isKind(c, PartKind.CAROUSEL) && c.node === '1:30').status, 'approved');
 });
 
 test('plan: values are validated (a link needs a scheme, # or /; a blank value is fine) and a multi-line value is kept', () => {
@@ -1716,9 +1712,9 @@ test('plan: generating the file again keeps what the owner typed; the confirmati
 test('plan: a confirmed value reaches the button / text link and the image alt; a value for a node that is gone is reported, and alt keeps the autopilot reason so the next run rebuilds it', () => {
   const files = {
     'detections.json': { components: [
-      { id: 'd1', component: 'button', node: '1:10', status: 'approved', params: { link: null } },
-      { id: 'd2', component: 'link', node: '1:11', status: 'approved', params: { link: null } },
-      { id: 'd3', component: 'button', node: '1:13', status: 'rejected', params: {} },
+      { id: 'd1', component: PartKind.BUTTON, node: '1:10', status: 'approved', params: { link: null } },
+      { id: 'd2', component: PartKind.LINK, node: '1:11', status: 'approved', params: { link: null } },
+      { id: 'd3', component: PartKind.BUTTON, node: '1:13', status: 'rejected', params: {} },
     ] },
     'overrides.json': { nodes: { '1:12': { alt: '', reason: 'autopilot: image, alt left empty until the designer provides it' } } },
   };
@@ -1741,9 +1737,9 @@ test('plan: decide records a question for every button, menu label and content i
     { id: 'bg', name: 'Background glow', type: 'RECTANGLE', fills: [{ type: 'IMAGE' }], children: [] },
   ] };
   const det = { version: 1, sections: [], components: [
-    { id: 'd1', status: 'proposed', source: 'rule', component: 'button', node: 'b1' },
-    { id: 'd2', status: 'proposed', source: 'rule', component: 'button', node: 'b2' },
-    { id: 'd3', status: 'proposed', source: 'rule', component: 'form', node: 'r', params: { fields: [{ node: 'f1', type: 'text' }, { node: 'f2', type: 'email' }], submit: 'b2' } },
+    { id: 'd1', status: 'proposed', source: 'rule', component: PartKind.BUTTON, node: 'b1' },
+    { id: 'd2', status: 'proposed', source: 'rule', component: PartKind.BUTTON, node: 'b2' },
+    { id: 'd3', status: 'proposed', source: 'rule', component: PartKind.FORM, node: 'r', params: { fields: [{ node: 'f1', type: 'text' }, { node: 'f2', type: 'email' }], submit: 'b2' } },
   ] };
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
@@ -1809,10 +1805,10 @@ test('detect menu: a row of links named like a menu is a menu and not a carousel
   const tree = nn('root', '_sub-menu', 'FRAME', { children: [row] });
   assert.equal(detectMenus(tree)[0].node, 'menu');
   assert.deepEqual(detectCarousels(tree), []);
-  const card = (i) => nn(`c${i}`, 'card', 'FRAME', { box: { x: i * 120, y: 0, w: 100, h: 60, absX: i * 120, absY: 0 }, children: [nt(`ct${i}`, `Card ${i}`)] });
+  const card = (i) => nn(`c${i}`, 'card', 'FRAME', { box: { x: i * 120, y: 0, w: 100, h: 60, absX: i * 120, absY: 0 }, children: [nt(`ct${i}`, `Card ${i}`), nn(`pic${i}`, 'Art', 'RECTANGLE', { fills: [{ type: 'IMAGE' }], box: { x: 0, y: 24, w: 100, h: 36, absX: i * 120, absY: 24 } })] });
   const cards = nn('row2', 'Awards', 'FRAME', { layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 250, h: 60, absX: 0, absY: 0 }, children: [0, 1, 2, 3].map(card) });
   const t2 = nn('root2', 'x', 'FRAME', { children: [cards] });
-  assert.equal(detectMenus(t2).length, 0); // cards are taller than a menu row
+  assert.equal(detectMenus(t2).length, 0);
   assert.equal(detectCarousels(t2)[0]?.node, 'row2');
 });
 
@@ -1824,7 +1820,7 @@ const faqRaw = (closedCount = 2) => {
 
 test('accordion: an answer typed in the Plan becomes a content block with the settings of the drawn open answer and a text with its typography; a blank one stays empty', () => {
   const tree = faqRaw();
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Có, chuyển miễn phí.\nLiên hệ để được hỗ trợ.' } } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Có, chuyển miễn phí.\nLiên hệ để được hỗ trợ.' } } } }] };
   const b = buildWith(tree, det);
   const drawn = byFigma(b, 'co1');
   const mine = b.template.content.find((e) => e.parent === byFigma(b, 'it2').id && e.label === 'Content');
@@ -1841,7 +1837,7 @@ test('accordion: an answer typed in the Plan becomes a content block with the se
 });
 
 test('accordion answers are HTML-escaped', () => {
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: '<b>1 < 2</b> & 3' } } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: { content: { answers: { it2: '<b>1 < 2</b> & 3' } } } }] };
   const b = buildWith(faqRaw(1), det);
   const text = b.template.content.find((e) => e.parent === b.template.content.find((x) => x.parent === byFigma(b, 'it2').id && x.label === 'Content').id);
   assert.equal(text.settings.text, '&lt;b&gt;1 &lt; 2&lt;/b&gt; &amp; 3');
@@ -1852,7 +1848,7 @@ test('tabs: the content typed in the Plan fills a pane Figma does not draw, with
   const tree = mini({ children: [kid('tabs', { name: 'Tabs', layoutMode: 'VERTICAL', children: [
     kid('bar', { name: 'Bar', layoutMode: 'HORIZONTAL', children: [tab(1), tab(2)] }),
     kid('cnt', { name: 'Content', layoutMode: 'VERTICAL', children: [kid('pane1', { name: 'Pane', paddingLeft: 20, paddingRight: 20, paddingTop: 10, paddingBottom: 10, layoutMode: 'VERTICAL', children: [txt('p1t', 'Nội dung gói 1')] })] })] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: { content: { panes: { tb2: 'Nội dung gói 2' } } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.TABS, node: 'tabs', status: 'approved', params: { content: { panes: { tb2: 'Nội dung gói 2' } } } }] };
   const b = buildWith(tree, det);
   const mine = b.template.content.find((e) => e.parent === byFigma(b, 'cnt').id && e.label === 'Pane 2');
   assert.equal(mine.settings._hidden._cssClasses, 'tab-pane');
@@ -1864,7 +1860,7 @@ test('tabs: the content typed in the Plan fills a pane Figma does not draw, with
 test('menu component: nav > ul > li > text-link with the URLs from the Plan, "#" for the others; the nav is the block that holds the row and nothing else with text', () => {
   const item = (i) => kid(`mi${i}`, { name: '_sub-menu-item', children: [txt(`ml${i}`, `Mục ${i}`)] });
   const tree = mini({ children: [kid('wrap', { name: 'Wrap', layoutMode: 'HORIZONTAL', children: [kid('menu', { name: '_menu', layoutMode: 'HORIZONTAL', children: [item(1), item(2), item(3)] }), kid('arrows', { name: 'Navigation', children: [kid('ar1', { name: 'arrow' })] })] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'menu', node: 'menu', status: 'approved', params: { links: { ml2: '#gia' } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.MENU, node: 'menu', status: 'approved', params: { links: { ml2: '#gia' } } }] };
   const b = buildWith(tree, det);
   assert.equal(byFigma(b, 'menu').settings.tag, 'ul');
   assert.equal(byFigma(b, 'wrap').settings.tag, 'nav');
@@ -1874,7 +1870,7 @@ test('menu component: nav > ul > li > text-link with the URLs from the Plan, "#"
   assert.equal(byFigma(b, 'ml2').settings.text, 'Mục 2');
   // the root frame is never turned into a nav (it is the section)
   const t2 = mini({ children: [kid('menu', { name: '_menu', layoutMode: 'HORIZONTAL', children: [item(1), item(2), item(3)] })] });
-  const b2 = buildWith(t2, { ...emptyDetections(), components: [{ id: 'd1', component: 'menu', node: 'menu', status: 'approved', params: {} }] });
+  const b2 = buildWith(t2, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.MENU, node: 'menu', status: 'approved', params: {} }] });
   assert.equal(b2.template.content[0].settings.tag, 'section');
 });
 
@@ -1886,7 +1882,7 @@ test('decide: accordion / tabs / menu / carousel are approved by structure and a
   const det = { version: 1, sections: [], components: [
     ...detectAccordions(tree).map((c, i) => ({ id: `a${i}`, status: 'proposed', source: 'rule', ...c })),
     ...detectMenus(tree).map((c, i) => ({ id: `m${i}`, status: 'proposed', source: 'rule', ...c })),
-    { id: 'g1', status: 'proposed', source: 'rule', component: 'accordion', node: 'stack', confidence: 'low', params: {} },
+    { id: 'g1', status: 'proposed', source: 'rule', component: PartKind.ACCORDION, node: 'stack', confidence: 'low', params: {} },
   ] };
   tree.children.push(nn('stack', 'Frame 9', 'FRAME', { layout: { mode: 'VERTICAL' }, children: [nn('s1', 'r', 'FRAME', { children: [nt('s1t', 'Q')] }), nn('s2', 'r', 'FRAME', { children: [nt('s2t', 'Q2')] })] }));
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
@@ -1910,9 +1906,9 @@ test('plan: answers reach the accordion, the tabs, the menu links, the slider op
     { id: 'guess', children: [] },
   ] };
   const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [
-    { id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }, { id: 'd2', component: 'tabs', node: 'tabs', status: 'approved', params: {} },
-    { id: 'd3', component: 'menu', node: 'menu', status: 'approved', params: {} }, { id: 'd4', component: 'carousel', node: 'sl', status: 'approved', params: {} },
-    { id: 'd5', component: 'accordion', node: 'guess', status: 'proposed', params: {} }, { id: 'd6', component: 'semantic', node: 'guess', status: 'approved', params: { tag: 'ul' } },
+    { id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }, { id: 'd2', component: PartKind.TABS, node: 'tabs', status: 'approved', params: {} },
+    { id: 'd3', component: PartKind.MENU, node: 'menu', status: 'approved', params: {} }, { id: 'd4', component: PartKind.CAROUSEL, node: 'sl', status: 'approved', params: {} },
+    { id: 'd5', component: PartKind.ACCORDION, node: 'guess', status: 'proposed', params: {} }, { id: 'd6', component: PartKind.SEMANTIC, node: 'guess', status: 'approved', params: { tag: 'ul' } },
   ] } };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
   const r = applyPlanAnswers(ws, { 'answer:it2': { choice: 'text', text: 'Trả lời hai' }, 'pane:tb2': { choice: 'text', text: 'Gói hai' }, 'link:ml1': { choice: 'url', href: '/gioi-thieu' }, 'autoplay:sl': { choice: 'on', seconds: 5 }, 'loop:sl': { choice: 'wrap' }, 'confirm:guess': { choice: 'accordion' }, 'answer:ghost': { choice: 'text', text: 'x' } });
@@ -1929,7 +1925,7 @@ test('plan: answers reach the accordion, the tabs, the menu links, the slider op
 // ---- accordion / tabs behaviour traps found by clicking the built page (2026-10-29)
 test('accordion: the root gets its direction and gap as css (no control on this element), a flex content block gives its display back only while the item is open', () => {
   const tree = faqRaw(1);
-  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] });
   const acc = byFigma(b, 'acc');
   assert.match(acc.settings._cssCustom, /flex-direction: column;/); // `_direction` is a container control only: the root would be a row
   const drawn = byFigma(b, 'co1');
@@ -1950,7 +1946,7 @@ test('accordion: a closed item drops the gap Figma stores while the answer is hi
     ],
   });
   const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 124), item(2, true, 0)] })] });
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it1: 'Trả lời' } } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: { content: { answers: { it1: 'Trả lời' } } } }] };
   const b = buildWith(tree, det);
   const closed = byFigma(b, 'it1');
   assert.equal(closed.settings._rowGap, '0px'); // the expand gap, on every item: Bricks shows the answer before it adds .brx-open
@@ -1978,7 +1974,7 @@ test('accordion: the open glyph and the closed glyph swap with .brx-open, a same
   const tree = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, true, 'minus'), item(3, false, 'plus'), item(4, false, 'plus')] })] });
   const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus' || n.text?.characters === 'star')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: n.text.characters === 'plus' ? 17 : 2 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
-  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] });
   const file = (id) => byFigma(b, id).settings.file.$asset;
   assert.equal(file('ic2'), 'svg/minus.svg');
   assert.equal(file('ic1'), 'svg/plus.svg');
@@ -1990,7 +1986,7 @@ test('accordion: the open glyph and the closed glyph swap with .brx-open, a same
   assert.equal(b.template.content.filter((e) => e.label === 'Closed icon').length, 1);
   const odd = mini({ children: [kid('acc', { name: 'FAQ', layoutMode: 'VERTICAL', children: [item(1, false, 'plus'), item(2, false, 'star'), item(3, false, 'plus')] })] });
   walk(odd);
-  const b3 = buildWith(odd, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const b3 = buildWith(odd, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] });
   assert.equal(byFigma(b3, 'ic2').settings.file.$asset, 'svg/plus.svg');
 });
 
@@ -2008,7 +2004,7 @@ test('accordion: a Hover variant fill is :hover on every item, and that item has
   rows[1].props = { State: 'Expand' };
   rows[2].props = { State: 'Hover' };
   rows[2].fills = [{ type: 'SOLID', hex: '#007cfc', alpha: 0.04 }];
-  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] });
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] });
   const hover = byFigma(b, 'it3');
   assert.equal(hover.settings._background, undefined);
   assert.equal(b.mapping.it3.expect.css['background-color'], 'rgba(0, 0, 0, 0)');
@@ -2039,17 +2035,17 @@ test('accordion sync switches on all, unchanged, text, and no-icon', () => {
   const walk = (n) => { if (n.type === 'TEXT' && (n.text?.characters === 'plus' || n.text?.characters === 'minus')) n.svg = { file: `svg/${n.text.characters}.svg`, width: 17, height: 17 }; for (const c of n.children ?? []) walk(c); };
   walk(tree);
   assert.ok(syncNotes(tree.children[0]).some((n) => n.includes('icon')));
-  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { sync: 'unchanged' } }] });
+  const kept = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: { sync: 'unchanged' } }] });
   assert.equal(byFigma(kept, 'it1').settings._rowGap, '124px');
   assert.equal(byFigma(kept, 'ic2').settings.file.$asset, 'svg/minus.svg');
-  const files = { 'detections.json': { components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: {} }] }, 'overrides.json': { nodes: {} }, 'tree.json': tree };
+  const files = { 'detections.json': { components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: {} }] }, 'overrides.json': { nodes: {} }, 'tree.json': tree };
   const ws = { readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } };
   applyPlanAnswers(ws, { 'sync:acc': { choice: 'no-icon' } });
   assert.equal(files['detections.json'].components[0].params.sync, 'no-icon');
 });
 
 test('accordion: a typed answer follows the same rule: the new content block has no display of its own and the item opens it with the drawn block\'s display', () => {
-  const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'accordion', node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Trả lời' } } } }] };
+  const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.ACCORDION, node: 'acc', status: 'approved', params: { content: { answers: { it2: 'Trả lời' } } } }] };
   const b = buildWith(faqRaw(1), det);
   const mine = b.template.content.find((e) => e.parent === byFigma(b, 'it2').id && e.label === 'Content');
   assert.equal(mine.settings._display, undefined);
@@ -2060,7 +2056,7 @@ test('tabs: a pane with a flex layout gets its display back only while it is ope
   const tab = (i) => kid(`tb${i}`, { name: 'Tab', children: [txt(`tl${i}`, `Gói ${i}`)] });
   const pane = (i) => kid(`pane${i}`, { name: 'Pane', layoutMode: 'VERTICAL', children: [txt(`pt${i}`, `Nội dung ${i}`)] });
   const tree = mini({ children: [kid('tabs', { name: 'Tabs', layoutMode: 'VERTICAL', children: [kid('bar', { name: 'Bar', layoutMode: 'HORIZONTAL', children: [tab(1), tab(2)] }), kid('cnt', { name: 'Content', layoutMode: 'VERTICAL', children: [pane(1), pane(2)] })] })] });
-  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: 'tabs', node: 'tabs', status: 'approved', params: {} }] });
+  const b = buildWith(tree, { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.TABS, node: 'tabs', status: 'approved', params: {} }] });
   assert.equal(byFigma(b, 'pane1').settings._display, undefined);
   assert.match(byFigma(b, 'pane1').settings._cssCustom, /\.brx-open \{ display: flex; \}/);
   assert.match(byFigma(b, 'tabs').settings._cssCustom, /\.tab-pane \{ display: none; \}/);
@@ -2106,7 +2102,8 @@ test('detect read more: a clipped frame whose content runs past its height + a "
   assert.equal(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped({ props: {} }), btn] }))[0].level, 'E2');
   assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped()] })), []); // no button
   assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped({ clip: false }), btn] })), []); // does not clip
-  assert.deepEqual(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped(), nn('b2', 'Button', 'INSTANCE', { children: [nt('b2t', 'Đăng ký')] })] })), []); // another button
+  assert.equal(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped(), nn('b2', 'Button', 'INSTANCE', { children: [nt('b2t', 'Đăng ký')] })] }))[0].params.button, 'b2');
+  assert.equal(detectReadMore(nn('root', 'SEO', 'FRAME', { children: [clipped(), nn('btn', 'Button', 'INSTANCE', { children: [nt('bt', 'Continue')] })] }))[0].params.button, 'btn');
 });
 
 test('read more: the button becomes a real <button> that toggles a class on the clipped frame; one css rule gives the open frame its full height', () => {
@@ -2115,8 +2112,8 @@ test('read more: the button becomes a real <button> that toggles a class on the 
     kid('btn', { name: 'Button', layoutMode: 'HORIZONTAL', children: [txt('bt', 'Xem thêm')] }),
   ] });
   const det = { ...emptyDetections(), components: [
-    { id: 'd1', component: 'readmore', node: 'wrap', status: 'approved', params: { button: 'btn' } },
-    { id: 'd2', component: 'button', node: 'btn', status: 'approved', params: {} },
+    { id: 'd1', component: PartKind.READMORE, node: 'wrap', status: 'approved', params: { button: 'btn' } },
+    { id: 'd2', component: PartKind.BUTTON, node: 'btn', status: 'approved', params: {} },
   ] };
   const b = buildWith(tree, det);
   const wrap = byFigma(b, 'wrap'), btn = byFigma(b, 'btn');
@@ -2137,11 +2134,11 @@ test('decide: a read more is approved and its button is not asked for a URL', ()
   const tree = nn('root', 'SEO', 'FRAME', { children: [full, btn] });
   const det = { version: 1, sections: [], components: [
     ...detectReadMore(tree).map((c, i) => ({ id: `r${i}`, status: 'proposed', source: 'rule', ...c })),
-    { id: 'b1', status: 'proposed', source: 'rule', component: 'button', node: 'btn' },
+    { id: 'b1', status: 'proposed', source: 'rule', component: PartKind.BUTTON, node: 'btn' },
   ] };
   const files = { 'tree.json': tree, 'facts.json': { repeats: [] }, 'detections.json': det, 'overrides.json': { nodes: {} } };
   const out = decide({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, {});
-  assert.equal(files['detections.json'].components.find((c) => c.component === 'readmore').status, 'approved');
+  assert.equal(files['detections.json'].components.find((c) => isKind(c, PartKind.READMORE)).status, 'approved');
   assert.deepEqual(out.questions.filter((q) => q.group === 'link'), []);
   assert.equal(out.designer.filter((d) => d.includes('[btn]')).length, 0);
 });
@@ -2152,7 +2149,7 @@ test('read more: the class is the same in every breakpoint frame (it comes from 
     kid(ids[3], { name: 'Button', layoutMode: 'HORIZONTAL', children: [txt(ids[4], 'Xem thêm')] }),
   ] });
   const cls = (ids) => {
-    const det = { ...emptyDetections(), components: [{ id: 'd1', component: 'readmore', node: ids[0], status: 'approved', params: { button: ids[3] } }, { id: 'd2', component: 'button', node: ids[3], status: 'approved', params: {} }] };
+    const det = { ...emptyDetections(), components: [{ id: 'd1', component: PartKind.READMORE, node: ids[0], status: 'approved', params: { button: ids[3] } }, { id: 'd2', component: PartKind.BUTTON, node: ids[3], status: 'approved', params: {} }] };
     const b = buildWith(mk(ids), det);
     return [byFigma(b, ids[0]).settings._cssClasses, byFigma(b, ids[3]).settings._interactions[0]];
   };

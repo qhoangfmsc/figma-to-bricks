@@ -7,6 +7,7 @@
 //         buttonMode: toggle (default) | none | link
 //         expand: { kind: 'text', text } extra copy shown only while open, or { kind: 'figma', ... } the full frame grafted as .read-more-full
 //         (empty expand keeps revealing the text already clipped in this frame)
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { findNode, visibleKids, rowId, firstText } from '../../write-bricks/components/helpers.mjs';
 
 const OPEN = 'read-more-open';
@@ -38,7 +39,7 @@ function collapseButton(node) {
 }
 
 export default {
-  id: 'readmore',
+  id: PartKind.READMORE,
   status: 'implemented',
   label: 'Read more (Xem thêm)',
   figma: 'a clipped frame whose content is longer than its height, with a button "Xem thêm" / "Read more" after it (variant Expand=No)',

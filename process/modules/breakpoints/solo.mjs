@@ -418,7 +418,7 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       const query = band(at);
       if (query) appendCss(s, e.id, 'fluid-cap', `${query} { #brxe-${e.id} { max-width: 100%; } }`);
     }
-    if (isTabBar(e)) {
+    if (isTabBar(e) && s._flexWrap !== 'wrap') {
       s._widthMax = '100%';
       appendCss(s, e.id, 'overflow-x: auto', `#brxe-${e.id} { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }`);
     }
@@ -750,7 +750,7 @@ export function fitSoloTemplate(template, { keep = [] } = {}) {
       }
     }
 
-    if (isTabBar(e)) {
+    if (isTabBar(e) && s._flexWrap !== 'wrap') {
       const rule = `@media (max-width: 991px) { #brxe-${e.id} { overflow-x: auto; flex-wrap: nowrap; } }`;
       if (!String(s._cssCustom ?? '').includes(`#brxe-${e.id} { overflow-x: auto`)) s._cssCustom = [s._cssCustom, rule].filter(Boolean).join(' ');
     }

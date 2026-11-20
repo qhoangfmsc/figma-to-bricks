@@ -1,8 +1,9 @@
 // A square plus one label. Bricks 1.12.3 renders it as a form checkbox field (includes/elements/form.php).
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { applyChoice } from './choice-control.mjs';
 
 export default {
-  id: 'checkbox',
+  id: PartKind.CHECKBOX,
   status: 'implemented',
   label: 'Checkbox',
   figma: 'a row whose children are one small square and one text label',

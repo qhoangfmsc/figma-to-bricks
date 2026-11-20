@@ -1,3 +1,4 @@
+import { PartKind, isKind } from '../modules/recognize-parts/kinds.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
@@ -89,7 +90,7 @@ function treeOf({ left, right, unit, button, cycle, group, rowA, rowB, more, bad
 
 function built(table, tree) {
   return buildTemplate(tree, {
-    detections: { components: [{ id: 'cmp', status: 'approved', source: 'plan', component: 'compare-table', node: 'r', params: { id: table.meta.table_id, table } }] },
+    detections: { components: [{ id: 'cmp', status: 'approved', source: 'plan', component: PartKind.COMPARE_TABLE, node: 'r', params: { id: table.meta.table_id, table } }] },
     salt: table.meta.table_id,
   });
 }
@@ -305,6 +306,37 @@ test('a matrix is asked as a comparison table, and a card row stays a price tabl
   assert.equal(missingBoundTables(cards, { components: [] }).some((gap) => gap.kind === 'price-table'), true);
 });
 
+test('one id on a wrapper covers the table drawn inside that breakpoint', () => {
+  const grid = treeOf({
+    left: { name: 'Cabin', price: '40.000', total: '80.000' },
+    right: { name: 'Loft', price: '70.000', total: '140.000' },
+    unit: '/night', button: 'Book', cycle: 'Stay', group: 'Room', rowA: 'Bed', rowB: 'View', more: 'Show rest',
+  });
+  const sheet = { ...grid, id: 'sheet', name: 'Sheet', children: [
+    { id: 'heading', name: 'Heading', type: 'TEXT', visible: true, text: { characters: 'Plans' }, children: [] },
+    grid,
+  ] };
+  assert.equal(missingBoundTables(sheet, { components: [] }).some((gap) => gap.node === 'r'), true);
+  const stay = { packages: [{ name: 'Cabin' }] };
+  const onSheet = { components: [{ component: PartKind.COMPARE_TABLE, status: 'approved', node: 'sheet', params: { id: 'stay-grid', table: stay } }] };
+  assert.equal(missingBoundTables(sheet, onSheet).some((gap) => gap.kind === PartKind.COMPARE_TABLE), false);
+  const outside = { components: [{ component: PartKind.COMPARE_TABLE, status: 'approved', node: 'heading', params: { id: 'stay-grid', table: stay } }] };
+  assert.equal(missingBoundTables(sheet, outside).some((gap) => gap.kind === PartKind.COMPARE_TABLE), true);
+
+  const rates = normalizeRoot({ nodes: { row: { document: frame('row', 'rates', [0, 0, 400, 120], [
+    frame('c1', 'card', [0, 0, 160, 80], [text('n1', 'Basic'), text('p1', '15'), text('u1', '/year')], { layoutMode: 'VERTICAL' }),
+    frame('c2', 'card', [180, 0, 160, 80], [text('n2', 'Plus'), text('p2', '28'), text('u2', '/year')], { layoutMode: 'VERTICAL' }),
+  ], { layoutMode: 'HORIZONTAL' }) } } }, 'row', { images: {}, svgs: {} });
+  const column = { ...rates, id: 'column', name: 'Column', layout: { mode: 'VERTICAL' }, children: [
+    { id: 'label', name: 'Label', type: 'TEXT', visible: true, text: { characters: 'Pick' }, children: [] },
+    rates,
+  ] };
+  const plans = { packages: [{ name: 'Basic' }] };
+  assert.equal(missingBoundTables(column, { components: [] }).some((gap) => gap.node === 'row'), true);
+  const onColumn = { components: [{ component: PartKind.PRICE_TABLE, status: 'approved', node: 'column', params: { id: 'year-plans', table: plans } }] };
+  assert.equal(missingBoundTables(column, onColumn).some((gap) => gap.kind === PartKind.PRICE_TABLE), false);
+});
+
 test('a name row above a value row still binds the table, the tooltip and the expand control', () => {
   const parsed = parseCompareData(studio);
   const cell = (id, value) => frame(id, 'cell', [0, 0, 80, 24], [text(`${id}t`, value)], { layoutMode: 'HORIZONTAL' });
@@ -377,19 +409,19 @@ test('the plan id is an enum and travels with the table', () => {
   };
   const ws = { readJson: (name, fallback) => files[name] ?? fallback, writeJson: (name, value) => { files[name] = value; } };
   applyAnswers(ws, { 'compare:r': 'room-grid' });
-  const entry = files['detections.json'].components.find((item) => item.component === 'compare-table');
+  const entry = files['detections.json'].components.find((item) => isKind(item, PartKind.COMPARE_TABLE));
   assert.equal(entry.params.id, 'room-grid');
   assert.equal(entry.status, 'approved');
   const table = { packages: [{ name: 'Desk' }], groups: [] };
   const carried = carryCompareTables(
-    { components: [{ id: 'desk', component: 'compare-table', status: 'approved', node: 'desk-box', params: { id: 'room-grid', table } }] },
-    { components: [{ id: 'local', component: 'compare-table', status: 'approved', node: 'phone-box', params: { id: 'other' } }, { id: 'keep', component: 'button', status: 'approved', node: 'phone-btn', params: {} }] },
+    { components: [{ id: 'desk', component: PartKind.COMPARE_TABLE, status: 'approved', node: 'desk-box', params: { id: 'room-grid', table } }] },
+    { components: [{ id: 'local', component: PartKind.COMPARE_TABLE, status: 'approved', node: 'phone-box', params: { id: 'other' } }, { id: 'keep', component: PartKind.BUTTON, status: 'approved', node: 'phone-btn', params: {} }] },
     new Map([['phone-box', 'desk-box']]),
     'phone',
   );
-  const compare = carried.components.find((item) => item.component === 'compare-table');
+  const compare = carried.components.find((item) => isKind(item, PartKind.COMPARE_TABLE));
   assert.equal(compare.node, 'phone-box');
   assert.equal(compare.params.table, table);
-  assert.equal(carried.components.find((item) => item.component === 'button').id, 'keep');
+  assert.equal(carried.components.find((item) => isKind(item, PartKind.BUTTON)).id, 'keep');
   assert.equal(BUY_BUTTON_FIELDS.find((field) => field.id === 'href').value, '{vnx_cmp_link}');
 });

@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lookKinds, lookReport, normalizeAi, signalRows } from '../modules/single-template/look.mjs';
+import { applyAiDecisions, lookReport, normalizeAi, signalRows } from '../modules/single-template/look.mjs';
+import { PartKind, childId, lookKinds } from '../modules/recognize-parts/kinds.mjs';
 import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
 import { COMPONENTS } from '../modules/write-bricks/components/index.mjs';
 
 const tab = {
-  node: '1:1', component: 'tab-switch', status: 'approved', evidence: '5 tabs',
+  node: '1:1', component: PartKind.TAB_SWITCH, status: 'approved', evidence: '5 tabs',
   cite: [{ node: '1:2', field: 'layout.mode', equals: 'HORIZONTAL' }],
 };
 
@@ -27,8 +28,8 @@ test('a plan is not ready until the picture has a reading', () => {
 test('the same kind is kept, a different kind is drop, and a picture-only group stays a block', () => {
   const signals = signalRows([
     tab,
-    { node: '1:9', component: 'menu', status: 'proposed', evidence: '3 links', cite: [] },
-    { node: '1:8', component: 'button', status: 'proposed', evidence: 'one label', cite: [] },
+    { node: '1:9', component: PartKind.MENU, status: 'proposed', evidence: '3 links', cite: [] },
+    { node: '1:8', component: PartKind.BUTTON, status: 'proposed', evidence: 'one label', cite: [] },
   ]);
   const ai = normalizeAi([
     { node: '1:1', kind: 'tab-switch', see: 'một hàng chip, một chip đang chọn, nội dung bên dưới' },
@@ -69,19 +70,27 @@ test('the same kind is kept, a different kind is drop, and a picture-only group 
   assert.match(kept, /đừng dựng nút này/);
 });
 
-test('a picture that names a part of the component agrees with that component', () => {
-  const signals = signalRows([tab, { node: '1:4', component: 'thumb_scroll', status: 'proposed', evidence: 'the thumb', cite: [] }]);
+test('a picture that names a part inside children agrees with that component', () => {
+  const signals = signalRows([
+    { ...tab, params: { tabs_bar: '1:1' } },
+    { node: '1:4', component: childId(PartKind.SCROLL, 'thumb'), status: 'proposed', evidence: 'the thumb', cite: [] },
+  ]);
   assert.equal(signals.some((row) => row.kind === 'thumb_scroll'), false);
-  const ai = normalizeAi([{ node: '1:1', kind: 'tabs_bar', see: 'một hàng, một tab đang chọn, các tab còn lại nghỉ' }]);
+  const ai = normalizeAi([{
+    node: '1:1', kind: 'tab-switch', see: 'một hàng, một tab đang chọn, các tab còn lại nghỉ',
+    children: { tabs_bar: '1:1', tabs_data: null },
+  }]);
   const report = lookReport({ shot: 'look.png', signals, ai });
   assert.equal(report.rows[0].verdict, 'agree');
   assert.equal(report.rows[0].review, 'trust');
+  assert.equal(report.rows[0].children[0].image, true);
   assert.equal(report.ready, true);
+  assert.throws(() => normalizeAi([{ node: '1', kind: 'tabs_bar', see: 'một hàng tab' }]), /không có trong danh sách/);
 });
 
 test('a detected child stays a doubt until the picture and the structure both name it', () => {
   const slider = {
-    node: 's', component: 'carousel', status: 'approved', evidence: 'two rows and a dash row',
+    node: 's', component: PartKind.CAROUSEL, status: 'approved', evidence: 'two rows and a dash row',
     cite: [{ node: 'dots', field: 'svg' }],
     params: { pagination: 'dots', prev: 'pv' },
   };
@@ -107,9 +116,32 @@ test('an unknown kind is refused', () => {
   assert.throws(() => normalizeAi([{ node: '1', kind: 'widget', see: 'một khối lạ' }]), /không có trong danh sách/);
 });
 
+test('a picture reading keeps the open item and stores the parts it saw', () => {
+  const ai = normalizeAi([{
+    node: 'row', kind: 'carousel', see: 'một hàng thẻ, một thẻ đang nổi, có mũi tên sau',
+    selected: 'card-b',
+    children: { pagination_carousel: 'marks', carousel_prev: null, carousel_next: 'fwd' },
+  }]);
+  assert.equal(ai[0].selected, 'card-b');
+  assert.equal(ai[0].children.carousel_prev, null);
+  const files = {
+    'detections.json': { components: [{ id: 'd', status: 'approved', component: PartKind.CAROUSEL, node: 'row', params: { id: 'keep' }, cite: [{ node: 'row', field: 'name' }] }] },
+  };
+  const ws = { has: () => true, readJson: (name) => files[name], writeJson: (name, value) => { files[name] = value; } };
+  const report = lookReport({ shot: 'look.png', signals: signalRows([{ node: 'row', component: PartKind.CAROUSEL, status: 'approved', evidence: 'cards', cite: [{ node: 'row', field: 'name' }] }]), ai });
+  applyAiDecisions(ws, report);
+  const item = files['detections.json'].components[0];
+  assert.equal(item.params.id, 'keep');
+  assert.equal(item.params.selected, 'card-b');
+  assert.equal(item.params.pagination, 'marks');
+  assert.equal(item.params.next, 'fwd');
+  assert.equal(item.params.prev, null);
+  assert.equal(item.params.children.carousel_prev, null);
+});
+
 test('a row of package cards the picture names stays a price table', () => {
   const signals = signalRows([
-    { node: 'deck', component: 'price-table', status: 'approved', evidence: 'one row of package cards', cite: [{ node: 'deck', field: 'name' }] },
+    { node: 'deck', component: PartKind.PRICE_TABLE, status: 'approved', evidence: 'one row of package cards', cite: [{ node: 'deck', field: 'name' }] },
   ]);
   const ai = normalizeAi([
     { node: 'deck', kind: 'price-table', see: 'một hàng thẻ Pier và Berth, mỗi thẻ có giá và nút Order' },
@@ -128,7 +160,7 @@ test('a row of package cards the picture names stays a price table', () => {
 
 test('aligned package cells the picture names stay a comparison table', () => {
   const signals = signalRows([
-    { node: 'grid', component: 'compare-table', status: 'approved', evidence: 'package row and aligned cells', cite: [{ node: 'grid', field: 'name' }] },
+    { node: 'grid', component: PartKind.COMPARE_TABLE, status: 'approved', evidence: 'package row and aligned cells', cite: [{ node: 'grid', field: 'name' }] },
   ]);
   const ai = normalizeAi([
     { node: 'grid', kind: 'compare-table', see: 'hàng tên cột Lane và Quay, các ô thẳng hàng và nút Buy' },
@@ -138,13 +170,13 @@ test('aligned package cells the picture names stay a comparison table', () => {
   assert.equal(report.ready, true);
 });
 
-test('every built component is a kind the picture may name', () => {
+test('the component catalog has one list', () => {
   const kinds = lookKinds();
-  for (const id of Object.keys(COMPONENTS)) {
-    assert.equal(kinds.has(id), true, id);
-    normalizeAi([{ node: 'n', kind: id, see: 'nhóm này hiện trên ảnh' }]);
-  }
-  for (const id of ['tooltip', 'dropdown', 'select', 'tabs', 'tab-switch']) {
-    assert.equal(kinds.has(id), true, id);
+  const partIds = new Set(Object.values(PartKind));
+  assert.deepEqual([...partIds].sort(), Object.keys(COMPONENTS).sort());
+  for (const id of partIds) assert.equal(kinds.has(id), true, id);
+  assert.equal(kinds.has('block'), true);
+  for (const id of ['tabs_bar', 'pagination_carousel', 'thumb_scroll', 'price_card', 'dropdown_list']) {
+    assert.equal(kinds.has(id), false, id);
   }
 });

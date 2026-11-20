@@ -2,13 +2,14 @@
 // Bricks 1.12.3 element `search` (includes/elements/search.php, searchform.php).
 // The submit is <button type="submit">. actionURL stays empty unless the plan has an address:
 // an empty actionURL posts to the WordPress home URL. A domain-checker address is not invented.
+import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { addCustomCss, colorObj, px } from '../render/utils/css.mjs';
 import { linearGradientCss } from '../render/utils/gradient.mjs';
 import { typography } from '../render/text.mjs';
 import { boxLook, findNode } from './helpers.mjs';
 
 export default {
-  id: 'search',
+  id: PartKind.SEARCH,
   status: 'implemented',
   label: 'Search',
   figma: 'a horizontal field at least four times as wide as it is tall, with one text and one small icon (`rules/media.mjs`)',
