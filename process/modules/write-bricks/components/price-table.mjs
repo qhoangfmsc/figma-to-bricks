@@ -28,6 +28,33 @@ const same = (drawn, cell) => {
   return !!left && !!right && (left === right || left === shown(cell));
 };
 const unitShape = (word) => /^\/\S{1,12}$/.test(norm(word));
+// A line through the whole text: the text's own decoration, or one run style that covers every character.
+// A tag replaces the runs, so the line is written on the element.
+function struck(textNode) {
+  const text = textNode?.text;
+  if (!text) return false;
+  if (text.decoration === 'STRIKETHROUGH') return true;
+  const runs = (text.runs ?? []).filter((run) => run.text);
+  return runs.length > 0 && runs.every((run) => run.style?.textDecoration === 'STRIKETHROUGH')
+    && runs.map((run) => run.text).join('') === text.characters;
+}
+// A drawn amount: the number with thousands marks, and at most one short currency mark
+// (a currency sign or up to three letters) before or after it. A percent or a sign is not a mark.
+const MONEY = /^([\p{Sc}\p{L}]{1,3}\s?)?(\d(?:[\d\s.,]*\d)?)(\s?[\p{Sc}\p{L}]{1,3})?$/u;
+const digitsOf = (value) => String(value ?? '').replace(/\D/g, '');
+// The tag for a drawn amount whose digits equal one cell's digits, or null.
+// The tag prints the cell, so a mark the cell already carries is not added again.
+function moneyTag(drawn, cells, tag) {
+  const match = norm(drawn).match(MONEY);
+  if (!match) return null;
+  const digits = digitsOf(match[2]);
+  const cell = cells.find((value) => digitsOf(value) && digitsOf(value) === digits);
+  if (cell == null) return null;
+  const carried = (mark) => !mark || fold(cell).includes(fold(mark));
+  const before = match[1] ?? '';
+  const after = match[3] ?? '';
+  return `${carried(before) ? '' : before}${tag}${carried(after) ? '' : after}`;
+}
 
 function textsIn(node, out = []) {
   if (!node || node.visible === false) return out;
@@ -133,7 +160,10 @@ function pickCyclePair(items, selectedId) {
   const named = selectedId ? items.find((item) => item.id === selectedId) : null;
   const found = activeTitle(pool);
   const active = named ?? (found.clear && Number.isInteger(found.index) ? pool[found.index] : null);
-  const rest = pool.find((item) => item !== active && componentState(item) === ComponentState.REST)
+  // The loop repeats one resting pill. The fullest one (a badge beside the label) carries every part a cycle may show.
+  const resting = pool.filter((item) => item !== active && [ComponentState.REST, null, undefined].includes(componentState(item)));
+  const fullest = resting.reduce((best, item) => (!best || textsIn(item).length > textsIn(best).length ? item : best), null);
+  const rest = fullest
     ?? pool.find((item) => item !== active)
     ?? items.find((item) => item !== active);
   return { active, rest };
@@ -209,7 +239,7 @@ function tagText(patches, id, tag) {
   patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
 }
 
-function bindPrice(node, table, id, root, attrs, selectedId) {
+function bindPrice(node, table, id, root, attrs, selectedId, shown) {
   const empty = { tabsHost: null, card: null, patches: {}, omit: [], warnings: [], skip: false };
   if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
   const scopeRoot = root ?? node;
@@ -349,8 +379,10 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     const hostNode = tabsNode ?? cards.host;
     put(tabsHost, {
       kind: 'tabs-nested',
-      settings: { openTab: String(openAt) },
-      css: [...flexDirectionCss(hostNode), ...tabsChromeCss()],
+      // A looped pill carries the popular cycle flag: the tool's script opens that cycle starting from the first tab
+      // (a fixed open index left both tabs open). The drawn open pill still decides which prices the card shows.
+      settings: { openTab: String(cycleProto && !cycleField ? 0 : openAt) },
+      css: [...flexDirectionCss(hostNode), ...tabsChromeCss({ keepTitleWidth: cycleProto?.sizing?.h === 'FIXED' })],
     });
     const activeCss = [];
     if (cycleActive && cycleProto && cycleActive.id !== cycleProto.id) {
@@ -438,13 +470,86 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     });
   }
   if (moveCards && !tabsHost) put(cards.host.id, { settings: { _attributes: [{ name: 'data-vnx-sp-deck', value: '1' }] } });
+  // One drawn card sits in a shell the others do not have (a top tag, its own fill and stroke). That is the
+  // highlighted package. The tool's popular flag picks the package, so the looped card carries the shell as a
+  // state: the tag shows and the shell look applies only when {vnx_sp_popular} is 1. Values are the drawn shell's.
+  // The shell has its own paint (fill or stroke) and its mark is a written label. A bare mark beside a card is not this.
+  const highlighted = (item) => (item.fills ?? []).some((fill) => fill.visible !== false) || (item.stroke?.paints ?? []).some((paint) => paint.visible !== false);
+  const shelled = card.type !== 'TEXT'
+    ? cards.items.find((item) => item.id !== card.id && highlighted(item) && shellMarks(item).some((mark) => textsIn(mark).length))
+    : null;
+  if (shelled) {
+    const marks = shellMarks(shelled);
+    const popular = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_popular}', compare: '==', value: '1' }]];
+    for (const mark of marks) put(mark.id, { settings: { _conditions: popular }, rawCss: '%class% { order: -1; }' });
+    const paints = (shelled.fills ?? []).filter((fill) => fill.type === 'SOLID' && fill.visible !== false);
+    const layers = paints.slice(1).reverse().map((fill) => `linear-gradient(${cssColor(fill)}, ${cssColor(fill)})`);
+    const stroke = (shelled.stroke?.paints ?? []).find((paint) => paint.type === 'SOLID' && paint.visible !== false);
+    const pad = shelled.layout?.padding ?? { top: 0, right: 0, bottom: 0, left: 0 };
+    const radius = shelled.radius ?? [0, 0, 0, 0];
+    const decls = [
+      `flex-direction: ${shelled.layout?.mode === 'HORIZONTAL' ? 'row' : 'column'};`,
+      `padding: ${px(pad.top)} ${px(pad.right)} ${px(pad.bottom)} ${px(pad.left)};`,
+      ...(shelled.sizing?.h === 'FIXED' && shelled.box?.w ? [`width: ${px(shelled.box.w)};`] : []),
+      ...(paints.length ? [`background: ${[...layers, cssColor(paints[0])].join(', ')};`] : []),
+      ...(stroke ? [`border: ${px(shelled.stroke.weight ?? 1)} solid ${cssColor(stroke)};`] : []),
+      `border-radius: ${radius.map((value) => px(value)).join(' ')};`,
+      ...(shelled.clip ? ['overflow: hidden;'] : []),
+    ];
+    // The drawn body inside the shell: its own stroke (none when the shell draws the edge).
+    const shellBody = visibleKids(shelled).find((child) => !marks.includes(child));
+    const bodyStroke = (shellBody?.stroke?.paints ?? []).find((paint) => paint.type === 'SOLID' && paint.visible !== false);
+    const bodyDecl = bodyStroke ? `border: ${px(shellBody.stroke.weight ?? 1)} solid ${cssColor(bodyStroke)};` : 'border-style: none;';
+    put(card.id, {
+      adopt: marks.map((mark) => mark.id),
+      settings: { _attributes: [...(patches[card.id]?.settings?._attributes ?? []), { name: 'data-vnx-sp-popular', value: '{vnx_sp_popular}' }] },
+      rawCss: [patches[card.id]?.rawCss, `%class%[data-vnx-sp-popular="1"] { ${decls.join(' ')} }`, `%class%[data-vnx-sp-popular="1"] > :not([data-vnx-sp-mark]) { ${bodyDecl} }`].filter(Boolean).join('\n'),
+    });
+    for (const mark of marks) put(mark.id, { settings: { _attributes: [{ name: 'data-vnx-sp-mark', value: '1' }] } });
+  }
   if (flanks.prev) put(flanks.prev.id, { settings: { _attributes: [{ name: 'data-vnx-sp-prev', value: '1' }] } });
   if (flanks.next) put(flanks.next.id, { settings: { _attributes: [{ name: 'data-vnx-sp-next', value: '1' }] } });
   if (rows && rows.items[0].type !== 'TEXT') put(rows.items[0].id, { settings: loop('row', id) });
+  // A text with a trailing mark drawn right after the looped rows is a show-more control: the rows past the drawn count
+  // (or the planned count) stay closed until it is clicked, and it is hidden when a package has no more rows than that.
+  if (rows && rows.host.id !== card.id) {
+    const shelf = parentOf(card, rows.host.id);
+    const kids = shelf ? visibleKids(shelf) : [];
+    const control = kids[kids.indexOf(rows.host) + 1];
+    const parts = control && control.type !== 'TEXT' ? visibleKids(control) : [];
+    const trailingMark = parts.length === 2 && parts[0].type === 'TEXT' && textsIn(parts[1]).length === 0 && hasSvg(parts[1]);
+    const words = trailingMark ? norm(parts[0].text.characters) : '';
+    const isInfo = words && pack.info.some((info) => same(words, info.text));
+    if (trailingMark && words && !isInfo) {
+      const planned = Number(shown);
+      const count = Number.isInteger(planned) && planned > 0 ? planned : rows.items.length;
+      const next = count + 1;
+      put(control.id, {
+        settings: {
+          tag: 'button',
+          _cssClasses: 'vnx-sp-more',
+          _interactions: [{ id: `vnxspmore${next}`, trigger: 'click', action: 'toggleAttribute', target: 'self', actionAttributeKey: 'class', actionAttributeValue: 'vnx-sp-more-open' }],
+        },
+        dropSettings: ['link'],
+      });
+      put(rows.host.id, {
+        rawCss: [
+          patches[rows.host.id]?.rawCss,
+          `%class%:not(:has(~ .vnx-sp-more-open)) > :nth-child(n+${next}) { display: none !important; }`,
+          `%class%:not(:has(> :nth-child(${next}))) ~ .vnx-sp-more { display: none !important; }`,
+          `%class% ~ .vnx-sp-more-open svg { transform: rotate(180deg); }`,
+        ].filter(Boolean).join('\n'),
+      });
+    }
+  }
 
   const assign = (textNode, tag) => tagText(patches, textNode.id, tag);
   const used = new Set();
   const take = (textNode, tag) => { assign(textNode, tag); used.add(textNode.id); };
+  const takeStruck = (textNode) => {
+    take(textNode, '{vnx_sp_regular}');
+    if (textNode.text?.decoration !== 'STRIKETHROUGH') put(textNode.id, { settings: { _typography: { 'text-decoration': 'line-through' } } });
+  };
   const showBadge = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_badge}', compare: 'empty_not' }]];
   let taggedBadge = false;
   const badgeWord = (word) => /^[-+]?\d/.test(norm(word)) || /%$/.test(norm(word));
@@ -457,12 +562,38 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       continue;
     }
     take(textNode, '{vnx_sp_cycle_badge}');
+    if (!cycleField) {
+      // The badge frame Figma drew around the text shows only for a cycle that has a badge.
+      const host = parentOf(cycleProto, textNode.id);
+      put(host && host.id !== cycleProto.id ? host.id : textNode.id, { settings: { _conditions: showBadge } });
+    }
     if (cycleField) {
       const host = parentOf(cycleField, textNode.id);
       const badgeHost = host && host.id !== cycleField.id ? host.id : textNode.id;
       put(badgeHost, { settings: { _conditions: showBadge, _hidden: { _cssClasses: 'f2b-select-badge' } } });
       taggedBadge = true;
     }
+  }
+  // A mark laid over one pill only (absolute, no cycle word in it) is the popular cycle's mark: the looped pill carries it and
+  // it shows on the cycle the table flags popular, whichever cycle the drawing put it on. The popular cycle opens on page load
+  // (the tool's script reads data-vnx-sp-open-tab); without a flag the first tab opens.
+  if (cycles && cycleProto && !cycleField) {
+    const adopt = [];
+    for (const pill of cycles.items) {
+      if (pill.id === cycleProto.id) continue;
+      const word = textsIn(pill).map((text) => text.text.characters).find((value) => table.cycles.some((cycle) => same(value, cycle.label)));
+      if (!word) continue;
+      for (const mark of visibleKids(pill)) {
+        if (mark.place !== 'ABSOLUTE') continue;
+        if (textsIn(mark).some((text) => table.cycles.some((item) => same(text.text.characters, item.label)))) continue;
+        adopt.push(mark.id);
+        put(mark.id, { settings: { _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_popular}', compare: '==', value: '1' }]] } });
+      }
+    }
+    if (adopt.length) put(cycleProto.id, { adopt });
+  }
+  if (tabsHost && cycleProto && !cycleField) {
+    put(cycleProto.id, { settings: { _attributes: [...(patches[cycleProto.id]?.settings?._attributes ?? []), { name: 'data-vnx-sp-open-tab', value: '{vnx_sp_cycle_popular}' }] } });
   }
   if (cycleField && !taggedBadge) {
     put(cycleField.id, {
@@ -494,7 +625,25 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       }
     }
     const icon = visibleKids(infoItem).find((child) => hasSvg(child) && !/question|help|tooltip/i.test(child.name || ''));
-    if (icon) {
+    // The Service Pricing tool stores either a yes / no / highlight mark or a font class per info line.
+    const marks = new Set(['yes', 'no', 'highlight', '']);
+    const classIcons = table.packages.some((item) => item.info.some((info) => !marks.has(String(info.icon ?? '').trim())));
+    if (icon && classIcons) {
+      const size = Math.max(icon.box?.w || 0, icon.box?.h || 0);
+      put(icon.id, {
+        kind: 'div',
+        skipChildren: true,
+        dropSettings: ['text'],
+        iconSvg: icon.svg?.file ?? null,
+        settings: {
+          tag: 'custom',
+          customTag: 'i',
+          _attributes: [{ name: 'class', value: '{vnx_sp_info_icon_class}' }],
+          _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon_class}', compare: 'empty_not' }]],
+          ...(size ? { _typography: { 'font-size': px(size), 'line-height': px(icon.box?.h || size), 'text-align': 'center' } } : {}),
+        },
+      });
+    } else if (icon) {
       const glyph = (which, name) => ({
         icon: { library: 'fontawesome', icon: name },
         ...(icon.box?.h ? { iconSize: px(Math.max(icon.box.w || 0, icon.box.h)) } : {}),
@@ -507,16 +656,32 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       ] });
     }
   }
+  // A percent mark drawn on the card is the package's own tag for the open cycle (the price cell's tag), not a number worked out
+  // from the prices or the cycle badge. The drawn badge around it shows only when that package has a tag in that cycle.
+  const percentOff = (word) => norm(word).match(/^-\s?(\d{1,3})\s?%$/)?.[1] ?? '';
+  const takeTag = (textNode) => {
+    take(textNode, '{vnx_sp_tag}');
+    const host = parentOf(card, textNode.id);
+    const lone = host && host.id !== card.id && textsIn(host).length === 1;
+    put(lone ? host.id : textNode.id, { settings: { _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_tag}', compare: 'empty_not' }]] } });
+  };
+  // The card draws the open cycle, so its sale and regular numbers come first. Another cycle's number is the fallback.
+  const drawnMoney = (word) => moneyTag(word, [price.sale], '{vnx_sp_sale}')
+    ?? moneyTag(word, [price.regular], '{vnx_sp_regular}')
+    ?? moneyTag(word, pack.prices.map((item) => item.sale), '{vnx_sp_sale}')
+    ?? moneyTag(word, pack.prices.map((item) => item.regular), '{vnx_sp_regular}');
   for (const textNode of textsIn(card)) {
     if (used.has(textNode.id)) continue;
     if (rows && rows.items.some((item) => contains(item, textNode.id))) continue;
     const word = textNode.text.characters;
     if (same(word, pack.name)) take(textNode, '{vnx_sp_name}');
-    else if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
-    else if (same(word, price.sale) || pack.prices.some((item) => same(word, item.sale))) take(textNode, '{vnx_sp_sale}');
+    else if (struck(textNode)) takeStruck(textNode);
+    else if (percentOff(word) || same(word, price.tag) || pack.prices.some((item) => same(word, item.tag))) takeTag(textNode);
+    else if (same(word, price.sale)) take(textNode, '{vnx_sp_sale}');
     else if (same(word, price.regular)) take(textNode, '{vnx_sp_regular}');
+    else if (pack.prices.some((item) => same(word, item.sale))) take(textNode, '{vnx_sp_sale}');
+    else if (drawnMoney(word)) take(textNode, drawnMoney(word));
     else if (same(word, price.total)) take(textNode, '{vnx_sp_total}');
-    else if (same(word, price.tag) || pack.prices.some((item) => same(word, item.tag))) take(textNode, '{vnx_sp_tag}');
     else if (same(word, price.promoText) || pack.prices.some((item) => same(word, item.promoText))) take(textNode, '{vnx_sp_promo_text}');
     else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
       take(textNode, '{vnx_sp_code}');
@@ -527,6 +692,83 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       const frame = parentOf(card, textNode.id);
       const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
       if (onlyText) put(frame.id, { settings: registerButton('{vnx_sp_button}', attrs) });
+    }
+  }
+  // A sentence that carries the open cycle's total or saving: the number becomes that tag and the words stay.
+  // The saving is (regular - sale) for every billed unit of the total. The open cycle's label in that sentence is the cycle.
+  const savingOf = (cell) => {
+    const regular = Number(digitsOf(cell.regular));
+    const sale = Number(digitsOf(cell.sale));
+    const total = Number(digitsOf(cell.total));
+    if (!regular || !sale || !total || regular <= sale || total % sale) return '';
+    return String((regular - sale) * (total / sale));
+  };
+  const sums = [[digitsOf(price.total), '{vnx_sp_total}'], [savingOf(price), '{vnx_sp_saving}']].filter(([digits]) => digits);
+  const cycleLabel = table.cycles[openAt]?.label ?? '';
+  for (const textNode of textsIn(card)) {
+    if (used.has(textNode.id) || !sums.length) continue;
+    if (rows && rows.items.some((item) => contains(item, textNode.id))) continue;
+    const words = textNode.text.characters;
+    if (!/\p{L}/u.test(words)) continue;
+    let changed = false;
+    let out = words.replace(/\d{1,3}(?:[.,\s]\d{3})+|\d+/g, (token) => {
+      const hit = sums.find(([digits]) => digits === digitsOf(token));
+      if (!hit) return token;
+      changed = true;
+      return hit[1];
+    });
+    if (!changed) continue;
+    if (cycleLabel) {
+      const at = out.toLocaleLowerCase('vi').indexOf(cycleLabel.toLocaleLowerCase('vi'));
+      if (at >= 0) out = out.slice(0, at) + '{vnx_sp_cycle}' + out.slice(at + cycleLabel.length);
+    }
+    take(textNode, out);
+    // The sentence is about that number: with no saving (or total) for the open cycle it is not shown.
+    const bound = sums.filter(([, tag]) => out.includes(tag)).map(([, tag]) => [{ key: 'dynamic_data', dynamic_data: tag, compare: 'empty_not' }]);
+    if (bound.length) put(textNode.id, { settings: { _conditions: [bound.flat()] } });
+  }
+  // A text another card draws right before its info rows, where the looped card draws none, is that package's specs title.
+  // The looped card carries it first in the block that holds its rows, and it shows only when the package has a specs title.
+  if (rows && cards.items.length > 1) {
+    const shelf = parentOf(card, rows.host.id);
+    const headingOf = (scope) => {
+      const group = bestGroup(scope, infoItemShape, 2);
+      const parent = group ? parentOf(scope, group.host.id) : null;
+      if (!parent) return null;
+      const kids = visibleKids(parent);
+      const prev = kids[kids.indexOf(group.host) - 1];
+      return prev && prev.type === 'TEXT' && !prev.svg && /\p{L}/u.test(prev.text.characters) ? prev : null;
+    };
+    const heading = shelf && shelf.id !== card.id && !headingOf(card)
+      ? cards.items.filter((item) => item.id !== card.id).map(headingOf).find(Boolean)
+      : null;
+    if (heading) {
+      put(shelf.id, { adopt: [...(patches[shelf.id]?.adopt ?? []), heading.id] });
+      put(heading.id, {
+        settings: { text: '{vnx_sp_specs_title}', _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_specs_title}', compare: 'empty_not' }]] },
+        rawCss: [patches[heading.id]?.rawCss, '%class% { order: -1; }'].filter(Boolean).join('\n'),
+      });
+    }
+  }
+  // With no button label in the table, the card's call to action is the painted frame holding one text, drawn below the price.
+  // Its words stay as drawn, the package name in them becomes the name, and it links to the open cycle's sign-up.
+  if (!table.meta.button && pack.links.some(Boolean)) {
+    const yOf = (item) => item.box?.absY ?? item.box?.y ?? 0;
+    const priced = textsIn(card).filter((textNode) => /\{vnx_sp_(sale|regular)\}/.test(patches[textNode.id]?.settings?.text ?? ''));
+    const priceY = priced.length ? Math.max(...priced.map(yOf)) : null;
+    const actions = priceY === null ? [] : textsIn(card).filter((textNode) => {
+      if (used.has(textNode.id) || !/\p{L}/u.test(textNode.text.characters) || yOf(textNode) <= priceY) return false;
+      if (rows && rows.items.some((item) => contains(item, textNode.id))) return false;
+      const host = parentOf(card, textNode.id);
+      return !!host && host.id !== card.id && highlighted(host) && textsIn(host).length === 1;
+    }).sort((a, b) => yOf(b) - yOf(a));
+    const action = actions[0];
+    if (action) {
+      const words = action.text.characters;
+      const at = pack.name ? words.toLocaleLowerCase('vi').indexOf(pack.name.toLocaleLowerCase('vi')) : -1;
+      const out = at >= 0 ? words.slice(0, at) + '{vnx_sp_name}' + words.slice(at + pack.name.length) : words;
+      take(action, out);
+      put(parentOf(card, action.id).id, { settings: registerButton(out, attrs) });
     }
   }
   const amount = (word) => {
@@ -546,7 +788,9 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
   let promo = null;
   const walkPromo = (current) => {
     if (rows && (current.id === rows.host.id || rows.items.some((item) => contains(item, current.id) || item.id === current.id))) return;
-    const texts = textsIn(current).filter((text) => !used.has(text.id));
+    // A written unit (a slash and words) and a percent mark are not a promo sentence or a code.
+    const notPromo = (text) => /^\/\s?\p{L}/u.test(norm(text.text.characters)) || /%$/.test(norm(text.text.characters));
+    const texts = textsIn(current).filter((text) => !used.has(text.id) && !notPromo(text));
     if (texts.length === 2) promo = texts;
     visibleKids(current).forEach(walkPromo);
   };
@@ -565,7 +809,7 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     for (const textNode of textsIn(priceCluster)) {
       if (used.has(textNode.id)) continue;
       if (!amount(textNode.text.characters)) continue;
-      if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
+      if (struck(textNode)) takeStruck(textNode);
       else take(textNode, '{vnx_sp_sale}');
     }
   }
@@ -617,7 +861,7 @@ function findImage(node) {
 function bound(node, det, root) {
   if (cache.has(det)) return cache.get(det);
   const scope = det?.params?.confirm === 'ok' ? node : (root ?? node);
-  const value = bindPrice(node, det?.params?.table, det?.params?.id, scope, det?.params?.buttonAttrs, det?.params?.selected);
+  const value = bindPrice(node, det?.params?.table, det?.params?.id, scope, det?.params?.buttonAttrs, det?.params?.selected, det?.params?.shown);
   cache.set(det, value);
   return value;
 }
@@ -689,7 +933,16 @@ export default {
     return { ok: true, warnings: found.warnings };
   },
   descendants(node, det, ctx) {
-    return bound(node, det, ctx?.root ?? node).patches;
+    const patches = bound(node, det, ctx?.root ?? node).patches;
+    // A font icon replaces a drawn svg. Its color is the svg's own paint.
+    for (const patch of Object.values(patches)) {
+      if (!patch.iconSvg || !ctx?.readAsset || patch.settings?._typography?.color) continue;
+      let svg = '';
+      try { svg = ctx.readAsset(patch.iconSvg) ?? ''; } catch { svg = ''; }
+      const paint = [...String(svg).matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{6})"/g)].map((match) => match[1].toLowerCase())[0];
+      if (paint) patch.settings._typography = { ...(patch.settings._typography ?? {}), color: { hex: paint } };
+    }
+    return patches;
   },
   mergedNodes(det, node) {
     return bound(node, det).omit;

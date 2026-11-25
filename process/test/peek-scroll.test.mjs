@@ -25,3 +25,14 @@ test('a row that shows only part of the next item scrolls and keeps the full ite
   assert.equal(el('oak').settings._width, '140px');
   assert.equal(el('oak').settings._flexShrink, 0);
 });
+
+test('a clipped row of a mark and a wider text box stays clipped, it is not a scroll', () => {
+  const mark = { id: 'dot', name: 'dot', type: 'ELLIPSE', absoluteBoundingBox: box(0, 0, 18, 18), fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.6, b: 0.3, a: 1 } }] };
+  const label = { ...text('note', 'Delivery within two days'), absoluteBoundingBox: box(26, 0, 250, 18) };
+  const tree = normalizeRoot({ nodes: { r: { document: frame('box', 'Box', [0, 0, 400, 60], [
+    frame('line', 'Line', [0, 0, 260, 18], [mark, label], { layoutMode: 'HORIZONTAL', itemSpacing: 8, clipsContent: true }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, { salt: 'peek-line' });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.notEqual(el('line').settings._overflow, 'auto');
+});

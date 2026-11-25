@@ -1540,7 +1540,7 @@ test('handling: a limit / gap property is reported only when the node really use
   assert.match(nodeFlag('arcData', { startingAngle: 0, endingAngle: 3, innerRadius: 0.5 }), /\[limit\]/);
   assert.equal(nodeFlag('minHeight', 540), null);                       // read
   assert.match(nodeFlag('somethingFigmaAddsNextYear', 1), /NOT CLASSIFIED/);
-  assert.match(textFlag('leadingTrim', 'CAP_HEIGHT'), /\[limit\]/);
+  assert.match(textFlag('hangingPunctuation', true), /\[limit\]/);
 });
 
 test('handling: the real design in the fixture produces no unclassified property', () => {

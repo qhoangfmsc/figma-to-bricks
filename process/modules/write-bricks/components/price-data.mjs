@@ -101,13 +101,16 @@ export function carryPriceTables(baseDetections, variantDetections, pairs, varia
     const paired = baseToVariant.get(item.node);
     const prev = byTable.get(item.params.id);
     if (prev?.paired) continue;
+    // The open cycle pill is a node of the base frame. On this frame it is the paired pill, or unknown.
+    const { selected, ...params } = item.params;
+    const pairedSelected = selected ? baseToVariant.get(selected) : undefined;
     byTable.set(item.params.id, {
       paired: !!paired,
       detection: {
         ...item,
         id: `${item.id}@${variantRootId}`,
         node: paired ?? variantRootId,
-        params: { ...item.params },
+        params: { ...params, ...(pairedSelected ? { selected: pairedSelected } : {}) },
       },
     });
   }

@@ -408,7 +408,9 @@ test('a card keeps tags when the drawn words differ by case from the table', () 
   assert.equal(textOf('au'), '{vnx_sp_unit}');
   assert.equal(textOf('apt'), '{vnx_sp_promo_text}');
   assert.equal(textOf('apc'), '{vnx_sp_code}');
-  assert.equal(textOf('y1t'), '{vnx_sp_cycle}');
+  // The loop copies the fullest resting pill: the one with a badge beside its label.
+  assert.equal(textOf('y2t'), '{vnx_sp_cycle}');
+  assert.equal(textOf('y2b'), '{vnx_sp_cycle_badge}');
   assert.equal(built.mapping.b.skipped.startsWith('merged into'), true);
 });
 
@@ -520,7 +522,9 @@ test('one painted pill among plain pills is the open tab, with no variant and no
   assert.equal(built.mapping.mid.skipped.startsWith('merged into'), true);
   assert.equal(built.mapping.late.skipped.startsWith('merged into'), true);
   assert.match(el('bar').settings._cssCustom, /\.tab-title\.brx-open \{ background-color: #1a734d/);
-  assert.equal(el('r').settings.openTab, '1');
+  // The tool's script opens the popular cycle from the first tab, so the tabs start on the first tab.
+  assert.equal(el('r').settings.openTab, '0');
+  assert.equal(JSON.stringify(el('early').settings._attributes ?? []).includes('{vnx_sp_cycle_popular}'), true);
 });
 
 test('a mark beside one card stays out of the loop', () => {
@@ -723,7 +727,7 @@ test('the picture names the open cycle pill when the paints match', () => {
   const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
   assert.equal(el('morn').settings.query.objectType, 'vnxsp_cycle__early-late');
   assert.equal(built.mapping.eve.skipped.startsWith('merged into'), true);
-  assert.equal(el('r').settings.openTab, '1');
+  assert.equal(el('r').settings.openTab, '0');
 });
 
 test('two pills with the same paint and no selected item stay on the first cycle', () => {
@@ -844,4 +848,481 @@ test('a filled category is on the register button and the other attributes stay 
   assert.equal(button.settings._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
   assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-category').value, 'Cloud desk');
   assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-name').value, '{vnx_sp_name}');
+});
+
+function moneyTree(cards, pills) {
+  return normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 640, 320], [
+    frame('bar', 'cycles', [0, 0, 200, 32], pills.map(([id, label]) => frame(id, 'pill', [0, 0, 80, 32], [text(`${id}t`, label)])), { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 400, 240], cards, { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+}
+
+function moneyCard(id, name, amount, badge, line, extra = []) {
+  return frame(id, 'card', [0, 0, 180, 200], [
+    frame(`${id}n`, 'name', [0, 0, 160, 24], [text(`${id}nt`, name)]),
+    frame(`${id}p`, 'price', [0, 28, 160, 24], [text(`${id}pt`, amount)]),
+    frame(`${id}d`, 'off', [0, 52, 60, 20], [text(`${id}dt`, badge)]),
+    frame(`${id}r`, 'line', [0, 80, 160, 24], [text(`${id}rt`, line)]),
+    ...extra,
+  ]);
+}
+
+function moneyBuild(tree, id, table, salt) {
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id, table } },
+    ] },
+    salt,
+  });
+  const content = built.template.content;
+  return (node) => content.find((item) => item.id === built.mapping[node]?.bricksId);
+}
+
+test('a drawn amount with thousands marks and a currency mark binds to the plain number, and keeps the mark', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'harbor-mail',
+    unit: '',
+    button: 'Choose',
+    cycles: [{ label: 'Monthly', badge: '' }, { label: 'Yearly', badge: '-15%' }],
+    rows: ['Inboxes'],
+    packages: [
+      { name: 'Solo', prices: [{ sale: '1250', total: '1250', promo: '', code: '' }, { sale: '1100', total: '13200', promo: '', code: '' }], info: ['3 inboxes'], links: ['https://example.com/s1', 'https://example.com/s2'] },
+      { name: 'Crew', prices: [{ sale: '4800', total: '4800', promo: '', code: '' }, { sale: '4100', total: '49200', promo: '', code: '' }], info: ['15 inboxes'], links: ['https://example.com/c1', 'https://example.com/c2'] },
+    ],
+  }));
+  const tree = moneyTree([
+    moneyCard('k1', 'Solo', '$1,100', '-12%', '3 inboxes'),
+    moneyCard('k2', 'Crew', '4 100 €', '-14%', '15 inboxes'),
+  ], [['m1', 'Monthly'], ['m2', 'Yearly']]);
+  const el = moneyBuild(tree, 'harbor-mail', parsed.table, 'money');
+  assert.equal(el('k1nt').settings.text, '{vnx_sp_name}');
+  assert.equal(el('k1pt').settings.text, '$' + '{vnx_sp_sale}');
+  assert.notEqual(el('k1dt')?.settings?.text, '{vnx_sp_sale}');
+});
+
+test('a currency mark the cell already carries is not doubled, and a percent is not an amount', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'lumen-store',
+    unit: '',
+    button: 'Pick',
+    cycles: [{ label: 'Week', badge: '' }],
+    rows: ['Space'],
+    packages: [
+      { name: 'Tiny', prices: [{ sale: '12 kr', total: '12 kr', promo: '', code: '' }], info: ['1 GB'], links: ['https://example.com/t'] },
+    ],
+  }));
+  const tree = moneyTree([moneyCard('t1', 'Tiny', '12kr', '-12%', '1 GB')], [['w1', 'Week']]);
+  const el = moneyBuild(tree, 'lumen-store', parsed.table, 'money2');
+  assert.equal(el('t1pt').settings.text, '{vnx_sp_sale}');
+  assert.notEqual(el('t1dt')?.settings?.text, '{vnx_sp_sale}');
+});
+
+test('a trailing currency mark after a grouped amount stays after the tag', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'quill-host',
+    unit: '',
+    button: 'Go',
+    cycles: [{ label: 'Quarter', badge: '' }],
+    rows: ['Seats'],
+    packages: [
+      { name: 'Pro', prices: [{ sale: '89900', total: '269700', promo: '', code: '' }], info: ['5 seats'], links: ['https://example.com/p'] },
+    ],
+  }));
+  const tree = moneyTree([moneyCard('q1', 'Pro', '89.900 ₽', 'new', '5 seats')], [['h1', 'Quarter']]);
+  const el = moneyBuild(tree, 'quill-host', parsed.table, 'money3');
+  assert.equal(el('q1pt').settings.text, '{vnx_sp_sale} ₽');
+});
+
+test('a drawn amount that equals the open cycle regular price is the regular price, even when another cycle sells at that number', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'cedar-vault',
+    unit: '',
+    button: 'Start',
+    cycles: [{ label: 'Short', badge: '' }, { label: 'Long', badge: '-20%' }],
+    rows: ['Backups'],
+    packages: [
+      { name: 'Core', prices: [{ sale: '700', total: '700', promo: '', code: '' }, { sale: '560', total: '6720', promo: '', code: '' }], info: ['Daily'], links: ['https://example.com/a', 'https://example.com/b'] },
+    ],
+  }));
+  parsed.table.packages[0].prices[1].regular = '700';
+  const tree = moneyTree([moneyCard('v1', 'Core', 'kr 560', 'old', 'Daily', [frame('v1o', 'was', [0, 110, 60, 20], [text('v1ot', '700')])])], [['l1', 'Short'], ['l2', 'Long']]);
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'cedar-vault', table: parsed.table, selected: 'l2' } },
+    ] },
+    salt: 'money4',
+  });
+  const content = built.template.content;
+  const el = (node) => content.find((item) => item.id === built.mapping[node]?.bricksId);
+  assert.equal(el('v1pt').settings.text, 'kr {vnx_sp_sale}');
+  assert.equal(el('v1ot').settings.text, '{vnx_sp_regular}');
+});
+
+test('the open cycle pill chosen on one frame is its paired pill on another frame', () => {
+  const table = { packages: [{ name: 'Basic' }], cycles: [{ label: 'Year' }] };
+  const base = { components: [
+    { id: 'wide', component: PartKind.PRICE_TABLE, status: 'approved', node: 'wide-box', params: { id: 'north-plan', table, selected: 'wide-pill-2', children: { price_card: 'wide-card' } } },
+  ] };
+  const carried = carryPriceTables(base, { components: [] }, new Map([['tall-box', 'wide-box'], ['tall-pill-2', 'wide-pill-2']]), 'tall');
+  const price = carried.components.find((item) => isKind(item, PartKind.PRICE_TABLE));
+  assert.equal(price.params.selected, 'tall-pill-2');
+  assert.equal(base.components[0].params.selected, 'wide-pill-2');
+  const lost = carryPriceTables(base, { components: [] }, new Map([['tall-box', 'wide-box']]), 'tall');
+  assert.equal(lost.components.find((item) => isKind(item, PartKind.PRICE_TABLE)).params.selected, undefined);
+});
+
+function richTable() {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'delta-sites',
+    unit: '',
+    button: 'Order',
+    cycles: [{ label: 'Quarter', badge: '' }, { label: 'Year', badge: '' }, { label: 'Two years', badge: '-9%' }],
+    rows: ['Sites', 'Mail'],
+    packages: [
+      { name: 'Lite', prices: [{ sale: '300', total: '900', promo: '', code: '' }, { sale: '250', total: '3000', promo: '', code: '' }, { sale: '220', total: '5280', promo: '', code: '' }], info: [{ text: '2 sites', icon: 'fa-regular fa-window' }, { text: 'No mail', icon: 'fa-solid fa-ban' }], links: ['https://example.com/1', 'https://example.com/2', 'https://example.com/3'] },
+      { name: 'Max', prices: [{ sale: '900', total: '2700', promo: '', code: '' }, { sale: '800', total: '9600', promo: '', code: '' }, { sale: '700', total: '16800', promo: '', code: '' }], info: [{ text: '9 sites', icon: 'fa-regular fa-window' }, { text: 'Mail', icon: 'fa-solid fa-envelope' }], links: ['https://example.com/4', 'https://example.com/5', 'https://example.com/6'] },
+    ],
+  }));
+  for (const pack of parsed.table.packages) {
+    pack.prices[0].regular = pack.prices[0].sale;
+    pack.prices[1].regular = String(Number(pack.prices[0].sale));
+    pack.prices[2].regular = String(Number(pack.prices[0].sale));
+  }
+  return parsed.table;
+}
+
+function richTree() {
+  const fixedPill = (id, label, badge) => frame(id, 'pill', [0, 0, 120, 36], [
+    text(`${id}t`, label),
+    ...(badge ? [frame(`${id}b`, 'badge', [80, 6, 36, 20], [text(`${id}bt`, badge)], { fills: [{ type: 'SOLID', color: { r: 0.9, g: 0.95, b: 1, a: 1 } }] })] : []),
+  ], { layoutMode: 'HORIZONTAL', layoutSizingHorizontal: 'FIXED' });
+  const icon = (id) => ({ id, name: 'icon', type: 'VECTOR', absoluteBoundingBox: box(0, 0, 20, 20), fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.3, b: 0.4, a: 1 } }] });
+  const card = (id, name, was, now, sum, keep, line1, line2, off) => frame(id, 'card', [0, 0, 200, 300], [
+    frame(`${id}n`, 'name', [0, 0, 160, 24], [text(`${id}nt`, name)]),
+    frame(`${id}o`, 'was', [0, 28, 160, 20], [{ ...text(`${id}old`, was), characterStyleOverrides: was.split('').map(() => 7), styleOverrideTable: { 7: { textDecoration: 'STRIKETHROUGH' } } }]),
+    frame(`${id}p`, 'price', [0, 50, 160, 30], [text(`${id}pt`, now), frame(`${id}off`, 'off', [100, 4, 40, 20], [text(`${id}offt`, off)], { fills: [{ type: 'SOLID', color: { r: 0.9, g: 0.2, b: 0.2, a: 1 } }] }), text(`${id}ut`, '/seat a month')]),
+    frame(`${id}s`, 'sum', [0, 84, 180, 40], [text(`${id}s1`, sum), text(`${id}s2`, keep)]),
+    frame(`${id}r`, 'line', [0, 130, 180, 24], [icon(`${id}ri`), text(`${id}rt`, line1)], { layoutMode: 'HORIZONTAL' }),
+    frame(`${id}q`, 'line', [0, 160, 180, 24], [icon(`${id}qi`), text(`${id}qt`, line2)], { layoutMode: 'HORIZONTAL' }),
+  ]);
+  const cards = [
+    card('l1', 'Lite', '300', '€250', 'Billed €3,000 per Year', 'You keep €600', '2 sites', 'No mail', '-17%'),
+    card('m1', 'Max', '900', '€800', 'Billed €9,600 per Year', 'You keep €1,200', '9 sites', 'Mail', '-11%'),
+  ];
+  return normalizeRoot({ nodes: { r: { document: frame('r', 'Hosting', [0, 0, 700, 420], [
+    frame('bar', 'cycles', [0, 0, 380, 36], [fixedPill('p1', 'Quarter'), { ...fixedPill('p2', 'Year'), children: [...fixedPill('p2', 'Year').children, frame('p2hot', 'hot', [20, -14, 70, 14], [text('p2hott', 'Top pick')], { layoutPositioning: 'ABSOLUTE' })] }, fixedPill('p3', 'Two years', '-9%')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 60, 420, 320], cards, { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: Object.fromEntries(['l1ri', 'l1qi', 'm1ri', 'm1qi'].map((id) => [id, { file: `svg/${id}.svg`, bytes: 60, width: 20, height: 20 }])) });
+}
+
+function richBuild() {
+  const built = buildTemplate(richTree(), {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'delta-sites', table: richTable(), selected: 'p2' } },
+    ] },
+    readAsset: () => '<svg viewBox="0 0 20 20" fill="none"><path d="M1 1h18" stroke="#3A4F66"/></svg>',
+    salt: 'rich',
+  });
+  const content = built.template.content;
+  return { content, el: (node) => content.find((item) => item.id === built.mapping[node]?.bricksId) };
+}
+
+test('a cycle pill drawn at a fixed width keeps that width inside the tabs', () => {
+  const { el } = richBuild();
+  assert.equal(el('r').name, 'tabs-nested');
+  assert.doesNotMatch(el('r').settings._cssCustom ?? '', / \.tab-title \{ width: auto; \}/);
+});
+
+test('a badge drawn on one cycle pill is in the looped pill and shows only when the cycle has a badge', () => {
+  const { content } = richBuild();
+  const badge = content.find((item) => item.settings?.text === '{vnx_sp_cycle_badge}');
+  assert.ok(badge, 'badge text is tagged');
+  const host = content.find((item) => item.id === badge.parent);
+  const conditioned = [badge, host].some((item) => JSON.stringify(item?.settings?._conditions ?? '').includes('{vnx_sp_cycle_badge}'));
+  assert.equal(conditioned, true);
+  assert.equal(content.filter((item) => item.settings?.text === '{vnx_sp_cycle}').length >= 1, true);
+});
+
+test('a price struck through by a run style is the regular price and keeps the line', () => {
+  const { el } = richBuild();
+  assert.equal(el('l1old').settings.text, '{vnx_sp_regular}');
+  assert.equal(el('l1old').settings._typography?.['text-decoration'], 'line-through');
+  assert.equal(el('l1pt').settings.text, '€{vnx_sp_sale}');
+});
+
+test('an amount inside a sentence becomes the total or the saving, and the open cycle word becomes the cycle', () => {
+  const { el } = richBuild();
+  assert.equal(el('l1s1').settings.text, 'Billed €{vnx_sp_total} per {vnx_sp_cycle}');
+  assert.equal(el('l1s2').settings.text, 'You keep €{vnx_sp_saving}');
+});
+
+test('an info icon whose data is a font class is drawn from that class at the drawn size', () => {
+  const { el } = richBuild();
+  const icon = el('l1ri');
+  assert.equal(JSON.stringify(icon.settings._attributes ?? []).includes('{vnx_sp_info_icon_class}'), true);
+  assert.equal(icon.settings._typography?.['font-size'], '20px');
+  assert.equal(icon.settings._typography?.color?.hex, '#3a4f66');
+});
+
+test('a decorative override adds its attribute and keeps the data class the price table wrote', () => {
+  const built = buildTemplate(richTree(), {
+    overrides: { nodes: { l1ri: { settings: { _attributes: [{ name: 'aria-hidden', value: 'true' }] }, reason: 'icon, decorative' } } },
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'delta-sites', table: richTable(), selected: 'p2' } },
+    ] },
+    salt: 'rich-ov',
+  });
+  const icon = built.template.content.find((item) => item.id === built.mapping.l1ri?.bricksId);
+  const names = (icon.settings._attributes ?? []).map((attr) => `${attr.name}=${attr.value}`);
+  assert.ok(names.includes('class={vnx_sp_info_icon_class}'));
+  assert.ok(names.includes('aria-hidden=true'));
+});
+
+test('a percent badge on the card is the package tag of the open cycle, hidden when the package has none, and a written unit stays as drawn', () => {
+  const { el } = richBuild();
+  assert.equal(el('l1offt').settings.text, '{vnx_sp_tag}');
+  const badge = el('l1off');
+  assert.equal(JSON.stringify(badge.settings._conditions ?? '').includes('{vnx_sp_tag}'), true);
+  assert.equal(JSON.stringify(badge.settings).includes('{vnx_sp_discount}'), false);
+  assert.equal(el('l1ut').settings.text, '/seat a month');
+});
+
+test('a drawn word equal to a package tag is the tag, and its badge hides when the open cycle has no tag', () => {
+  const table = richTable();
+  table.packages[0].prices[1].tag = 'Hot deal';
+  const tree = richTree();
+  const offText = (node) => { if (node.id === 'l1offt') node.text.characters = 'Hot deal'; (node.children ?? []).forEach(offText); };
+  offText(tree);
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'delta-sites', table, selected: 'p2' } },
+    ] },
+    readAsset: () => '<svg viewBox="0 0 20 20"><path d="M1 1h18" stroke="#3A4F66"/></svg>',
+    salt: 'rich-tag',
+  });
+  const el = (node) => built.template.content.find((item) => item.id === built.mapping[node]?.bricksId);
+  assert.equal(el('l1offt').settings.text, '{vnx_sp_tag}');
+  assert.equal(JSON.stringify(el('l1off').settings._conditions ?? '').includes('{vnx_sp_tag}'), true);
+});
+
+test('a mark drawn over one cycle pill is the popular cycle mark of the looped pill, and the popular cycle opens first', () => {
+  const { content, el } = richBuild();
+  const mark = el('p2hot');
+  assert.ok(mark, 'the mark is built');
+  const pill = content.find((item) => item.settings?.hasLoop && item.settings.query.objectType === 'vnxsp_cycle__delta-sites' && item.settings._hidden?._cssClasses?.includes('tab-title'));
+  assert.equal(mark.parent, pill.id);
+  assert.deepEqual(mark.settings._conditions, [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_popular}', compare: '==', value: '1' }]]);
+  assert.equal(JSON.stringify(mark.settings._conditions).includes('Year'), false);
+  assert.deepEqual((pill.settings._attributes ?? []).filter((item) => item.name === 'data-vnx-sp-open-tab'), [{ name: 'data-vnx-sp-open-tab', value: '{vnx_sp_cycle_popular}' }]);
+  assert.equal(pill.settings._position, 'relative');
+  assert.equal(el('p2hott').settings.text, 'Top pick');
+});
+
+test('a sentence bound to the saving shows only when the cycle has a saving', () => {
+  const { el } = richBuild();
+  assert.equal(JSON.stringify(el('l1s2').settings._conditions ?? '').includes('{vnx_sp_saving}'), true);
+});
+
+test('a card drawn inside a highlighted shell is the popular state of the looped card', () => {
+  const table = richTable();
+  const body = (id, name, price) => frame(`${id}body`, 'body', [0, 0, 220, 200], [
+    frame(`${id}n`, 'name', [0, 0, 180, 24], [text(`${id}nt`, name)]),
+    frame(`${id}p`, 'price', [0, 28, 180, 30], [text(`${id}pt`, price)]),
+    frame(`${id}r`, 'line', [0, 70, 180, 24], [text(`${id}rt`, name === 'Lite' ? '2 sites' : '9 sites')]),
+  ], { layoutMode: 'VERTICAL', fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }], strokes: [{ type: 'SOLID', color: { r: 0.85, g: 0.9, b: 0.95, a: 1 } }], strokeWeight: 1, strokeAlign: 'INSIDE', cornerRadius: 10 });
+  const plain = frame('lite', 'plain', [0, 0, 220, 228], [body('lite', 'Lite', '€250')], { layoutMode: 'HORIZONTAL', paddingTop: 28 });
+  const shell = frame('max', 'shell', [240, 0, 224, 228], [
+    frame('maxtag', 'tag', [0, 0, 224, 28], [text('maxtagt', 'Editor choice')], { layoutMode: 'HORIZONTAL' }),
+    body('max', 'Max', '€800'),
+  ], { layoutMode: 'VERTICAL', fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.1, b: 0.6, a: 1 } }], strokes: [{ type: 'SOLID', color: { r: 0.4, g: 0.1, b: 0.6, a: 1 } }], strokeWeight: 1, strokeAlign: 'INSIDE', cornerRadius: 12, clipsContent: true });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Hosting', [0, 0, 700, 320], [
+    frame('bar', 'cycles', [0, 0, 300, 36], [frame('q1', 'pill', [0, 0, 90, 36], [text('q1t', 'Quarter')]), frame('q2', 'pill', [0, 0, 90, 36], [text('q2t', 'Year')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 60, 480, 240], [plain, shell], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'delta-sites', table, selected: 'q2' } }] },
+    salt: 'popular',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  const card = el('lite');
+  assert.equal(card.settings.query?.objectType, 'vnxsp_pkg__delta-sites');
+  assert.ok((card.settings._attributes ?? []).some((attr) => attr.name === 'data-vnx-sp-popular' && attr.value === '{vnx_sp_popular}'));
+  assert.match(card.settings._cssCustom, /\[data-vnx-sp-popular="1"\] \{[^}]*background: #661a99;/);
+  assert.match(card.settings._cssCustom, /\[data-vnx-sp-popular="1"\] \{[^}]*border-radius: 12px/);
+  const tag = el('maxtag');
+  assert.equal(tag.parent, card.id);
+  assert.deepEqual(tag.settings._conditions, [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_popular}', compare: '==', value: '1' }]]);
+  assert.equal(el('maxtagt').settings.text, 'Editor choice');
+});
+
+test('a shell tag moved into the looped card keeps the size rules of the column it was drawn in', () => {
+  const table = richTable();
+  const body = (id, name, price) => frame(`${id}body`, 'body', [0, 0, 220, 200], [
+    frame(`${id}n`, 'name', [0, 0, 180, 24], [text(`${id}nt`, name)]),
+    frame(`${id}p`, 'price', [0, 28, 180, 30], [text(`${id}pt`, price)]),
+    frame(`${id}r`, 'line', [0, 70, 180, 24], [text(`${id}rt`, name === 'Lite' ? '2 sites' : '9 sites')]),
+  ], { layoutMode: 'VERTICAL', fills: [{ type: 'SOLID', color: { r: 1, g: 1, b: 1, a: 1 } }] });
+  const plain = frame('lite', 'plain', [0, 0, 220, 228], [body('lite', 'Lite', '€250')], { layoutMode: 'HORIZONTAL', paddingTop: 28 });
+  const shell = frame('max', 'shell', [240, 0, 224, 228], [
+    frame('maxtag', 'tag', [0, 0, 224, 28], [text('maxtagt', 'Editor choice')], { layoutMode: 'HORIZONTAL', layoutAlign: 'STRETCH', primaryAxisSizingMode: 'FIXED', counterAxisSizingMode: 'AUTO' }),
+    body('max', 'Max', '€800'),
+  ], { layoutMode: 'VERTICAL', fills: [{ type: 'SOLID', color: { r: 0.4, g: 0.1, b: 0.6, a: 1 } }] });
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Hosting', [0, 0, 700, 320], [
+    frame('bar', 'cycles', [0, 0, 300, 36], [frame('q1', 'pill', [0, 0, 90, 36], [text('q1t', 'Quarter')]), frame('q2', 'pill', [0, 0, 90, 36], [text('q2t', 'Year')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 60, 480, 240], [plain, shell], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'delta-sites', table, selected: 'q2' } }] },
+    salt: 'popular-size',
+  });
+  const tag = built.template.content.find((item) => item.id === built.mapping.maxtag?.bricksId);
+  assert.notEqual(tag.settings._flexBasis, '224px');
+  assert.equal(tag.settings._flexGrow, undefined);
+});
+
+test('with no button label in the table, the painted one-text frame under the price is the card register button and the package name in it is the name', () => {
+  const table = parseWidgetData(widgetOf({
+    id: 'orbit-mail',
+    unit: '',
+    button: '',
+    cycles: [{ label: 'Month', badge: '' }, { label: 'Year', badge: '' }],
+    rows: ['Boxes'],
+    packages: [
+      { name: 'Nova', prices: [{ sale: '40', total: '40', promo: '', code: '' }, { sale: '30', total: '360', promo: '', code: '' }], info: ['3 boxes'], links: ['https://example.com/n1', 'https://example.com/n12'] },
+      { name: 'Pulsar', prices: [{ sale: '90', total: '90', promo: '', code: '' }, { sale: '70', total: '840', promo: '', code: '' }], info: ['9 boxes'], links: ['https://example.com/p1', 'https://example.com/p12'] },
+    ],
+  })).table;
+  const paint = { fills: [{ type: 'SOLID', color: { r: 0.1, g: 0.4, b: 0.9, a: 1 } }] };
+  const at = (node, y) => ({ ...node, absoluteBoundingBox: box(0, y, 80, 20) });
+  const card = (id, name, sale, line) => frame(id, 'card', [0, 0, 220, 260], [
+    frame(`${id}chip`, 'chip', [0, 0, 40, 18], [at(text(`${id}chipt`, 'New'), 0)], paint),
+    frame(`${id}n`, 'title', [0, 22, 160, 24], [at(text(`${id}nt`, name), 22)]),
+    frame(`${id}p`, 'price', [0, 50, 160, 30], [at(text(`${id}pt`, sale), 50)]),
+    frame(`${id}r`, 'line', [0, 90, 180, 24], [at(text(`${id}rt`, line), 90)], { layoutMode: 'HORIZONTAL' }),
+    frame(`${id}go`, 'action', [0, 200, 200, 44], [at(text(`${id}got`, `Pick ${name} plan`), 212)], { ...paint, strokes: [{ type: 'SOLID', color: { r: 0, g: 0, b: 0, a: 1 } }], strokeWeight: 1 }),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Mail', [0, 0, 500, 340], [
+    frame('bar', 'cycles', [0, 0, 200, 30], [frame('y1', 'pill', [0, 0, 90, 30], [text('y1t', 'Month')]), frame('y2', 'pill', [100, 0, 90, 30], [text('y2t', 'Year')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 40, 460, 280], [card('a1', 'Nova', '30', '3 boxes'), card('b1', 'Pulsar', '70', '9 boxes')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'orbit-mail', table, selected: 'y2' } },
+      { id: 'act', status: 'approved', source: 'rule', component: PartKind.BUTTON, node: 'a1go', params: {} },
+    ] },
+    salt: 'orbit',
+  });
+  const content = built.template.content;
+  const el = (node) => content.find((item) => item.id === built.mapping[node]?.bricksId);
+  assert.equal(el('a1go').settings.text, 'Pick {vnx_sp_name} plan');
+  assert.equal(el('a1go').settings.tag, 'a');
+  assert.equal(el('a1go').settings.link.url, '{vnx_sp_link}');
+  assert.equal(el('a1chip')?.settings?.link, undefined);
+  assert.notEqual(el('a1chipt')?.settings?.text ?? el('a1chip')?.settings?.text, 'Pick {vnx_sp_name} plan');
+});
+
+function moreBuild({ shown, after } = {}) {
+  const table = parseWidgetData(widgetOf({
+    id: 'kite-apps',
+    unit: '',
+    button: '',
+    cycles: [{ label: 'Week', badge: '' }, { label: 'Season', badge: '' }],
+    rows: ['A', 'B', 'C', 'D', 'E'],
+    packages: [
+      { name: 'Sparrow', prices: [{ sale: '5', total: '5', promo: '', code: '' }, { sale: '4', total: '48', promo: '', code: '' }], info: ['1 app', '2 users', 'Chat', 'Logs', 'Backups'], links: ['https://example.com/s1', 'https://example.com/s2'] },
+      { name: 'Falcon', prices: [{ sale: '9', total: '9', promo: '', code: '' }, { sale: '8', total: '96', promo: '', code: '' }], info: ['5 apps', '9 users', 'Chat', 'Logs', 'Backups'], links: ['https://example.com/f1', 'https://example.com/f2'] },
+    ],
+  })).table;
+  const icon = (id) => ({ id, name: 'icon', type: 'VECTOR', absoluteBoundingBox: box(0, 0, 16, 16), fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3, a: 1 } }] });
+  const line = (id, words) => frame(id, 'line', [0, 0, 180, 20], [icon(`${id}i`), text(`${id}t`, words)], { layoutMode: 'HORIZONTAL' });
+  const tail = (id) => after === 'note'
+    ? text(`${id}more`, 'Prices exclude tax')
+    : frame(`${id}more`, 'toggle', [0, 0, 180, 20], [text(`${id}moret`, 'See all features'), icon(`${id}morei`)], { layoutMode: 'HORIZONTAL' });
+  const card = (id, name, sale, rows) => frame(id, 'card', [0, 0, 200, 300], [
+    frame(`${id}n`, 'title', [0, 0, 160, 24], [text(`${id}nt`, name)]),
+    frame(`${id}p`, 'price', [0, 30, 160, 30], [text(`${id}pt`, sale)]),
+    frame(`${id}b`, 'benefits', [0, 70, 180, 140], [
+      frame(`${id}l`, 'list', [0, 0, 180, 100], rows.map((words, index) => line(`${id}l${index}`, words))),
+      tail(id),
+    ]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Apps', [0, 0, 460, 380], [
+    frame('bar', 'cycles', [0, 0, 200, 30], [frame('w1', 'pill', [0, 0, 90, 30], [text('w1t', 'Week')]), frame('w2', 'pill', [100, 0, 90, 30], [text('w2t', 'Season')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 40, 420, 320], [card('s1', 'Sparrow', '4', ['1 app', '2 users', 'Chat']), card('f1', 'Falcon', '8', ['5 apps', '9 users', 'Chat'])], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: Object.fromEntries(['s1l0i', 's1l1i', 's1l2i', 's1morei', 'f1l0i', 'f1l1i', 'f1l2i', 'f1morei'].map((id) => [id, { file: `svg/${id}.svg`, bytes: 60, width: 16, height: 16 }])) });
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'kite-apps', table, selected: 'w2', ...(shown ? { shown } : {}) } },
+    ] },
+    readAsset: () => '<svg viewBox="0 0 16 16"><path d="M1 1h14" stroke="#444444"/></svg>',
+    salt: 'kite',
+  });
+  const content = built.template.content;
+  return { content, el: (node) => content.find((item) => item.id === built.mapping[node]?.bricksId) };
+}
+
+test('a text with a trailing mark right after the looped rows opens the rows past the drawn count', () => {
+  const { el } = moreBuild();
+  const toggle = el('s1more');
+  assert.equal(toggle.settings.tag, 'button');
+  assert.match(toggle.settings._cssClasses, /vnx-sp-more/);
+  assert.deepEqual(toggle.settings._interactions.map((item) => [item.trigger, item.action, item.target, item.actionAttributeKey, item.actionAttributeValue]), [['click', 'toggleAttribute', 'self', 'class', 'vnx-sp-more-open']]);
+  const list = el('s1l');
+  assert.match(list.settings._cssCustom, /:not\(:has\(~ \.vnx-sp-more-open\)\) > :nth-child\(n\+4\) \{ display: none !important; \}/);
+  assert.match(list.settings._cssCustom, /:not\(:has\(> :nth-child\(4\)\)\) ~ \.vnx-sp-more \{ display: none !important; \}/);
+});
+
+test('a planned row count replaces the drawn count before the rows open', () => {
+  const { el } = moreBuild({ shown: 2 });
+  assert.match(el('s1l').settings._cssCustom, /> :nth-child\(n\+3\) \{ display: none !important; \}/);
+});
+
+test('a plain sentence after the looped rows is not a toggle', () => {
+  const { el } = moreBuild({ after: 'note' });
+  assert.equal(el('s1more')?.settings?._interactions, undefined);
+  assert.doesNotMatch(el('s1l')?.settings?._cssCustom ?? '', /vnx-sp-more/);
+});
+
+test('a heading another card draws right before its info rows is the package specs title of the looped card, hidden when empty', () => {
+  const table = parseWidgetData(widgetOf({
+    id: 'reef-dns',
+    unit: '',
+    button: '',
+    cycles: [{ label: 'Day', badge: '' }, { label: 'Night', badge: '' }],
+    rows: ['Zones', 'Queries'],
+    packages: [
+      { name: 'Coral', prices: [{ sale: '2', total: '2', promo: '', code: '' }, { sale: '3', total: '3', promo: '', code: '' }], info: ['1 zone', '1k queries'], links: ['https://example.com/c1', 'https://example.com/c2'] },
+      { name: 'Kelp', prices: [{ sale: '6', total: '6', promo: '', code: '' }, { sale: '7', total: '7', promo: '', code: '' }], info: ['5 zones', '9k queries'], links: ['https://example.com/k1', 'https://example.com/k2'] },
+    ],
+  })).table;
+  const icon = (id) => ({ id, name: 'icon', type: 'VECTOR', absoluteBoundingBox: box(0, 0, 16, 16), fills: [{ type: 'SOLID', color: { r: 0.3, g: 0.3, b: 0.3, a: 1 } }] });
+  const line = (id, words) => frame(id, 'line', [0, 0, 180, 20], [icon(`${id}i`), text(`${id}t`, words)], { layoutMode: 'HORIZONTAL' });
+  const lite = frame('c1', 'card', [0, 0, 200, 260], [
+    frame('c1n', 'title', [0, 0, 160, 24], [text('c1nt', 'Coral')]),
+    frame('c1p', 'price', [0, 30, 160, 30], [text('c1pt', '3')]),
+    frame('c1s', 'shelf', [0, 70, 180, 120], [frame('c1l', 'list', [0, 0, 180, 60], [line('c1l0', '1 zone'), line('c1l1', '1k queries')])]),
+  ]);
+  const full = frame('k1', 'card', [0, 0, 200, 260], [
+    frame('k1n', 'title', [0, 0, 160, 24], [text('k1nt', 'Kelp')]),
+    frame('k1p', 'price', [0, 30, 160, 30], [text('k1pt', '7')]),
+    frame('k1s', 'shelf', [0, 70, 180, 140], [frame('k1b', 'block', [0, 0, 180, 100], [text('k1h', 'Everything in Coral, plus:'), frame('k1l', 'list', [0, 30, 180, 60], [line('k1l0', '5 zones'), line('k1l1', '9k queries')])])]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'DNS', [0, 0, 460, 340], [
+    frame('bar', 'cycles', [0, 0, 200, 30], [frame('d1', 'pill', [0, 0, 90, 30], [text('d1t', 'Day')]), frame('d2', 'pill', [100, 0, 90, 30], [text('d2t', 'Night')])], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 40, 420, 280], [lite, full], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: Object.fromEntries(['c1l0i', 'c1l1i', 'k1l0i', 'k1l1i'].map((id) => [id, { file: `svg/${id}.svg`, bytes: 60, width: 16, height: 16 }])) });
+  const built = buildTemplate(tree, {
+    detections: { components: [
+      { id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'reef-dns', table, selected: 'd2' } },
+    ] },
+    readAsset: () => '<svg viewBox="0 0 16 16"><path d="M1 1h14" stroke="#444444"/></svg>',
+    salt: 'reef',
+  });
+  const el = (node) => built.template.content.find((item) => item.id === built.mapping[node]?.bricksId);
+  const heading = el('k1h');
+  assert.ok(heading, 'the heading is built');
+  assert.equal(heading.parent, el('c1s').id);
+  assert.equal(heading.settings.text, '{vnx_sp_specs_title}');
+  assert.deepEqual(heading.settings._conditions, [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_specs_title}', compare: 'empty_not' }]]);
+  assert.match(heading.settings._cssCustom ?? '', /order: -1;/);
 });

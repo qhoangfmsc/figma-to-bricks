@@ -111,3 +111,26 @@ test('a fill form inside a hug column keeps the Figma width', () => {
   assert.equal(form._alignSelf, undefined);
   assert.equal(form._border.radius.top, '34px');
 });
+
+// A column of fixed height: Figma gives the filling child the space left after its siblings,
+// and the child's own taller content hangs past it without moving the siblings below.
+test('a filling child in a fixed-height column keeps the share Figma gave it, not its content height', () => {
+  const leaf = (id, y, h) => ({ id, name: id, type: 'RECTANGLE', absoluteBoundingBox: box(0, y, 200, h), fills: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 } }] });
+  const panel = (id, h, sizing) => ({
+    id, name: id, type: 'FRAME', absoluteBoundingBox: box(0, 0, 200, h), layoutMode: 'VERTICAL', itemSpacing: 12,
+    primaryAxisSizingMode: sizing === 'HUG' ? 'AUTO' : 'FIXED', counterAxisSizingMode: 'FIXED',
+    children: [
+      { id: `${id}-fill`, name: 'fill', type: 'FRAME', layoutGrow: 1, absoluteBoundingBox: box(0, 0, 200, 90), layoutMode: 'VERTICAL', primaryAxisSizingMode: 'FIXED', counterAxisSizingMode: 'FIXED', children: [leaf(`${id}-tall`, 0, 130)] },
+      leaf(`${id}-foot`, 102, 48),
+    ],
+  });
+  const tree = normalizeRoot({ nodes: { r: { document: {
+    id: 'r', name: 'Stack', type: 'FRAME', absoluteBoundingBox: box(0, 0, 420, 150), layoutMode: 'HORIZONTAL', itemSpacing: 20,
+    primaryAxisSizingMode: 'FIXED', counterAxisSizingMode: 'FIXED',
+    children: [panel('fixed', 150, 'FIXED')],
+  } } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, { salt: 'fill-v' });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('fixed-fill').settings._flexBasis, '90px');
+  assert.equal(el('fixed-fill').settings._heightMin, '0px');
+});

@@ -37,7 +37,7 @@ Generated from the Figma REST spec 0.46.0 (`figma-openapi-0.46.0.yaml`) and `han
 | `hangingList` | `false` | list markers hanging outside the text box, see node.lineTypes |
 | `hangingPunctuation` | `false` | punctuation hanging outside the text box: CSS hanging-punctuation is not supported by Chromium |
 | `hyperlink` | (absent) | a link on a text run: the build has no per-run link (links are decided per element, URL is a designer-list item) |
-| `leadingTrim` | `"NONE"` | trims the text box to the cap height / baseline: changes the box height, not written |
+| `leadingTrim` | `"NONE"` | CAP_HEIGHT written as CSS `text-box: trim-both cap alphabetic`; a browser without text-box (Firefox) keeps the full line box |
 | `listSpacing` | `0` | spacing between list items of a list text; lists are not built (see node.lineTypes) |
 | `opentypeFlags` | `{}` | OpenType features (ligatures, tabular numbers, small caps...): not written to font-feature-settings |
 

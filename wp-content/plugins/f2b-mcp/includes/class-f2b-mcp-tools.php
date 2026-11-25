@@ -206,7 +206,7 @@ class F2B_MCP_Tools {
 			),
 			array(
 				'name'        => 'get_service_price',
-				'description' => 'Read one Service Pricing table as widget_data. Requires VNX_Service_Price_Store_Center on this site.',
+				'description' => 'Read one Service Pricing table as widget_data. Reads VNX_Service_Price_Store_Center (option store) or VNX_Price_Service_Table_Center (database tables) on this site.',
 				'inputSchema' => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -286,18 +286,142 @@ class F2B_MCP_Tools {
 	// ---------------------------------------------------------------- tools
 
 	private static function get_service_price( array $args ) {
-		if ( ! class_exists( 'VNX_Service_Price_Store_Center' ) ) {
-			return new WP_Error( 'missing-store', 'Service price store is not on this site.' );
-		}
 		$id = isset( $args['id'] ) ? (string) $args['id'] : '';
-		if ( ! VNX_Service_Price_Store_Center::is_valid_id( $id ) ) {
+		if ( ! preg_match( '/^[a-z0-9][a-z0-9-]{0,59}$/', $id ) ) {
 			return new WP_Error( 'bad-id', 'Invalid price table id.' );
 		}
-		$data = VNX_Service_Price_Store_Center::widget_data( $id );
-		if ( $data === null ) {
-			return new WP_Error( 'missing-table', 'Price table not found.' );
+		// Old store: one option per table. Kept for sites that still run it.
+		if ( class_exists( 'VNX_Service_Price_Store_Center' ) ) {
+			$data = VNX_Service_Price_Store_Center::widget_data( $id );
+			if ( $data !== null ) {
+				return $data;
+			}
 		}
-		return $data;
+		// New store: database tables manager_price_service (+ _info), one table per category slug.
+		if ( class_exists( 'VNX_Price_Service_Table_Center' ) ) {
+			$table = VNX_Price_Service_Table_Center::bricks_table( $id );
+			if ( $table ) {
+				return self::widget_data_of( $table );
+			}
+		}
+		if ( ! class_exists( 'VNX_Service_Price_Store_Center' ) && ! class_exists( 'VNX_Price_Service_Table_Center' ) ) {
+			return new WP_Error( 'missing-store', 'Service price store is not on this site.' );
+		}
+		return new WP_Error( 'missing-table', 'Price table not found.' );
+	}
+
+	/**
+	 * The new store's Bricks table as the old widget_data column matrix.
+	 * Column 0 = labels, column 1 = row descriptions, columns 2+ = packages.
+	 * Three section rows carry "*" in column 0: prices (one row per cycle, "label | badge"),
+	 * info (one row per spec), links (one row per cycle). Cells are split on "|".
+	 */
+	private static function widget_data_of( array $table ) {
+		$clean    = function ( $value ) {
+			return trim( str_replace( '|', '/', (string) $value ) );
+		};
+		$packages = array_values(
+			array_filter(
+				(array) ( $table['packages'] ?? array() ),
+				function ( $p ) {
+					return empty( $p['hidden'] );
+				}
+			)
+		);
+		$cycles   = (array) ( $table['cycles'] ?? array() );
+		$spec_ids = array();
+		$labels   = array();
+		$descs    = array();
+		foreach ( $packages as $p ) {
+			foreach ( (array) ( $p['rows'] ?? array() ) as $row ) {
+				$rid = (string) ( $row['id'] ?? '' );
+				if ( $rid === '' ) {
+					continue;
+				}
+				if ( ! in_array( $rid, $spec_ids, true ) ) {
+					$spec_ids[] = $rid;
+				}
+				if ( ( $labels[ $rid ] ?? '' ) === '' ) {
+					$labels[ $rid ] = $clean( $row['label'] ?? '' );
+				}
+				if ( ( $descs[ $rid ] ?? '' ) === '' ) {
+					$descs[ $rid ] = $clean( $row['desc'] ?? '' );
+				}
+			}
+		}
+		$blank = array_fill( 0, count( $packages ), '' );
+		$rows  = array();
+		$rows[] = array_merge(
+			array( '', '' ),
+			array_map(
+				function ( $p ) use ( $clean ) {
+					return $clean( $p['name'] ?? '' );
+				},
+				$packages
+			)
+		);
+		$rows[] = array_merge( array( '', '' ), $blank );
+		$rows[] = array_merge( array( 'Giá dịch vụ | *', '' ), $blank );
+		foreach ( $cycles as $c ) {
+			$bc    = (string) ( $c['id'] ?? '' );
+			$badge = $clean( $c['badge'] ?? '' );
+			$label = $clean( $c['label'] ?? '' ) . ( $badge !== '' ? ' | ' . $badge : '' );
+			$cells = array();
+			foreach ( $packages as $p ) {
+				$pr = $p['prices'][ $bc ] ?? null;
+				if ( ! is_array( $pr ) ) {
+					$cells[] = '';
+					continue;
+				}
+				$cells[] = implode(
+					' | ',
+					array(
+						$clean( $pr['regular'] ?? '' ),
+						$clean( $pr['sale'] ?? '' ),
+						$clean( $pr['total'] ?? '' ),
+						$clean( $pr['tag'] ?? '' ),
+						$clean( $pr['promoText'] ?? '' ),
+						$clean( $pr['code'] ?? '' ),
+						'',
+					)
+				);
+			}
+			$rows[] = array_merge( array( $label, '' ), $cells );
+		}
+		$rows[] = array_merge( array( 'Thông tin kỹ thuật | *', '' ), $blank );
+		foreach ( $spec_ids as $rid ) {
+			$cells = array();
+			foreach ( $packages as $p ) {
+				$info    = $p['info'][ $rid ] ?? null;
+				$cells[] = is_array( $info )
+					? implode( ' | ', array( $clean( $info['text'] ?? '' ), $clean( $info['extra'] ?? '' ), $clean( $info['icon'] ?? '' ) ) )
+					: '';
+			}
+			$rows[] = array_merge( array( $labels[ $rid ] ?? '', $descs[ $rid ] ?? '' ), $cells );
+		}
+		$rows[] = array_merge( array( 'Link đăng ký | *', '' ), $blank );
+		foreach ( $cycles as $c ) {
+			$bc    = (string) ( $c['id'] ?? '' );
+			$cells = array();
+			foreach ( $packages as $p ) {
+				$cells[] = trim( (string) ( $p['links'][ $bc ] ?? '' ) );
+			}
+			$rows[] = array_merge( array( $clean( $c['label'] ?? '' ), '' ), $cells );
+		}
+		$cols = array();
+		foreach ( $rows as $r => $row ) {
+			foreach ( $row as $c => $cell ) {
+				$cols[ $c ][ $r ] = $cell;
+			}
+		}
+		return array(
+			'status' => true,
+			'data'   => array_values( array_map( 'array_values', $cols ) ),
+			'meta'   => array(
+				'table_id'   => (string) ( $table['id'] ?? '' ),
+				'updated_at' => 0,
+			),
+		);
 	}
 
 	private static function get_compare_table( array $args ) {

@@ -51,7 +51,10 @@ export function peekOf(row, root) {
       };
     });
     const clear = seen.filter((item) => item.full).sort((a, b) => b.overlap - a.overlap)[0];
-    if (clear && seen.some((item) => item.cut)) return { row, item: clear.item, width: clear.item.box.w };
+    // A scroll repeats one item kind. A mark beside a text box cut by the clip is one line, not a list.
+    const cut = seen.find((item) => item.cut);
+    const sameKind = clear && cut && clear.item.type === cut.item.type && cut.item.type !== 'TEXT';
+    if (clear && cut && sameKind) return { row, item: clear.item, width: clear.item.box.w };
   }
   return null;
 }

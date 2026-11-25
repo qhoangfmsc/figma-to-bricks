@@ -511,8 +511,8 @@
    "status": "read"
   },
   "leadingTrim": {
-   "status": "limit",
-   "why": "trims the text box to the cap height / baseline: changes the box height, not written",
+   "status": "read",
+   "why": "CAP_HEIGHT is written as CSS text-box: trim-both cap alphabetic (Chromium 133+, Safari 18.2+); a browser without text-box keeps the full line box",
    "default": "NONE",
    "inSpec": false
   },

@@ -162,6 +162,9 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
         // basis = the Figma size (border-box): with basis 0, CSS adds each sibling's padding+border on top of the equal share, Figma does not
         Object.assign(s, { _flexGrow: 1, _flexShrink: 1, _flexBasis: px(boxVal) });
         if (axis === 'h') s._widthMin = '0px';
+        // A column whose height the layout sets (not hug): Figma gives this child the space left by its siblings,
+        // and taller content hangs past it without pushing them. Flex min-height:auto would grow it to its content.
+        if (axis === 'v' && parent?.sizing?.v && parent.sizing.v !== 'HUG') s._heightMin = '0px';
       } else if (grid) {
         if (axis === 'v') addCustomCss(s, 'align-self: stretch;'); // FILL width in a grid is plain width:auto (cells stretch); only FILL height needs it
       } else if (mode === 'HORIZONTAL') {

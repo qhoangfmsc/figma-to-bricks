@@ -141,6 +141,10 @@ export function applyText({ node, s, css, warn }) {
     if (vertical) addCustomCss(s, `display: flex; flex-direction: column; justify-content: ${vertical};`);
     else warn(node, `text vertical align ${t.valign} in a fixed-height box is not applied`);
   }
+  // Figma "Vertical trim: Cap height to baseline" cuts the text box to the cap height and the baseline. CSS text-box does the same cut.
+  // A browser without text-box keeps the full line box (listed in the coverage).
+  if (t.leadingTrim === 'CAP_HEIGHT') addCustomCss(s, 'text-box: trim-both cap alphabetic;');
+  else if (t.leadingTrim) warn(node, `text leading trim ${t.leadingTrim} not applied`);
   if (t.case === 'SMALL_CAPS') addCustomCss(s, 'font-variant-caps: small-caps;');
   else if (t.case === 'SMALL_CAPS_FORCED') addCustomCss(s, 'font-variant-caps: all-small-caps;');
   // "Truncate text" with a max line count: Bricks 1.9.8 has no line-clamp control, so it is css (listed in the report as custom css)

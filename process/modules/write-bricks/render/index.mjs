@@ -269,6 +269,8 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     }
 
     if (patch?.skipChildren) node.__skipChildren = true;
+    // A component moved an absolute mark in here (it was drawn on a merged sibling): this element is now its offset parent.
+    if ((patch?.adopt ?? []).some((adoptedId) => findNode(root, adoptedId)?.place === 'ABSOLUTE') && s._position !== 'absolute') s._position = 'relative';
     const applied = comp?.apply?.(ctx, det) ?? null;
     if (patch?.settings) Object.assign(s, deepMerge(s, patch.settings));
     if (node.__peekScroll) {
@@ -298,9 +300,29 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       encloseId = emitRaw(`${node.id}#values`, patch.enclose.name ?? 'block', box, parentBricksId, patch.enclose.label ?? 'Values');
       hostId = encloseId;
     }
-    emit(node, kind, s, css, hostId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren && !patch?.unmerge, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
+    emit(node, kind, s, css, hostId, ov, { isSlide, parent, isSlider, onePage: kind === 'slider-nested' && !!det?.params?.page, extra: patch?.extraChildren, adopt: patch?.adopt, wrapChildren: patch?.wrapChildren, component: comp && { id: det.component, detection: det.id, merges: !!comp.mergesChildren && !patch?.unmerge, attrs: applied?.attrs }, inner: comp?.wrap ? { name: comp.innerKind, settings: ctx.inner, label: comp.innerLabel } : undefined, keep: new Set(comp?.keepNodes?.(node, det) ?? []) });
     // A bubble sits beside the enclosed node. The svg element does not render children, so the text cannot live inside the icon.
     (patch?.enclose?.tail ?? []).forEach((item, index) => emitExtra(`${node.id}#enclose${index}`, item, encloseId));
+  }
+
+  function findParentNode(start, id) {
+    for (const child of start?.children ?? []) {
+      if (!child) continue;
+      if (child.id === id) return start;
+      const found = findParentNode(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function findNode(start, id) {
+    if (!start) return null;
+    if (start.id === id) return start;
+    for (const child of start.children ?? []) {
+      const found = findNode(child, id);
+      if (found) return found;
+    }
+    return null;
   }
 
   function bindSelectors(settings, id, name) {
@@ -323,11 +345,17 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
   }
 
   const IMAGE_CHILD_KEYS = ['image', 'altText', 'loading', '_objectFit', '_objectPosition', 'link', 'url', 'newTab', 'caption', 'captionCustom', 'showTitle'];
-  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, onePage = false, after, component, extra, wrapChildren, inner, keep = new Set() } = {}) {
+  function emit(node, kind, s, css, parentBricksId, ov, { isSlide, isSlider, onePage = false, after, component, extra, adopt, wrapChildren, inner, keep = new Set() } = {}) {
     let settings = s;
     const scrollAttrs = (s._attributes ?? []).filter((a) => a.name === 'data-f2b-scroll' || a.name === 'data-f2b-scroll-track' || a.name === 'data-f2b-scroll-thumb' || a.name === 'onscroll' || a.name === 'onwheel' || String(a.name).startsWith('onpointer'));
     for (const k of ov.dropSettings ?? []) delete settings[k];
+    // An attribute bound to dynamic data is the component's data, so an override list does not remove it.
+    const boundAttrs = (s._attributes ?? []).filter((a) => /\{[a-z0-9_]+[^}]*\}/i.test(String(a.value ?? '')));
     if (ov.settings) settings = deepMerge(settings, ov.settings);
+    if (boundAttrs.length && Array.isArray(ov.settings?._attributes)) {
+      const written = new Set(ov.settings._attributes.map((a) => a.name));
+      settings._attributes = [...boundAttrs.filter((a) => !written.has(a.name)), ...settings._attributes];
+    }
     // A decorative-icon override replaces the attribute list. The scroll thumb is a control, so its handlers stay.
     if (scrollAttrs.length) {
       const names = new Set(scrollAttrs.map((a) => a.name));
@@ -388,6 +416,12 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
       for (const c of node.children ?? []) {
         if (component?.merges && c.visible !== false && !keep.has(c.id)) mapping[c.id] = { skipped: `merged into ${component.id} ${component.detection}` };
         else mapNode(c, node, childHost, { isSlide: kind === 'slider-nested' && !onePage });
+      }
+      // A node a component moves here from a merged sibling (a mark drawn on one looped item). It keeps its own drawn offsets.
+      for (const adoptedId of adopt ?? []) {
+        const adopted = findNode(root, adoptedId);
+        // Its size and offsets follow the frame Figma drew it in, not the element that now holds it.
+        if (adopted && !mapping[adopted.id]) mapNode(adopted, findParentNode(root, adopted.id) ?? node, childHost, {});
       }
     }
     // elements Bricks needs that Figma does not draw (e.g. an empty tab pane): created empty, never invented content
@@ -453,7 +487,7 @@ export function buildTemplate(root, { overrides = {}, detections = null, flats =
     if (!chk.ok) { warn(node, `detection ${det.id} (${det.component}) approved but not applied, kept as block: ${chk.reason}`); continue; }
     plan.set(node.id, { det, comp });
     for (const w of chk.warnings ?? []) warn(node, `${det.component} ${det.id}: ${w}`);
-    for (const [id, p] of Object.entries(comp.descendants?.(node, det, { root }) ?? {})) patches.set(id, p);
+    for (const [id, p] of Object.entries(comp.descendants?.(node, det, { root, readAsset }) ?? {})) patches.set(id, p);
     for (const id of comp.mergedNodes?.(det, node) ?? []) mergedInto.set(id, det);
   }
 

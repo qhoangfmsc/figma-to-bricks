@@ -199,6 +199,7 @@ export function normalizeNode(raw, ctx, parent = null, parentAbs = null) {
       align: s.textAlignHorizontal ?? 'LEFT', valign: s.textAlignVertical ?? 'TOP',
       case: s.textCase ?? 'ORIGINAL', decoration: s.textDecoration ?? 'NONE',
       autoResize: s.textAutoResize ?? 'NONE',
+      ...(s.leadingTrim && s.leadingTrim !== 'NONE' && { leadingTrim: s.leadingTrim }),
       ...(s.paragraphSpacing && { paragraphSpacing: num(s.paragraphSpacing) }),
       ...(s.paragraphIndent && { paragraphIndent: num(s.paragraphIndent) }),
       ...(s.textTruncation && { truncation: s.textTruncation, maxLines: s.maxLines }),
