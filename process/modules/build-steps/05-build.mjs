@@ -12,6 +12,7 @@ import { buildTemplate } from '../write-bricks/render/index.mjs';
 import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
+import { keepPhoneWrap, pinStackedBasis, keepPhoneColumns, fluidFill } from '../breakpoints/follow.mjs';
 import { carryComponents, carryPairs, carryGaps, writePlanNotes } from '../breakpoints/carry.mjs';
 import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
 import { missingBoundTables } from '../write-bricks/components/price-table.mjs';
@@ -72,6 +73,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   };
   // Breakpoint variants (responsive.json): every variant frame is built with its own workspace (tree, decisions, assets) and merged in
   const responsive = ws.readJson('responsive.json', null);
+  let phoneRow = new Map(); // Bricks id -> the width the phone frame drew that box at
   const fontSources = [tree];
   const narrowing = (responsive?.variants ?? []).filter((v) => v.maxWidth != null);
   if (responsive?.variants?.length) {
@@ -108,6 +110,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
     });
     const merged = mergeResponsive({ base: { tree, template, mapping, sig: signature(ws) }, variants });
     template = merged.template;
+    phoneRow = new Map(Object.values(merged.mappings.mobile_portrait ?? {}).filter((m) => m?.bricksId && m.expect?.w).map((m) => [m.bricksId, m.expect.w]));
     for (const w of merged.warnings) warnings.push(w);
     for (const v of variants) ws.writeJson(`mapping.${v.key}.json`, merged.mappings[v.key]);
     // images / svg / flat exports that only a variant frame has: the push step reads them from this workspace
@@ -134,6 +137,11 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   fitAnvRemainder(template, { keep });
   // No tablet frame: 768–991 uses the mobile frame, not the desktop step-down.
   useMobileOnTablet(template, { keep });
+  // Two cases beside the default stacking: a row the phone drew as a wrapping row stays so, and a stacked child sized by flex-basis gets its width.
+  keepPhoneWrap(template, { keep });
+  pinStackedBasis(template);
+  keepPhoneColumns(template, { keep, phoneRow });
+  fluidFill(template); // last: every step above reads the px basis as the drawn size
   ws.writeJson('bricks.json', template);
   ws.writeJson('mapping.json', mapping);
   ws.writeJson('warnings.json', warnings);
