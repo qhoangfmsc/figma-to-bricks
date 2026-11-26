@@ -19,15 +19,20 @@ export const cssColor = (c) => (c.alpha >= 1 ? c.hex : `rgba(${hex2rgb(c.hex).jo
 // %root% is replaced by the real `#brxe-<id>` selector when the element is emitted (index.mjs).
 const blocks = new WeakMap(); // settings object -> Map(suffix -> [declarations]); never serialized
 const CLASS_RULE = '\0class'; // same specificity as a Bricks control (`.brxe-id.brxe-name`), so a later breakpoint rule can still win
+const RAW_RULE = '\0raw'; // a full rule that already names %root%, such as a media query around the arrows
 export function addCustomCss(s, decl, suffix = '') {
   const m = blocks.get(s) ?? blocks.set(s, new Map()).get(s);
   if (!m.has(suffix)) m.set(suffix, []);
   m.get(suffix).push(decl);
   s._cssCustom = [...m].map(([suf, list]) => {
     const body = list.join(' ');
+    if (suf === RAW_RULE) return body;
     if (suf === CLASS_RULE) return `%class% { ${body} }`;
     return `%root%${suf} { ${body} }`;
   }).join(' ');
+}
+export function addRawCss(s, rule) {
+  addCustomCss(s, rule, RAW_RULE);
 }
 // A control on this element (`.brxe-id.brxe-name`) is beaten by a later rule of the same selector.
 // `#brxe-id` would also beat the breakpoint widths, so a width lock must not use it.

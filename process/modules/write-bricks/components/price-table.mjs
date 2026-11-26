@@ -27,7 +27,24 @@ const same = (drawn, cell) => {
   const right = fold(cell);
   return !!left && !!right && (left === right || left === shown(cell));
 };
+const digits = (value) => String(value ?? '').replace(/\D/g, '');
+const sameAmount = (drawn, cell) => {
+  const left = digits(drawn);
+  const right = digits(cell);
+  return left.length >= 3 && left === right;
+};
+const struck = (textNode) => textNode.text?.decoration === 'STRIKETHROUGH' || (textNode.text?.runs ?? []).some((run) => run.style?.textDecoration === 'STRIKETHROUGH');
 const unitShape = (word) => /^\/\S{1,12}$/.test(norm(word));
+const percentShape = (word) => /^[-+]?\d+(?:[.,]\d+)?%$/.test(norm(word));
+
+// The drawn percent is the chip's look. The number is the table tag when that cell is filled,
+// otherwise the gap between the old price and the sale price.
+export function discountPercent(regular, sale) {
+  const left = Number(String(regular ?? '').replace(/\D/g, ''));
+  const right = Number(String(sale ?? '').replace(/\D/g, ''));
+  if (!left || !right || left <= right) return 0;
+  return Math.round(((left - right) / left) * 100);
+}
 
 function textsIn(node, out = []) {
   if (!node || node.visible === false) return out;
@@ -209,9 +226,9 @@ function tagText(patches, id, tag) {
   patches[id] = { ...prev, settings: { ...(prev.settings ?? {}), text: tag } };
 }
 
-function bindPrice(node, table, id, root, attrs, selectedId) {
+function priceScene(node, table, id, root) {
   const empty = { tabsHost: null, card: null, patches: {}, omit: [], warnings: [], skip: false };
-  if (!table?.packages?.length || !table.cycles?.length || !id) return empty;
+  if (!table?.packages?.length || !table.cycles?.length || !id) return { stop: empty };
   const scopeRoot = root ?? node;
   const packOf = (item) => table.packages.find((itemPack) => hasWords(item, (word) => same(word, itemPack.name)));
   const isPackage = (item) => !!packOf(item) || showsPrice(item);
@@ -258,10 +275,10 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
   const cycleRow = bestGroup(scopeRoot, isCycle, 2);
   const cycleField = cycleRow ? null : closedCycleField(scopeRoot);
   const cycles = cycleRow ?? (cycleField ? { host: cycleField, items: [cycleField] } : bestGroup(scopeRoot, isCycle, 1));
-  if (!cards) return { ...empty, warnings: ['no drawn card matches a package name in this table'] };
+  if (!cards) return { stop: { ...empty, warnings: ['no drawn card matches a package name in this table'] } };
   const claims = claimedHosts.get(scopeRoot) ?? new Set();
   claimedHosts.set(scopeRoot, claims);
-  if (claims.has(cards.host.id)) return { ...empty, skip: true, card: cards.items[0] };
+  if (claims.has(cards.host.id)) return { stop: { ...empty, skip: true, card: cards.items[0] } };
   claims.add(cards.host.id);
 
   const shellMarks = (item) => {
@@ -270,45 +287,43 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     if (!bodies.length) return [];
     return kids.filter((child) => !bodies.includes(child));
   };
-  let card = cards.items.find((item) => !shellMarks(item).length) ?? cards.items[0];
+  let card = cards.items.find((item) => packOf(item) && !shellMarks(item).length)
+    ?? cards.items.find((item) => packOf(item))
+    ?? cards.items.find((item) => !shellMarks(item).length)
+    ?? cards.items[0];
   // One visible card: the grouped node is the price block. The loop is the whole card, so the title and the list stay.
   const titleBeside = visibleKids(cards.host).some((kid) => kid.id !== card.id && hasTitle(kid) && !showsPrice(kid) && !isCycle(kid));
   if (cards.items.length === 1 && card.id !== cards.host.id && priceHeavy(card) && titleBeside && contains(cards.host, card.id)) {
     card = cards.host;
   }
   const pack = packOf(card) ?? table.packages[0];
-  let openAt = 0;
   const infoItemShape = (item) => (hasSvg(item) || hasWords(item, (word) => pack.info.some((info) => same(word, info.text)))) && textsIn(item).length >= 1;
   const rows = bestGroup(card, infoItemShape, 2) ?? bestGroup(card, infoItemShape, 1);
+  return { scopeRoot, packOf, isPackage, isCycle, cards, cycles, cycleField, card, pack, rows };
+}
 
-  const patches = {};
-  const put = (nodeId, patch) => {
-    const prev = patches[nodeId] ?? {};
-    patches[nodeId] = {
-      ...prev,
-      ...patch,
-      settings: { ...(prev.settings ?? {}), ...(patch.settings ?? {}) },
-      css: [...(prev.css ?? []), ...(patch.css ?? [])],
-      ...(patch.extraChildren ? { extraChildren: [...(prev.extraChildren ?? []), ...patch.extraChildren] } : {}),
-      ...(patch.wrapChildren ? { wrapChildren: patch.wrapChildren } : {}),
-    };
-  };
-  const omit = [];
-  const warnings = [];
+function openCycle(table, cycles, cycleField, selectedId) {
+  let openAt = 0;
   const pair = cycles ? pickCyclePair(cycles.items, selectedId) : { active: null, rest: null };
   const cycleProto = pair.rest ?? cycles?.items[0];
   const cycleActive = pair.active;
-  if (cycleActive) {
-    const label = textsIn(cycleActive).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
+  const indexOf = (item) => {
+    const label = textsIn(item).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
     const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
-    if (index >= 0) openAt = index;
+    return index >= 0 ? index : null;
+  };
+  if (cycleActive) {
+    const index = indexOf(cycleActive);
+    if (index != null) openAt = index;
   }
   if (cycleField) {
-    const label = textsIn(cycleField).map((text) => text.text.characters).find((word) => table.cycles.some((cycle) => same(word, cycle.label)));
-    const index = table.cycles.findIndex((cycle) => same(label, cycle.label));
-    if (index >= 0) openAt = index;
+    const index = indexOf(cycleField);
+    if (index != null) openAt = index;
   }
-  const price = pack.prices[openAt] ?? {};
+  return { openAt, cycleProto, cycleActive };
+}
+
+function omitDrawnCopies(omit, { cards, card, packOf, rows, cycles, cycleProto, cycleField }) {
   if (cycles && cycleProto && !cycleField) {
     const kids = visibleKids(cycles.host);
     const pillsOnly = kids.every((item) => item.id === cycleProto.id || !contains(item, card?.id));
@@ -317,23 +332,27 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       if (item.id !== cycleProto.id) omit.push(item.id);
     }
   }
-  if (card.id !== cards.host.id) cards.items.filter((item) => item.id !== card.id).forEach((item) => omit.push(item.id));
+  const inTable = (item) => !!packOf(item);
+  if (card.id !== cards.host.id) cards.items.filter((item) => item.id !== card.id && inTable(item)).forEach((item) => omit.push(item.id));
   if (cards.items.length === 1 && cards.items[0].id !== cards.host.id && card.id !== cards.host.id) {
     visibleKids(cards.host).forEach((child) => {
-      if (child.id !== card.id && !contains(child, card.id) && isPackage(child)) omit.push(child.id);
+      if (child.id !== card.id && !contains(child, card.id) && inTable(child)) omit.push(child.id);
     });
   }
   if (rows) rows.items.slice(1).forEach((item) => omit.push(item.id));
-  if (!cycles) warnings.push('no cycle labels from this table are drawn here, so the first cycle is used');
+}
 
+function cardFlanks(cards, card, isPackage, isCycle) {
   const kids = visibleKids(cards.host);
   const cardIndex = kids.findIndex((child) => child.id === card.id || contains(child, card.id));
   const sideControl = (item) => item && item.id !== card.id && !contains(item, card.id) && !isPackage(item) && !isCycle(item) && textsIn(item).length <= 1;
   const flanks = cards.items.length === 1
     ? { prev: sideControl(kids[cardIndex - 1]) ? kids[cardIndex - 1] : null, next: sideControl(kids[cardIndex + 1]) ? kids[cardIndex + 1] : null }
     : { prev: null, next: null };
-  const moveCards = !!(flanks.prev || flanks.next);
+  return { flanks, moveCards: !!(flanks.prev || flanks.next) };
+}
 
+function cycleTabsHost(cards, cycles, scopeRoot) {
   let tabsHost = null;
   if (cycles) {
     let cursor = cards.host;
@@ -344,7 +363,40 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     }
   }
   const tabsNode = tabsHost === cards.host.id ? cards.host : (tabsHost ? findById(scopeRoot, tabsHost) : null);
+  return { tabsHost, tabsNode };
+}
 
+function cycleScrollHost(cards, scopeRoot) {
+  let current = cards.host;
+  while (current) {
+    if (rowScrolls(current, scopeRoot)) return current;
+    if (!scopeRoot || current.id === scopeRoot.id) break;
+    current = parentOf(scopeRoot, current.id);
+  }
+  return null;
+}
+
+function cycleActiveCss(table, cycleActive, cycleProto) {
+  const activeCss = [];
+  if (!cycleActive || !cycleProto || cycleActive.id === cycleProto.id) return activeCss;
+  const idleBg = titleBackground(cycleProto);
+  const openBg = titleBackground(cycleActive);
+  if (idleBg !== openBg) {
+    activeCss.push({ decl: idleBg, suffix: ' .tab-title' });
+    activeCss.push({ decl: openBg, suffix: ' .tab-title.brx-open' });
+  }
+  const inkOf = (item) => solidFill(textsIn(item).find((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label))));
+  const idleInk = inkOf(cycleProto);
+  const openInk = inkOf(cycleActive);
+  if (idleInk && openInk && cssColor(idleInk) !== cssColor(openInk)) {
+    activeCss.push({ decl: `color: ${cssColor(idleInk)};`, suffix: ' .tab-title :is(.brxe-text-basic, .brxe-heading)' });
+    activeCss.push({ decl: `color: ${cssColor(openInk)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
+  }
+  return activeCss;
+}
+
+function bindCycleShell(put, { table, id, scopeRoot, cards, cycles, cycleField, cycleProto, cycleActive, openAt, moveCards }) {
+  const { tabsHost, tabsNode } = cycleTabsHost(cards, cycles, scopeRoot);
   if (tabsHost) {
     const hostNode = tabsNode ?? cards.host;
     put(tabsHost, {
@@ -352,31 +404,8 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       settings: { openTab: String(openAt) },
       css: [...flexDirectionCss(hostNode), ...tabsChromeCss()],
     });
-    const activeCss = [];
-    if (cycleActive && cycleProto && cycleActive.id !== cycleProto.id) {
-      const idleBg = titleBackground(cycleProto);
-      const openBg = titleBackground(cycleActive);
-      if (idleBg !== openBg) {
-        activeCss.push({ decl: idleBg, suffix: ' .tab-title' });
-        activeCss.push({ decl: openBg, suffix: ' .tab-title.brx-open' });
-      }
-      const inkOf = (item) => solidFill(textsIn(item).find((text) => table.cycles.some((cycle) => same(text.text.characters, cycle.label))));
-      const idleInk = inkOf(cycleProto);
-      const openInk = inkOf(cycleActive);
-      if (idleInk && openInk && cssColor(idleInk) !== cssColor(openInk)) {
-        activeCss.push({ decl: `color: ${cssColor(idleInk)};`, suffix: ' .tab-title :is(.brxe-text-basic, .brxe-heading)' });
-        activeCss.push({ decl: `color: ${cssColor(openInk)};`, suffix: ' .tab-title.brx-open :is(.brxe-text-basic, .brxe-heading)' });
-      }
-    }
-    const scrollNode = (() => {
-      let current = cards.host;
-      while (current) {
-        if (rowScrolls(current, scopeRoot)) return current;
-        if (!scopeRoot || current.id === scopeRoot.id) break;
-        current = parentOf(scopeRoot, current.id);
-      }
-      return null;
-    })();
+    const activeCss = cycleActiveCss(table, cycleActive, cycleProto);
+    const scrollNode = cycleScrollHost(cards, scopeRoot);
     const scrollHere = scrollNode?.id === cards.host.id;
     if (cycleField) {
       const menu = parentOf(scopeRoot, cycleField.id);
@@ -395,8 +424,25 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
         settings: { ...option.settings, ...hidden('tab-title'), ...loop('cycle', id) },
       });
     } else {
-      put(cycles.host.id, { settings: { ...hidden('tab-menu'), _attributes: [{ name: 'data-vnx-sp-dropdown', value: '1' }] }, css: activeCss });
-      if (cycleProto?.type !== 'TEXT') put(cycleProto.id, { settings: { ...hidden('tab-title'), ...loop('cycle', id) } });
+      put(cycles.host.id, {
+        settings: { ...hidden('tab-menu'), _overflow: 'visible', _justifyContent: 'center', _attributes: [{ name: 'data-vnx-sp-dropdown', value: '1' }] },
+        css: [...activeCss, { decl: 'overflow: visible; justify-content: center;', suffix: '' }],
+      });
+      if (cycleProto?.type !== 'TEXT') {
+        const room = cycleProto.layout?.padding;
+        put(cycleProto.id, {
+          settings: {
+            ...hidden('tab-title'),
+            ...loop('cycle', id),
+            _width: 'auto',
+            _widthMin: cycleProto.box?.w ? px(cycleProto.box.w) : undefined,
+            _widthMax: 'none',
+            _flexShrink: 0,
+            _justifyContent: 'center',
+            ...(room ? { _padding: { top: px(room.top), right: px(room.right), bottom: px(room.bottom), left: px(room.left) } } : {}),
+          },
+        });
+      }
     }
     put(cards.host.id, {
       settings: {
@@ -411,10 +457,14 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
           ...hidden('tab-pane'),
           ...loop('cycle', id),
           ...flowSettings(cards.host),
+          ...(cards.host.layout?.mode === 'HORIZONTAL' && !scrollHere ? { _alignItems: 'stretch', _overflow: 'visible', _flexWrap: 'nowrap', _width: '100%' } : {}),
           ...(moveCards ? { _overflow: 'auto' } : {}),
         },
-        ...(scrollHere ? { css: [{ decl: 'width: max-content; flex-wrap: nowrap;', suffix: '' }] } : {}),
-        ...(moveCards && !scrollHere ? { css: [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }] } : {}),
+        css: [
+          ...(scrollHere ? [{ decl: 'width: max-content; flex-wrap: nowrap;', suffix: '' }] : []),
+          ...(moveCards && !scrollHere ? [{ decl: 'overflow-x: auto; flex-wrap: nowrap;', suffix: '' }] : []),
+          ...(cards.host.layout?.mode === 'HORIZONTAL' && !scrollHere ? [{ decl: 'align-items: stretch; flex-wrap: nowrap; overflow: visible; width: 100%;', suffix: '' }] : []),
+        ],
       },
     });
     if (scrollNode && !scrollHere) {
@@ -426,7 +476,12 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
   } else if (cycleProto && cycleProto.type !== 'TEXT') {
     put(cycleProto.id, { settings: loop('cycle', id) });
   }
+  return tabsHost;
+}
+
+function bindCardRow(put, { cards, card, id, omit, flanks, moveCards, tabsHost, isCycle, rows, scopeRoot }) {
   const peeked = peekOf(cards.host, scopeRoot);
+  const shareRow = cards.host.layout?.mode === 'HORIZONTAL' && !rowScrolls(cards.host, scopeRoot) && !peeked;
   if (card.type !== 'TEXT') {
     put(card.id, {
       settings: {
@@ -434,17 +489,43 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
         ...(moveCards ? { _attributes: [{ name: 'data-vnx-sp-card', value: '1' }] } : {}),
         ...(spills(card) ? { _overflow: 'hidden' } : {}),
         ...(peeked && card.box ? { _width: px(card.box.w), _flexShrink: 0, _widthMax: 'none' } : {}),
+        ...(shareRow ? { _flexGrow: 1, _flexShrink: 1, _flexBasis: '0', _width: 'auto', _widthMin: '0px', _widthMax: '100%', _alignSelf: 'stretch', _height: 'auto', _overflow: 'visible' } : {}),
+        ...(!shareRow && cards.host.layout?.mode === 'HORIZONTAL' ? { _alignSelf: 'stretch', _height: 'auto' } : {}),
       },
+      ...(shareRow ? { css: [{ decl: 'flex: 1 1 0; min-width: 0; max-width: 100%; align-self: stretch; height: auto; overflow: visible;', suffix: '' }] } : {}),
+      ...(!shareRow && cards.host.layout?.mode === 'HORIZONTAL' ? { css: [{ decl: 'align-self: stretch; height: auto;', suffix: '' }] } : {}),
     });
+  }
+  const shareCard = (item) => {
+    put(item.id, {
+      settings: {
+        _alignSelf: 'stretch',
+        _height: 'auto',
+        ...(shareRow ? { _flexGrow: 1, _flexShrink: 1, _flexBasis: '0', _width: 'auto', _widthMin: '0px', _widthMax: '100%', _overflow: 'visible' } : {}),
+        ...(item.layout?.mode === 'HORIZONTAL' ? { _alignItems: 'stretch' } : {}),
+      },
+      css: [{ decl: `${shareRow ? 'flex: 1 1 0; min-width: 0; max-width: 100%; overflow: visible; ' : ''}align-self: stretch; height: auto;${item.layout?.mode === 'HORIZONTAL' ? ' align-items: stretch;' : ''}`, suffix: '' }],
+    });
+  };
+  if (cards.host.layout?.mode === 'HORIZONTAL') {
+    put(cards.host.id, { settings: { _alignItems: 'stretch', ...(shareRow ? { _overflow: 'visible', _width: '100%' } : {}) }, css: [{ decl: `align-items: stretch;${shareRow ? ' overflow: visible; width: 100%;' : ''}`, suffix: '' }] });
+    for (const sibling of visibleKids(cards.host)) {
+      if (omit.includes(sibling.id) || sibling.id === card.id) continue;
+      if (sibling.id === flanks.prev?.id || sibling.id === flanks.next?.id || isCycle(sibling)) continue;
+      shareCard(sibling);
+    }
+    if (card.layout?.mode === 'HORIZONTAL') {
+      put(card.id, { settings: { _alignItems: 'stretch' }, css: [{ decl: 'align-items: stretch;', suffix: '' }] });
+    }
   }
   if (moveCards && !tabsHost) put(cards.host.id, { settings: { _attributes: [{ name: 'data-vnx-sp-deck', value: '1' }] } });
   if (flanks.prev) put(flanks.prev.id, { settings: { _attributes: [{ name: 'data-vnx-sp-prev', value: '1' }] } });
   if (flanks.next) put(flanks.next.id, { settings: { _attributes: [{ name: 'data-vnx-sp-next', value: '1' }] } });
   if (rows && rows.items[0].type !== 'TEXT') put(rows.items[0].id, { settings: loop('row', id) });
+}
 
-  const assign = (textNode, tag) => tagText(patches, textNode.id, tag);
-  const used = new Set();
-  const take = (textNode, tag) => { assign(textNode, tag); used.add(textNode.id); };
+function bindCycleWords(put, patches, used, { table, cycleProto, cycleField }) {
+  const take = (textNode, tag) => { tagText(patches, textNode.id, tag); used.add(textNode.id); };
   const showBadge = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_cycle_badge}', compare: 'empty_not' }]];
   let taggedBadge = false;
   const badgeWord = (word) => /^[-+]?\d/.test(norm(word)) || /%$/.test(norm(word));
@@ -469,53 +550,88 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
       extraChildren: [{ name: 'text-basic', label: 'Badge', settings: { text: '{vnx_sp_cycle_badge}', _conditions: showBadge, _hidden: { _cssClasses: 'f2b-select-badge' } } }],
     });
   }
+}
+
+function bindInfoRow(put, patches, used, { table, pack, rows }) {
+  const take = (textNode, tag) => { tagText(patches, textNode.id, tag); used.add(textNode.id); };
   const infoItem = rows?.items[0];
-  if (infoItem) {
-    const labels = new Set(table.rows.map((row) => fold(row.label)).filter(Boolean));
-    const descs = new Set(table.rows.map((row) => fold(row.desc)).filter(Boolean));
-    const infoValues = new Set(pack.info.map((item) => fold(item.text)).filter(Boolean));
-    const extraValues = new Set(pack.info.map((item) => fold(item.extra)).filter(Boolean));
-    const infoTexts = textsIn(infoItem);
-    for (const textNode of infoTexts) {
-      const word = fold(textNode.text.characters);
-      if (descs.has(word)) take(textNode, '{vnx_sp_row_desc}');
-      else if (labels.has(word) && !infoValues.has(word) && !extraValues.has(word)) take(textNode, '{vnx_sp_row}');
-      else if (infoValues.has(word)) take(textNode, '{vnx_sp_info}');
-      else if (extraValues.has(word)) take(textNode, '{vnx_sp_info_extra}');
-    }
-    const open = infoTexts.filter((textNode) => !used.has(textNode.id));
-    const infoTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info}');
-    const extraTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info_extra}');
-    if (!infoTagged && open[0]) take(open[0], '{vnx_sp_info}');
-    if (!extraTagged && open[1]) take(open[1], '{vnx_sp_info_extra}');
-    for (const textNode of infoTexts) {
-      if ((patches[textNode.id]?.settings?.text) === '{vnx_sp_info}') {
-        put(textNode.id, { settings: { _typography: { 'white-space': 'normal' } } });
-      }
-    }
-    const icon = visibleKids(infoItem).find((child) => hasSvg(child) && !/question|help|tooltip/i.test(child.name || ''));
-    if (icon) {
-      const glyph = (which, name) => ({
-        icon: { library: 'fontawesome', icon: name },
-        ...(icon.box?.h ? { iconSize: px(Math.max(icon.box.w || 0, icon.box.h)) } : {}),
-        _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: '==', value: which }]],
-      });
-      put(icon.id, { kind: 'icon', skipChildren: true, dropSettings: ['text'], settings: glyph('yes', 'fa-solid fa-check') });
-      put(icon.id, { extraChildren: [
-        { name: 'icon', label: 'No', settings: glyph('no', 'fa-solid fa-xmark') },
-        { name: 'icon', label: 'Highlight', settings: glyph('highlight', 'fa-solid fa-star') },
-      ] });
+  if (!infoItem) return;
+  const labels = new Set(table.rows.map((row) => fold(row.label)).filter(Boolean));
+  const descs = new Set(table.rows.map((row) => fold(row.desc)).filter(Boolean));
+  const infoValues = new Set(pack.info.map((item) => fold(item.text)).filter(Boolean));
+  const extraValues = new Set(pack.info.map((item) => fold(item.extra)).filter(Boolean));
+  const infoTexts = textsIn(infoItem);
+  for (const textNode of infoTexts) {
+    const word = fold(textNode.text.characters);
+    if (descs.has(word)) take(textNode, '{vnx_sp_row_desc}');
+    else if (labels.has(word) && !infoValues.has(word) && !extraValues.has(word)) take(textNode, '{vnx_sp_row}');
+    else if (infoValues.has(word)) take(textNode, '{vnx_sp_info}');
+    else if (extraValues.has(word)) take(textNode, '{vnx_sp_info_extra}');
+  }
+  const open = infoTexts.filter((textNode) => !used.has(textNode.id));
+  const infoTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info}');
+  const extraTagged = infoTexts.some((textNode) => (patches[textNode.id]?.settings?.text) === '{vnx_sp_info_extra}');
+  if (!infoTagged && open[0]) take(open[0], '{vnx_sp_info}');
+  if (!extraTagged && open[1]) take(open[1], '{vnx_sp_info_extra}');
+  for (const textNode of infoTexts) {
+    if ((patches[textNode.id]?.settings?.text) === '{vnx_sp_info}') {
+      put(textNode.id, { settings: { _typography: { 'white-space': 'normal' } } });
     }
   }
+  const icon = visibleKids(infoItem).find((child) => hasSvg(child) && !/question|help|tooltip/i.test(child.name || ''));
+  const fontIcon = pack.info.some((item) => /^fa[\w-]*\s+fa-|^fa-/.test(item.icon || ''));
+  if (icon && fontIcon) {
+    put(icon.id, {
+      skipChildren: true,
+      settings: {
+        tag: 'i',
+        text: '',
+        _cssClasses: '{vnx_sp_info_icon}',
+        ...(icon.box?.w ? { _width: px(icon.box.w), _height: px(icon.box.h || icon.box.w) } : {}),
+        _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: 'empty_not' }]],
+      },
+    });
+  } else if (icon) {
+    const glyph = (which, name) => ({
+      icon: { library: 'fontawesome', icon: name },
+      ...(icon.box?.h ? { iconSize: px(Math.max(icon.box.w || 0, icon.box.h)) } : {}),
+      _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: '==', value: which }]],
+    });
+    put(icon.id, { kind: 'icon', skipChildren: true, dropSettings: ['text'], settings: glyph('yes', 'fa-solid fa-check') });
+    put(icon.id, { extraChildren: [
+      { name: 'icon', label: 'No', settings: glyph('no', 'fa-solid fa-xmark') },
+      { name: 'icon', label: 'Highlight', settings: glyph('highlight', 'fa-solid fa-star') },
+    ] });
+  }
+}
+
+function bindCardSlots(put, patches, used, { table, pack, price, card, rows, attrs }) {
+  const take = (textNode, tag) => { tagText(patches, textNode.id, tag); used.add(textNode.id); };
+  const markAmount = (textNode, tag) => {
+    take(textNode, tag);
+    const name = tag === '{vnx_sp_regular}' ? 'data-vnx-sp-regular' : tag === '{vnx_sp_sale}' ? 'data-vnx-sp-sale' : '';
+    if (name) put(textNode.id, { settings: { _attributes: [{ name, value: '1' }] } });
+  };
+  const markDiscount = (textNode, root = card) => {
+    const sign = /^[+-]/.test(norm(textNode.text.characters)) ? norm(textNode.text.characters)[0] : '0';
+    take(textNode, '{vnx_sp_tag}');
+    const showTag = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_tag}', compare: 'empty_not' }]];
+    put(textNode.id, { settings: { text: '{vnx_sp_tag}', _attributes: [{ name: 'data-vnx-sp-off', value: sign }], _conditions: showTag } });
+    const chip = parentOf(root, textNode.id);
+    if (chip && chip.id !== card.id && textsIn(chip).every((item) => percentShape(item.text.characters))) {
+      put(chip.id, { settings: { _attributes: [{ name: 'data-vnx-sp-off-chip', value: '1' }], _conditions: showTag } });
+    }
+  };
   for (const textNode of textsIn(card)) {
     if (used.has(textNode.id)) continue;
     if (rows && rows.items.some((item) => contains(item, textNode.id))) continue;
     const word = textNode.text.characters;
     if (same(word, pack.name)) take(textNode, '{vnx_sp_name}');
-    else if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
-    else if (same(word, price.sale) || pack.prices.some((item) => same(word, item.sale))) take(textNode, '{vnx_sp_sale}');
-    else if (same(word, price.regular)) take(textNode, '{vnx_sp_regular}');
-    else if (same(word, price.total)) take(textNode, '{vnx_sp_total}');
+    else if (struck(textNode)) markAmount(textNode, '{vnx_sp_regular}');
+    else if (same(word, price.sale) || sameAmount(word, price.sale) || pack.prices.some((item) => same(word, item.sale) || sameAmount(word, item.sale))) markAmount(textNode, '{vnx_sp_sale}');
+    else if (same(word, price.regular) || sameAmount(word, price.regular)) markAmount(textNode, '{vnx_sp_regular}');
+    else if (same(word, price.total) || sameAmount(word, price.total)) take(textNode, '{vnx_sp_total}');
+    else if (percentShape(word) && (same(word, price.tag) || pack.prices.some((item) => same(word, item.tag)))) markDiscount(textNode);
     else if (same(word, price.tag) || pack.prices.some((item) => same(word, item.tag))) take(textNode, '{vnx_sp_tag}');
     else if (same(word, price.promoText) || pack.prices.some((item) => same(word, item.promoText))) take(textNode, '{vnx_sp_promo_text}');
     else if (same(word, price.code) || pack.prices.some((item) => same(word, item.code))) {
@@ -532,7 +648,9 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
   const amount = (word) => {
     const raw = String(word ?? '').trim();
     const digits = raw.replace(/\D/g, '');
-    return digits.length >= 3 && /^[\d\s.,]+$/.test(raw);
+    if (digits.length < 3) return false;
+    const rest = [...raw.replace(/[\d\s.,]/g, '')];
+    return rest.length <= 2;
   };
   const top = (textNode) => textNode.box?.y ?? 0;
   if (![...used].some((id) => patches[id]?.settings?.text === '{vnx_sp_name}')) {
@@ -565,9 +683,26 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     for (const textNode of textsIn(priceCluster)) {
       if (used.has(textNode.id)) continue;
       if (!amount(textNode.text.characters)) continue;
-      if (textNode.text?.decoration === 'STRIKETHROUGH') take(textNode, '{vnx_sp_regular}');
-      else take(textNode, '{vnx_sp_sale}');
+      if (struck(textNode)) markAmount(textNode, '{vnx_sp_regular}');
+      else markAmount(textNode, '{vnx_sp_sale}');
     }
+  }
+  const besideAmount = (textNode) => {
+    let host = parentOf(card, textNode.id);
+    while (host) {
+      const words = textsIn(host).filter((item) => item.id !== textNode.id);
+      if (words.some((item) => amount(item.text.characters))) return true;
+      if (host.id === card.id) break;
+      if (words.some((item) => !percentShape(item.text.characters))) return false;
+      host = parentOf(card, host.id);
+    }
+    return false;
+  };
+  for (const textNode of textsIn(card)) {
+    if (used.has(textNode.id) || rows?.items.some((item) => contains(item, textNode.id))) continue;
+    const word = textNode.text.characters;
+    if (!percentShape(word) || !besideAmount(textNode)) continue;
+    markDiscount(textNode);
   }
   if (promo) {
     const [code, sentence] = fold(promo[0].text.characters).includes(' ') ? [promo[1], promo[0]] : [promo[0], promo[1]];
@@ -575,14 +710,177 @@ function bindPrice(node, table, id, root, attrs, selectedId) {
     take(code, '{vnx_sp_code}');
     put(code.id, { settings: { text: '{vnx_sp_code}', _attributes: [{ name: 'data-vnx-sp-copy', value: '{vnx_sp_code}' }], _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_code}', compare: 'empty_not' }]] } });
   }
+}
 
-  if (price.special) {
-    const image = textsIn(card).length && findImage(card);
-    if (image) {
-      const prev = patches[image.id] ?? {};
-      patches[image.id] = { ...prev, settings: { ...(prev.settings ?? {}), image: { useDynamicData: '{vnx_sp_label}' } } };
+function bindPopular(put, { cards, card }) {
+  const leadingBand = (item) => {
+    const kids = visibleKids(item).filter((child) => child.place !== 'ABSOLUTE');
+    if (kids.length < 2 || textsIn(kids[0]).length !== 1 || textsIn(kids[1]).length < 2) return null;
+    return { band: kids[0], text: textsIn(kids[0])[0] };
+  };
+  const marked = [...cards.items, ...visibleKids(cards.host)].map(leadingBand).find((item) => item && !contains(card, item.band.id));
+  if (!marked) return;
+  const fill = solidFill(marked.band);
+  const ink = solidFill(marked.text);
+  const pad = marked.band.layout?.padding;
+  const bodies = visibleKids(card).filter((child) => child.layout?.mode === 'VERTICAL');
+  const body = card.layout?.mode === 'VERTICAL'
+    ? card
+    : bodies.sort((a, b) => textsIn(b).length - textsIn(a).length)[0] ?? card;
+  const showLabel = [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_label}', compare: 'empty_not' }]];
+  put(body.id, {
+    extraChildren: [{
+      place: 'before',
+      name: 'block',
+      label: 'Popular',
+      settings: {
+        _display: 'flex',
+        _direction: 'row',
+        _justifyContent: 'center',
+        _alignItems: 'center',
+        _width: '100%',
+        ...(fill?.hex ? { _background: { color: fill.alpha >= 1 ? { hex: fill.hex } : { raw: cssColor(fill) } } } : {}),
+        ...(pad ? { _padding: { top: px(pad.top), right: px(pad.right), bottom: px(pad.bottom), left: px(pad.left) } } : {}),
+        _conditions: showLabel,
+      },
+      children: [{
+        name: 'text-basic',
+        label: 'Popular label',
+        text: '{vnx_sp_label}',
+        settings: {
+          text: '{vnx_sp_label}',
+          _typography: {
+            ...(marked.text.text?.fontSize ? { 'font-size': px(marked.text.text.fontSize) } : {}),
+            ...(marked.text.text?.fontWeight ? { 'font-weight': String(marked.text.text.fontWeight) } : {}),
+            ...(ink?.hex ? { color: ink.alpha >= 1 ? { hex: ink.hex } : { raw: cssColor(ink) } } : {}),
+            'text-align': 'center',
+          },
+        },
+      }],
+    }],
+  });
+}
+
+function bindMoreRows(put, patches, used, omit, { id, card, pack, cards, flanks, packOf, isCycle }) {
+  const take = (textNode, tag) => { tagText(patches, textNode.id, tag); used.add(textNode.id); };
+  const closedRows = 3;
+  const revealOf = (item, list) => {
+    if (!list?.host) return null;
+    let host = list.host;
+    while (host && host.id !== item.id) {
+      const parent = parentOf(item, host.id);
+      if (!parent) return null;
+      const kids = visibleKids(parent);
+      const index = kids.findIndex((kid) => kid.id === host.id);
+      const next = kids[index + 1];
+      if (next && textsIn(next).length && (next.box?.h ?? 0) <= 36) return next;
+      host = parent;
     }
+    return null;
+  };
+  const armList = (item, itemPack) => {
+    const shape = (row) => (hasSvg(row) || hasWords(row, (word) => itemPack.info.some((info) => same(word, info.text)))) && textsIn(row).length >= 1;
+    const list = bestGroup(item, shape, 2) ?? bestGroup(item, shape, 1);
+    if (!list) return null;
+    list.items.slice(1).forEach((row) => { if (!omit.includes(row.id)) omit.push(row.id); });
+    if (list.items[0].type !== 'TEXT') {
+      put(list.items[0].id, { settings: { ...loop('row', id), _attributes: [{ name: 'data-vnx-sp-row', value: '1' }] } });
+    }
+    const sample = textsIn(list.items[0]).find((textNode) => textNode.text?.characters && !percentShape(textNode.text.characters));
+    if (sample && !used.has(sample.id)) take(sample, '{vnx_sp_info}');
+    const icon = visibleKids(list.items[0]).find((child) => hasSvg(child) && !/question|help|tooltip/i.test(child.name || ''));
+    if (icon && itemPack.info.some((info) => /^fa[\w-]*\s+fa-|^fa-/.test(info.icon || ''))) {
+      put(icon.id, {
+        skipChildren: true,
+        settings: {
+          tag: 'i',
+          text: '',
+          _cssClasses: '{vnx_sp_info_icon}',
+          ...(icon.box?.w ? { _width: px(icon.box.w), _height: px(icon.box.h || icon.box.w) } : {}),
+          _conditions: [[{ key: 'dynamic_data', dynamic_data: '{vnx_sp_info_icon}', compare: 'empty_not' }]],
+        },
+      });
+    }
+    const reveal = revealOf(item, list);
+    if (reveal) {
+      put(list.host.id, {
+        settings: { _attributes: [{ name: 'data-vnx-sp-rows', value: '1' }, { name: 'data-vnx-sp-preview', value: String(closedRows) }], _overflow: 'visible', _height: 'auto' },
+        css: [
+          { decl: 'display: none;', suffix: ' > :nth-child(n+5)' },
+          { decl: 'display: flex;', suffix: '.is-open > :nth-child(n+5)' },
+          { decl: 'display: none;', suffix: ' .f2b-price-more' },
+          { decl: 'display: flex;', suffix: '.is-open .f2b-price-more' },
+        ],
+      });
+      put(reveal.id, { settings: { tag: 'button', _attributes: [{ name: 'data-vnx-sp-more', value: '1' }] } });
+    }
+    return list;
+  };
+  armList(card, pack);
+  const pinColumn = (item) => {
+    const bodies = visibleKids(item).filter((child) => child.layout?.mode === 'VERTICAL');
+    const body = item.layout?.mode === 'VERTICAL' ? item : bodies.sort((a, b) => textsIn(b).length - textsIn(a).length)[0];
+    if (!body) return;
+    put(body.id, {
+      settings: { _display: 'flex', _direction: 'column', _height: '100%', _overflow: 'visible' },
+      css: [{ decl: 'display: flex; flex-direction: column; height: 100%; overflow: visible;', suffix: '' }],
+    });
+    const last = visibleKids(body).at(-1);
+    if (last) put(last.id, { css: [{ decl: 'margin-top: auto;', suffix: '' }] });
+  };
+  pinColumn(card);
+  for (const sibling of visibleKids(cards.host)) {
+    if (omit.includes(sibling.id) || sibling.id === card.id || isCycle(sibling)) continue;
+    if (sibling.id === flanks.prev?.id || sibling.id === flanks.next?.id) continue;
+    if (packOf(sibling)) continue;
+    pinColumn(sibling);
   }
+}
+
+function bindSpecialImage(patches, { price, card }) {
+  if (!price.special) return;
+  const image = textsIn(card).length && findImage(card);
+  if (!image) return;
+  const prev = patches[image.id] ?? {};
+  patches[image.id] = { ...prev, settings: { ...(prev.settings ?? {}), image: { useDynamicData: '{vnx_sp_label}' } } };
+}
+
+function bindPrice(node, table, id, root, attrs, selectedId) {
+  const scene = priceScene(node, table, id, root);
+  if (scene.stop) return scene.stop;
+  const { scopeRoot, packOf, isPackage, isCycle, cards, cycles, cycleField, card, pack, rows } = scene;
+
+  const patches = {};
+  const put = (nodeId, patch) => {
+    const prev = patches[nodeId] ?? {};
+    patches[nodeId] = {
+      ...prev,
+      ...patch,
+      settings: { ...(prev.settings ?? {}), ...(patch.settings ?? {}) },
+      css: [...(prev.css ?? []), ...(patch.css ?? [])],
+      ...(patch.extraChildren ? { extraChildren: [...(prev.extraChildren ?? []), ...patch.extraChildren] } : {}),
+      ...(patch.wrapChildren ? { wrapChildren: patch.wrapChildren } : {}),
+    };
+  };
+  const omit = [];
+  const warnings = [];
+  const { openAt, cycleProto, cycleActive } = openCycle(table, cycles, cycleField, selectedId);
+  const price = pack.prices[openAt] ?? {};
+  // A sibling whose name is not a package stays beside the loop. Only package copies are omitted.
+  omitDrawnCopies(omit, { cards, card, packOf, rows, cycles, cycleProto, cycleField });
+  if (!cycles) warnings.push('no cycle labels from this table are drawn here, so the first cycle is used');
+
+  const { flanks, moveCards } = cardFlanks(cards, card, isPackage, isCycle);
+  const tabsHost = bindCycleShell(put, { table, id, scopeRoot, cards, cycles, cycleField, cycleProto, cycleActive, openAt, moveCards });
+  bindCardRow(put, { cards, card, id, omit, flanks, moveCards, tabsHost, isCycle, rows, scopeRoot });
+
+  const used = new Set();
+  bindCycleWords(put, patches, used, { table, cycleProto, cycleField });
+  bindInfoRow(put, patches, used, { table, pack, rows });
+  bindCardSlots(put, patches, used, { table, pack, price, card, rows, attrs });
+  bindPopular(put, { cards, card });
+  bindMoreRows(put, patches, used, omit, { id, card, pack, cards, flanks, packOf, isCycle });
+  bindSpecialImage(patches, { price, card });
 
   return { tabsHost, card, patches, omit, warnings };
 }
@@ -600,8 +898,37 @@ export function stepPriceCard(button, direction) {
   pane.scrollTo({ left: cards[next].offsetLeft });
 }
 
+function paintDiscount(root) {
+  const scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('[data-vnx-sp-off]').forEach((badge) => {
+    const written = (badge.textContent || '').replace(/\s+/g, ' ').trim();
+    const chip = badge.closest('[data-vnx-sp-off-chip]') || badge;
+    if (!written || written.includes('{vnx_sp_')) {
+      chip.style.display = 'none';
+      return;
+    }
+    const bare = written.match(/^([+-])?(\d+(?:[.,]\d+)?)$/);
+    if (bare) {
+      const sign = bare[1] || badge.getAttribute('data-vnx-sp-off');
+      badge.textContent = `${sign && sign !== '0' ? sign : ''}${bare[2]}%`;
+    }
+    chip.style.display = '';
+  });
+}
+
+function foldPriceRows(root) {
+  const scope = root && root.querySelectorAll ? root : document;
+  scope.querySelectorAll('[data-vnx-sp-rows]').forEach((list) => {
+    const preview = Number(list.getAttribute('data-vnx-sp-preview') || '3');
+    const open = list.classList.contains('is-open');
+    [...list.querySelectorAll('[data-vnx-sp-row]')].forEach((row, index) => {
+      row.classList.toggle('f2b-price-more', !open && index >= preview);
+    });
+  });
+}
+
 function priceCardScript() {
-  return `(function(){${stepPriceCard.toString()}document.addEventListener("click",function(event){var button=event.target&&event.target.closest&&event.target.closest("[data-vnx-sp-prev],[data-vnx-sp-next]");if(!button)return;stepPriceCard(button,button.hasAttribute("data-vnx-sp-prev")?-1:1);});})();`;
+  return `(function(){${paintDiscount.toString()}${foldPriceRows.toString()}${stepPriceCard.toString()}function run(){paintDiscount(document);foldPriceRows(document);}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",run);else run();document.addEventListener("click",function(event){var more=event.target&&event.target.closest&&event.target.closest("[data-vnx-sp-more]");if(more){var list=more.parentElement&&more.parentElement.querySelector("[data-vnx-sp-rows]");if(list){list.classList.toggle("is-open");foldPriceRows(list.parentElement||document);}return;}var button=event.target&&event.target.closest&&event.target.closest("[data-vnx-sp-prev],[data-vnx-sp-next]");if(!button)return;stepPriceCard(button,button.hasAttribute("data-vnx-sp-prev")?-1:1);});})();`;
 }
 
 function findImage(node) {
@@ -665,8 +992,11 @@ export function missingBoundTables(tree, detections) {
     return containsId(findId(tree, item.node), frameId);
   });
   const gap = (kind, frame) => ({ kind, node: frame.id, name: frame.name || frame.id });
+  // A dashboard drawn inside a carousel can show amounts. That picture is the slide, not a package row.
+  const slide = (detections?.components ?? []).filter((item) => item.status === 'approved' && isKind(item, PartKind.CAROUSEL));
+  const insideSlide = (frameId) => slide.some((item) => containsId(findId(tree, item.node), frameId));
   return [
-    ...priceFrames(tree).filter((frame) => !loaded(PartKind.PRICE_TABLE, frame.id)).map((frame) => gap(PartKind.PRICE_TABLE, frame)),
+    ...priceFrames(tree).filter((frame) => !insideSlide(frame.id) && !loaded(PartKind.PRICE_TABLE, frame.id)).map((frame) => gap(PartKind.PRICE_TABLE, frame)),
     ...compareFrames(tree).filter((frame) => !loaded(PartKind.COMPARE_TABLE, frame.id)).map((frame) => gap(PartKind.COMPARE_TABLE, frame)),
   ];
 }

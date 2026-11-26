@@ -1,0 +1,14 @@
+---
+description: Desktop and mobile are one component. A layout edit keeps that element usable.
+alwaysApply: true
+---
+
+# One component on every breakpoint
+
+Desktop and mobile are one component. A layout edit changes the size, spacing, direction, order, and boxes of that frame. It leaves the Bricks element as it is.
+
+A component that works on one breakpoint stays that element on the others. Accordion, tabs, slider, form, menu, price table, and every later kind in `process/modules/recognize-parts/kinds.mjs` stay clickable, and their open state and bound data still move. A proposed detection of that same kind on the other frame is approved and built. A breakpoint with no frame keeps the component and only changes layout.
+
+Do not turn that element into a block, a stack of blocks, or a copy that only looks like the component. This holds for every later layout fix, including a fix asked for on one breakpoint.
+
+A tablet breakpoint with no Figma frame uses the mobile frame. Size, spacing, direction, order, boxes, and which elements show are the mobile values, through 991px. The desktop step-down does not draw a third layout there. A pasted tablet frame keeps the layout it drew.

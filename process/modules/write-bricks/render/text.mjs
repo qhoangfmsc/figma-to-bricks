@@ -115,43 +115,56 @@ export function typography(node) {
   return ty;
 }
 
+function whiteSpace(node, text) {
+  const keepsSpaces = /\S {2,}\S/.test(text.characters ?? '');
+  if (text.autoResize === 'WIDTH_AND_HEIGHT') return keepsSpaces ? 'pre' : 'nowrap';
+  if (keepsSpaces) return 'pre-wrap';
+  const oneLine = text.lineHeightPx && Math.round(node.box.h / lineHeightPx(text.lineHeightPx)) === 1 && (text.characters ?? '').length <= 48;
+  return oneLine ? 'nowrap' : undefined;
+}
+
+function writeVerticalAlign(node, settings, warn) {
+  const align = node.text.valign;
+  if (node.sizing?.v !== 'FIXED' || !align || align === 'TOP') return;
+  const vertical = align === 'CENTER' ? 'center' : align === 'BOTTOM' ? 'flex-end' : null;
+  if (vertical) addCustomCss(settings, `display: flex; flex-direction: column; justify-content: ${vertical};`);
+  else warn(node, `text vertical align ${align} in a fixed-height box is not applied`);
+}
+
+function writeList(node, settings, warn) {
+  const lines = node.text.listLines;
+  if (lines && listSupported(node.text)) {
+    addCustomCss(settings, 'list-style: none; margin: 0; padding: 0;', ' ul');
+    addCustomCss(settings, `position: relative; margin: 0; padding-left: ${LIST_INDENT_EM}em;`, ' li');
+    addCustomCss(settings, `content: "\\2022"; position: absolute; top: 0; left: ${LIST_BULLET_LEFT_EM}em; font-weight: 400;`, ' li::before');
+    return;
+  }
+  if (lines) warn(node, `text list formatting (${[...new Set(lines.map((line) => `${line.type} level ${line.level}`))].join(', ')}) not applied: only unordered first-level lists are built, Figma draws the number / nested marker and indent itself`);
+}
+
 export function applyText({ node, s, css, warn }) {
-  const t = node.text;
-  const fill = node.fills?.filter((f) => f.type === 'SOLID').pop();
-  const ty = typography(node);
-  const grad = node.fills?.filter((f) => f.type === 'GRADIENT_LINEAR').pop();
-  if (grad && !fill) {
-    s._gradient = linearGradientControl(grad, node.box.w, node.box.h, 'text'); // Bricks adds background-clip: text and the transparent fill itself
-  }
-  // Figma keeps double spaces inside a text; HTML collapses them, which made "SMARTER,  SCALE" 11px narrower. Such text keeps its spaces.
-  const keepsSpaces = /\S {2,}\S/.test(t.characters ?? ''); // inside the text only: Figma's box ignores a leading / trailing space ("WEBINAR " is 95px wide)
-  if (t.autoResize === 'WIDTH_AND_HEIGHT') ty['white-space'] = keepsSpaces ? 'pre' : 'nowrap';
-  else if (keepsSpaces) ty['white-space'] = 'pre-wrap';
-  // A short label that Figma lays out on ONE line stays on one line: the browser measures text 1 to 2px wider than Figma and would wrap the last word into
-  // a second line (Gifts mobile: a 192px tag became two lines and the section grew 40px). The number of lines is known from the Figma box height.
-  else if (!ty['white-space'] && t.lineHeightPx && Math.round(node.box.h / lineHeightPx(t.lineHeightPx)) === 1 && (t.characters ?? '').length <= 48) ty['white-space'] = 'nowrap';
-  s._typography = ty;
-  s.text = textContent(t, fill ? cssColor(fill) : null, node.box);
+  const text = node.text;
+  const fill = node.fills?.filter((item) => item.type === 'SOLID').pop();
+  const type = typography(node);
+  const gradient = node.fills?.filter((item) => item.type === 'GRADIENT_LINEAR').pop();
+  if (gradient && !fill) s._gradient = linearGradientControl(gradient, node.box.w, node.box.h, 'text');
+  const space = whiteSpace(node, text);
+  if (space) type['white-space'] = space;
+  s._typography = type;
+  s.text = textContent(text, fill ? cssColor(fill) : null, node.box);
   Object.assign(css, {
-    'font-size': ty['font-size'], 'font-weight': ty['font-weight'], 'line-height': ty['line-height'], 'text-align': ty['text-align'],
-    ...(fill && { color: cssColor(fill) }), ...(ty['letter-spacing'] && { 'letter-spacing': ty['letter-spacing'] }),
+    'font-size': type['font-size'],
+    'font-weight': type['font-weight'],
+    'line-height': type['line-height'],
+    'text-align': type['text-align'],
+    ...(fill && { color: cssColor(fill) }),
+    ...(type['letter-spacing'] && { 'letter-spacing': type['letter-spacing'] }),
   });
-  if (node.sizing?.v === 'FIXED' && t.valign && t.valign !== 'TOP') {
-    const vertical = t.valign === 'CENTER' ? 'center' : t.valign === 'BOTTOM' ? 'flex-end' : null;
-    if (vertical) addCustomCss(s, `display: flex; flex-direction: column; justify-content: ${vertical};`);
-    else warn(node, `text vertical align ${t.valign} in a fixed-height box is not applied`);
-  }
-  if (t.case === 'SMALL_CAPS') addCustomCss(s, 'font-variant-caps: small-caps;');
-  else if (t.case === 'SMALL_CAPS_FORCED') addCustomCss(s, 'font-variant-caps: all-small-caps;');
-  // "Truncate text" with a max line count: Bricks 1.9.8 has no line-clamp control, so it is css (listed in the report as custom css)
-  // Figma draws the list marker and the indent of a list text itself (UNORDERED / ORDERED, level in lineIndentations); neither is an attribute that can be written
-  // as a Bricks value without inventing it, so the text is built as plain lines and the difference is listed
-  if (t.listLines && listSupported(t)) {
-    addCustomCss(s, 'list-style: none; margin: 0; padding: 0;', ' ul');
-    addCustomCss(s, `position: relative; margin: 0; padding-left: ${LIST_INDENT_EM}em;`, ' li');
-    addCustomCss(s, `content: "\\2022"; position: absolute; top: 0; left: ${LIST_BULLET_LEFT_EM}em; font-weight: 400;`, ' li::before');
-  } else if (t.listLines) warn(node, `text list formatting (${[...new Set(t.listLines.map((l) => `${l.type} level ${l.level}`))].join(', ')}) not applied: only unordered first-level lists are built, Figma draws the number / nested marker and indent itself`);
-  if (t.truncation === 'ENDING' && t.maxLines > 0) addCustomCss(s, `display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: ${t.maxLines}; overflow: hidden;`);
-  else if (t.truncation) warn(node, 'text truncation without a max line count not applied');
-  if (node.fills?.filter((f) => f.type === 'SOLID').length > 1) warn(node, 'text with several fills: top one used');
+  writeVerticalAlign(node, s, warn);
+  if (text.case === 'SMALL_CAPS') addCustomCss(s, 'font-variant-caps: small-caps;');
+  else if (text.case === 'SMALL_CAPS_FORCED') addCustomCss(s, 'font-variant-caps: all-small-caps;');
+  writeList(node, s, warn);
+  if (text.truncation === 'ENDING' && text.maxLines > 0) addCustomCss(s, `display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: ${text.maxLines}; overflow: hidden;`);
+  else if (text.truncation) warn(node, 'text truncation without a max line count not applied');
+  if (node.fills?.filter((item) => item.type === 'SOLID').length > 1) warn(node, 'text with several fills: top one used');
 }

@@ -2,14 +2,15 @@
 // The owner edits the value after each `key`: and sets `Xác nhận: có`. A later read keeps those values.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parsePlan } from '../missing-content/index.mjs';
-import { MISSING } from '../missing-content/choices.mjs';
-import { SLOTS } from '../single-template/frames.mjs';
-import { isSignal } from '../recognize-parts/kinds.mjs';
+import { parsePlan } from '../../missing-content/index.mjs';
+import { MISSING } from '../../missing-content/choices.mjs';
+import { SLOTS } from './frames.mjs';
+import { isSignal } from '../../recognize-parts/kinds.mjs';
 
 export const templatePlanPath = (dir) => join(dir, 'plan.md');
 
 const FIX = /^Sửa:[ \t]?(.*)$/m;
+const AGREED = 'Đồng ý';
 
 const clean = (s) => String(s ?? '').replace(/[`\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -28,15 +29,6 @@ function lookRow(model, node) {
   return (model.look?.rows ?? []).find((row) => row.node === node) ?? null;
 }
 
-// A blank or a previous drop/attach written by this look is replaced. A sentence the owner typed stays.
-function lookChoice(saved, key, row, ready, { agree, differ }) {
-  if (!ready || !row || (row.verdict !== 'agree' && row.verdict !== 'differ' && row.verdict !== 'ai')) return null;
-  const prev = Object.prototype.hasOwnProperty.call(saved, key) ? String(saved[key]).trim() : '';
-  if (prev !== '' && prev !== 'drop' && prev !== 'attach') return null;
-  if (row.verdict === 'differ' || row.verdict === 'ai') return differ;
-  return agree;
-}
-
 function evidenceLines(row) {
   const lines = [];
   if (row.verdict === 'no-shot') lines.push('- Ảnh: chưa chụp được');
@@ -44,12 +36,11 @@ function evidenceLines(row) {
   else lines.push('- AI: chưa nhận dạng nhóm này trên ảnh');
   const cite = (row.cite ?? []).join(', ');
   lines.push(`- Tín hiệu: ${clean(row.evidence) || row.kind}${cite ? ` (${cite})` : ''}`);
-  if (row.verdict === 'agree') lines.push(`- Kết luận: dựng ${row.kind}. AI ${row.weight?.ai ?? 70}%${row.weight?.code ? ` + code ${row.weight.code}%` : ''}.`);
-  else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. AI ${row.weight?.ai ?? 70}% thấy block. Code chỉ gợi ý.`);
-  else if (row.verdict === 'ai') lines.push(`- Kết luận: dựng ${clean(row.aiKind)}. AI ${row.weight?.ai ?? 70}%. Code gợi ý ${row.kind}, không quyết định.`);
-  else if (row.verdict === 'hint') lines.push(`- Kết luận: code gợi ý ${row.weight?.code ?? 30}%. AI chưa gọi tên, không dựng.`);
-  else if (row.verdict === 'doubt') lines.push('- Kết luận: nghi ngờ. Code có, ảnh hoặc cấu trúc chưa đủ.');
-  else lines.push('- Kết luận: chưa đủ ảnh, nhận dạng và tín hiệu');
+  if (row.verdict === 'render' || row.verdict === 'agree') lines.push(`- Kết luận: dựng ${row.kind}.`);
+  else if (row.verdict === 'differ') lines.push(`- Kết luận: không dựng ${row.kind}. Ảnh thấy block.`);
+  else if (row.verdict === 'ai') lines.push(`- Kết luận: dựng ${clean(row.aiKind)}.`);
+  else if (row.verdict === 'hint') lines.push('- Kết luận: ảnh chưa gọi tên. Không dựng.');
+  else lines.push('- Kết luận: chưa đủ ảnh.');
   return lines;
 }
 
@@ -63,7 +54,7 @@ function proofSection(model) {
     lines.push('Nhận dạng từ ảnh chưa đủ. Plan này chưa phải bản để xác nhận.', '');
     return lines;
   }
-  lines.push('Ảnh quyết định loại. AI 70%. Code là gợi ý, thêm 30% khi cùng loại.', '');
+  lines.push('Ảnh quyết định loại.', '');
   for (const extra of look.extras ?? []) {
     lines.push(`### Ảnh thấy ${extra.kind}${extra.node ? ` \`${extra.node}\`` : ''}`);
     lines.push(`- AI: ${clean(extra.see)}`);
@@ -72,31 +63,29 @@ function proofSection(model) {
       lines.push('');
       continue;
     }
-    lines.push('- Tín hiệu: không có');
-    lines.push(`- Kết luận: dựng ${extra.kind}. AI 70%. Code chưa gợi ý.`, '');
+    if (!extra.node || extra.kind === 'block') continue;
+    lines.push(`- Kết luận: dựng ${extra.kind}.`, '');
   }
   return lines;
 }
 
+function renders(row) {
+  return row?.verdict === 'render' || row?.verdict === 'agree' || row?.verdict === 'ai';
+}
+
+function renderedKind(row) {
+  return row.verdict === 'ai' ? clean(row.aiKind) : row.kind;
+}
+
 function detectedReview(look) {
-  if (!look?.rows?.length) return [];
-  const lines = ['Kết quả là đúc kết của các chứng cứ: detect code, AI xem ảnh và review, cấu trúc Figma.', ''];
-  for (const row of look.rows) {
-    lines.push(`### ${row.kind} \`${row.node}\``);
-    lines.push(`- Code: ${row.kind}${row.evidence ? ` — ${clean(row.evidence)}` : ''}`);
-    lines.push(row.see ? `- AI: ${clean(row.aiKind)} — ${clean(row.see)}` : '- AI: chưa review ảnh');
-    lines.push(`- Ảnh: ${row.verdict === 'no-shot' ? 'chưa có' : 'có'}`);
-    lines.push(`- Cấu trúc: ${(row.cite ?? []).length ? row.cite.join(', ') : 'chưa trích'}`);
-    if (row.review === 'trust') lines.push(`- Review: tin được. AI ${row.weight?.ai ?? 70}%${row.weight?.code ? ` + code ${row.weight.code}%` : ''}.`);
-    else if (row.review === 'ai') lines.push(`- Review: AI ${row.weight?.ai ?? 70}% quyết định ${clean(row.aiKind)}. Code gợi ý ${row.kind}.`);
-    else if (row.review === 'hint') lines.push(`- Review: code gợi ý ${row.weight?.code ?? 30}%. AI chưa gọi tên.`);
-    else if (row.review === 'no-shot') lines.push('- Review: chưa review. Thiếu ảnh chứng cứ.');
-    else if (row.review === 'pending') lines.push('- Review: chưa review. Chưa có nhận dạng từ ảnh.');
-    else lines.push('- Review: nghi ngờ. Code có, nhưng ảnh hoặc cấu trúc chưa đủ.');
-    for (const child of row.children ?? []) {
-      const structure = child.structure ? 'cấu trúc có node này' : 'cấu trúc chưa trích node này';
-      const image = child.image ? 'ảnh có gọi tên' : 'ảnh chưa gọi tên';
-      lines.push(`- ${child.label}: \`${child.node}\` — nghi ngờ. ${structure}. ${image}.`);
+  const rows = (look?.rows ?? []).filter(renders);
+  if (!rows.length) return [];
+  const lines = ['Các component này sẽ được dựng.', ''];
+  for (const row of rows) {
+    lines.push(`### ${renderedKind(row)} \`${row.node}\``);
+    if (row.see) lines.push(`- Ảnh: ${clean(row.see)}`);
+    for (const child of (row.children ?? []).filter((item) => item.image)) {
+      lines.push(`- ${child.label}: \`${child.node}\``);
     }
     lines.push('');
   }
@@ -116,8 +105,6 @@ function componentLines(part, saved, index, model = {}) {
   for (const line of part.children ?? []) lines.push(`- ${line}`);
   const row = lookRow(model, part.node);
   if (row) lines.push(...evidenceLines(row));
-  const choice = lookChoice(saved, `part:${part.node}`, row, model.look?.ready, { agree: '', differ: 'drop' });
-  if (part.node) lines.push(valueLine(`part:${part.node}`, saved, choice ?? '', `Quyết định dựng ${part.kind}`, choice != null));
   for (const field of part.fields ?? []) {
     const titleText = fieldTitle(field);
     if (titleText) lines.push(`- ${titleText}`);
@@ -125,14 +112,18 @@ function componentLines(part, saved, index, model = {}) {
     const fallback = field.value == null || field.value === '' ? MISSING : field.value;
     lines.push(valueLine(field.key, saved, fallback));
   }
-  if (part.node) lines.push(valueLine(`expect:${part.node}`, saved, '', 'Kết quả mong muốn'));
+  // Every part the owner decides on carries its own decision line. It starts as agreed. A sentence that says no, or any note, is read by meaning.
+  const decisionKey = `part:${part.node}`;
+  const pictureRead = !model.look || model.look.ready; // a plan without the picture reading is not the one to decide on
+  if (pictureRead && !(part.fields ?? []).some((field) => field.key === decisionKey)) {
+    lines.push(valueLine(decisionKey, saved[decisionKey] ? saved : {}, AGREED, 'Quyết định'));
+  }
   return lines;
 }
 
 function blockLines(block, saved, index) {
   const lines = [`### ${index}. Khối \`${block.name}\``, '- Loại: block'];
   if (block.figma) lines.push(`- Figma: [Mở](${block.figma})`);
-  lines.push(valueLine(`expect:${block.id}`, saved, '', 'Kết quả mong muốn'));
   return lines;
 }
 
@@ -167,7 +158,7 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
   const typeFallback = model.templateType?.value || 'section';
   out.push(
     '',
-    model.look && !model.look.ready ? 'Plan này chưa đủ chứng cứ. Chưa đổi Xác nhận.' : 'Đổi `Xác nhận: không` thành `Xác nhận: có` khi xong.',
+    model.look && !model.look.ready ? 'Plan này chưa đủ chứng cứ. Chưa đổi Xác nhận.' : 'Đổi `Xác nhận: không` thành `Xác nhận: có` khi xong. Mọi dòng `Quyết định` mặc định là Đồng ý. Viết "không" hoặc một ghi chú ngay trên dòng đó nếu muốn bỏ hay đổi.',
     '',
     'Xác nhận: không',
     '',
@@ -192,10 +183,8 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
       if (item.figma) lines.push(`- Figma: [Mở](${item.figma})`);
       if (clean(item.evidence)) lines.push(`- ${clean(item.evidence)}`);
       const seen = lookRow(model, item.node);
-      if (seen) lines.push(...evidenceLines(seen));
-      const choice = lookChoice(saved, `guess:${item.node}`, seen, model.look?.ready, { agree: 'attach', differ: 'drop' });
-      lines.push(valueLine(`guess:${item.node}`, saved, choice ?? '', '', choice != null));
-      extras.push(lines.join('\n'));
+      if (seen && renders(seen)) lines.push(...evidenceLines(seen));
+      if (seen && renders(seen)) extras.push(lines.join('\n'));
     }
     for (const item of (model.repeats ?? []).filter((repeat) => ids.has(repeat.node))) {
       const name = clean(item.item || item.label);
@@ -212,25 +201,23 @@ export function renderTemplatePlan(model, saved = {}, note = '') {
   out.push(`## Component Detected (${rows.length})`);
   const review = detectedReview(model.look);
   if (review.length) out.push(...review);
+  if (model.look?.ready) {
+    const listed = new Set((model.parts ?? []).map((part) => part.node));
+    for (const item of model.open ?? []) {
+      if (listed.has(item.node)) continue;
+      const row = lookRow(model, item.node);
+      if (!renders(row)) continue;
+      out.push(`### ${renderedKind(row)} \`${item.node}\``);
+      if (row.see) out.push(`- Ảnh: ${clean(row.see)}`);
+      out.push('');
+    }
+  }
   if (tally) out.push(tally);
   if (!rows.length) out.push('Không nhận ra component nào.');
   if (detected.length) out.push('', detected.join('\n\n'));
   out.push('');
   if (decisions.length) out.push('## Cần User quyết định', decisions.join('\n\n'), '');
   const placed = new Set(rows.flatMap((row) => [row.block?.id, row.self?.node, ...row.nested.map((part) => part.node), ...(row.block?.ids ?? [])].filter(Boolean)));
-  const open = (model.open ?? []).filter((item) => !placed.has(item.node));
-  if (open.length) {
-    out.push('## Chưa chắc', '');
-    for (const item of open) {
-      out.push(`### ${clean(item.label)}`, '');
-      if (item.figma) out.push(`- Figma: [Mở](${item.figma})`);
-      if (clean(item.evidence)) out.push(`- ${clean(item.evidence)}`);
-      const row = lookRow(model, item.node);
-      if (row) out.push(...evidenceLines(row));
-      const choice = lookChoice(saved, `guess:${item.node}`, row, model.look?.ready, { agree: 'attach', differ: 'drop' });
-      out.push('', valueLine(`guess:${item.node}`, saved, choice ?? '', '', choice != null), '');
-    }
-  }
   const repeats = (model.repeats ?? []).filter((item) => !placed.has(item.node));
   if (repeats.length) {
     out.push('## Nhóm lặp', '');

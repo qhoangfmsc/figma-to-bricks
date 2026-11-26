@@ -29,12 +29,12 @@ Bridge và MCP giữ nguyên. Skill tham khảo `.cursor/skills/bricks-bridge` �
 ## Chưa sửa
 
 - Output section Price Table trên site là bản build trước các sửa này. `verify.md` desktop: FAIL, lệch 8.88/255. Chưa build lại.
-- Test history đọc run đang lưu qua `fileKey` và `nodeId` trong `meta.json`. Đường `history/runs/{fileKey}/1-4263` là kiểu lưu cũ, không còn dùng.
-- Bấm thử tự động mới có tab mở và thẻ giá trượt. Accordion, slider, dropdown chưa có test bấm.
+- Switch đọc trạng thái vẽ ở các run cùng file qua `meta.json`. Đường `history/runs/{fileKey}/…` không còn được đọc.
+- Bấm thử accordion, tab, slider, dropdown và ô chọn nằm trong `visual-check/interact.mjs`. Chưa chạy trên output đang có của site.
 
 ## Việc còn lại
 
 1. Build lại section Price Table khi được yêu cầu, rồi đọc `verify.md` và ảnh lệch.
-2. Bấm thử accordion, slider, dropdown trên output, cùng kiểu test tab.
+2. Khi có yêu cầu kiểm output, chạy `node process/modules/visual-check/interact.mjs <url>`. Script đã bấm accordion, tab, slider, dropdown và ô chọn.
 
 Không làm trong các bước này: bịa id bảng, bịa URL, sửa theme, gắn template vào trang, commit.

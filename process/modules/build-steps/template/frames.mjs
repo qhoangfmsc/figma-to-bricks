@@ -2,7 +2,7 @@
 // Every other slot is optional. A blank slot is skipped. A filled slot is merged.
 // Tablet portrait, mobile landscape and mobile portrait are Bricks 1.9.8 breakpoints (max-width).
 // Widescreen is not one of those breakpoints: Bricks applies it as min-width CSS from the wide frame's own width.
-import { parseFigmaUrl } from '../read-figma/url.mjs';
+import { parseFigmaUrl } from '../../read-figma/url.mjs';
 
 // Five ranks, wide to narrow. Each width belongs to one rank. A rank with no frame shows the
 // nearest wider frame, and the phone frame also fills the landscape rank when that frame is absent,

@@ -1,12 +1,12 @@
-import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // The "Bộ item" answer is a Figma link of the frame that holds every slide, in order.
 // The link is fetched beside THIS section (not into another section's workspace) and those items replace the slides drawn in the frame.
 // perPage stays the number that fit the frame, so a longer set still shows the same window.
 import { join } from 'node:path';
-import { findNode } from '../write-bricks/components/helpers.mjs';
-import { safeId } from '../common/workspace.mjs';
-import { copyAssets, fetchSideTree } from '../single-template/expand.mjs';
-import { rejectTabButtons } from '../single-template/recheck.mjs';
+import { findNode } from '../../write-bricks/components/helpers.mjs';
+import { safeId } from '../../common/workspace.mjs';
+import { copyAssets, fetchSideTree } from './expand.mjs';
+import { rejectTabButtons } from './recheck.mjs';
 
 const CONTROL_NAME = /^(pagination|dots|pager|navigation|arrows?|controls)$/i;
 const stamp = (id) => `s${safeId(id)}`;

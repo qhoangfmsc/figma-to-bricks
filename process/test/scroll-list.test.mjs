@@ -10,10 +10,10 @@ import { detectProduction } from '../modules/recognize-parts/rules/production-wi
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { fitAnvRemainder, fitFluid, fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 import { detectStep } from '../modules/build-steps/03-detect.mjs';
-import { decide, writeDecisionReport } from '../modules/approve-parts/index.mjs';
+import { decide, writeDecisionReport } from '../modules/missing-content/decide/index.mjs';
 import { groupQuestions, GROUPS, keyOf, figmaLink } from '../modules/missing-content/index.mjs';
-import { planInventory, screenParts, sectionBlocks } from '../modules/single-template/parts.mjs';
-import { renderTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { sectionBlocks } from '../modules/build-steps/template/parts.mjs';
+import { renderTemplatePlan } from '../modules/build-steps/template/plan-doc.mjs';
 import { SavedRun } from './support/saved-run.mjs';
 
 const box = (x, y, w, h) => ({ x, y, w, h, absX: x, absY: y });
@@ -232,17 +232,16 @@ function freshPlan(tree, fileKey) {
       value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
       figma: figmaLink(fileKey, item.node),
     })));
-    const inventory = planInventory(tree, det.components, fileKey);
     const typeQuestion = questions.find((q) => q.group === 'type');
     const plan = renderTemplatePlan({
       title: tree.name || 'scroll',
       name: tree.name,
       width: tree.box?.w ?? null,
       variants: [],
-      parts: screenParts(tree, det.components, questions, fileKey),
+      parts: [],
       blocks: sectionBlocks(tree, fileKey),
-      open: inventory.open,
-      repeats: inventory.repeats,
+      open: [],
+      repeats: [],
       templateType: {
         key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
         value: typeQuestion?.value || 'section',
@@ -254,7 +253,7 @@ function freshPlan(tree, fileKey) {
   }
 }
 
-test('a fresh read lists the scroll in the plan', () => {
+test('a fresh read records the scroll measurement and does not guess it in the plan', () => {
   const row = {
     id: '1:3760', type: 'FRAME', name: 'Frame 1000002517', visible: true, box: box(24, 0, 1308, 410), sizing,
     layout: { mode: 'HORIZONTAL', wrap: false, gap: 16, padding: { top: 0, right: 0, bottom: 0, left: 0 } },
@@ -269,9 +268,8 @@ test('a fresh read lists the scroll in the plan', () => {
   const again = second.det.components.find((c) => isKind(c, PartKind.SCROLL) && c.node === '1:4000');
   assert.equal(again?.status, 'approved');
   assert.equal(second.det.components.some((c) => isKind(c, PartKind.PROGRESS)), false);
-  assert.match(second.plan, /Loại: Scroll/);
-  assert.match(second.plan, /`part:1:4000`:/);
-  assert.match(second.plan, /`expect:1:4000`:/);
+  assert.match(second.plan, /Xác nhận: không/);
+  assert.doesNotMatch(second.plan, /Loại: Scroll/);
   assert.doesNotMatch(second.plan, /progress/i);
 });
 

@@ -5,14 +5,14 @@
 //   node process/template.mjs read --desktop URL [--widescreen URL] [--tablet URL] [--landscape URL] [--mobile URL]
 //   node process/template.mjs build --desktop URL --answers '<json>'
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { resolveWorkspace } from './modules/common/workspace.mjs';
 import { fetchStep } from './modules/build-steps/01-fetch.mjs';
 import { treeStep } from './modules/build-steps/02-tree.mjs';
 import { detectStep } from './modules/build-steps/03-detect.mjs';
-import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
+import { decide, writeDecisionReport } from './modules/missing-content/decide/index.mjs';
 import { discoverFormErrors } from './modules/read-figma/discover.mjs';
 import { signOff } from './modules/sign-off/index.mjs';
 import { figmaGet, enableRunCache, refreshRunCache } from './modules/read-figma/api.mjs';
@@ -22,17 +22,33 @@ import { attachCompareData } from './modules/write-bricks/components/compare-dat
 import { readServicePrice, readCompareTable } from './modules/write-bricks/bridge.mjs';
 import { resolvePlan } from './modules/missing-content/choices.mjs';
 import { runLines } from './modules/common/spawn-lines.mjs';
-import { parseFrameInput, SLOTS } from './modules/single-template/frames.mjs';
-import { planInventory, screenParts, sectionBlocks } from './modules/single-template/parts.mjs';
-import { writeTemplatePlan } from './modules/single-template/plan-doc.mjs';
-import { PLAN_MODEL, applyAiLook, lookReport, saveSectionShot, writeLook } from './modules/single-template/look.mjs';
-import { unclaimedRepeats } from './modules/recognize-parts/structure.mjs';
-import { reviewFrame } from './modules/single-template/review.mjs';
-import { attachFilledFrames } from './modules/single-template/filled.mjs';
-import { outcomeOf, readyForUser } from './modules/single-template/outcome.mjs';
+import { parseFrameInput, SLOTS } from './modules/build-steps/template/frames.mjs';
+import { sectionBlocks } from './modules/build-steps/template/parts.mjs';
+import { templatePlanPath, writeTemplatePlan } from './modules/build-steps/template/plan-doc.mjs';
+import { PLAN_MODEL, applyAiLook, carryPicture, holdForPicture, lookReport, saveSectionShot, writeLook } from './modules/build-steps/template/look.mjs';
+import { recheckAttrs } from './modules/build-steps/template/recheck-attrs.mjs';
+import { reviewFrame } from './modules/build-steps/template/review.mjs';
+import { attachFilledFrames } from './modules/build-steps/template/filled.mjs';
+import { outcomeOf, readyForUser } from './modules/build-steps/template/outcome.mjs';
 import { requireSiteEnv } from './modules/common/env.mjs';
 
 const ROUNDS = 3;
+const CONFIRMED = /^(có|co|yes)$/i;
+
+export function planIsConfirmed(dir) {
+  const file = templatePlanPath(dir);
+  if (!existsSync(file)) return false;
+  const flag = /^Xác nhận:[ \t]*(.*)$/m.exec(readFileSync(file, 'utf8'))?.[1] ?? '';
+  return CONFIRMED.test(flag.trim());
+}
+
+function clearPlanConfirmation(dir) {
+  const file = templatePlanPath(dir);
+  if (!existsSync(file)) return;
+  const text = readFileSync(file, 'utf8');
+  if (!/^Xác nhận:/m.test(text)) return;
+  writeFileSync(file, text.replace(/^Xác nhận:[ \t]*.*$/m, 'Xác nhận: không'));
+}
 const runner = join(dirname(new URL(import.meta.url).pathname), 'run.mjs');
 
 function bricksHash(base) {
@@ -66,10 +82,10 @@ async function prepareFrame(url, { variant, formErrors }) {
     ws.writeJson('detections.json', prev);
   }
   detectStep(ws.dir);
-  const result = decide(ws, { firstSection: false, variant, parentBg: null, formErrors });
-  writeDecisionReport(ws, result, ws.readJson('tree.json').name);
-  detectStep(ws.dir);
-  return { ws, result };
+  const measured = ws.readJson('detections.json');
+  holdForPicture(measured.components);
+  ws.writeJson('detections.json', measured);
+  return { ws, result: { questions: [], designer: [], decisions: [], needs: [] } };
 }
 
 function frameWidth(ws) {
@@ -118,25 +134,11 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   });
   base.writeJson('context.json', { bg: { base: null } });
   const det = base.readJson('detections.json');
-  const counts = {};
-  for (const c of det.components.filter((c) => c.status === 'approved')) counts[c.component] = (counts[c.component] ?? 0) + 1;
-  const questions = groupQuestions(prepared.desktop.result.questions ?? []).flatMap((g) => g.items.map((item) => ({
-    group: g.group,
-    title: GROUPS[g.group].title(1).replace(/ 1 /, ' '),
-    summary: GROUPS[g.group].summary,
-    node: item.node,
-    label: item.label,
-    key: item.key || keyOf(g.group, item.node),
-    value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[g.group].value ?? ''),
-    figma: figmaLink(desktop.fileKey, item.node),
-  })));
-  const parts = screenParts(tree, det.components, questions, desktop.fileKey);
+  const questions = planQuestions(prepared.desktop.result.questions, desktop.fileKey);
+  const parts = [];
   const blocks = sectionBlocks(tree, desktop.fileKey);
-  const repeats = unclaimedRepeats(tree, det.components);
-  const open = det.components.filter((c) => c.status === 'proposed').map((c) => ({
-    component: c.component, node: c.node, confidence: c.confidence, evidence: c.evidence,
-  }));
-  const inventory = planInventory(tree, det.components, desktop.fileKey);
+  const repeats = [];
+  const open = [];
   const typeQuestion = questions.find((q) => q.group === 'type');
   let shot = { shot: '', shotError: '' };
   try {
@@ -154,8 +156,10 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     variants: variants.map((v) => ({ label: SLOTS.find((s) => s.key === v.key)?.label ?? v.key, width: v.width })),
     parts,
     blocks,
-    open: inventory.open,
-    repeats: inventory.repeats,
+    fileKey: desktop.fileKey,
+    questions,
+    open: [],
+    repeats: [],
     templateType: {
       key: typeQuestion ? keyOf('type', typeQuestion.node) : `type:${tree.id}`,
       value: typeQuestion?.value || 'section',
@@ -176,7 +180,7 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
     width: frameWidth(base),
     dir: base.dir,
     planFile,
-    becomes: Object.entries(counts).map(([k, n]) => `${k} ×${n}`).join(', ') || 'block',
+    becomes: 'chờ ảnh',
     questions,
     parts,
     repeats,
@@ -186,9 +190,25 @@ export async function readTemplate(frames, { log = () => {} } = {}) {
   };
 }
 
+function planQuestions(raw, fileKey) {
+  return groupQuestions(raw ?? []).filter((group) => group.group !== 'confirm').flatMap((group) => group.items.map((item) => ({
+    group: group.group,
+    title: GROUPS[group.group].title(1).replace(/ 1 /, ' '),
+    summary: GROUPS[group.group].summary,
+    node: item.node,
+    label: item.label,
+    key: item.key || keyOf(group.group, item.node),
+    value: item.value != null && item.value !== '' ? String(item.value) : (GROUPS[group.group].value ?? ''),
+    figma: figmaLink(fileKey, item.node),
+  })));
+}
+
 export function recordLook(desktopUrl, groups) {
   const base = resolveWorkspace(desktopUrl);
   const shown = applyAiLook(base, groups);
+  const asked = decide(base, { namedOnly: true });
+  writeDecisionReport(base, asked, base.readJson('tree.json').name);
+  shown.questions = planQuestions(asked.questions, shown.fileKey);
   base.writeJson(PLAN_MODEL, shown);
   const planFile = writeTemplatePlan(base.dir, shown);
   return { planFile, ready: shown.look.ready === true };
@@ -198,8 +218,12 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
   const base = resolveWorkspace(desktopUrl);
   if (!base.has('tree.json')) throw new Error('Chưa đọc Figma. Chạy read trước.');
   if (base.has('look.json') && !lookReport(base.readJson('look.json')).ready) {
-    throw new Error('Plan chưa đủ chứng cứ. Ảnh, nhận dạng từ ảnh, và tín hiệu phải có trước khi build.');
+    throw new Error('Plan chưa đủ chứng cứ. Ảnh phải được đọc trước khi xây dựng.');
   }
+  if (!planIsConfirmed(base.dir)) {
+    throw new Error('Plan chưa được xác nhận. Đổi dòng Xác nhận thành có rồi mới xây dựng.');
+  }
+  carryPicture(base);
   const stored = base.has('choices.json') ? base.readJson('choices.json') : {};
   const { ready, open } = resolvePlan(answers ?? {}, stored, (group) => GROUPS[group]?.value ?? '');
   if (open.length) {
@@ -215,7 +239,7 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
   const shared = shareAccordionAnswers(base);
   log(`Đã gắn ${applied.applied.length} giá trị${shared.copied ? `, chép ${shared.copied} nội dung sang khung khác` : ''}`);
   await attachFilledFrames(base, { log });
-  const note = 'the owner confirmed the values in the chat';
+  const note = 'the owner set Xác nhận: có in plan.md';
   const responsive = base.readJson('responsive.json', { variants: [] });
   const variants = responsive.variants.map((v) => resolveWorkspace(join(dirname(base.dir), v.workspace)));
   for (const variant of variants) {
@@ -252,8 +276,15 @@ export async function buildTemplate(desktopUrl, answers, { log = () => {} } = {}
     seen = bricksHash(base);
     frames = measuredFrames(base, responsive, outcome.verified);
     if (readyForUser(frames)) break;
+    if (round === 1) {
+      const repaired = recheckAttrs(base);
+      log(repaired.fixed
+        ? `Đã ghi ${repaired.fixed} attribute Figma còn thiếu vào style của element.`
+        : 'Lệch không phải attribute style còn thiếu. Custom CSS chỉ giữ chỗ element không có control.');
+    }
   }
   if (!readyForUser(frames)) log('Đã kiểm tra và sửa template này. Link là bản vừa kiểm tra.');
+  clearPlanConfirmation(base.dir);
   const state = base.readJson('state.json', {});
   return {
     templateId: state.templateId,

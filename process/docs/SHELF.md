@@ -28,10 +28,10 @@ Trạng thái:
 | `references/novamira-verification.md`, `review-skill/` | `process/modules/visual-check/` | Không lấy cách verify của kệ. Mình dùng Playwright headless trên máy này |
 | `snippets/widget-map.md` | `process/docs/widget-components/`, `kinds.mjs` | Đã vào ngày 2026-11-09. Không lấy `_gap`, URL localhost, ticker, và slider thành hàng kéo |
 | `snippets/css-custom.md` | `render/utils/schema-traps.mjs` | Đã vào các bẫy CSS đã ghi trong `history/notes/components.md` |
-| `references/query-loop.md` | `process/modules/standby/query.mjs`, `widget-components/posts.md` | Đã dựng module riêng 2026-11-09. Không vào detect. Key `query` |
-| `references/woocommerce.md` | `process/modules/standby/woocommerce.mjs` | Đã dựng module riêng 2026-11-09. Tên khớp file trong theme. Không vào detect |
-| `references/acf-providers.md`, `references/dynamic-data.md` | `process/modules/standby/dynamic.mjs` | Đã dựng module riêng 2026-11-09. Không lấy `{shortcode:}` |
-| `references/conditions.md` | `process/modules/standby/conditions.mjs`, `popup-settings.mjs` | Đã dựng `_conditions` riêng. Popup vẫn dùng `templateConditions` |
+| `references/query-loop.md` | `process/modules/write-bricks/standby/query.mjs`, `widget-components/posts.md` | Đã dựng module riêng 2026-11-09. Không vào detect. Key `query` |
+| `references/woocommerce.md` | `process/modules/write-bricks/standby/woocommerce.mjs` | Đã dựng module riêng 2026-11-09. Tên khớp file trong theme. Không vào detect |
+| `references/acf-providers.md`, `references/dynamic-data.md` | `process/modules/write-bricks/standby/dynamic.mjs` | Đã dựng module riêng 2026-11-09. Không lấy `{shortcode:}` |
+| `references/conditions.md` | `process/modules/write-bricks/standby/conditions.mjs`, `popup-settings.mjs` | Đã dựng `_conditions` riêng. Popup vẫn dùng `templateConditions` |
 | `references/hooks.md`, `references/custom-elements.md`, `references/db-schema.md` | không thêm PHP element | Không lấy cho tới khi một khung cần hook thật |
 | `references/assets-permissions.md` | bridge, CSS external files | Đã đọc phần CSS file. `cssLoading` của mình là `file`. Không lấy theme styles, critical CSS, global classes |
 | `references/quick-reference.md` | `process/README.md`, `render/` | Đã đọc hết 2026-11-09. `%root%`, id 6 ký tự, breakpoint đã khớp. Không lấy global class và theme style |

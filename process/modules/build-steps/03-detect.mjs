@@ -1,13 +1,12 @@
 #!/usr/bin/env node
-// STEP 3  tree.json -> detections.json + detections.md.  Find what the section is made of and which nodes are really a component
-// (tooltip, button, …) instead of plain blocks. Rules propose candidates; the AI pass (see AI-GUIDE.md) adds the ones rules cannot see;
-// a HUMAN approves or rejects each one in detections.json. The build (step 4) applies only `approved` entries.
+// STEP 3  tree.json -> detections.json + facts.json. Rules measure structure the build can paint.
+// A proposed row is not a component. The picture names the component. The build applies only `approved` entries.
 //   node process/modules/build-steps/03-detect.mjs <figma-url | workspace-dir>
 // Also writes facts.json / facts.md (a deterministic inventory every detection must be able to cite) and ends at the REVIEW GATE.
 import { resolveWorkspace } from '../common/workspace.mjs';
 import { emptyDetections, mergeDetections, runRules, validate } from '../recognize-parts/index.mjs';
 import { renderReview } from '../recognize-parts/review-md.mjs';
-import { buildFacts, renderFacts } from '../tree-inventory/index.mjs';
+import { buildFacts, renderFacts } from '../recognize-parts/facts.mjs';
 import { gate } from '../sign-off/index.mjs';
 import { isSignal } from '../recognize-parts/kinds.mjs';
 

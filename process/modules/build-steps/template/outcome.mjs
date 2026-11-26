@@ -14,5 +14,8 @@ export function outcomeOf({ status = 0, stdout = '', stderr = '', templateId } =
 // Step 3 may show the link only after every pasted frame was measured and none has a heavy miss.
 // PASS WITH MINOR stays a finished template. A missing measurement is not finished.
 export function readyForUser(frames) {
-  return Array.isArray(frames) && frames.length > 0 && frames.every((f) => f?.verify?.verdict && f.verify.verdict !== 'FAIL');
+  return Array.isArray(frames) && frames.length > 0 && frames.every((frame) => {
+    const verify = frame?.verify;
+    return verify?.verdict && verify.verdict !== 'FAIL' && verify.visualMean != null;
+  });
 }

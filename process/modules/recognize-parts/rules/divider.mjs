@@ -35,6 +35,9 @@ export function detectDividers(tree) {
   (function walk(n) {
     if (!n || n.visible === false) return;
     const line = lineOf(n);
+    // A slot with no paint of its own, whose child is the colored bar, is not the line. The child is.
+    const slot = line && !bar.has(n.id) && !(n.fills ?? []).some((f) => f.visible !== false) && !n.stroke && kids(n).some((c) => lineOf(c));
+    if (slot) { kids(n).forEach(walk); return; }
     if (line && !bar.has(n.id)) {
       const fill = (n.fills ?? []).find((f) => f.visible !== false && isType(f, FillType.SOLID) && f.hex);
       found.push({

@@ -10,6 +10,7 @@ import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // Limits: the picture is not editable and its text is not selectable; node effects that spill outside the box (drop shadow,
 // blur) make the export larger than the box, in which case the detection is not applied (kept as block, with the reason).
 import { addHoverFade } from '../../write-bricks/render/utils/interactions.mjs';
+import { px } from '../../write-bricks/render/utils/css.mjs';
 
 const visibleTexts = (n, out = []) => {
   if (n.visible === false) return out;
@@ -19,6 +20,34 @@ const visibleTexts = (n, out = []) => {
 };
 
 export const defaultAlt = (node) => [...new Set(visibleTexts(node))].join(' ');
+
+function ancestors(root, id) {
+  const path = [];
+  (function walk(n, stack) {
+    if (n.id === id) { path.push(...stack); return true; }
+    for (const c of n.children ?? []) if (c && walk(c, [...stack, n])) return true;
+    return false;
+  })(root, []);
+  return path;
+}
+
+// Figma's render of a node inside a clipping frame is the part that stays inside that frame.
+export function clippedBox(root, node) {
+  if (!root?.box || !node?.box) return null;
+  let box = { x: node.box.absX, y: node.box.absY, w: node.box.w, h: node.box.h };
+  let clipped = false;
+  for (const frame of ancestors(root, node.id)) {
+    if (!frame.clip || !frame.box) continue;
+    const x = Math.max(box.x, frame.box.absX);
+    const y = Math.max(box.y, frame.box.absY);
+    const right = Math.min(box.x + box.w, frame.box.absX + frame.box.w);
+    const bottom = Math.min(box.y + box.h, frame.box.absY + frame.box.h);
+    if (right - x < 1 || bottom - y < 1) return null;
+    if (Math.abs(right - x - box.w) > 1 || Math.abs(bottom - y - box.h) > 1) clipped = true;
+    box = { x, y, w: right - x, h: bottom - y };
+  }
+  return clipped ? box : null;
+}
 
 // approved flat-image detections -> what step 4 must export
 export const exportJobs = (detections) => (detections?.components ?? [])
@@ -41,15 +70,29 @@ export default {
     const f = env.flats?.[node.id];
     if (!f) return { ok: false, reason: 'not exported yet: run the export step (--from=export)' };
     const w = f.width / f.scale, h = f.height / f.scale;
-    if (Math.abs(w - node.box.w) > 1 || Math.abs(h - node.box.h) > 1) return { ok: false, reason: `the Figma export is ${w}×${h}px but the node box is ${node.box.w}×${node.box.h}px (effects spill outside the box)` };
-    return { ok: true };
+    if (Math.abs(w - node.box.w) <= 1 && Math.abs(h - node.box.h) <= 1) return { ok: true };
+    const clip = clippedBox(env.root, node);
+    if (clip && Math.abs(w - clip.w) <= 1 && Math.abs(h - clip.h) <= 1) return { ok: true };
+    return { ok: false, reason: `the Figma export is ${w}×${h}px but the node box is ${node.box.w}×${node.box.h}px (effects spill outside the box)` };
   },
 
-  apply({ node, s, flats }, det) {
+  apply({ node, s, flats, root, parent }, det) {
     const f = flats[node.id];
     s.image = { $asset: f.file, size: 'full' };
     s.altText = det.params?.alt ?? defaultAlt(node);
     s._objectFit = 'fill'; // the div is the box; the picture fills it. No crop, no custom CSS: Figma already drew the stack.
+    const clip = clippedBox(root, node);
+    const w = f.width / f.scale, h = f.height / f.scale;
+    if (clip && parent?.box && Math.abs(w - clip.w) <= 1 && Math.abs(h - clip.h) <= 1) {
+      Object.assign(s, {
+        _position: 'absolute',
+        _left: px(clip.x - parent.box.absX),
+        _top: px(clip.y - parent.box.absY),
+        _width: px(clip.w),
+        _height: px(clip.h),
+        _widthMax: 'none',
+      });
+    }
     if (det.params?.link) { Object.assign(s, { link: 'url', url: { type: 'external', url: det.params.link } }); addHoverFade(s); }
   },
 };

@@ -21,6 +21,8 @@ export default {
   apply(ctx, det) {
     const { s } = ctx;
     const url = String(det.params.url);
+    // The theme gives .brxe-video padding-top 56.25% of the parent width and an absolute iframe. The frame's own height replaces that ratio box.
+    if (ctx.node?.box?.h > 0 && ctx.node?.sizing?.v !== 'HUG') s._padding = { ...(s._padding ?? {}), top: '0px' };
     const youtube = youtubeId(url);
     const vimeo = vimeoId(url);
     if (youtube) {

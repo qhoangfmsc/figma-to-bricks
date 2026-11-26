@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
-import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve } from '../modules/breakpoints/solo.mjs';
+import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand, pxPastScreen, screensToProve, useMobileOnTablet } from '../modules/breakpoints/solo.mjs';
 import { applyAppearance } from '../modules/write-bricks/render/utils/appearance.mjs';
 
 const el = (id, parent, name, settings = {}) => ({ id, parent, name, settings });
@@ -411,6 +411,7 @@ test('every width shows the desktop version or the phone version, and a row stac
     ],
   };
   holdMobileBand(template, { keep: ['mobile_portrait'] });
+  useMobileOnTablet(template, { keep: ['mobile_portrait'] });
   const by = (id) => template.content.find((e) => e.id === id).settings;
   const hidden = (settings, width) => {
     const bp = width <= 478 ? ['mobile_portrait', 'mobile_landscape', 'tablet_portrait']
@@ -434,6 +435,10 @@ test('every width shows the desktop version or the phone version, and a row stac
   assert.doesNotMatch(by('row')._cssCustom, /max-width: 639px\) and \(min-width: 768px\)/);
   assert.equal(by('row')['_direction:mobile_landscape'], 'column');
   assert.equal(by('desk')['_display:mobile_landscape'], 'none');
+  assert.equal(hidden(by('desk'), 800), true);
+  assert.equal(hidden(by('phone'), 800), false);
+  assert.equal(hidden(by('desk'), 1440), false);
+  assert.equal(hidden(by('phone'), 1440), true);
 });
 
 test('a phone row wider than the phone breakpoint stacks there, a row that fits stays as drawn', () => {
@@ -770,6 +775,41 @@ test('desktop tabs and mobile blocks are two versions; accordion and form stay o
   assert.equal(info.settings['_display:mobile_portrait'], undefined);
 });
 
+test('a narrow accordion the wide frame did not pair stays clickable at that width', () => {
+  const base = {
+    tree: {
+      id: 'desk', name: 'Questions', children: [{
+        id: 'list', name: 'List', children: [
+          { id: 'a', name: 'Row', children: [] },
+          { id: 'b', name: 'Row', children: [] },
+          { id: 'c', name: 'Row', children: [] },
+        ],
+      }],
+    },
+    template: { content: [el('desk', 0, 'section', {}), el('wrap', 'desk', 'block', {}), el('acc', 'wrap', 'accordion-nested', {})] },
+    mapping: { desk: { bricksId: 'desk' }, list: { bricksId: 'wrap' }, a: { bricksId: 'acc' } },
+  };
+  const mobile = {
+    key: 'mobile_portrait',
+    maxWidth: 478,
+    tree: {
+      id: 'phone', name: 'Questions', children: [{
+        id: 'plist', name: 'Stack', children: [
+          { id: 'p1', name: 'Line', children: [] },
+          { id: 'p2', name: 'Line', children: [] },
+        ],
+      }],
+    },
+    template: { content: [el('phone', 0, 'section', {}), el('pacc', 'phone', 'accordion-nested', {})] },
+    mapping: { phone: { bricksId: 'phone' }, plist: { bricksId: 'pacc' } },
+  };
+  const merged = mergeResponsive({ base, variants: [mobile] });
+  const by = (id) => merged.template.content.find((item) => item.id === id);
+  assert.equal(by('pacc').name, 'accordion-nested');
+  assert.equal(by('pacc').settings['_display:mobile_portrait'], undefined);
+  assert.equal(by('wrap').settings['_display:mobile_portrait'], 'none');
+});
+
 test('two price tables stay two whole frames and keep the base card', () => {
   const query = { hasLoop: true, query: { objectType: 'vnxsp_pkg__studio-plan' } };
   const base = {
@@ -823,6 +863,35 @@ test('a tab frame and a plain mobile frame stay two whole frames', () => {
   assert.match(by('mob').settings._cssCustom ?? '', /display: none/);
 });
 
+test('a missing tablet uses the mobile frame, and a pasted tablet frame stays', () => {
+  const open = {
+    content: [
+      el('booth', 0, 'block', { _display: 'flex', '_display:mobile_portrait': 'none' }),
+      el('lane', 0, 'block', {
+        _direction: 'column',
+        '_direction:mobile_portrait': 'column',
+        '_width:mobile_portrait': '280px',
+        '_typography:mobile_portrait': { 'font-size': '18px' },
+        '_width:tablet_portrait': '100%',
+        _cssCustom: '@media (max-width: 767px) { #brxe-lane { gap: 12px; } } @media (min-width: 768px) { body #brxe-lane { display: none; } }',
+      }),
+    ],
+  };
+  useMobileOnTablet(open, { keep: ['mobile_portrait'] });
+  const lane = open.content.find((e) => e.id === 'lane').settings;
+  const booth = open.content.find((e) => e.id === 'booth').settings;
+  assert.equal(lane['_direction:tablet_portrait'], 'column');
+  assert.equal(lane['_width:tablet_portrait'], '280px');
+  assert.equal(lane['_typography:tablet_portrait']['font-size'], '18px');
+  assert.equal(booth['_display:tablet_portrait'], 'none');
+  assert.match(lane._cssCustom, /max-width: 991px/);
+  assert.match(lane._cssCustom, /min-width: 992px/);
+  assert.doesNotMatch(lane._cssCustom, /767px|768px/);
+  const pasted = { content: [el('lane', 0, 'block', { '_direction:mobile_portrait': 'column', '_direction:tablet_portrait': 'row' })] };
+  useMobileOnTablet(pasted, { keep: ['mobile_portrait', 'tablet_portrait'] });
+  assert.equal(pasted.content[0].settings['_direction:tablet_portrait'], 'row');
+});
+
 test('a pasted phone keeps the base type; the landscape step does not shrink it', () => {
   const template = { content: [el('h', 0, 'heading', { _typography: { 'font-size': '24px', 'line-height': '36px', 'white-space': 'nowrap' } })] };
   fitSoloTemplate(template, { keep: ['mobile_portrait'] });
@@ -830,12 +899,14 @@ test('a pasted phone keeps the base type; the landscape step does not shrink it'
   assert.equal(stepped['font-size'], '18px');
   assert.equal(stepped['white-space'], 'normal');
   holdMobileBand(template, { keep: ['mobile_portrait'] });
+  useMobileOnTablet(template, { keep: ['mobile_portrait'] });
   const s = template.content[0].settings;
   assert.equal(s['_typography:mobile_portrait']['font-size'], '24px');
   assert.equal(s['_typography:mobile_portrait']['white-space'], 'nowrap');
   assert.equal(s['_typography:mobile_landscape']['font-size'], '24px');
   assert.equal(s['_typography:mobile_landscape']['white-space'], 'nowrap');
-  assert.notEqual(s['_typography:tablet_portrait']['font-size'], '24px');
+  assert.equal(s['_typography:tablet_portrait']['font-size'], '24px');
+  assert.equal(s['_typography:tablet_portrait']['white-space'], 'nowrap');
 });
 
 test('a one-line label in a pasted phone frame is not wrapped by the tablet step', () => {
@@ -847,20 +918,23 @@ test('a one-line label in a pasted phone frame is not wrapped by the tablet step
   };
   fitFluid(template, { frameWidth: 1440, coveredUntil: 478, keep: ['mobile_portrait'] });
   holdMobileBand(template, { keep: ['mobile_portrait'] });
+  useMobileOnTablet(template, { keep: ['mobile_portrait'] });
   const s = template.content.find((e) => e.id === 'p').settings;
-  assert.equal(s['_typography:tablet_portrait']['white-space'], 'normal');
+  assert.equal(s['_typography:tablet_portrait']['white-space'], 'nowrap');
   assert.equal(s['_typography:mobile_portrait']['white-space'], 'nowrap');
   assert.equal(s['_width:mobile_portrait'], 'auto');
+  assert.equal(s['_width:tablet_portrait'], 'auto');
   assert.equal(s['_typography:mobile_landscape']['white-space'], 'nowrap');
 });
 
 test('a pasted phone keeps the width it drew when the tablet step stretches the element', () => {
   const template = { content: [el('pag', 0, 'slider-nested', { _width: 'auto', '_width:tablet_portrait': '100%', '_width:mobile_landscape': '100%' })] };
   holdMobileBand(template, { keep: ['mobile_portrait'] });
+  useMobileOnTablet(template, { keep: ['mobile_portrait'] });
   const s = template.content[0].settings;
   assert.equal(s['_width:mobile_portrait'], 'auto');
   assert.equal(s['_width:mobile_landscape'], 'auto');
-  assert.equal(s['_width:tablet_portrait'], '100%');
+  assert.equal(s['_width:tablet_portrait'], 'auto');
 });
 
 test('a pasted phone keeps its slider count through the open band', () => {
@@ -869,7 +943,9 @@ test('a pasted phone keeps its slider count through the open band', () => {
   assert.equal(template.content[0].settings['perPage:mobile_portrait'], 3);
   assert.equal(template.content[0].settings['perPage:tablet_portrait'], 2);
   holdMobileBand(template, { keep: ['mobile_portrait'] });
+  useMobileOnTablet(template, { keep: ['mobile_portrait'] });
   assert.equal(template.content[0].settings['perPage:mobile_landscape'], 3);
+  assert.equal(template.content[0].settings['perPage:tablet_portrait'], 3);
   const drawn = { content: [el('one', 0, 'slider-nested', { perPage: 3, 'perPage:mobile_portrait': 1 })] };
   fitSoloTemplate(drawn, { keep: ['mobile_portrait'] });
   assert.equal(drawn.content[0].settings['perPage:mobile_portrait'], 1);
@@ -979,4 +1055,19 @@ test('a fill picture keeps the Figma box on the wrapper, and the image stays 100
   assert.equal(by('shot')._flexShrink, 0);
   assert.equal(by('shotImg')._width, '100%');
   assert.equal(by('shotImg')._height, '100%');
+});
+
+test('a row the phone frame drew as a wrapping grid stays a row at the phone', () => {
+  const grid = {
+    content: [
+      el('row', 0, 'block', { _direction: 'row', _width: '1000px', _columnGap: '24px', '_flexWrap:mobile_portrait': 'wrap', '_columnGap:mobile_portrait': '12px', '_width:mobile_portrait': '100%' }),
+      el('a', 'row', 'block', { _width: '220px', '_width:mobile_portrait': '150px' }),
+      el('b', 'row', 'block', { _width: '220px', '_width:mobile_portrait': '150px' }),
+      el('c', 'row', 'block', { _width: '220px', '_width:mobile_portrait': '150px' }),
+      el('d', 'row', 'block', { _width: '220px', '_width:mobile_portrait': '150px' }),
+    ],
+  };
+  fitFluid(grid, { frameWidth: 1440, coveredUntil: 478, keep: ['mobile_portrait'] });
+  assert.equal(grid.content[0].settings['_direction:mobile_portrait'], 'row');
+  assert.equal(grid.content[0].settings['_flexWrap:mobile_portrait'], 'wrap');
 });

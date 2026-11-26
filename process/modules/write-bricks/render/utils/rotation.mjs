@@ -9,6 +9,18 @@
 // rotation without the transform data (old raw.json fetched before geometry=paths).
 import { px, pct, addCustomCss } from '../../../write-bricks/render/utils/css.mjs';
 
+function writeTurn(s, r) {
+  const [a, b, c, d] = r.m;
+  const deg = (Math.atan2(b, a) * 180) / Math.PI;
+  const pure = Math.abs(a - d) < 1e-6 && Math.abs(b + c) < 1e-6 && Math.abs(a * a + b * b - 1) < 1e-6;
+  if (pure && Math.abs(deg - Math.round(deg)) < 1e-4) {
+    s._transform = { rotateZ: String(Math.round(deg)) };
+    s._transformOrigin = '0 0';
+  } else {
+    addCustomCss(s, `transform: matrix(${r.m.join(', ')}, 0, 0); transform-origin: 0 0;`);
+  }
+}
+
 export function applyRotation({ node, parent, s, css, warn }) {
   if (!node.rotation) return;
   // an svg exported by Figma for a rotated node already has the turn in it (a 162×2 line turned 90° is a 2×162 file, the node's bounding box): the element is
@@ -16,6 +28,7 @@ export function applyRotation({ node, parent, s, css, warn }) {
   if (node.svg) return;
   const r = node.rotate;
   if (!r || node.place !== 'ABSOLUTE') {
+    // Auto-layout already places the rotated box. Turning the element again would move it off the tree.
     warn(node, `rotation ${node.rotation} rad is not applied${r ? ' (only absolutely placed nodes are supported)' : ' (no size / relativeTransform in raw.json: fetch again)'}`);
     return;
   }
@@ -28,13 +41,5 @@ export function applyRotation({ node, parent, s, css, warn }) {
     Object.assign(s, { _left: px(r.x), _top: px(r.y), _width: px(r.w), _height: px(r.h) });
   }
   Object.assign(css, { width: px(r.w), height: px(r.h) });
-  const [a, b, c, d] = r.m;
-  const deg = (Math.atan2(b, a) * 180) / Math.PI;
-  const pure = Math.abs(a - d) < 1e-6 && Math.abs(b + c) < 1e-6 && Math.abs(a * a + b * b - 1) < 1e-6;
-  if (pure && Math.abs(deg - Math.round(deg)) < 1e-4) {
-    s._transform = { rotateZ: String(Math.round(deg)) };
-    s._transformOrigin = '0 0';
-  } else {
-    addCustomCss(s, `transform: matrix(${r.m.join(', ')}, 0, 0); transform-origin: 0 0;`);
-  }
+  writeTurn(s, r);
 }

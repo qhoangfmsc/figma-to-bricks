@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { runRules } from '../modules/recognize-parts/index.mjs';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
-import { WOO_ELEMENTS, wooElement } from '../modules/standby/woocommerce.mjs';
-import { postQuery, postsElement } from '../modules/standby/query.mjs';
-import { acfTag, metaTag } from '../modules/standby/dynamic.mjs';
-import { conditions } from '../modules/standby/conditions.mjs';
-import { masonrySettings, shapeDivider } from '../modules/standby/layout-extra.mjs';
+import { WOO_ELEMENTS, wooElement } from '../modules/write-bricks/standby/woocommerce.mjs';
+import { postQuery, postsElement } from '../modules/write-bricks/standby/query.mjs';
+import { acfTag, metaTag } from '../modules/write-bricks/standby/dynamic.mjs';
+import { conditions } from '../modules/write-bricks/standby/conditions.mjs';
+import { masonrySettings, shapeDivider } from '../modules/write-bricks/standby/layout-extra.mjs';
 
 const themeWoo = join(dirname(fileURLToPath(import.meta.url)), '../../wp-content/themes/bricks/includes/woocommerce/elements');
 const detectSource = readFileSync(new URL('../modules/recognize-parts/index.mjs', import.meta.url), 'utf8');

@@ -68,7 +68,11 @@ function strokeDecl(n) {
   if (!top?.hex) return '';
   const w = strokeWidths(st);
   const uniform = w.top === w.right && w.right === w.bottom && w.bottom === w.left && w.top > 0;
-  if (!uniform) return '';
+  if (!uniform) {
+    const sides = ['top', 'right', 'bottom', 'left'].filter((side) => w[side] > 0);
+    if (sides.length !== 1) return '';
+    return `border-${sides[0]}: ${px(w[sides[0]])} solid ${cssColor(top)} !important;`;
+  }
   const pad = n.layout?.padding;
   const padOk = !!pad && ['top', 'right', 'bottom', 'left'].every((k) => (pad[k] ?? 0) >= w[k]);
   const inset = st.align !== 'OUTSIDE' && st.align !== 'CENTER' && !padOk && !(n.effects ?? []).some((e) => e.hex);
@@ -79,6 +83,8 @@ function strokeDecl(n) {
 function clearDecl(decl) {
   if (decl.startsWith('box-shadow')) return 'box-shadow: none !important;';
   if (decl.startsWith('border-color')) return 'border-color: transparent !important;';
+  const side = /^border-(top|right|bottom|left)/.exec(decl)?.[1];
+  if (side) return `border-${side}: 0 !important;`;
   return '';
 }
 

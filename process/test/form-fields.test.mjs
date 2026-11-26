@@ -4,7 +4,7 @@ import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
 import { submissionName } from '../modules/write-bricks/components/form.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
+import { decide } from '../modules/missing-content/decide/index.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 import { MISSING, PlanGroup, SubmitChoice } from '../modules/missing-content/choices.mjs';
 import { PartKind } from '../modules/recognize-parts/kinds.mjs';

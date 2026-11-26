@@ -13,7 +13,7 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `modules/maintenance/` | maintenance commands: plan, review, triage, regress, rebuild-diff, assemble-page, todo | a command the owner runs by hand, not a pipeline step |
 | `modules/read-figma/` | everything that **reads** Figma: `api.mjs` (REST), `url.mjs`, `nodes.mjs` (what to download), `normalize.mjs` (raw → `tree.json`), `tree-md.mjs` (`tree.md`) | a Figma property is missing from `tree.json` |
 | `modules/write-bricks/bridge.mjs` | client of the WordPress REST bridge | the bridge API changes |
-| `modules/tree-inventory/` | deterministic inventory of the tree (`facts.json` / `facts.md`) the AI pass and the owner read | a new kind of fact is useful for detection |
+| `modules/recognize-parts/facts.mjs` | deterministic inventory of the tree (`facts.json` / `facts.md`) the detect step writes | a new kind of fact is useful for detection |
 | `modules/sign-off/` | the review gate: sign-off bound to tree + decisions, checked by every step after detect | the gate rules change |
 | `modules/recognize-parts/` | step 3: `rules/` is one file per component kind, `index.mjs` merges `detections.json` | a pattern can be recognised from the tree |
 | `modules/write-bricks/components/` | one file per Bricks component (`button.mjs`, `tabs.mjs`, `form.mjs`, …) | a pattern must become a real Bricks element |
@@ -21,7 +21,7 @@ Read this before changing code under `process/`. The workflow itself (what to ru
 | `modules/breakpoints/` | breakpoint variants of one design: `match.mjs` pairs the nodes of two frames, `merge.mjs` writes the variant's values as `<key>:<breakpoint>` settings, `@media` css, hide / `display: contents` | a variant frame needs a new rule (a setting that cannot be made responsive, a pairing case). Config: `<temp>/figma-to-bricks/<file>/<base>/responsive.json` (variants, aliases for renamed nodes); `modules/maintenance/carry.mjs` copies the owner's decisions to a variant workspace by node name |
 | `modules/visual-check/` | headless Playwright on this machine: `check.mjs` (render, measure, visual diff, hit-test, network), `optimize.mjs` (webp via sharp), `budgets.json` | a new kind of check; run through `modules/common/qa.mjs`. No browser window. The page is `WP_URL` |
 | `policy.json` + `modules/write-bricks/policy.mjs` | project-wide defaults with their reason (line-height rounding…) | a global choice that changes how Figma numbers are written |
-| `modules/approve-parts/` | the autopilot decision engine: judgment calls as rules over tree + facts + policy, with a decisions report | the owner keeps making the same decision by hand: turn it into a rule + test here |
+| `modules/missing-content/decide/` | the autopilot decision engine: judgment calls as rules over tree + facts + policy, with a decisions report | the owner keeps making the same decision by hand: turn it into a rule + test here |
 | `auto.mjs`, `figma/discover.mjs` | one link -> Bricks (see README "Autopilot"); discover finds the other breakpoint frames of a section | |
 | `modules/common/` | `env.mjs` (`.env` is the one site), `workspace.mjs` (work paths), `image-info.mjs`, `qa.mjs` (headless Playwright and webp) | small cross-cutting helpers |
 | `test/`, `fixtures/` | offline tests (`npm test --prefix process`) | every rule change gets a test |

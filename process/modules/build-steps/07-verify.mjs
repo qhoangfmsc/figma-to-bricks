@@ -244,7 +244,28 @@ export async function verifyStep(urlOrDir, { tol = 1, cross = true } = {}) {
       const area = hit.reduce((s, { b }) => s + (Math.min(c.x + c.w, b.x + b.w) - Math.max(c.x, b.x)) * (Math.min(c.y + c.h, b.y + b.h) - Math.max(c.y, b.y)), 0);
       return area >= 0.5 * c.w * c.h && hit.every(({ b, e }) => Math.abs(b.x - e.x) <= SOFT_PX && Math.abs(b.w - e.w) <= SOFT_PX && Math.abs(b.y - e.y) <= SOFT_PX && Math.abs(b.h - e.h) <= SOFT_PX);
     };
-    if (r.visual) for (const c of r.visual.cells.filter((c) => c.diff > limit)) rows.push({ label: `look ${c.x},${c.y} ${c.w}×${c.h}`, check: 'vs Figma render', want: `≤ ${limit}`, got: `${Math.round(c.diff * 10) / 10}`, ok: false, soft: onText(c) });
+    const nodeUnder = (cell) => items.filter((item) => {
+      const box = item.expect;
+      if (!box) return false;
+      const width = Math.min(cell.x + cell.w, box.x + box.w) - Math.max(cell.x, box.x);
+      const height = Math.min(cell.y + cell.h, box.y + box.h) - Math.max(cell.y, box.y);
+      return width > 0 && height > 0;
+    }).sort((a, b) => (a.expect.w * a.expect.h) - (b.expect.w * b.expect.h))[0];
+    const imageFill = (id) => [...(info.get(id)?.fills ?? [])].reverse().find((fill) => fill.type === 'IMAGE' && fill.visible !== false);
+    if (r.visual) for (const c of r.visual.cells.filter((c) => c.diff > limit)) {
+      const under = nodeUnder(c);
+      const picture = under ? imageFill(under.figmaId) : null;
+      const diff = `${Math.round(c.diff * 10) / 10}/255`;
+      rows.push({
+        id: under?.figmaId,
+        label: `${under?.figmaId ?? 'frame'} sai so với Figma ${c.x},${c.y} ${c.w}×${c.h}`,
+        check: picture ? `ảnh scaleMode ${picture.scaleMode || 'IMAGE'}` : 'sai so với Figma',
+        want: picture ? `Figma ${picture.scaleMode || 'IMAGE'}${picture.imageTransform ? ' + imageTransform' : ''}` : `≤ ${limit}`,
+        got: picture ? `preview lệch ${diff}` : diff,
+        ok: false,
+        soft: onText(c),
+      });
+    }
     // Figma's picture is clear over a large area and no page-frame fill is known: the template would show the page's white there (Problems: white text on white)
     if (r.visual && r.visual.transparent > 0.05 && !context.bg?.[f.key]) rows.push({ label: `frame ${f.key}`, check: 'transparent area without a background', want: 'a page-frame fill behind it', got: `${Math.round(r.visual.transparent * 100)}% of Figma's picture is clear`, ok: false });
     // covered layers

@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { caseAt, parseFrameInput } from '../modules/single-template/frames.mjs';
-import { renderTemplatePlan, writeTemplatePlan } from '../modules/single-template/plan-doc.mjs';
+import { caseAt, parseFrameInput } from '../modules/build-steps/template/frames.mjs';
+import { renderTemplatePlan, writeTemplatePlan } from '../modules/build-steps/template/plan-doc.mjs';
 import { itemHeading, parsePlan } from '../modules/missing-content/index.mjs';
-import { readFlag } from '../template.mjs';
-import { describeTiming, formatDuration } from '../modules/single-template/timing.mjs';
+import { planIsConfirmed, readFlag } from '../template.mjs';
+import { describeTiming, formatDuration } from '../modules/build-steps/template/timing.mjs';
 
 const desktop = 'https://www.figma.com/design/AbC/x?node-id=112-1369';
 const tablet = 'https://www.figma.com/design/AbC/x?node-id=200-1';
@@ -106,8 +106,9 @@ test('a template plan names each component and says what an empty group means', 
   assert.match(md, /## Component Detected \(1\)/);
   assert.match(md, /## Cần User quyết định/);
   assert.match(md, /### 1\. Slider `_case-study-list`/);
-  assert.match(md, /Quyết định dựng Slider `part:2172:3675`:\s*$/m);
-  assert.match(md, /Kết quả mong muốn `expect:2172:3675`:\s*$/m);
+  assert.match(md, /Xác nhận: không/);
+  assert.doesNotMatch(md, /Quyết định dựng/);
+  assert.doesNotMatch(md, /expect:2172:3675/);
   assert.match(md, /## Kết quả cần đạt được/);
   assert.doesNotMatch(md, /Đang có:/);
   assert.doesNotMatch(md, /Gõ số giây/);
@@ -126,11 +127,9 @@ test('a guess shows its link and evidence, a same-shape group shows what was see
     open: [{ node: '1:20', label: 'Tab "Giá"', evidence: '4 nhãn một hàng', figma: 'https://www.figma.com/design/FK/x?node-id=1-20' }],
     repeats: [{ node: '1:30', count: 3, item: 'Card', sample: 'MaxSpeed', figma: 'https://www.figma.com/design/FK/x?node-id=1-30' }],
   });
-  assert.match(md, /## Chưa chắc/);
-  assert.match(md, /Tab "Giá"/);
-  assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-20\)/);
-  assert.match(md, /4 nhãn một hàng/);
-  assert.match(md, /`guess:1:20`:\s*$/m);
+  assert.doesNotMatch(md, /## Chưa chắc/);
+  assert.doesNotMatch(md, /Tab "Giá"/);
+  assert.doesNotMatch(md, /guess:1:20/);
   assert.match(md, /## Nhóm lặp/);
   assert.match(md, /3 ô "Card", mẫu "MaxSpeed"/);
   assert.match(md, /\[Mở\]\(https:\/\/www\.figma\.com\/design\/FK\/x\?node-id=1-30\)/);
@@ -156,8 +155,16 @@ test('writing the plan again keeps a value the owner typed and resets the confir
   assert.equal(parsePlan(next)['link:1:10'], 'https://vietnix.vn/dang-ky');
   assert.match(next, /^Xác nhận: không$/m);
   assert.match(next, /^Sửa: bỏ nút$/m);
-  assert.match(next, /`guess:1:20`:\s*$/m);
+  assert.doesNotMatch(next, /guess:1:20/);
   assert.match(next, /`repeat:1:30`:\s*$/m);
+});
+
+test('a build waits until the plan line says yes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'f2b-confirm-'));
+  writeFileSync(join(dir, 'plan.md'), 'Xác nhận: không\n');
+  assert.equal(planIsConfirmed(dir), false);
+  writeFileSync(join(dir, 'plan.md'), 'Xác nhận: có\n');
+  assert.equal(planIsConfirmed(dir), true);
 });
 
 test('several images keep the quoted layer name in the question', () => {

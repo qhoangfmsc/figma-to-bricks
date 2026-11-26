@@ -5,7 +5,9 @@
 // The Figma frame is the countdown element; each unit becomes a field: number = `format` (%D %H %M %S, uppercase pads to 2 digits), label =
 // `suffix`. The Figma unit box (size, gap) goes on `.field`, the gap between two boxes is the field margin. The separator between units
 // has no place in the element: it is drawn by `.field:not(:last-child)::after` at the Figma offset (left / top) with the separator's typography.
-// params: fields [{ node, format }] (required: which unit frame is days / hours / minutes / seconds)
+// params: fields [{ node, format }] (which unit frame is days / hours / minutes / seconds).
+//         Empty fields are measured from the row. The last unit is seconds, then minutes, hours, days.
+//         Figma does not name the unit, so the order is the only measure.
 //         date ("YYYY-MM-DD HH:mm", the moment the countdown reaches zero) · timezone ("UTC+07:00")  -- Figma only shows placeholder numbers,
 //         so these come from the owner / designer; without a date Bricks renders a "No date/fields set" placeholder (warned)
 //         separator (optional node id of a separator TEXT; default: the TEXT children between the units)
@@ -23,11 +25,26 @@ const TZ = /^UTC[+-]\d{2}:\d{2}$/;
 
 const texts = (unit) => visibleKids(unit).filter((c) => c.type === 'TEXT' && !c.svg);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const FROM_END = ['%S', '%M', '%H', '%D'];
+
+function unitChild(child) {
+  const kids = visibleKids(child);
+  const labels = kids.filter((item) => item.type === 'TEXT' && !item.svg);
+  if (labels.length !== 2 || kids.length !== 2) return null;
+  return child;
+}
+
+function fieldsFromRow(node) {
+  const units = visibleKids(node).filter(unitChild);
+  if (units.length < 2 || units.length > FROM_END.length) return [];
+  const formats = FROM_END.slice(0, units.length).reverse();
+  return units.map((unit, index) => ({ node: unit.id, format: formats[index] }));
+}
 
 // -> { units: [{ node, number, label, format }], seps: [TEXT] } or { error }
 function parts(node, det) {
   const kids = visibleKids(node);
-  const fields = det.params?.fields ?? [];
+  const fields = det.params?.fields?.length ? det.params.fields : fieldsFromRow(node);
   if (!node.layout || node.layout.mode !== 'HORIZONTAL') return { error: 'the frame must be a horizontal auto layout' };
   if (fields.length < 2) return { error: 'params.fields needs at least 2 units ({ node, format })' };
   const units = [];
@@ -54,6 +71,41 @@ function parts(node, det) {
   return { units, seps, gap: gaps[0] };
 }
 
+function writeCountdownFields(s, { units, gap }, det) {
+  const first = units[0];
+  if (det.params.date) s.date = det.params.date;
+  if (det.params.timezone) s.timezone = det.params.timezone;
+  s.fields = units.map((unit, index) => ({ id: rowId(det.id, index), format: unit.format, suffix: unit.label.text.characters }));
+  s.typography = typography(first.number);
+  s.typographySuffix = typography(first.label);
+  s.gutter = { top: '0px', right: px(gap), bottom: '0px', left: '0px' };
+}
+
+function writeCountdownBox(s, css) {
+  for (const key of ['_display', '_direction', '_rowGap', '_columnGap', '_justifyContent', '_alignItems', '_flexWrap']) delete s[key];
+  for (const key of ['column-gap', 'row-gap']) delete css[key];
+  // The countdown element drops `_overflow` from its output, so the Figma clip is written as CSS.
+  if (s._overflow) { addCustomCss(s, `overflow: ${s._overflow};`); delete s._overflow; }
+}
+
+function writeCountdownUnits(s, { units, seps }) {
+  const first = units[0];
+  const unit = first.node;
+  const sep = seps[0];
+  const text = sep.text;
+  const fill = sep.fills?.filter((item) => item.type === 'SOLID').pop();
+  // `.field` has no size control. The box is the Figma unit, including a gap the text may overflow.
+  addCustomCss(s, `position: relative; flex-shrink: 0; width: ${px(unit.box.w)}; height: ${px(unit.box.h)}; row-gap: ${px(unit.layout.gap)};`, ' .field');
+  addCustomCss(s, 'margin-right: 0;', ' .field:last-child');
+  addCustomCss(s, `width: ${px(first.number.box.w)};`, ' .format');
+  addCustomCss(s, `width: ${px(first.label.box.w)};`, ' .suffix');
+  addCustomCss(s, [
+    `content: ${JSON.stringify(text.characters)}; position: absolute; left: ${px(sep.box.x - unit.box.x)}; top: ${px(sep.box.y - unit.box.y)};`,
+    `white-space: nowrap; font-family: ${text.fontFamily}; font-size: ${px(text.fontSize)}; font-weight: ${text.fontWeight}; line-height: ${px(lineHeightPx(text.lineHeightPx))};`,
+    fill ? `color: ${cssColor(fill)};` : '',
+  ].join(' '), ' .field:not(:last-child)::after');
+}
+
 export default {
   id: PartKind.COUNTDOWN,
   status: 'implemented',
@@ -77,32 +129,9 @@ export default {
   },
 
   apply({ node, s, css }, det) {
-    const { units, seps, gap } = parts(node, det);
-    const u0 = units[0];
-    const sep = seps[0];
-    const ty = typography(u0.number);
-    if (det.params.date) s.date = det.params.date;
-    if (det.params.timezone) s.timezone = det.params.timezone;
-    s.fields = units.map((u, i) => ({ id: rowId(det.id, i), format: u.format, suffix: u.label.text.characters }));
-    s.typography = ty;
-    s.typographySuffix = typography(u0.label);
-    s.gutter = { top: '0px', right: px(gap), bottom: '0px', left: '0px' };
-    for (const k of ['_display', '_direction', '_rowGap', '_columnGap', '_justifyContent', '_alignItems', '_flexWrap']) delete s[k];
-    for (const k of ['column-gap', 'row-gap']) delete css[k];
-    // the countdown element has no overflow control (Bricks leaves `_overflow` out of its output): the Figma clip goes to css
-    if (s._overflow) { addCustomCss(s, `overflow: ${s._overflow};`); delete s._overflow; }
-    const u = u0.node;
-    const st = sep.text;
-    const fill = sep.fills?.filter((f) => f.type === 'SOLID').pop();
-    // .field = the Figma unit frame (fixed box, centered column with the Figma gap; content may overflow it like in Figma)
-    addCustomCss(s, `position: relative; flex-shrink: 0; width: ${px(u.box.w)}; height: ${px(u.box.h)}; row-gap: ${px(u.layout.gap)};`, ' .field');
-    addCustomCss(s, 'margin-right: 0;', ' .field:last-child');
-    addCustomCss(s, `width: ${px(u0.number.box.w)};`, ' .format');
-    addCustomCss(s, `width: ${px(u0.label.box.w)};`, ' .suffix');
-    addCustomCss(s, [
-      `content: ${JSON.stringify(st.characters)}; position: absolute; left: ${px(sep.box.x - u.box.x)}; top: ${px(sep.box.y - u.box.y)};`,
-      `white-space: nowrap; font-family: ${st.fontFamily}; font-size: ${px(st.fontSize)}; font-weight: ${st.fontWeight}; line-height: ${px(lineHeightPx(st.lineHeightPx))};`,
-      fill ? `color: ${cssColor(fill)};` : '',
-    ].join(' '), ' .field:not(:last-child)::after');
+    const measured = parts(node, det);
+    writeCountdownFields(s, measured, det);
+    writeCountdownBox(s, css);
+    writeCountdownUnits(s, measured);
   },
 };

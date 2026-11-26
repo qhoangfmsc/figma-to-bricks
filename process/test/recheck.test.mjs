@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
-import { slideChildren } from '../modules/single-template/slides.mjs';
-import { rejectAmbiguousItems, rejectTabBar, rejectTabButtons } from '../modules/single-template/recheck.mjs';
+import { tabDataFrame } from '../modules/build-steps/template/tab-frames.mjs';
+import { slideChildren } from '../modules/build-steps/template/slides.mjs';
+import { rejectAmbiguousItems, rejectTabBar, rejectTabButtons } from '../modules/build-steps/template/recheck.mjs';
 
 const tab = (id, label, x) => ({
   id, name: 'Linux tab', type: 'FRAME', box: { x, y: 0, w: 80, h: 36, absX: x, absY: 0 },
@@ -38,7 +38,8 @@ test('a user link that is still the tab bar is not pasted', () => {
 });
 
 test('two equal item groups are not chosen for the owner', () => {
-  const mixed = { id: 'f', children: [os('a', 'os'), os('b', 'os'), os('c', 'panel'), os('d', 'panel')] };
+  const word = (id) => ({ id, name: 'panel', type: 'FRAME', children: [{ id: `${id}t`, name: 'label', type: 'TEXT', text: { characters: id } }] });
+  const mixed = { id: 'f', children: [os('a', 'os'), os('b', 'os'), word('c'), word('d')] };
   assert.throws(() => rejectAmbiguousItems(tabDataFrame(mixed)), /hai nhóm/);
 });
 

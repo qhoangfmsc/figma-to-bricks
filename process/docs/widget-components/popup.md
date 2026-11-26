@@ -29,3 +29,14 @@ Nội dung template là thẻ giữa. Khung 1440 phủ mờ không dựng thành
 Popup được gắn điều kiện Entire website (`templateConditions` `main: any`) và nằm ẩn ở footer. Nút ở template khác mở nó bằng `templateId`. Không có điều kiện thì popup chỉ có trên trang preview của chính nó, nút kia không tìm thấy.
 
 Không bịa limit, z-index, hay màu nền lớp phủ. Theme này không có `popupDisableOnMobile`.
+
+## Hợp đồng
+
+- Nhận: trong `rules/template-type.mjs`:
+- Phần: không có params bắt buộc, trừ khi phần mô tả phía trên nói có
+- Data: không bịa URL, alt, câu trả lời, pane. Chữ Figma là ô khi kind đã gắn nguồn.
+- Hành vi: theo phần mô tả phía trên của file này
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`.
+- Xong khi: element đúng kind, còn bấm được, slot đã gắn nguồn không còn chữ vẽ, và ảnh Figma đã được so với preview. Chưa đo ảnh thì chưa xong.
+- Cấm: hạ component thành block, in chữ Figma khi đã có nguồn, sửa `.mjs` trong chính lần dựng.

@@ -3,6 +3,8 @@
 //   accordion-nested  every title is clicked twice: the content toggles (an item drawn open starts open, so the first click closes it)
 //   tabs-nested       every tab title is clicked: its pane is the one that shows
 //   slider-nested     the next arrow (when there is one) is clicked: the track moves
+//   dropdown          the toggle is clicked or hovered: the list opens, then closes
+//   select            the closed control is clicked: the option list opens, then closes
 //   read more         the "Xem thêm" button (a click interaction on a class): the clipped frame grows to its full height, the second click closes it
 // A widget the page does not have is not reported. An empty content block (an answer the owner did not give) is reported as "empty", never as a pass.
 import { createRequire } from 'node:module';
@@ -15,7 +17,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: Number(width), height: 900 } });
 await page.goto(url, { waitUntil: 'networkidle' });
 await page.waitForTimeout(500);
-const report = { url, width: Number(width), accordions: [], tabs: [], sliders: [], readMore: [] };
+const report = { url, width: Number(width), accordions: [], tabs: [], sliders: [], dropdowns: [], selects: [], readMore: [] };
 const shown = (loc) => loc.evaluate((el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return s.display !== 'none' && s.visibility !== 'hidden' && r.height > 1; });
 
 for (const acc of await page.locator('.brxe-accordion-nested').all()) {
@@ -61,6 +63,47 @@ for (const sl of await page.locator('.brxe-slider-nested').all()) {
   if (hasArrow) { await next.first().click(); await page.waitForTimeout(900); moved = (await track.evaluate((el) => el.getBoundingClientRect().x)) !== x0; }
   report.sliders.push({ slides: await sl.locator('.splide__slide').count(), hasNextArrow: hasArrow, trackMovesOnNext: moved });
 }
+for (const drop of await page.locator('.brxe-dropdown').all()) {
+  const toggle = drop.locator('[aria-expanded]').first();
+  const list = drop.locator('.brx-dropdown-content').first();
+  if (!(await toggle.count()) || !(await list.count())) continue;
+  const open = async () => drop.evaluate((el) => el.classList.contains('open'));
+  const before = await open();
+  await toggle.scrollIntoViewIfNeeded();
+  if (await drop.getAttribute('data-toggle') === 'click') await toggle.click();
+  else await drop.hover();
+  await page.waitForTimeout(300);
+  const opened = await open();
+  if (await drop.getAttribute('data-toggle') === 'click') await toggle.click();
+  else await drop.evaluate((el) => el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true })));
+  await page.waitForTimeout(300);
+  report.dropdowns.push({
+    label: (await toggle.innerText()).trim().slice(0, 40),
+    openAtLoad: before,
+    opens: opened !== before && opened,
+    closes: (await open()) === before,
+  });
+}
+
+for (const select of await page.locator('.f2b-select').all()) {
+  const trigger = select.locator('.f2b-select-trigger').first();
+  const values = select.locator('.f2b-select-values').first();
+  if (!(await trigger.count()) || !(await values.count())) continue;
+  const open = async () => select.evaluate((el) => el.classList.contains('is-open'));
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  await page.waitForTimeout(200);
+  const opened = await open();
+  const listShown = await shown(values);
+  await trigger.click();
+  await page.waitForTimeout(200);
+  report.selects.push({
+    label: (await trigger.innerText()).trim().slice(0, 40),
+    opens: opened && listShown,
+    closes: !(await open()),
+  });
+}
+
 for (const btn of await page.locator('[data-interactions*="read-more-open"]').all()) {
   if (!(await btn.isVisible())) continue; // the button of another breakpoint frame
   const sel = JSON.parse(await btn.getAttribute('data-interactions'))[0].targetSelector;

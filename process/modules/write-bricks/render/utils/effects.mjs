@@ -1,48 +1,69 @@
-// Figma effects -> Bricks `_boxShadow` (one shadow) or `box-shadow` custom css (several). DROP_SHADOW / INNER_SHADOW.
-// A TEXT node's drop shadow follows the glyphs in Figma: it becomes `text-shadow` (every drop shadow, no spread: Figma has none for text), never a
-// box shadow of the text's box (that drew a line under every speaker name in the Hero run). A gradient fill is clipped to the glyphs as a background,
-// and text-shadow paints on top of that background, so the shadow uses filter: drop-shadow instead. An inner shadow on text is warned.
-// A GROUP has no fill of its own: Figma draws its drop shadow around the shape of the children together. A box-shadow of the group's rectangle darkened the
-// square around a round badge (Pagepeed vnx-service "12 YEARS", 159px circle) and left the circle itself unshaded -> `filter: drop-shadow()` (follows the
-// painted shape; Bricks 1.9.8 has no control for it, custom css). drop-shadow() has no spread: a non-zero spread is warned, not guessed.
-// Blur has its own module (blur.mjs); any other effect type is warned, never guessed.
+// Figma effects. DROP_SHADOW and INNER_SHADOW become box-shadow. Blur is blur.mjs.
+// One shadow uses the Bricks control. Several shadows are one CSS list, in Figma order.
 import { addCustomCss, colorObj, cssColor, px } from '../../../write-bricks/render/utils/css.mjs';
 import { applyBlur, isBlur } from '../../../write-bricks/render/utils/blur.mjs';
+
+const shadowCss = (effect) => `${effect.type === 'INNER_SHADOW' ? 'inset ' : ''}${px(effect.x)} ${px(effect.y)} ${px(effect.blur)} ${px(effect.spread ?? 0)} ${cssColor(effect)}`;
+
+function writeTextShadows(node, settings, warn, css) {
+  const drops = (node.effects ?? []).filter((effect) => effect.type === 'DROP_SHADOW');
+  const solid = (node.fills ?? []).some((fill) => fill.type === 'SOLID' && fill.visible !== false);
+  const clipped = !solid && (node.fills ?? []).some((fill) => fill.type === 'GRADIENT_LINEAR' && fill.visible !== false);
+  if (drops.length && clipped) addCustomCss(settings, `filter: ${drops.map((effect) => `drop-shadow(${px(effect.x)} ${px(effect.y)} ${px(effect.blur)} ${cssColor(effect)})`).join(' ')};`);
+  else if (drops.length) {
+    const value = drops.map((effect) => `${px(effect.x)} ${px(effect.y)} ${px(effect.blur)} ${cssColor(effect)}`).join(', ');
+    addCustomCss(settings, `text-shadow: ${value};`);
+    if (css) css['text-shadow'] = value;
+  }
+  if ((node.effects ?? []).some((effect) => effect.type === 'INNER_SHADOW')) warn(node, 'inner shadow on text is not supported');
+  if ((node.effects ?? []).some((effect) => effect.spread)) warn(node, 'text shadow spread is not applicable to text-shadow: ignored');
+}
+
+function writeBoxShadows(shadows, strokeShadows, settings) {
+  if (strokeShadows.length) {
+    addCustomCss(settings, `box-shadow: ${[...strokeShadows, ...shadows.map(shadowCss)].join(', ')};`);
+    return;
+  }
+  if (shadows.length > 1) {
+    addCustomCss(settings, `box-shadow: ${shadows.map(shadowCss).join(', ')};`);
+    return;
+  }
+  if (!shadows.length) return;
+  const effect = shadows[0];
+  settings._boxShadow = {
+    values: { offsetX: String(effect.x), offsetY: String(effect.y), blur: String(effect.blur), spread: String(effect.spread) },
+    color: colorObj(effect),
+    ...(effect.type === 'INNER_SHADOW' && { inset: true }),
+  };
+}
+
+function warnUnknown(node, warn) {
+  for (const effect of node.effects ?? []) {
+    if (!effect.hex && !isBlur(effect)) warn(node, `effect ${effect.type} is not supported yet`);
+  }
+}
 
 export function applyEffects(ctx) {
   const { node, s, warn } = ctx;
   if (node.type === 'TEXT' && !node.svg) {
-    const drops = (node.effects ?? []).filter((e) => e.type === 'DROP_SHADOW');
-    const solid = (node.fills ?? []).some((f) => f.type === 'SOLID' && f.visible !== false);
-    const clipped = !solid && (node.fills ?? []).some((f) => f.type === 'GRADIENT_LINEAR' && f.visible !== false);
-    if (drops.length && clipped) addCustomCss(s, `filter: ${drops.map((e) => `drop-shadow(${px(e.x)} ${px(e.y)} ${px(e.blur)} ${cssColor(e)})`).join(' ')};`);
-    else if (drops.length) addCustomCss(s, `text-shadow: ${drops.map((e) => `${px(e.x)} ${px(e.y)} ${px(e.blur)} ${cssColor(e)}`).join(', ')};`);
-    if ((node.effects ?? []).some((e) => e.type === 'INNER_SHADOW')) warn(node, 'inner shadow on text is not supported');
-    if ((node.effects ?? []).some((e) => e.spread)) warn(node, 'text shadow spread is not applicable to text-shadow: ignored');
+    writeTextShadows(node, s, warn, ctx.css);
     applyBlur(ctx);
-    for (const e of node.effects ?? []) if (!e.hex && !isBlur(e)) warn(node, `effect ${e.type} is not supported yet`);
+    warnUnknown(node, warn);
     return;
   }
-  let shadows = (node.effects ?? []).filter((e) => e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW');
-  if (node.type === 'GROUP' && !node.svg && !(node.fills ?? []).length && !node.stroke) {
-    const drops = shadows.filter((e) => e.type === 'DROP_SHADOW');
+  let shadows = (node.effects ?? []).filter((effect) => effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW');
+  const painted = (node.fills ?? []).some((fill) => fill && fill.visible !== false) || node.stroke || (node.strokes ?? []).some((stroke) => stroke && stroke.visible !== false);
+  const paintsChildren = (node.children ?? []).some((child) => child && child.visible !== false);
+  if (!node.svg && !painted && paintsChildren && node.type !== 'TEXT') {
+    const drops = shadows.filter((effect) => effect.type === 'DROP_SHADOW');
     if (drops.length) {
-      addCustomCss(s, `filter: ${drops.map((e) => `drop-shadow(${px(e.x)} ${px(e.y)} ${px(e.blur)} ${cssColor(e)})`).join(' ')};`);
-      if (drops.some((e) => e.spread)) warn(node, `group drop shadow spread ${drops.map((e) => e.spread).join(' / ')}px is not applicable to filter: drop-shadow(): ignored (limit)`);
-      shadows = shadows.filter((e) => e.type !== 'DROP_SHADOW');
+      addCustomCss(s, `filter: ${drops.map((effect) => `drop-shadow(${px(effect.x)} ${px(effect.y)} ${px(effect.blur)} ${cssColor(effect)})`).join(' ')};`);
+      if (drops.some((effect) => effect.spread)) warn(node, `group drop shadow spread ${drops.map((effect) => effect.spread).join(' / ')}px is not applicable to filter: drop-shadow(): ignored (limit)`);
+      shadows = shadows.filter((effect) => effect.type !== 'DROP_SHADOW');
     }
   }
-  const fromStroke = ctx.strokeShadows ?? []; // OUTSIDE / CENTER stroke (stroke.mjs), drawn above the node's own shadows
-  if (fromStroke.length) {
-    const own = shadows.map((e) => `${e.type === 'INNER_SHADOW' ? 'inset ' : ''}${px(e.x)} ${px(e.y)} ${px(e.blur)} ${px(e.spread ?? 0)} ${cssColor(e)}`);
-    addCustomCss(s, `box-shadow: ${[...fromStroke, ...own].join(', ')};`);
-  } else if (shadows.length > 1) {
-    // Bricks' shadow control holds one shadow: several go to `box-shadow` as a list, in Figma's order (first = on top, like CSS)
-    addCustomCss(s, `box-shadow: ${shadows.map((e) => `${e.type === 'INNER_SHADOW' ? 'inset ' : ''}${px(e.x)} ${px(e.y)} ${px(e.blur)} ${px(e.spread ?? 0)} ${cssColor(e)}`).join(', ')};`);
-  } else if (shadows.length) {
-    const e = shadows[0];
-    s._boxShadow = { values: { offsetX: String(e.x), offsetY: String(e.y), blur: String(e.blur), spread: String(e.spread) }, color: colorObj(e), ...(e.type === 'INNER_SHADOW' && { inset: true }) };
-  }
+  writeBoxShadows(shadows, ctx.strokeShadows ?? [], s);
   applyBlur(ctx);
-  for (const e of node.effects ?? []) if (!e.hex && !isBlur(e)) warn(node, `effect ${e.type} is not supported yet`);
+  warnUnknown(node, warn);
 }
+

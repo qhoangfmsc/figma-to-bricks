@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewFrame } from '../modules/single-template/review.mjs';
+import { reviewFrame } from '../modules/build-steps/template/review.mjs';
 
 const shifted = (id, want, got) => ({ id, label: `${id} block`, check: 'x', want: String(want), got: String(got), ok: false, tier: 2 });
 
@@ -49,5 +49,9 @@ test('a picture that matches has only the percent', () => {
 test('a frame that was not measured says so', () => {
   const review = reviewFrame(null, 'tablet_portrait');
   assert.equal(review.percent, null);
+  assert.equal(review.tone, 'none');
   assert.deepEqual(review.notes, ['Chưa đo được.']);
+  const unmeasured = reviewFrame({ verdict: 'PASS', visualMean: null, bad: [] }, 'desktop');
+  assert.equal(unmeasured.tone, 'none');
+  assert.deepEqual(unmeasured.notes, ['Chưa đo được.']);
 });

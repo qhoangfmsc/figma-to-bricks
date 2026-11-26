@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applySiteCss, extractGlobalClasses, normalizePalette, pullSiteCss, siteOrigin } from '../modules/staging/site-css.mjs';
+import { applySiteCss, extractGlobalClasses, normalizePalette, pullSiteCss, siteOrigin } from '../modules/maintenance/site-css.mjs';
 import { requireSiteEnv } from '../modules/common/env.mjs';
 import { externalCssUrl, frontendCheckUrl } from '../modules/build-steps/07-verify.mjs';
 

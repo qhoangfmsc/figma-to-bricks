@@ -126,7 +126,7 @@ test('a slider list keeps cross-axis align and leaves the axis Splide translates
   const row = settings(built, 'row');
   assert.equal(built.template.content.find((e) => e.id === built.mapping.row.bricksId).name, 'slider-nested');
   assert.equal(row.gap, 16);
-  assert.match(row._cssCustom, /\.splide__list \{ align-items: flex-end; \}/);
+  assert.match(row._cssCustom, /\.splide__list \{[^}]*align-items: flex-end;/);
   assert.doesNotMatch(row._cssCustom, /justify-content/);
   const slide = settings(built, 'a');
   assert.match(slide._cssCustom, /flex-direction: column; justify-content: flex-start; align-items: flex-start;/);

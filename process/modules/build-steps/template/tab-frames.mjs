@@ -1,13 +1,13 @@
-import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // A tab answer can be a Figma link of that tab's full frame. The frame is fetched beside this section
 // and replaces the pane of the same index, or is added when Figma drew no pane. The same sources are
 // already copied onto tablet and mobile tabs that match, so each of those workspaces is grafted too.
 import { join } from 'node:path';
-import { findNode, visibleKids } from '../write-bricks/components/helpers.mjs';
-import { activeTitle, inspect, isNamedTabBar, repeatedSet, tabTitles } from '../write-bricks/components/tab-switch.mjs';
-import { safeId } from '../common/workspace.mjs';
-import { copyAssets, fetchSideTree } from '../single-template/expand.mjs';
-import { rejectAmbiguousItems, rejectTabBar } from '../single-template/recheck.mjs';
+import { findNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
+import { activeTitle, inspect, isNamedTabBar, repeatedSet, tabTitles } from '../../write-bricks/components/tab-switch.mjs';
+import { safeId } from '../../common/workspace.mjs';
+import { copyAssets, fetchSideTree } from './expand.mjs';
+import { rejectAmbiguousItems, rejectTabBar } from './recheck.mjs';
 
 const stamp = (id) => `p${safeId(id)}`;
 

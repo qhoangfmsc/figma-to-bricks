@@ -17,3 +17,14 @@ State: so title đang chọn với title nghỉ (`activeLook`). Nền, viền, m
 HTML: một block bọc hai block. Block thứ nhất là `tab-menu` (các `tab-title`, title mở thêm `brx-open`). Block thứ hai chứa các `tab-pane`, cùng thứ tự với title, pane đang mở thêm `brx-open`. Icon hoặc vạch giữa các title không nhận class tab.
 
 Tab chưa có mục thì plan hỏi một link Figma.
+
+## Hợp đồng
+
+- Nhận: tab buttons first (one of them active), then the repeated items under that bar are the active tab's data; found by `detect/rules/tab-switch.mjs`
+- Phần: `content.panes`, `content.sources`, `content.activeTitleId`, `content.dataName`
+- Data: không bịa URL, alt, câu trả lời, pane. Chữ Figma là ô khi kind đã gắn nguồn.
+- Hành vi: the confirm screen lists every button; the active one shows the repeated items; a tab with no data asks for a Figma link and that link is read the same way; two active buttons or two equal item groups are asked, not guessed. A card width on `_width` and the same width on `flex-basis` are one card: below desktop every pane of the widget becomes a column and the card keeps that width. A frame drawn under 480px is left as that frame drew it
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`.
+- Xong khi: element đúng kind, còn bấm được, slot đã gắn nguồn không còn chữ vẽ, và ảnh Figma đã được so với preview. Chưa đo ảnh thì chưa xong.
+- Cấm: hạ component thành block, in chữ Figma khi đã có nguồn, sửa `.mjs` trong chính lần dựng.

@@ -8,10 +8,10 @@ import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
 import { detectMenus } from '../modules/recognize-parts/rules/menu.mjs';
 import { switchInventory, tabQuestions } from '../modules/write-bricks/components/tab-switch.mjs';
 import { activateOpenTab } from '../modules/write-bricks/components/tabs-chrome.mjs';
-import { tabDataFrame } from '../modules/single-template/tab-frames.mjs';
+import { tabDataFrame } from '../modules/build-steps/template/tab-frames.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
+import { decide } from '../modules/missing-content/decide/index.mjs';
+import { screenParts } from '../modules/build-steps/template/parts.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value, rgb) => ({

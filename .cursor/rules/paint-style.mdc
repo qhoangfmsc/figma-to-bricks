@@ -1,0 +1,12 @@
+---
+description: How to write a paint function, and how a later Figma fix may change it.
+alwaysApply: true
+---
+
+# Paint style
+
+A new file and a new component use one function per Figma attribute or per part. The name says which attribute or part it writes. `apply` only calls those functions.
+
+A comment says why the line exists: a Bricks control that does not match Figma, or a value the tree does not carry. It does not retell the code. Comment in English.
+
+A later template fix adds a new function for a shape the current functions do not cover. It does not rewrite a function that already passes its tests. If the fix must change that function, ask first and name which test would change. A word, a pixel, or a node id from the file that just failed is not a branch inside an existing function.

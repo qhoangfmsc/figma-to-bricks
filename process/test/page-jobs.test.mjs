@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { sectionJob, writeSectionJob, writeJobIndex } from '../modules/section-jobs/jobs.mjs';
+import { sectionJob, writeSectionJob, writeJobIndex } from '../modules/build-steps/jobs.mjs';
 
 test('a section job carries the desktop link and only the breakpoint frames that were found', () => {
   const job = sectionJob({

@@ -1,51 +1,83 @@
-// Figma fills -> Bricks `_background` (+ expected css for verify).
-//   SOLID            _background.color
-//   GRADIENT_LINEAR  _gradient (Bricks Style > Gradient), see gradient.mjs
-//   IMAGE on a node with children -> _background.image (a leaf with an image fill becomes an `image` element instead, see index.mjs)
-// Not supported yet (warned, never guessed): radial/angular/diamond gradients, several fills (top one wins).
+// Figma fills, listed bottom to top. One function per fill type.
+// SOLID -> background color. GRADIENT_LINEAR -> Bricks gradient. IMAGE on a parent -> background image.
 import { addCustomCss, colorObj, cssColor, r4 } from '../../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss, linearGradientControl } from '../../../write-bricks/render/utils/gradient.mjs';
 
-// Fills are listed bottom to top. An opaque normal-blend SOLID covers everything under it, so those fills are invisible in Figma and must not be painted
-// (Benefits section: image under a #0b36b2 solid showed as flat blue in Figma, the image was drawn on top of the color here).
+// An opaque solid covers every fill under it. Those fills are not painted.
 function visibleFills(fills) {
-  for (let i = fills.length - 1; i > 0; i--) if (fills[i].type === 'SOLID' && (fills[i].alpha ?? 1) >= 1 && !fills[i].blendMode) return fills.slice(i);
+  for (let i = fills.length - 1; i > 0; i--) {
+    if (fills[i].type === 'SOLID' && (fills[i].alpha ?? 1) >= 1 && !fills[i].blendMode) return fills.slice(i);
+  }
   return fills;
+}
+
+// A translucent solid does not replace the gradient under it.
+function bodyFill(painted) {
+  const top = painted.at(-1);
+  if (top.type === 'SOLID' && (top.alpha ?? 1) < 1) {
+    const under = painted.slice(0, -1).findLast((fill) => fill.type === 'GRADIENT_LINEAR');
+    if (under) return under;
+  }
+  return top;
+}
+
+function writeSolid(fill, settings, expect) {
+  settings._background = { color: colorObj(fill) };
+  expect['background-color'] = cssColor(fill);
+}
+
+function writeGradient(node, fill, settings) {
+  const fills = node.fills ?? [];
+  const imageAt = fills.findLastIndex((item) => item.type === 'IMAGE');
+  const gradientAt = fills.indexOf(fill);
+  if (imageAt > gradientAt) return;
+  if (imageAt >= 0 && node.children?.length) {
+    if (settings._position !== 'absolute') settings._position = settings._position || 'relative';
+    addCustomCss(settings, 'isolation: isolate;');
+    addCustomCss(settings, `content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: ${linearGradientCss(fill, node.box.w, node.box.h)};`, '::before');
+    return;
+  }
+  settings._gradient = linearGradientControl(fill, node.box.w, node.box.h);
+}
+
+function writeImage(node, fill, settings, warn) {
+  const transform = fill.imageTransform;
+  const cropped = fill.scaleMode === 'STRETCH' && transform && (
+    Math.abs(transform[0][0] - 1) > 1e-4 || Math.abs(transform[1][1] - 1) > 1e-4
+    || Math.abs(transform[0][2]) > 1e-4 || Math.abs(transform[1][2]) > 1e-4
+  );
+  if (cropped) {
+    const axis = (scale, shift) => (Math.abs(scale - 1) < 1e-4 ? '0%' : `${r4((-shift / (scale - 1)) * 100)}%`);
+    if (Math.abs(transform[0][0] - 1) < 1e-4 && Math.abs(transform[0][2]) > 1e-3) warn(node, 'background image shifted on an axis it is not scaled on: shift not applied');
+    if (Math.abs(transform[1][1] - 1) < 1e-4 && Math.abs(transform[1][2]) > 1e-3) warn(node, 'background image shifted on an axis it is not scaled on: shift not applied');
+    settings._background = { ...(settings._background ?? {}), image: { $asset: fill.asset.file, size: 'full' }, repeat: 'no-repeat' };
+    addCustomCss(settings, `background-size: ${r4(100 / transform[0][0])}% ${r4(100 / transform[1][1])}%; background-position: ${axis(transform[0][0], transform[0][2])} ${axis(transform[1][1], transform[1][2])}; background-repeat: no-repeat;`);
+    return true;
+  }
+  const size = { FILL: 'cover', FIT: 'contain', STRETCH: '100% 100%' }[fill.scaleMode];
+  if (!size) warn(node, `background image scaleMode ${fill.scaleMode} approximated as cover`);
+  settings._background = {
+    ...(settings._background ?? {}),
+    image: { $asset: fill.asset.file, size: 'full' },
+    size: size ?? 'cover',
+    position: 'center center',
+    repeat: fill.scaleMode === 'TILE' ? 'repeat' : 'no-repeat',
+  };
+  return false;
 }
 
 export function applyFill({ node, s, css, warn }, { skipFill = false } = {}) {
   const fills = visibleFills(node.fills ?? []);
-  const painted = skipFill ? [] : fills.filter((f) => f.type !== 'IMAGE');
+  const painted = skipFill ? [] : fills.filter((fill) => fill.type !== 'IMAGE');
   if (painted.length) {
-    const top = painted[painted.length - 1];
-    if (painted.length > 1) warn(node, `${painted.length} fills: only the top one is applied`);
-    if (top.type === 'SOLID') {
-      s._background = { color: colorObj(top) };
-      css['background-color'] = cssColor(top);
-    } else if (top.type === 'GRADIENT_LINEAR') {
-      // the Bricks attribute (Style > Gradient); a node that also paints a background image keeps css, both would write `background-image`
-      if ((node.fills ?? []).some((f) => f.type === 'IMAGE') && node.children?.length) addCustomCss(s, `background-image: ${linearGradientCss(top, node.box.w, node.box.h)};`);
-      else s._gradient = linearGradientControl(top, node.box.w, node.box.h);
-    } else {
-      warn(node, `fill type ${top.type} is not supported yet (skipped)`);
-    }
+    const top = bodyFill(painted);
+    if (painted.length > 1 && top === painted.at(-1)) warn(node, `${painted.length} fills: only the top one is applied`);
+    if (top.type === 'SOLID') writeSolid(top, s, css);
+    else if (top.type === 'GRADIENT_LINEAR') writeGradient(node, top, s);
+    else warn(node, `fill type ${top.type} is not supported yet (skipped)`);
   }
-  const img = fills.find((f) => f.type === 'IMAGE');
-  if (img && !skipFill && node.children?.length) {
-    const T = img.imageTransform;
-    const cropped = img.scaleMode === 'STRETCH' && T && (Math.abs(T[0][0] - 1) > 1e-4 || Math.abs(T[1][1] - 1) > 1e-4 || Math.abs(T[0][2]) > 1e-4 || Math.abs(T[1][2]) > 1e-4);
-    if (cropped) {
-      // Figma crops a STRETCH image with imageTransform (the image shows from t to t + s of its own size on each axis): the image is drawn 1/s times the
-      // box and shifted by -t/s of the box. CSS percentage positions are relative to (box - image), so p = -t / (s - 1); an axis with s = 1 needs no shift.
-      const axis = (sc, tr) => (Math.abs(sc - 1) < 1e-4 ? '0%' : `${r4((-tr / (sc - 1)) * 100)}%`);
-      if (Math.abs(T[0][0] - 1) < 1e-4 && Math.abs(T[0][2]) > 1e-3) warn(node, 'background image shifted on an axis it is not scaled on: shift not applied');
-      if (Math.abs(T[1][1] - 1) < 1e-4 && Math.abs(T[1][2]) > 1e-3) warn(node, 'background image shifted on an axis it is not scaled on: shift not applied');
-      s._background = { ...(s._background ?? {}), image: { $asset: img.asset.file, size: 'full' }, repeat: 'no-repeat' };
-      addCustomCss(s, `background-size: ${r4(100 / T[0][0])}% ${r4(100 / T[1][1])}%; background-position: ${axis(T[0][0], T[0][2])} ${axis(T[1][1], T[1][2])}; background-repeat: no-repeat;`);
-      return;
-    }
-    const size = { FILL: 'cover', FIT: 'contain', STRETCH: '100% 100%' }[img.scaleMode];
-    if (!size) warn(node, `background image scaleMode ${img.scaleMode} approximated as cover`);
-    s._background = { ...(s._background ?? {}), image: { $asset: img.asset.file, size: 'full' }, size: size ?? 'cover', position: 'center center', repeat: img.scaleMode === 'TILE' ? 'repeat' : 'no-repeat' };
-  }
+  const images = fills.filter((fill) => fill.type === 'IMAGE');
+  if (images.length > 1) warn(node, `${images.length} image fills: only the top one is applied`);
+  const image = images.at(-1);
+  if (image && !skipFill && node.children?.length) writeImage(node, image, s, warn);
 }

@@ -11,7 +11,7 @@
 import { PartKind } from '../../recognize-parts/kinds.mjs';
 import { deepMerge } from '../../write-bricks/render/utils/merge.mjs';
 import { boxLook, findNode, jsonParam, svgIcon, svgNode, visibleKids } from '../../write-bricks/components/helpers.mjs';
-import { addCustomCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
+import { addCustomCss, addRawCss, colorObj, cssColor, px } from '../../write-bricks/render/utils/css.mjs';
 import { linearGradientCss } from '../../write-bricks/render/utils/gradient.mjs';
 
 const controlIds = (det) => [det.params?.pagination, det.params?.prev, det.params?.next, ...(det.params?.controls ?? [])].filter(Boolean);
@@ -65,6 +65,22 @@ export function applySyncedArrows(s, host, pair, warn = () => {}) {
   }
   // Splide fades the prev arrow when it considers it disabled. Loop never is, so that fade must not win.
   s.arrowDisabledOpacity = 1;
+}
+
+// An arrow drawn outside the slide box is in the section margin. Once the window is narrower than that margin, pin it to the inner edge so it stays on screen.
+function pinOutsideArrows(s, host, pair) {
+  if (!host?.box?.w || !pair?.length) return;
+  let overhang = 0;
+  for (const { node: a } of pair) {
+    if (!a?.box || host.box.absX == null || a.box.absX == null) continue;
+    const left = a.box.absX - host.box.absX;
+    if (left < 0) overhang = Math.max(overhang, -left);
+    const past = left + a.box.w - host.box.w;
+    if (past > 0) overhang = Math.max(overhang, past);
+  }
+  if (overhang <= 1) return;
+  const max = Math.ceil(host.box.w + overhang * 2);
+  addRawCss(s, `@media (max-width: ${px(max)}) { %root% .splide__arrow--prev { left: 16px !important; } %root% .splide__arrow--next { left: auto !important; right: 16px !important; } }`);
 }
 
 // Dashes of a pagination exported as one svg: filled rectangles, or round strokes. Returns null when the file is not that drawing.
@@ -130,6 +146,63 @@ function rectOf(d) {
   return null;
 }
 
+// The mark that repeats is the resting one. Two marks that do not share a look: the longer one is the selected mark.
+function dashPair(dots) {
+  const fillOf = (d) => JSON.stringify((d.fills ?? []).filter((f) => f.type === 'SOLID').pop() ?? {});
+  const idle = dots.find((d) => dots.filter((x) => fillOf(x) === fillOf(d)).length > 1);
+  if (idle) return { idle, active: dots.find((d) => fillOf(d) !== fillOf(idle)) ?? idle };
+  const longer = (d) => Math.max(d.box?.w ?? 0, d.box?.h ?? 0);
+  const ranked = [...dots].sort((a, b) => longer(b) - longer(a));
+  return { active: ranked[0], idle: ranked[1] ?? ranked[0] };
+}
+
+function cornerRadius(mark) {
+  const radius = mark?.radius;
+  const value = Array.isArray(radius) ? Number(radius[0]) : Number(radius);
+  return Number.isFinite(value) ? value : 0;
+}
+
+// The stage is the widest and the tallest slide, including a child that sticks out of its frame, so neither slide scrolls.
+function slideSpan(slide) {
+  let minX = 0;
+  let minY = 0;
+  let maxX = slide.box?.w ?? 0;
+  let maxY = slide.box?.h ?? 0;
+  const walk = (node, ox, oy) => {
+    for (const child of node.children ?? []) {
+      if (!child || child.visible === false || !child.box) continue;
+      const x = ox + child.box.x;
+      const y = oy + child.box.y;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + child.box.w);
+      maxY = Math.max(maxY, y + child.box.h);
+      walk(child, x, y);
+    }
+  };
+  walk(slide, 0, 0);
+  return { minX, minY, w: maxX - minX, h: maxY - minY };
+}
+
+// A label drawn above the slide frame would be clipped. Shift that slide down so the tallest item still fits with no scrollbar.
+function fitSlides(slides) {
+  const spans = slides.map(slideSpan);
+  slides.forEach((slide, index) => {
+    const { minX, minY } = spans[index];
+    const dx = Math.min(0, minX);
+    const dy = Math.min(0, minY);
+    if (!dx && !dy) return;
+    for (const child of slide.children ?? []) {
+      if (!child?.box) continue;
+      child.box = { ...child.box, x: child.box.x - dx, y: child.box.y - dy };
+    }
+  });
+  return {
+    w: Math.max(0, ...spans.map((span) => span.w)),
+    h: Math.max(0, ...spans.map((span) => span.h)),
+  };
+}
+
 function contains(node, id) {
   return (node.children ?? []).some((c) => c.id === id || contains(c, id));
 }
@@ -160,6 +233,72 @@ function placePagination(s, node, pag) {
 }
 
 const radiusOf = (rx) => ({ top: px(rx), right: px(rx), bottom: px(rx), left: px(rx) });
+
+function writeCarouselMotion(s, slides, det) {
+  // After the Plan settings, so a saved "slide" type cannot turn the loop off when several cards are drawn.
+  // One drawn slide cannot loop: Splide clones it and the builder track shows only the pagination dot.
+  // PHP treats isset(autoplay) as on, including false, so off means the key is absent.
+  const one = slides.length < 2;
+  if (det.params?.autoplay === false) delete s.autoplay;
+  else { s.autoplay = true; s.interval ??= 3000; }
+  Object.assign(s, { type: one ? 'slide' : 'loop', focus: 0, perMove: 1, start: 0 });
+}
+
+function writeCarouselStage(s, node, slides) {
+  const fitted = fitSlides(slides);
+  const stageW = Math.max(node.box?.w ?? 0, fitted.w);
+  const stageH = Math.max(node.box?.h ?? 0, fitted.h);
+  // A missing height becomes 50vh and the shorter frame then scrolls. The height control lands on .splide__slide, which exists only after Splide starts.
+  if (stageH) s.height = px(stageH);
+  if (stageW && node.box?.w && stageW > node.box.w + 0.5) s._width = px(stageW);
+  if (!stageH) return;
+  s._overflow = 'visible';
+  addCustomCss(s, `height: ${px(stageH)}; overflow: visible;`);
+  addCustomCss(s, 'overflow: hidden;', ' .splide__track');
+  addCustomCss(s, 'display: flex;', ' .splide__list');
+  addCustomCss(s, `position: relative; overflow: hidden; width: 100%; flex: 0 0 100%; height: ${px(stageH)};`, ' .splide__list > *');
+}
+
+function writePagination(settings, node, det, { root, readAsset, warn }) {
+  if (!det.params?.pagination) return;
+  const info = bricksPagination(node, det, { root, readAsset });
+  if (info.use && info.shapes) {
+    settings.pagination = true;
+    const { idle, active } = dashPair(info.shapes);
+    const pag = info.pag;
+    Object.assign(settings, {
+      paginationWidth: px(idle.box.w), paginationHeight: px(idle.box.h), paginationColor: boxLook(idle, warn).background,
+      paginationWidthActive: px(active.box.w), paginationHeightActive: px(active.box.h), paginationColorActive: boxLook(active, warn).background,
+    });
+    const idleRadius = cornerRadius(idle);
+    const activeRadius = cornerRadius(active);
+    if (idleRadius) settings.paginationBorder = { radius: radiusOf(idleRadius) };
+    if (activeRadius) settings.paginationBorderActive = { radius: radiusOf(activeRadius) };
+    addCustomCss(settings, `border-radius: ${px(idleRadius)} !important;`, ' .splide__pagination__page');
+    addCustomCss(settings, `border-radius: ${px(activeRadius)} !important;`, ' .splide__pagination__page.is-active');
+    if (pag.layout) settings.paginationSpacing = px(pag.layout.gap);
+    placePagination(settings, node, pag);
+    return;
+  }
+  if (info.use && info.marks) {
+    settings.pagination = true;
+    const { idle, active, gap } = info.marks;
+    const color = (mark) => colorObj({ hex: mark.hex, alpha: mark.alpha });
+    Object.assign(settings, {
+      paginationWidth: px(idle.w), paginationHeight: px(idle.h), paginationColor: color(idle),
+      paginationWidthActive: px(active.w), paginationHeightActive: px(active.h), paginationColorActive: color(active),
+      paginationBorder: { radius: radiusOf(idle.rx) }, paginationBorderActive: { radius: radiusOf(active.rx) },
+      paginationSpacing: { top: '0px', right: px(gap / 2), bottom: '0px', left: px(gap / 2) },
+    });
+    placePagination(settings, node, info.pag);
+    return;
+  }
+  if (!info.use) return;
+  settings.pagination = true;
+  placePagination(settings, node, info.pag);
+  if (info.unparsed) warn(info.pag, 'pagination dashes could not be read: the strip still has one dash per item, in the Bricks dot style');
+  else if (contains(node, det.params.pagination)) warn(info.pag ?? node, 'pagination sits inside the slider and is not a row of shapes: one dash per item, Bricks dot style');
+}
 
 export default {
   id: PartKind.CAROUSEL,
@@ -195,52 +334,16 @@ export default {
   apply({ node, s, root, warn, readAsset }, det) {
     const slides = slidesOf(node, det);
     Object.assign(s, { perPage: perPageOf(node, slides, det), gap: node.layout?.gap });
-    if (det.params?.pagination) {
-      const info = bricksPagination(node, det, { root, readAsset });
-      if (info.use && info.shapes) {
-        s.pagination = true;
-        const dots = info.shapes;
-        const fillOf = (d) => JSON.stringify(d.fills.filter((f) => f.type === 'SOLID').pop());
-        const idle = dots.find((d) => dots.filter((x) => fillOf(x) === fillOf(d)).length > 1) ?? dots[0];
-        const active = dots.find((d) => fillOf(d) !== fillOf(idle)) ?? idle;
-        const pag = info.pag;
-        Object.assign(s, { paginationWidth: px(idle.box.w), paginationHeight: px(idle.box.h), paginationColor: boxLook(idle, warn).background,
-          paginationWidthActive: px(active.box.w), paginationHeightActive: px(active.box.h), paginationColorActive: boxLook(active, warn).background });
-        if (pag.layout) s.paginationSpacing = px(pag.layout.gap);
-        placePagination(s, node, pag);
-      } else if (info.use && info.marks) {
-        s.pagination = true;
-        const { idle, active, gap } = info.marks;
-        const color = (m) => colorObj({ hex: m.hex, alpha: m.alpha });
-        Object.assign(s, {
-          paginationWidth: px(idle.w), paginationHeight: px(idle.h), paginationColor: color(idle),
-          paginationWidthActive: px(active.w), paginationHeightActive: px(active.h), paginationColorActive: color(active),
-          paginationBorder: { radius: radiusOf(idle.rx) }, paginationBorderActive: { radius: radiusOf(active.rx) },
-          paginationSpacing: { top: '0px', right: px(gap / 2), bottom: '0px', left: px(gap / 2) },
-        });
-        placePagination(s, node, info.pag);
-      } else if (info.use) {
-        s.pagination = true;
-        placePagination(s, node, info.pag);
-        if (info.unparsed) warn(info.pag, 'pagination dashes could not be read: the strip still has one dash per item, in the Bricks dot style');
-        else if (contains(node, det.params.pagination)) warn(info.pag ?? node, 'pagination sits inside the slider and is not a row of shapes: one dash per item, Bricks dot style');
-      }
-    }
+    writePagination(s, node, det, { root, readAsset, warn });
     const pair = [['prev', 'prevArrow'], ['next', 'nextArrow']]
       .filter(([key]) => det.params?.[key])
       .map(([key, label]) => ({ key, label, node: findNode(root, det.params[key]) }));
     applySyncedArrows(s, node, pair, warn);
     const extra = jsonParam(det.params?.settings);
     if (extra && typeof extra === 'object') Object.assign(s, deepMerge(s, extra));
-    // After the Plan settings, so a saved "slide" type cannot turn the loop off when several cards are drawn.
-    // One drawn slide cannot loop: Splide clones it and the builder track shows only the pagination dot.
-    // PHP treats isset(autoplay) as on, including false, so off means the key is absent.
-    // PHP also treats a missing height as 50vh, which leaves an empty track when the only card is positioned out.
-    const one = slides.length < 2;
-    if (det.params?.autoplay === false) delete s.autoplay;
-    else { s.autoplay = true; s.interval ??= 3000; }
-    Object.assign(s, { type: one ? 'slide' : 'loop', focus: 0, perMove: 1, start: 0 });
-    if (one && node.box?.h) s.height = px(node.box.h);
+    writeCarouselMotion(s, slides, det);
+    writeCarouselStage(s, node, slides);
+    pinOutsideArrows(s, node, pair);
     // Splide ships `.splide { visibility: hidden }` until JS adds `is-initialized`. This site delays that script, so the slide and its picture stay blank on first paint.
     addCustomCss(s, 'visibility: visible;');
   },

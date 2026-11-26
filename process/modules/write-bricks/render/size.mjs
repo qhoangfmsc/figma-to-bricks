@@ -1,221 +1,299 @@
-// Figma sizing + placement -> Bricks width/height/flex/position.
-//   FIXED -> px · HUG -> auto (+ no shrink) · FILL -> flex:1 1 <figma px> on the parent's main axis, align-self:stretch on the cross axis
-//   place ABSOLUTE (child of a non-auto-layout node) -> position:absolute + left/top/width/height
+// Figma sizing and placement, one function per mode.
+// FIXED is a px box. HUG is auto. FILL is flex on the parent's main axis and stretch on the cross axis.
+// ABSOLUTE is left/top from the tree, then the Figma constraint (LEFT, RIGHT, CENTER, SCALE).
 import { addClassCss, addCustomCss, pct, px, r4 } from '../../write-bricks/render/utils/css.mjs';
 import { svgBleed } from '../../write-bricks/render/utils/svg-bleed.mjs';
 import { coverOnArtboard, isArtStack, isBackdrop, overflowsParent, pinToParent } from '../../write-bricks/render/utils/art.mjs';
 
-// A child of the artboard follows the viewport the way the Figma horizontal constraint says (CENTER, RIGHT, LEFT_RIGHT, SCALE): the root is as wide as
-// the viewport (100%). Left-anchored children keep their pixel x. The Figma horizontal constraint says how (CENTER, RIGHT, LEFT_RIGHT, SCALE); every formula gives the exact Figma
-// x / width at the artboard width. A LEFT child that sits exactly in the middle of the artboard (|x - (W - w) / 2| <= 1px: the designer centered a
-// column by hand, owner remark 2026-10-27 "hero lệch") is anchored to the middle too, otherwise it drifts off-screen on every other width.
-function anchorToParent(node, parent, s, isArtboard) {
-  if (node.rotation) return; // a rotated node is placed by rotation.mjs (its own transform)
-  const b = node.box;
-  const W = parent.box.w;
-  const h = node.constraints?.horizontal ?? 'LEFT';
-  // the hand-centered LEFT heuristic is only for the artboard (a column the designer centered by hand); in any other parent only the Figma constraint decides
-  if (h === 'CENTER' || (isArtboard && h === 'LEFT' && Math.abs(b.x - (W - b.w) / 2) <= 1)) {
-    // anchor the element's own middle to the artboard's middle (translate, not a width-based left: `max-width:100%` can make the box narrower than Figma's)
-    const off = b.x + b.w / 2 - W / 2;
-    s._left = off ? `calc(50% ${off < 0 ? '-' : '+'} ${px(Math.abs(off))})` : '50%';
-    addCustomCss(s, 'transform: translateX(-50%);');
+const AXIS = {
+  h: { dim: '_width', css: 'width', box: (node) => node.box.w },
+  v: { dim: '_height', css: 'height', box: (node) => node.box.h },
+};
+const GRID_ALIGN = { MIN: 'start', CENTER: 'center', MAX: 'end', STRETCH: 'stretch' };
+const SLIDE_WIDTH_KEYS = ['_width', '_widthMax', '_widthMin', '_flexGrow', '_flexShrink', '_flexBasis'];
+
+const hasChildren = (node) => (node.children ?? []).some((child) => child.visible !== false);
+const tracksScreen = (parent, root) => parent === root || parent?.__screen === true;
+
+function offsetFromCenter(start, size, parentSize) {
+  const offset = start + size / 2 - parentSize / 2;
+  if (!offset) return '50%';
+  return `calc(50% ${offset < 0 ? '-' : '+'} ${px(Math.abs(offset))})`;
+}
+
+function anchorAxis(node, parentSize, start, size, constraint, axis) {
+  const settings = {};
+  if (constraint === 'CENTER') settings[axis === 'h' ? '_left' : '_top'] = offsetFromCenter(start, size, parentSize);
+  else if (constraint === 'RIGHT' || constraint === 'BOTTOM') {
+    settings[axis === 'h' ? '_left' : '_top'] = null;
+    settings[axis === 'h' ? '_right' : '_bottom'] = px(parentSize - start - size);
+  } else if (constraint === 'LEFT_RIGHT' || constraint === 'TOP_BOTTOM') {
+    settings[axis === 'h' ? '_right' : '_bottom'] = px(parentSize - start - size);
+    settings[axis === 'h' ? '_width' : '_height'] = 'auto';
+  } else if (constraint === 'SCALE' && parentSize > 0) {
+    settings[axis === 'h' ? '_left' : '_top'] = pct((start / parentSize) * 100);
+    settings[axis === 'h' ? '_width' : '_height'] = pct((size / parentSize) * 100);
   }
-  else if (h === 'RIGHT') { delete s._left; s._right = px(W - b.x - b.w); }
-  else if (h === 'LEFT_RIGHT') { s._right = px(W - b.x - b.w); s._width = 'auto'; }
-  else if (h === 'SCALE') Object.assign(s, { _left: pct((b.x / W) * 100), _width: pct((b.w / W) * 100) });
+  return settings;
 }
 
-// An absolute layer inside an auto-layout frame (a badge, a sticker) follows that frame's constraints.
-// The formula is the Figma x at this frame's width, and the same inset once the frame changes width.
-// A parent with no auto layout is left on pixel left/top: that parent can become `display: contents` at a
-// breakpoint, and a percentage would then be resolved against the grandparent.
-function anchorInFrame(node, parent, s) {
-  if (node.rotation || !parent.box) return;
-  const b = node.box;
-  const W = parent.box.w;
-  const H = parent.box.h;
-  if (!(W > 0) || !(H > 0)) return;
-  const h = node.constraints?.horizontal ?? 'LEFT';
-  const v = node.constraints?.vertical ?? 'TOP';
-  let tx = false;
-  let ty = false;
-  if (h === 'CENTER') {
-    const off = b.x + b.w / 2 - W / 2;
-    s._left = off ? `calc(50% ${off < 0 ? '-' : '+'} ${px(Math.abs(off))})` : '50%';
-    tx = true;
-  } else if (h === 'RIGHT') { delete s._left; s._right = px(W - b.x - b.w); }
-  else if (h === 'LEFT_RIGHT') { s._right = px(W - b.x - b.w); s._width = 'auto'; }
-  else if (h === 'SCALE') Object.assign(s, { _left: pct((b.x / W) * 100), _width: pct((b.w / W) * 100) });
-  if (v === 'CENTER') {
-    const off = b.y + b.h / 2 - H / 2;
-    s._top = off ? `calc(50% ${off < 0 ? '-' : '+'} ${px(Math.abs(off))})` : '50%';
-    ty = true;
-  } else if (v === 'BOTTOM') { delete s._top; s._bottom = px(H - b.y - b.h); }
-  else if (v === 'TOP_BOTTOM') { s._bottom = px(H - b.y - b.h); s._height = 'auto'; }
-  else if (v === 'SCALE') Object.assign(s, { _top: pct((b.y / H) * 100), _height: pct((b.h / H) * 100) });
-  if (tx || ty) addCustomCss(s, `transform: translate(${tx ? '-50%' : '0'}, ${ty ? '-50%' : '0'});`);
+function writeAnchor(settings, fields) {
+  for (const [key, value] of Object.entries(fields)) {
+    if (value == null) delete settings[key];
+    else settings[key] = value;
+  }
 }
 
-const SLIDE_DROP = ['_width', '_widthMax', '_widthMin', '_flexGrow', '_flexShrink', '_flexBasis']; // slide width belongs to the slider (perPage + gap); height and align-self stay
+// A child of the artboard follows its horizontal constraint. A LEFT child that sits in the
+// middle of the artboard was centered by hand, so it stays centered when the viewport changes.
+function anchorToArtboard(node, parent, settings) {
+  if (node.rotation) return;
+  const box = node.box;
+  const constraint = node.constraints?.horizontal ?? 'LEFT';
+  const centeredByHand = constraint === 'LEFT' && Math.abs(box.x - (parent.box.w - box.w) / 2) <= 1;
+  if (constraint === 'CENTER' || centeredByHand) {
+    writeAnchor(settings, anchorAxis(node, parent.box.w, box.x, box.w, 'CENTER', 'h'));
+    addCustomCss(settings, 'transform: translateX(-50%);');
+    return;
+  }
+  writeAnchor(settings, anchorAxis(node, parent.box.w, box.x, box.w, constraint, 'h'));
+}
+
+// An absolute layer inside an auto-layout frame keeps that frame's constraints on both axes.
+function anchorInFrame(node, parent, settings) {
+  if (node.rotation || !(parent.box?.w > 0) || !(parent.box?.h > 0)) return;
+  const box = node.box;
+  const horizontal = node.constraints?.horizontal ?? 'LEFT';
+  const vertical = node.constraints?.vertical ?? 'TOP';
+  writeAnchor(settings, {
+    ...anchorAxis(node, parent.box.w, box.x, box.w, horizontal, 'h'),
+    ...anchorAxis(node, parent.box.h, box.y, box.h, vertical, 'v'),
+  });
+  const shiftX = horizontal === 'CENTER';
+  const shiftY = vertical === 'CENTER';
+  if (shiftX || shiftY) addCustomCss(settings, `transform: translate(${shiftX ? '-50%' : '0'}, ${shiftY ? '-50%' : '0'});`);
+}
+
+function placeAbsolute(node, parent, root, settings, expect) {
+  const box = node.box;
+  const bleed = node.__svgBleed;
+  const left = bleed ? box.x - bleed.left : box.x;
+  const top = bleed ? box.y - bleed.top : box.y;
+  const width = bleed ? bleed.w : box.w;
+  const height = bleed ? bleed.h : box.h;
+  Object.assign(settings, {
+    _position: 'absolute',
+    _left: px(left),
+    _top: px(top),
+    _width: px(width),
+    _height: px(height),
+  });
+  Object.assign(expect, { width: px(width), height: px(height) });
+  if (bleed) settings._widthMax = 'none';
+  else if (parent?.box && box.w > parent.box.w + 0.01) settings._widthMax = 'none';
+  if (bleed) {
+    if (parent && parent === root) anchorToArtboard({ ...node, box: { ...box, x: left, w: width } }, parent, settings);
+    return;
+  }
+  const onScreen = parent && tracksScreen(parent, root);
+  if (onScreen) anchorToArtboard(node, parent, settings);
+  else if (parent?.layout) anchorInFrame(node, parent, settings);
+  if (onScreen && isBackdrop(node, parent)) {
+    if (node.rotation) node.__fluid = true;
+    else coverOnArtboard(node, parent, settings);
+  }
+}
+
+function resolvedMode(node, parent, axis, grid) {
+  let mode = node.sizing[axis];
+  if (node.__intrinsic && mode === 'HUG') mode = 'FIXED';
+  const empty = node.type !== 'TEXT' && !hasChildren(node);
+  if (mode === 'HUG' && empty) mode = 'FIXED';
+  const parentHugs = !grid && parent?.sizing?.[axis] === 'HUG';
+  const siblingsCannotSize = (parent?.children ?? []).every((child) => (
+    child === node || child.visible === false || child.place === 'ABSOLUTE'
+    || (child.sizing?.[axis] === 'FILL' && !hasChildren(child))
+  ));
+  if (mode === 'FILL' && parentHugs && empty && siblingsCannotSize) mode = 'FIXED';
+  return mode;
+}
+
+function writeFixed(node, axis, settings, expect, boxValue, primary) {
+  const { dim, css } = AXIS[axis];
+  const bleed = node.__svgBleed;
+  if (bleed) {
+    const full = axis === 'h' ? bleed.w : bleed.h;
+    settings[dim] = px(full);
+    expect[css] = px(full);
+    const inset = axis === 'h'
+      ? { left: px(-bleed.left), right: px(-bleed.right) }
+      : { top: px(-bleed.top), bottom: px(-bleed.bottom) };
+    settings._margin = { ...(settings._margin ?? {}), ...inset };
+    if (axis === 'h') settings._widthMax = 'none';
+  } else {
+    settings[dim] = px(boxValue);
+    expect[css] = px(boxValue);
+  }
+  if (axis === primary) settings._flexShrink = 0;
+}
+
+function writeHug(axis, settings, primary) {
+  settings[AXIS[axis].dim] = 'auto';
+  if (axis === primary) settings._flexShrink = 0;
+  if (axis === 'h') settings._widthMax = 'none';
+}
+
+function childHangsOutside(node) {
+  const box = node.box;
+  if (!box) return false;
+  return (node.children ?? []).some((child) => {
+    if (child.visible === false || child.place !== 'ABSOLUTE' || !child.box) return false;
+    const left = child.box.x - box.x;
+    const top = child.box.y - box.y;
+    return left < -0.5 || top < -0.5 || left + child.box.w > box.w + 0.5 || top + child.box.h > box.h + 0.5;
+  });
+}
+
+function writeFill(node, parent, axis, settings, expect, boxValue, primary, grid, mode) {
+  const { dim, css } = AXIS[axis];
+  settings[dim] = 'auto';
+  if (axis === primary) {
+    Object.assign(settings, { _flexGrow: 1, _flexShrink: 1, _flexBasis: px(boxValue) });
+    if (axis === 'h') settings._widthMin = '0px';
+  } else if (grid) {
+    if (axis === 'v') addCustomCss(settings, 'align-self: stretch;');
+  } else if (mode === 'HORIZONTAL' && !childHangsOutside(node)) {
+    // Bricks writes width 100% with the stretch control, which would drop a fixed width on this item.
+    // An absolute child drawn outside this frame is positioned against the frame box, so the frame keeps that box.
+    settings._alignSelf = 'stretch';
+    addCustomCss(settings, 'align-self: stretch;');
+    if (settings._width && settings._width !== '100%') addClassCss(settings, `width: ${settings._width};`);
+  } else if (parent?.sizing?.[axis] === 'HUG') {
+    settings[dim] = px(boxValue);
+    if (axis === 'h') settings._widthMax = 'none';
+  } else {
+    const cap = axis === 'h' ? node.limits?.maxWidth : null;
+    const align = parent?.layout?.counterAlign;
+    if (cap != null && align && align !== 'MIN') {
+      settings[dim] = '100%';
+      settings._alignSelf = align === 'CENTER' ? 'center' : 'flex-end';
+    } else {
+      settings._alignSelf = 'stretch';
+      if (axis === 'h') settings._width = '100%';
+    }
+  }
+  if (axis === 'h' && node.type === 'TEXT' && node.__inHug) settings._widthMax ??= px(boxValue);
+  expect[css] = px(boxValue);
+}
+
+function sizeFlowAxis(node, parent, axis, settings, expect, primary, grid, mode) {
+  const boxValue = strokeBox(node, axis, settings);
+  const sizing = resolvedMode(node, parent, axis, grid);
+  if (sizing === 'FIXED') writeFixed(node, axis, settings, expect, boxValue, primary);
+  else if (sizing === 'HUG') writeHug(axis, settings, primary);
+  else if (sizing === 'FILL') writeFill(node, parent, axis, settings, expect, boxValue, primary, grid, mode);
+}
+
+// A zero-thickness frame whose children are strokes uses the exported svg size. The frame itself stays in place.
+function strokeBox(node, axis, settings) {
+  const drawn = AXIS[axis].box(node);
+  if (!node.svg?.width || drawn >= 0.5) return drawn;
+  const full = axis === 'h' ? node.svg.width : node.svg.height;
+  const bleed = px(-(full - drawn) / 2);
+  const inset = axis === 'h' ? { left: bleed, right: bleed } : { top: bleed, bottom: bleed };
+  settings._margin = { ...(settings._margin ?? {}), ...inset };
+  return full;
+}
+
+function writeGridCell(node, settings, warn) {
+  const cell = node.gridCell;
+  if (!cell) return;
+  addCustomCss(settings, `grid-column: ${cell.col + 1} / span ${cell.colSpan}; grid-row: ${cell.row + 1} / span ${cell.rowSpan};`);
+  if (!cell.align) return;
+  const bits = [];
+  const horizontal = GRID_ALIGN[cell.align.gridChildHorizontalAlign];
+  const vertical = GRID_ALIGN[cell.align.gridChildVerticalAlign];
+  if (horizontal) bits.push(`justify-self: ${horizontal}`);
+  if (vertical) bits.push(`align-self: ${vertical}`);
+  if (bits.length) addCustomCss(settings, `${bits.join('; ')};`);
+  const unknown = Object.entries(cell.align).filter(([, value]) => !GRID_ALIGN[value]);
+  if (unknown.length) warn(node, `grid cell alignment ${JSON.stringify(Object.fromEntries(unknown))} is not applied`);
+}
+
+function contentRoom(parent) {
+  if (!parent?.box) return Infinity;
+  const pad = parent.layout?.padding;
+  return parent.box.w - (pad?.left ?? 0) - (pad?.right ?? 0);
+}
 
 export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlide }) {
-  const b = node.box;
   if (isRoot) {
-    s._width = '100%'; // artboard width is a viewport, not a fixed width
-    if (node.sizing.v === 'FIXED') { s._height = px(b.h); css.height = px(b.h); }
-    // a hugging artboard with a minimum height (Banner: h HUG, minHeight 540) is as tall as its content only above that minimum
-    for (const [k, key] of [['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) if (node.limits?.[k] != null) s[key] = px(node.limits[k]);
+    s._width = '100%';
+    if (node.sizing.v === 'FIXED') { s._height = px(node.box.h); css.height = px(node.box.h); }
+    for (const [from, to] of [['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) {
+      if (node.limits?.[from] != null) s[to] = px(node.limits[from]);
+    }
     return;
   }
-  const bleed = svgBleed(node); // svg exported with its drop shadow around the node box (utils/svg-bleed.mjs)
+
+  const bleed = svgBleed(node);
   if (bleed) node.__svgBleed = bleed;
-  // A layer inside an image stack is a percentage of that stack, so the layers stay aligned when the stack scales with the screen.
+
   if (parent?.__fluid && node.type !== 'TEXT') {
     node.__fluid = true;
-    // rotation.mjs writes the unrotated box itself. This branch returns before the absolute placement,
-    // so a turned layer would keep left/top in normal flow and the turn would land off the picture.
     if (!node.rotation) pinToParent(node, parent, s);
     else s._position = 'absolute';
-    Object.assign(css, { width: px(b.w), height: px(b.h) });
+    Object.assign(css, { width: px(node.box.w), height: px(node.box.h) });
     return;
   }
-  // A picture Figma clips, drawn larger than its frame, must not join the flex line: that pixel width is what blows the card open on a narrower screen.
+
   if (node.place !== 'ABSOLUTE' && parent?.clip && parent.box && isArtStack(node) && overflowsParent(node, parent)) {
-    pinToParent(node, parent, s);
-    Object.assign(css, { width: px(b.w), height: px(b.h) });
+    const box = node.box;
+    const frame = parent.box;
+    const onlyWider = box.y >= -0.5 && box.y + box.h <= frame.h + 0.5 && box.x + box.w > frame.w + 0.5;
+    if (!(onlyWider && parent.layout?.mode === 'VERTICAL')) pinToParent(node, parent, s);
+    else {
+      s._width = px(box.w);
+      s._height = px(box.h);
+      s._widthMin = '0px';
+      s._widthMax = 'none';
+    }
+    Object.assign(css, { width: px(box.w), height: px(box.h) });
     return;
   }
+
   if (node.place === 'ABSOLUTE') {
-    if (bleed) {
-      Object.assign(s, { _position: 'absolute', _left: px(b.x - bleed.left), _top: px(b.y - bleed.top), _width: px(bleed.w), _height: px(bleed.h), _widthMax: 'none' });
-      Object.assign(css, { width: px(bleed.w), height: px(bleed.h) });
-      if (parent && parent === root) anchorToParent({ ...node, box: { ...b, x: b.x - bleed.left, w: bleed.w } }, parent, s, true);
-      return;
-    }
-    Object.assign(s, { _position: 'absolute', _left: px(b.x), _top: px(b.y), _width: px(b.w), _height: px(b.h) });
-    Object.assign(css, { width: px(b.w), height: px(b.h) });
-    if (parent?.box && b.w > parent.box.w + 0.01) s._widthMax = 'none'; // wider than its parent in Figma: the theme's `max-width:100%` on images would squeeze it
-    // The artboard, and a frame that already spans it, are the screen. Content anchors to that screen; a backdrop scales with it.
-    // Any other auto-layout parent keeps the badge on its own corner (anchorInFrame). A parent with no auto layout stays on pixel left/top.
-    if (parent && tracksScreen(parent, root)) anchorToParent(node, parent, s, true);
-    else if (parent?.layout) anchorInFrame(node, parent, s);
-    if (parent && tracksScreen(parent, root) && isBackdrop(node, parent)) {
-      if (node.rotation) node.__fluid = true;
-      else coverOnArtboard(node, parent, s);
-    }
+    placeAbsolute(node, parent, root, s, css);
     return;
   }
+
   const mode = parent?.layout?.mode;
   const grid = mode === 'GRID';
-  const primary = grid ? null : mode === 'HORIZONTAL' ? 'h' : 'v'; // a grid cell has no main axis
-  if (grid && node.gridCell) addCustomCss(s, `grid-column: ${node.gridCell.col + 1} / span ${node.gridCell.colSpan}; grid-row: ${node.gridCell.row + 1} / span ${node.gridCell.rowSpan};`);
-  if (grid && node.gridCell?.align) {
-    const place = { MIN: 'start', CENTER: 'center', MAX: 'end', STRETCH: 'stretch' };
-    const bits = [];
-    const horizontal = place[node.gridCell.align.gridChildHorizontalAlign];
-    const vertical = place[node.gridCell.align.gridChildVerticalAlign];
-    if (horizontal) bits.push(`justify-self: ${horizontal}`);
-    if (vertical) bits.push(`align-self: ${vertical}`);
-    if (bits.length) addCustomCss(s, `${bits.join('; ')};`);
-    const unknown = Object.entries(node.gridCell.align).filter(([, value]) => !place[value]);
-    if (unknown.length) warn(node, `grid cell alignment ${JSON.stringify(Object.fromEntries(unknown))} is not applied`);
-  }
-  for (const axis of ['h', 'v']) {
-    const dim = axis === 'h' ? '_width' : '_height';
-    const cssDim = axis === 'h' ? 'width' : 'height';
-    let sz = node.sizing[axis];
-    if (node.__intrinsic && sz === 'HUG') sz = 'FIXED'; // images/svg: use the Figma box
-    if (sz === 'HUG' && node.type !== 'TEXT' && !(node.children ?? []).some((c) => c.visible !== false)) sz = 'FIXED'; // nothing inside to hug: the browser would collapse it to its padding, Figma paints its stored box
-    // an empty FILL child in a parent that hugs on the same axis with nothing else to size it (a 28px tooltip icon frame in a HUG container): in a browser it
-    // contributes 0 and the parent collapses to 0, Figma paints the stored box
-    if (sz === 'FILL' && !grid && parent?.sizing?.[axis] === 'HUG' && node.type !== 'TEXT' && !(node.children ?? []).some((c) => c.visible !== false)
-      && (parent.children ?? []).every((c) => c === node || c.visible === false || c.place === 'ABSOLUTE' || (c.sizing?.[axis] === 'FILL' && !(c.children ?? []).some((k) => k.visible !== false)))) sz = 'FIXED';
-    let boxVal = axis === 'h' ? b.w : b.h;
-    // a frame with no extent on this axis whose children are strokes (Figma: Pagination 120×0 with five 4px round-cap lines on its edge): the exported svg is as
-    // big as the strokes (124×4) and sits half a stroke before the frame's edge, a 0px svg would show nothing
-    if (node.svg?.width && boxVal < 0.5) {
-      const full = axis === 'h' ? node.svg.width : node.svg.height;
-      const bleed = px(-(full - boxVal) / 2); // both sides: the frame takes no room in the layout, the strokes only overflow it
-      s._margin = { ...(s._margin ?? {}), ...(axis === 'h' ? { left: bleed, right: bleed } : { top: bleed, bottom: bleed }) };
-      boxVal = full;
-    }
-    if (sz === 'FIXED' && bleed) {
-      // the svg is bigger than its layout box: full size, negative margins give the room back so siblings stay where Figma puts them
-      const full = axis === 'h' ? bleed.w : bleed.h;
-      s[dim] = px(full);
-      css[cssDim] = px(full);
-      s._margin = { ...(s._margin ?? {}), ...(axis === 'h' ? { left: px(-bleed.left), right: px(-bleed.right) } : { top: px(-bleed.top), bottom: px(-bleed.bottom) }) };
-      if (axis === 'h') s._widthMax = 'none';
-      if (axis === primary) s._flexShrink = 0;
-    } else if (sz === 'FIXED') {
-      s[dim] = px(boxVal);
-      css[cssDim] = px(boxVal);
-      if (axis === primary) s._flexShrink = 0;
-    } else if (sz === 'HUG') {
-      s[dim] = 'auto';
-      if (axis === primary) s._flexShrink = 0; // a hugging item is never squeezed below its content in Figma
-      if (axis === 'h') s._widthMax = 'none'; // Bricks/theme default max-width:100% would clamp content that overflows its parent
-    } else if (sz === 'FILL') {
-      s[dim] = 'auto';
-      if (axis === primary) {
-        // basis = the Figma size (border-box): with basis 0, CSS adds each sibling's padding+border on top of the equal share, Figma does not
-        Object.assign(s, { _flexGrow: 1, _flexShrink: 1, _flexBasis: px(boxVal) });
-        if (axis === 'h') s._widthMin = '0px';
-      } else if (grid) {
-        if (axis === 'v') addCustomCss(s, 'align-self: stretch;'); // FILL width in a grid is plain width:auto (cells stretch); only FILL height needs it
-      } else if (mode === 'HORIZONTAL') {
-        // The Align self control shows the Figma value. `stretch` also writes `width: 100%` (container.php).
-        // A class rule of the same specificity, appended after that control, keeps the Figma width. A breakpoint
-        // width is a later media query of the same selector, so it still wins below the frame.
-        s._alignSelf = 'stretch';
-        addCustomCss(s, 'align-self: stretch;');
-        if (s._width !== '100%') addClassCss(s, `width: ${s._width || 'auto'};`);
-      } else if (parent?.sizing?.[axis] === 'HUG') {
-        // The parent hugs this axis, so there is no wider box to fill. Stretch here grows into the grandparent
-        // (a 481px form became the whole right column). The Figma box is the size.
-        s[dim] = px(boxVal);
-        if (axis === 'h') s._widthMax = 'none';
-      } else {
-        // FILL across a column with a max size (Figma: fill up to the cap, then sit where the parent's counter-axis alignment puts it, e.g. a 260px
-        // photo centered in a wider card). `stretch` + max-width would leave it at the start edge.
-        const cap = axis === 'h' ? node.limits?.maxWidth : null;
-        const align = parent?.layout?.counterAlign;
-        if (cap != null && align && align !== 'MIN') { s[dim] = '100%'; s._alignSelf = align === 'CENTER' ? 'center' : 'flex-end'; }
-        else {
-          s._alignSelf = 'stretch';
-          // Fill across a column is the parent width at every window in that band.
-          // The drawn px is not a max-width, or a wider phone in the same breakpoint stays short.
-          if (axis === 'h') s._width = '100%';
-        }
-      }
-      if (axis === 'h' && node.type === 'TEXT' && node.__inHug) s._widthMax ??= px(boxVal); // see index.mjs markHug
-      css[cssDim] = px(boxVal);
-    }
-  }
+  const primary = grid ? null : mode === 'HORIZONTAL' ? 'h' : 'v';
+  if (grid) writeGridCell(node, s, warn);
+  for (const axis of ['h', 'v']) sizeFlowAxis(node, parent, axis, s, css, primary, grid, mode);
+
   if (!s._alignSelf && node.selfAlign === 'CENTER') s._alignSelf = 'center';
   else if (!s._alignSelf && node.selfAlign === 'MAX') s._alignSelf = 'flex-end';
-  for (const [k, key] of [['minWidth', '_widthMin'], ['maxWidth', '_widthMax'], ['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) {
-    if (node.limits?.[k] != null) s[key] = px(node.limits[k]);
+  for (const [from, to] of [['minWidth', '_widthMin'], ['maxWidth', '_widthMax'], ['minHeight', '_heightMin'], ['maxHeight', '_heightMax']]) {
+    if (node.limits?.[from] != null) s[to] = px(node.limits[from]);
   }
-  if (isSlide) for (const k of SLIDE_DROP) delete s[k];
-  // never wider than the viewport: no effect on desktop, keeps fixed widths from overflowing on small screens
-  // exception: a child that is wider than its parent's content box overflows in Figma (fixed 18px icon in a 24px frame with 10px padding),
-  // max-width:100% would squeeze it to the 4px of content box
-  const pad = parent?.layout?.padding;
-  const room = parent?.box ? parent.box.w - (pad?.left ?? 0) - (pad?.right ?? 0) : Infinity;
-  if (!isSlide && node.sizing.h === 'FIXED') s._widthMax ??= b.w > room + 0.01 ? 'none' : '100%';
-  else if (!isSlide && node.__intrinsic && b.w > room + 0.01) s._widthMax ??= 'none'; // svg / image: the theme clamps `svg` to max-width:100% too
-  // A frame that is only pictures keeps its Figma ratio. Height follows the width, so a narrower or wider screen does not leave the layers at one pixel size.
-  if (isArtStack(node) && kidsOf(node) && !node.rotation) {
-    s._aspectRatio = `${r4(b.w)} / ${r4(b.h)}`;
-    if (typeof s._height === 'string' && s._height.endsWith('px')) s._height = 'auto';
+  if (isSlide) for (const key of SLIDE_WIDTH_KEYS) delete s[key];
+
+  const room = contentRoom(parent);
+  if (!isSlide && node.sizing.h === 'FIXED') s._widthMax ??= node.box.w > room + 0.01 ? 'none' : '100%';
+  else if (!isSlide && node.__intrinsic && node.box.w > room + 0.01) s._widthMax ??= 'none';
+
+  if (isArtStack(node) && hasChildren(node) && !node.rotation) {
+    s._aspectRatio = `${r4(node.box.w)} / ${r4(node.box.h)}`;
+    // Aspect ratio replaces a fixed height so the frame scales with its width.
+    // A child drawn outside the frame is placed against this box, so the box height stays.
+    if (typeof s._height === 'string' && s._height.endsWith('px') && !childHangsOutside(node)) s._height = 'auto';
     if (s._position !== 'absolute') s._position ??= 'relative';
     node.__fluid = true;
   }
-  // A flow child drawn edge to edge follows the screen on every template. Paint at that width is the background.
-  // A frame that holds text becomes the screen for its own children, and the text keeps its Figma pixels.
-  if (!isSlide && node.place !== 'ABSOLUTE' && tracksScreen(parent, root) && parent?.box && b.w >= parent.box.w - 1) {
+
+  if (!isSlide && node.place !== 'ABSOLUTE' && tracksScreen(parent, root) && parent?.box && node.box.w >= parent.box.w - 1) {
     if (isBackdrop(node, parent)) coverOnArtboard(node, parent, s);
     else {
       s._width = '100%';
@@ -223,9 +301,3 @@ export function applySize({ node, parent, root, s, css, warn }, { isRoot, isSlid
     }
   }
 }
-
-function tracksScreen(parent, root) {
-  return parent === root || parent?.__screen === true;
-}
-
-const kidsOf = (node) => (node.children ?? []).some((c) => c.visible !== false);

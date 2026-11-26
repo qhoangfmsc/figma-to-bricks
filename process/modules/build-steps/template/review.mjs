@@ -15,9 +15,14 @@ const num = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const UNSEEN = [
+  'Số lệch ảnh không thấy blur, bóng chữ, và font lệch 1–2px.',
+  'Chưa bấm component trên preview để kiểm tra mở, đóng, và đổi tab.',
+];
+
 export function reviewFrame(verify, key = 'desktop') {
   const name = FRAME[key] || key;
-  if (!verify) return { name, tone: 'none', percent: null, notes: ['Chưa đo được.'] };
+  if (!verify || verify.visualMean == null) return { name, tone: 'none', percent: null, notes: ['Chưa đo được.'], unseen: UNSEEN };
   const notes = reasonLines(verify.bad || [], verify.visualMean);
   if (!notes.length && verify.verdict !== 'FAIL') notes.push('Không thấy chỗ nào lệch so với bản vẽ.');
   return {
@@ -25,6 +30,7 @@ export function reviewFrame(verify, key = 'desktop') {
     tone: verify.verdict === 'FAIL' ? 'fail' : 'pass',
     percent: verify.visualMean == null ? null : Math.round((verify.visualMean / 255) * 1000) / 10,
     notes,
+    unseen: UNSEEN,
   };
 }
 

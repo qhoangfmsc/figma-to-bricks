@@ -345,7 +345,11 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       for (const card of cards) card.c.settings['_flexShrink:mobile_portrait'] = 0;
       continue;
     }
-    if (keep.includes('mobile_portrait') && !keep.includes('mobile_landscape') && full > 478) s['_direction:mobile_portrait'] ??= 'column';
+    // A phone frame that drew this row as a wrapping row (flex-wrap on at the phone) already shows how its cards fall: keep the row, do not stack it.
+    // The tablet column cascades down to the phone, so the phone names its row.
+    const phoneWraps = s['_flexWrap:mobile_portrait'] === 'wrap';
+    if (phoneWraps && keep.includes('mobile_portrait')) s['_direction:mobile_portrait'] ??= 'row';
+    if (keep.includes('mobile_portrait') && !keep.includes('mobile_landscape') && full > 478 && !phoneWraps) s['_direction:mobile_portrait'] ??= 'column';
     const stackAt = snapBelow(sum, frameWidth);
     const query = band(stackAt);
     if (!query) continue;
@@ -409,7 +413,12 @@ export function fitFluid(template, { frameWidth, coveredUntil = 0, keep = [] } =
       const cap = Number(frameWidth);
       const body = `#brxe-${e.id} { width: 100%; max-width: ${width}px; min-width: 0; }`;
       const query = at != null ? band(at) : null;
-      const rule = at != null ? (query && `${query} { ${body} }`) : underFrame(body);
+      // A hugging parent gets its width from this fixed child. Width 100% below the whole frame
+      // collapses that parent to the heading, and a row of cards wraps into one column.
+      const parent = byId.get(e.parent);
+      const parentHugs = parent && (parent.settings?._width === 'auto' || parent.settings?._width == null);
+      const own = parentHugs ? band(Math.floor(width) - 1) : null;
+      const rule = at != null ? (query && `${query} { ${body} }`) : (own ? `${own} { ${body} }` : underFrame(body));
       if (rule && !(at != null && Number.isFinite(cap) && at > Math.floor(cap) - 1)) appendCss(s, e.id, 'fluid-width', rule);
     }
     // A 481px form keeps that width on desktop. max-width none would also keep it on a 320px window.
@@ -620,6 +629,33 @@ export function holdMobileBand(template, { keep = [] } = {}) {
     if (mobile.length && s['_display:mobile_portrait'] === 'grid' && !owned.has('_direction')) delete s['_direction:mobile_landscape'];
     if (mobile.length && !owned.has('_width') && pxNum(s['_width:mobile_landscape']) != null) delete s['_width:mobile_landscape'];
     if (s._cssCustom) s._cssCustom = widen(s._cssCustom);
+  }
+  return template;
+}
+
+// No tablet frame was pasted. The mobile frame is the layout from the phone through 991.
+// A step-down written for the open tablet rank is removed, and the phone values are written
+// on tablet_portrait so that rank matches the phone. A pasted tablet frame is left as drawn.
+export function useMobileOnTablet(template, { keep = [] } = {}) {
+  if (keep.includes('tablet_portrait') || !keep.includes('mobile_portrait')) return template;
+  const phone = ':mobile_portrait';
+  const tablet = ':tablet_portrait';
+  const lift = (css) => String(css)
+    .replaceAll(/@media \(min-width: 768px\) and \(max-width: 991px\) \{(?:[^{}]|\{[^{}]*\})*\}/g, '')
+    .replaceAll('@media (max-width: 478px)', '@media (max-width: 991px)')
+    .replaceAll('@media (max-width: 767px)', '@media (max-width: 991px)')
+    .replaceAll('(min-width: 768px)', '(min-width: 992px)');
+  for (const e of template.content ?? []) {
+    const s = e.settings;
+    if (!s) continue;
+    const mobile = Object.keys(s).filter((k) => k.endsWith(phone));
+    const owned = new Set(mobile.map((k) => k.slice(0, -phone.length)));
+    for (const k of Object.keys(s)) {
+      if (!k.endsWith(tablet)) continue;
+      if (!owned.has(k.slice(0, -tablet.length))) delete s[k];
+    }
+    for (const k of mobile) s[`${k.slice(0, -phone.length)}${tablet}`] = structuredClone(s[k]);
+    if (s._cssCustom) s._cssCustom = lift(s._cssCustom).replace(/\s{2,}/g, ' ').trim();
   }
   return template;
 }

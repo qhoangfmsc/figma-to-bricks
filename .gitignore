@@ -22,3 +22,4 @@ node_modules/
 
 # installers: the Bricks theme zip is a download, not source
 *.zip
+/history

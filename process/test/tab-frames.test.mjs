@@ -5,8 +5,8 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { applyAnswers, readPane, paneQuestionLabel, shareFilledContent, validateAnswers } from '../modules/missing-content/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
-import { graftTabPane, paneSource } from '../modules/single-template/tab-frames.mjs';
+import { screenParts } from '../modules/build-steps/template/parts.mjs';
+import { graftTabPane, paneSource } from '../modules/build-steps/template/tab-frames.mjs';
 import { isLayoutRow, isSvgRoot } from '../modules/read-figma/nodes.mjs';
 import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { switchInventory } from '../modules/write-bricks/components/tab-switch.mjs';

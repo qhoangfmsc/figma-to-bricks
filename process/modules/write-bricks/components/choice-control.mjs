@@ -5,14 +5,12 @@
 // (around line 2551). Those two facts are the only custom CSS. Bricks compiles `_cssCustom` into
 // post-{id}.min.css when CSS loading is External files. Theme styles are not touched.
 // labelTypography is the control that styles the option label (`label`).
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { addCustomCss, cssColor } from '../render/utils/css.mjs';
 import { typography } from '../render/text.mjs';
+import { runsOfFile } from '../../common/workspace.mjs';
 import { findNode, rowId } from './helpers.mjs';
-
-const historyRuns = join(dirname(fileURLToPath(import.meta.url)), '../../../../history/runs');
 
 const ZERO = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
 
@@ -62,14 +60,14 @@ export function switchOption(off, on) {
 }
 
 const siblingPaintsCache = new Map();
+// The other pressed state is a different frame of the same file. Runs are named by time, and the file key is in meta.json.
 function siblingPaints(fileKey, key) {
   const cacheKey = `${fileKey}|${key}`;
   if (siblingPaintsCache.has(cacheKey)) return siblingPaintsCache.get(cacheKey);
   const out = [];
-  const dir = fileKey ? join(historyRuns, fileKey) : '';
-  if (dir && existsSync(dir)) {
-    for (const name of readdirSync(dir)) {
-      const path = join(dir, name, 'tree.json');
+  if (fileKey) {
+    for (const dir of runsOfFile(fileKey)) {
+      const path = join(dir, 'tree.json');
       if (!existsSync(path)) continue;
       try {
         const tree = JSON.parse(readFileSync(path, 'utf8'));
@@ -108,7 +106,7 @@ export function paintSwitch(t, root, det, fieldType, fileKey, scope = '') {
   const knobFill = knob ? solidFill(knob) : null;
   const sel = `${scope} input[type="${fieldType}"]`;
   const pill = Array.isArray(mark.radius) && mark.radius.length ? Math.min(...mark.radius) : (typeof mark.radius === 'number' ? mark.radius : mark.box.h / 2);
-  addCustomCss(t, `appearance: none; -webkit-appearance: none; width: ${Math.round(mark.box.w)}px; height: ${Math.round(mark.box.h)}px; border: 0; border-radius: ${Math.round(pill)}px; margin: 0; padding: 0; flex: none; box-sizing: border-box; background-repeat: no-repeat;`, sel);
+  addCustomCss(t, `appearance: none; -webkit-appearance: none; width: ${Math.round(mark.box.w)}px; height: ${Math.round(mark.box.h)}px; border: 0; border-radius: ${Math.round(pill)}px; margin: 0; padding: 0 !important; flex: none; box-sizing: border-box; background-repeat: no-repeat;`, sel);
   const paints = [];
   collectSwitchPaints(root, switchKey(mark), paints);
   if (!paints.some((p) => p.on) || !paints.some((p) => !p.on)) paints.push(...siblingPaints(fileKey, switchKey(mark)));
@@ -149,13 +147,12 @@ export function paintSwitch(t, root, det, fieldType, fileKey, scope = '') {
   return { offLabel, onLabel };
 }
 
-export function applyChoice(ctx, det, kind) {
-  const { node, inner: t, root, warn } = ctx;
+function writeChoiceField(t, root, det, kind) {
   const label = String(det.params?.label ?? '').trim();
   const on = det.params?.checked === true;
   const text = det.params?.labelNode ? findNode(root, det.params.labelNode) : null;
   const fieldType = kind === 'radio' ? 'radio' : 'checkbox';
-  const states = kind === 'switch' ? paintSwitch(t, root, det, fieldType, ctx.fileKey) : null;
+  const states = kind === 'switch' ? paintSwitch(t, root, det, fieldType, det.fileKey) : null;
   const offWord = states?.offLabel || label;
   const onWord = states?.onLabel || '';
   const html = kind === 'switch' ? switchOption(offWord, onWord) : null;
@@ -174,22 +171,32 @@ export function applyChoice(ctx, det, kind) {
     if (!ty['letter-spacing']) ty['letter-spacing'] = '0px';
     t.labelTypography = ty;
   }
-  // Theme .form-group padding-bottom is 20px. fieldMargin is the spacing control (selector .form-group:not(:last-child)).
+  return fieldType;
+}
+
+function writeChoiceMark(t, det, fieldType) {
+  // Theme .form-group padding-bottom is 20px. fieldMargin is the spacing control.
   t.fieldMargin = ZERO;
   // form.php always prints the submit button. There is no hide control.
   addCustomCss(t, 'display: none;', ' .submit-button-wrapper');
   const w = Number(det.params?.markW);
   const h = Number(det.params?.markH);
-  if (w > 0 && h > 0) {
-    const radius = Number(det.params?.markRadius) || 0;
-    // The input has no width, height, or radius control. The numbers are the Figma mark.
-    addCustomCss(t, `appearance: none; width: ${w}px; height: ${h}px; border-radius: ${radius}px; margin: 0; flex: none;`, ` input[type="${fieldType}"]`);
-  }
-  if (kind === 'switch') {
-    warn(node, 'Bricks 1.12.3 has no switch element (no toggle-mode). The control is a checkbox field sized to the Figma pill. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
-  } else if (kind === 'radio') {
-    warn(node, 'The drawn circle becomes a native radio sized to the Figma circle. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
-  } else {
-    warn(node, 'The drawn square becomes a native checkbox sized to the Figma square. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
-  }
+  if (!(w > 0 && h > 0)) return;
+  const radius = Number(det.params?.markRadius) || 0;
+  // The input has no width, height, or radius control. The numbers are the Figma mark.
+  const pad = fieldType === 'checkbox' ? ' padding: 0 !important;' : '';
+  addCustomCss(t, `appearance: none; width: ${w}px; height: ${h}px; border-radius: ${radius}px; margin: 0;${pad} flex: none;`, ` input[type="${fieldType}"]`);
+}
+
+function warnChoice(node, kind, warn) {
+  if (kind === 'switch') warn(node, 'Bricks 1.12.3 has no switch element (no toggle-mode). The control is a checkbox field sized to the Figma pill. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
+  else if (kind === 'radio') warn(node, 'The drawn circle becomes a native radio sized to the Figma circle. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
+  else warn(node, 'The drawn square becomes a native checkbox sized to the Figma square. That size is element CSS, compiled into the external post CSS file. The form submit button is hidden because form.php always renders it.');
+}
+
+export function applyChoice(ctx, det, kind) {
+  const { node, inner: t, root, warn } = ctx;
+  const fieldType = writeChoiceField(t, root, { ...det, fileKey: ctx.fileKey }, kind);
+  writeChoiceMark(t, det, fieldType);
+  warnChoice(node, kind, warn);
 }

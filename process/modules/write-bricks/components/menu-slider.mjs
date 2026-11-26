@@ -78,6 +78,32 @@ function reserveArrowColumns(s, pad) {
   };
 }
 
+function measuredGap(node) {
+  if (node.layout?.gap != null) return node.layout.gap;
+  const kids = visibleKids(node).filter((child) => child.box).sort((a, b) => a.box.x - b.box.x);
+  if (kids.length < 2) return 0;
+  const distance = kids[1].box.x - (kids[0].box.x + kids[0].box.w);
+  return distance > 0 ? distance : 0;
+}
+
+function writeMenuSlider(s, css, node, det, root) {
+  s._cssClasses = [s._cssClasses, menuClass(node)].filter(Boolean).join(' ');
+  paintActive(s, node);
+  // The menu frame clips its items. The arrows are drawn outside that box, so the slider root stays visible and the track clips the items.
+  s._overflow = 'visible';
+  if (css) css.overflow = 'visible';
+  const pair = [['prev', 'prevArrow'], ['next', 'nextArrow']]
+    .filter(([key]) => det.params?.[key])
+    .map(([key, label]) => ({ key, label, node: findNode(root, det.params[key]) }));
+  reserveArrowColumns(s, applyArrows(s, node, pair));
+  s.optionsType = 'custom';
+  s.options = JSON.stringify({
+    type: 'slide', autoWidth: true, drag: true, rewind: false, omitEnd: true,
+    gap: px(measuredGap(node)), perMove: 1, start: 0, arrows: true, pagination: false,
+    height: node.box?.h ? px(node.box.h) : 'auto',
+  });
+}
+
 export default {
   id: PartKind.MENU_SLIDER,
   status: 'implemented',
@@ -95,28 +121,7 @@ export default {
   },
 
   apply({ node, s, css, root }, det) {
-    s._cssClasses = [s._cssClasses, menuClass(node)].filter(Boolean).join(' ');
-    paintActive(s, node);
-    // The menu frame clips its items. The arrows are drawn outside that box, so the slider root stays visible and the track clips the items.
-    s._overflow = 'visible';
-    if (css) css.overflow = 'visible';
-    const kids = visibleKids(node).filter((k) => k.box).sort((a, b) => a.box.x - b.box.x);
-    let gap = node.layout?.gap;
-    if (gap == null && kids.length >= 2) {
-      const d = kids[1].box.x - (kids[0].box.x + kids[0].box.w);
-      gap = d > 0 ? d : 0;
-    }
-    const pair = [['prev', 'prevArrow'], ['next', 'nextArrow']]
-      .filter(([key]) => det.params?.[key])
-      .map(([key, label]) => ({ key, label, node: findNode(root, det.params[key]) }));
-    reserveArrowColumns(s, applyArrows(s, node, pair));
-    const options = {
-      type: 'slide', autoWidth: true, drag: true, rewind: false, omitEnd: true,
-      gap: px(gap ?? 0), perMove: 1, start: 0, arrows: true, pagination: false,
-      height: node.box?.h ? px(node.box.h) : 'auto',
-    };
-    s.optionsType = 'custom';
-    s.options = JSON.stringify(options);
+    writeMenuSlider(s, css, node, det, root);
   },
 
   mergedNodes(det) {

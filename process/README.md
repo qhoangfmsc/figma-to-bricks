@@ -51,16 +51,16 @@ process/
   policy.json        vài lựa chọn chung (line-height, …)
   modules/read-figma/            đọc file Figma, ra cây
   modules/recognize-parts/       nhận nút, tab, menu, form. rules/ = một file một loại
-  modules/approve-parts/         duyệt phần đã nhận. Chỉ có hình dạng thì để hỏi lại
-  modules/missing-content/       câu hỏi những gì Figma không vẽ (link, alt, nội dung tab)
+  modules/missing-content/       câu hỏi những gì Figma không vẽ; decide/ duyệt phần đã nhận
   modules/sign-off/              chữ ký gắn với cây, trước khi build
-  modules/tree-inventory/        thống kê cây: component, nhóm lặp, heading
-  modules/build-steps/           tám bước 01-fetch … 08-summary
-  modules/section-jobs/          một file json cho mỗi section của trang
-  modules/maintenance/           lệnh tay: dọn tạm, đối chiếu, ghép trang
+  modules/recognize-parts/facts.mjs   thống kê cây: component, nhóm lặp, heading
+  modules/build-steps/           năm bước dựng: read, detect, fill, build, check
+  modules/build-steps/jobs.mjs   một file json cho mỗi section của trang
+  modules/maintenance/           lệnh tay: dọn tạm, đối chiếu, ghép trang, CSS site
   modules/write-bricks/components/   một file một component Bricks
   modules/write-bricks/render/       số trên cây thành settings Bricks
-  modules/single-template/       khung breakpoint, plan một template, kiểm lại link
+  modules/write-bricks/standby/  posts, Woo, điều kiện — không vào detect
+  modules/build-steps/template/  khung breakpoint, plan một template, kiểm lại link
   modules/breakpoints/           ghép khung tablet và mobile
   modules/visual-check/          chụp và so bằng Playwright headless trên máy này
   modules/property-coverage/     property Figma nào đã đọc, cái nào chưa
@@ -158,6 +158,13 @@ changed values become `<key>:<breakpoint>` settings or `@media` css, nodes that 
 variant dropped becomes `display: contents`. Step 7 measures the same template at every frame's width (`verify.<key>.md`). Rules and limits:
 the header of [responsive/merge.mjs](responsive/merge.mjs); owner decisions: `work/<file>/<section>/responsive-decisions.md`.
 
+**Every component renders at every breakpoint (owner rule, 2026-11-26).** A component approved on the base frame (video, menu, button, form, tabs…) is the
+same component, with the same params (video address, link, items), on the matching node of every breakpoint frame. The variant frame never re-detects it
+alone, so it cannot stay a picture or a block there. `breakpoints/carry.mjs` copies each approved base detection to the paired node (node ids in its
+params are renamed to the variant's nodes). Nodes are paired by what they draw (image fills and texts), never by layer name; an `aliases` entry of
+`responsive.json` wins over that. A base component with no partner is written to `plan.md` under `## Lỗi do code`. A variant that already approved the same kind on that node keeps its own decision. A shape the variant frame cannot draw fails the component's
+own `check` and shows in the report as a block with a warning, never silently.
+
 ## Usable output and the interview
 
 Matching the pixels is not enough: the template must be what a Bricks developer would build (links, buttons, images with alt, lists,
@@ -233,11 +240,11 @@ the summary table, never silently approximated. (Enforced by [CLAUDE.md](../CLAU
 
 ## Staging CSS
 
-Shared CSS of the site in `WP_URL` lives in `modules/staging/site-css/`. It is the color palette, the site variables, the global elements, and the global classes the homepage inlines. Apply copies those four files into `wp-content/uploads/bricks/css/`, which the local Bricks site loads when CSS loading is External files.
+Shared CSS of the site in `WP_URL` lives in `modules/maintenance/site-css/`. It is the color palette, the site variables, the global elements, and the global classes the homepage inlines. Apply copies those four files into `wp-content/uploads/bricks/css/`, which the local Bricks site loads when CSS loading is External files.
 
 ```bash
-node process/modules/staging/site-css.mjs pull    # read WP_URL again into the snapshot
-node process/modules/staging/site-css.mjs apply   # copy the snapshot into this repo's uploads
+node process/modules/maintenance/site-css.mjs pull    # read WP_URL again into the snapshot
+node process/modules/maintenance/site-css.mjs apply   # copy the snapshot into this repo's uploads
 ```
 
 The class registry is not on the MCP. A class id that only lives inside one template stays in that template's CSS.

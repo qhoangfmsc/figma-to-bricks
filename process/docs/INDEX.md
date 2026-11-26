@@ -2,6 +2,17 @@
 
 Chuẩn là `process/` và theme `wp-content/themes/bricks` (Bricks **1.12.3**). Mỗi component một file trong [widget-components/](widget-components/). Tên file là id. Dòng `Có` trong file đó nói đã dựng chưa và đã tự nhận chưa.
 
+Hợp đồng của một kind nằm trong file đó, cùng các mục này. File đã viết bằng chữ khác thì vẫn đúng các mục:
+
+- Nhận: shape nào thì là kind này. Không dùng chữ, pixel, hay tên layer của một file Figma.
+- Phần: tên từng phần. Phần không vẽ không hủy component.
+- Data: tag hoặc query. Chữ Figma là ô, không phải nguồn thứ hai.
+- Hành vi: bấm thì class và vùng nội dung đổi cùng lúc.
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`, không viết lại trong file component.
+- Xong khi: element đúng kind, bấm được, slot đã bind không còn chữ vẽ, và ảnh Figma đã được đặt cạnh preview.
+- Cấm: hạ component thành block, in giá hoặc câu Figma khi đã có id, sửa `.mjs` trong chính lần dựng.
+
 Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một lần dựng ghi `history/notes/gaps.md`. Lỗi đọc Figma ghi `history/notes/read-errors.md`.
 
 ## Component
@@ -54,7 +65,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 | [link](widget-components/link.md) | text-link |
 | [semantic](widget-components/semantic.md) | ul > li |
 
-### Dựng được, chưa tự nhận
+### Ảnh gọi tên thì dựng
 
 | | |
 |---|---|
@@ -83,7 +94,7 @@ Kệ ANV: [SHELF.md](SHELF.md). `history/notes/` không vào git. Lệch một l
 
 ### Để riêng, gọi khi plan cần
 
-Không đi vào detect. Module: `process/modules/standby/`.
+Không đi vào detect. Module: `process/modules/write-bricks/standby/`.
 
 | | |
 |---|---|

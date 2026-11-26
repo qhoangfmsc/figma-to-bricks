@@ -28,8 +28,8 @@ export function runQa(ws, job) {
   return { result, outDir };
 }
 
-// png / jpg -> webp (alpha kept, never upscaled). Photos cap at 1600px on the long edge. Flat exports keep their size. SVG is left alone.
-export async function optimizeAssets(ws, files, { photoMaxEdge = 1600, quality = 86 } = {}) {
+// png / jpg -> webp (alpha kept, never upscaled). Photos cap at 4096px on the long edge (Figma's own export limit), so a picture shown wider than 1600px is not resampled up on the page. Flat exports keep their size. SVG is left alone.
+export async function optimizeAssets(ws, files, { photoMaxEdge = 4096, quality = 86 } = {}) {
   const todo = [];
   const map = new Map();
   for (const file of files) {

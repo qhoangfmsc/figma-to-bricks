@@ -5,7 +5,9 @@ description: Check a built Figma section for detection, behavior, Figma layout, 
 
 # Check a built section
 
-The catalog is `process/modules/recognize-parts/kinds.mjs`. Read `verify.figma.png`, `verify.png`, and `verify.diff.png` for each frame. Report lệch percent from `verify.md`. A box check alone is not the verdict.
+The catalog is `process/modules/recognize-parts/kinds.mjs`. Read `look.png` or `verify.figma.png` beside `verify.png` for each frame, desktop and mobile. Report lệch percent from `verify.md`. “Chưa đo được” is not a pass. A box check alone is not the verdict.
+
+Compare layout, text, images, blur, and shadow. The component still clicks. A bound slot does not still print the words Figma drew. A miss that is one Figma file stays a note. A miss that is a shared Figma attribute is a later kernel change, with a test whose copy is not that file.
 
 ## Every kind
 

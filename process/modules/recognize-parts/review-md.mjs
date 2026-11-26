@@ -51,8 +51,8 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
   const hints = det.components.filter((c) => isSignal(c.component));
   return [
     `# Detections: ${tree.name} [${tree.id}]`, '',
-    '> **Review gate.** Nothing is exported, built or pushed until the owner has compared this sheet with the Figma file and signed off.',
-    '> Decide with `node process/modules/maintenance/review.mjs <workspace> approve|reject <ids|component=tooltip|all>`, `set <id> key=value`, then `signoff "<note>"`. Anything still **proposed** at sign-off stays a plain block.', '',
+    '> **Measurements.** A proposed row describes the tree. It is not a component and it is not built.',
+    '> A template builds a row only after the picture names that kind on that node and `plan.md` says `Xác nhận: có`.', '',
     '## What the front end sees', '',
     ...(facts ? [
       `- Artboard ${facts.container.artboard}px${facts.container.content ? `, content container ${facts.container.content}px` : ''}.`,
@@ -61,7 +61,9 @@ export function renderReview(tree, det, problems, facts, { fileKey } = {}) {
     ] : ['_facts not available_']), '',
     '## Sections', '',
     ...(det.sections.length ? ['| id | Figma node | what is inside |', '|---|---|---|', ...det.sections.map((s) => `| ${s.id} | ${cell(s.name)} \`${s.node}\` ${link(s.node)} | ${cell(s.summary ?? '_not described yet (AI pass)_')} |`)] : ['_none_']), '',
-    `## ⏳ Waiting for review (${counts('proposed')})`, '', ...group('proposed'),
+    `## Measured (${counts('proposed')})`, '',
+    'These rows are structure and CSS facts for a component the picture names. They are not the component list.', '',
+    ...group('proposed'),
     `## Hints (${hints.length})`, '',
     ...(hints.length ? ['These name a part of a component. They are not elements and they are not a decision.', '', ...head, ...hints.slice(0, 12).map(row), hints.length > 12 ? `| … | | ${hints.length - 12} more hints in detections.json | | | |` : ''] : ['_none_']), '',
     `## ✅ Approved (${counts('approved')})`, '', ...group('approved'),

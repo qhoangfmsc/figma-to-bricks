@@ -6,10 +6,21 @@ Tên khác: hiện khi, ẩn khi
 
 Khi nào dùng: plan nói element chỉ hiện với một điều kiện (đã đăng nhập, thứ, URL). Figma không vẽ điều kiện này.
 
-Module: `process/modules/standby/conditions.mjs`
+Module: `process/modules/write-bricks/standby/conditions.mjs`
 
 `conditions([[{ key, compare, value }]])` ghi `_conditions`. Mảng ngoài là OR, mảng trong là AND. Không có field `relation`.
 
 Key lấy từ `includes/conditions.php`. Không có `device`, `post_type`, `cookie`, `os`. Key hệ điều hành là `operating_system`. Key referrer là `referer`.
 
 Popup dùng `templateConditions`, không dùng `_conditions`. Xem [popup](popup.md).
+
+## Hợp đồng
+
+- Nhận: xem phần mô tả phía trên của file này
+- Phần: không có params bắt buộc, trừ khi phần mô tả phía trên nói có
+- Data: không bịa URL, alt, câu trả lời, pane. Chữ Figma là ô khi kind đã gắn nguồn.
+- Hành vi: theo phần mô tả phía trên của file này
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`.
+- Xong khi: element đúng kind, còn bấm được, slot đã gắn nguồn không còn chữ vẽ, và ảnh Figma đã được so với preview. Chưa đo ảnh thì chưa xong.
+- Cấm: hạ component thành block, in chữ Figma khi đã có nguồn, sửa `.mjs` trong chính lần dựng.

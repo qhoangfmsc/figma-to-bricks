@@ -119,7 +119,7 @@ if (isCli) {
   const command = process.argv[2];
   const run = command === 'pull' ? pullSiteCss() : command === 'apply' ? Promise.resolve(applySiteCss()) : null;
   if (!run) {
-    console.error('Use: node process/modules/staging/site-css.mjs pull|apply');
+    console.error('Use: node process/modules/maintenance/site-css.mjs pull|apply');
     process.exit(1);
   }
   run.then((result) => {

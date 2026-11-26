@@ -12,7 +12,8 @@ import { fileShelf, resolveWorkspace } from './modules/common/workspace.mjs';
 import { fetchStep } from './modules/build-steps/01-fetch.mjs';
 import { treeStep } from './modules/build-steps/02-tree.mjs';
 import { detectStep } from './modules/build-steps/03-detect.mjs';
-import { decide, writeDecisionReport } from './modules/approve-parts/index.mjs';
+import { LOOK_FILE, holdForPicture, lookReport } from './modules/build-steps/template/look.mjs';
+import { decide, writeDecisionReport } from './modules/missing-content/decide/index.mjs';
 import { discoverVariants, discoverFormErrors, discoverSections } from './modules/read-figma/discover.mjs';
 import { signOff, gate } from './modules/sign-off/index.mjs';
 import { parseFigmaUrl } from './modules/read-figma/url.mjs';
@@ -22,9 +23,9 @@ import { loadConfirmed, applyAnswers, shareAccordionAnswers, consumeConfirmation
 import { attachWidgetData } from './modules/write-bricks/components/price-data.mjs';
 import { attachCompareData } from './modules/write-bricks/components/compare-data.mjs';
 import { readServicePrice, readCompareTable } from './modules/write-bricks/bridge.mjs';
-import { attachFilledFrames } from './modules/single-template/filled.mjs';
+import { attachFilledFrames } from './modules/build-steps/template/filled.mjs';
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { sectionJob, writeSectionJob } from './modules/section-jobs/jobs.mjs';
+import { sectionJob, writeSectionJob } from './modules/build-steps/jobs.mjs';
 import { requireSiteEnv } from './modules/common/env.mjs';
 
 requireSiteEnv();
@@ -71,6 +72,12 @@ async function prepare(u, opts) {
   }
   writeDecisionReport(ws, result, ws.readJson('tree.json').name);
   detectStep(ws.dir); // validates the citations of what decide wrote
+  const measured = ws.readJson('detections.json');
+  holdForPicture(measured.components);
+  ws.writeJson('detections.json', measured);
+  if (!lookReport(ws.readJson(LOOK_FILE, null)).ready) {
+    throw new Error('Chưa có ảnh chốt component. Dừng trước khi dựng. Chạy look, xác nhận plan, rồi mới build.');
+  }
   return { ws, result };
 }
 

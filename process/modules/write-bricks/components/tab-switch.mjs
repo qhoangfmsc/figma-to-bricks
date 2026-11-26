@@ -505,8 +505,17 @@ export default {
   },
 
   descendants(node, det) {
-    const found = inspect(node);
-    const { list, titles, panels, active } = found;
+    return tabSwitchPatches(node, det);
+  },
+
+  pageScript() {
+    return `${tabsOpenScript()}\n(function(){function sync(root){root.querySelectorAll("[data-f2b-check]").forEach(function(el){var title=el.closest(".tab-title");var on=!!(title&&title.classList.contains("brx-open"));el.setAttribute("aria-checked",on?"true":"false");var input=el.matches("input")?el:el.querySelector("input[type=radio],input[type=checkbox]");if(input)input.checked=on;});}document.querySelectorAll(".brxe-tabs-nested").forEach(function(root){sync(root);var obs=new MutationObserver(function(){sync(root);});root.querySelectorAll(".tab-title").forEach(function(title){obs.observe(title,{attributes:true,attributeFilter:["class"]});});});})();`;
+  },
+};
+
+function tabSwitchPatches(node, det) {
+  const found = inspect(node);
+  const { list, titles, panels, active } = found;
     const openAt = Number.isInteger(active) ? active : 0;
     const idle = titles.find((_, i) => i !== active) ?? titles[0];
     const on = titles[active] ?? titles[0];
@@ -585,12 +594,7 @@ export default {
       out[node.id].extraChildren = extraChildren;
     }
     return out;
-  },
-
-  pageScript() {
-    return `${tabsOpenScript()}\n(function(){function sync(root){root.querySelectorAll("[data-f2b-check]").forEach(function(el){var title=el.closest(".tab-title");var on=!!(title&&title.classList.contains("brx-open"));el.setAttribute("aria-checked",on?"true":"false");var input=el.matches("input")?el:el.querySelector("input[type=radio],input[type=checkbox]");if(input)input.checked=on;});}document.querySelectorAll(".brxe-tabs-nested").forEach(function(root){sync(root);var obs=new MutationObserver(function(){sync(root);});root.querySelectorAll(".tab-title").forEach(function(title){obs.observe(title,{attributes:true,attributeFilter:["class"]});});});})();`;
-  },
-};
+}
 
 function mergePatch(out, id, patch) {
   const prev = out[id] ?? {};
@@ -612,7 +616,7 @@ function mergePatch(out, id, patch) {
 
 // The resting title and the open title differ in more than the pill fill. Those differences
 // follow brx-open, and a checked control is aria-checked only while its title is open.
-function stampActive(out, titles, openAt) {
+export function stampActive(out, titles, openAt) {
   const on = titles[openAt];
   const idle = titles.find((_, i) => i !== openAt);
   if (!on || !idle) return;

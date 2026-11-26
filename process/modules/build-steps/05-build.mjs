@@ -12,12 +12,14 @@ import { buildTemplate } from '../write-bricks/render/index.mjs';
 import { stats } from '../read-figma/tree-md.mjs';
 import { mergeResponsive } from '../breakpoints/merge.mjs';
 import { matchTrees } from '../breakpoints/match.mjs';
+import { carryComponents, carryPairs, carryGaps, writePlanNotes } from '../breakpoints/carry.mjs';
 import { carryPriceTables } from '../write-bricks/components/price-data.mjs';
 import { missingBoundTables } from '../write-bricks/components/price-table.mjs';
 import { carryCompareTables } from '../write-bricks/components/compare-data.mjs';
 import { boundTableGaps } from '../write-bricks/components/table-contract.mjs';
-import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand } from '../breakpoints/solo.mjs';
-import { bundleOpenPanes } from '../single-template/tab-frames.mjs';
+import { fitAnvRemainder, fitFluid, fitSoloTemplate, holdMobileBand, useMobileOnTablet } from '../breakpoints/solo.mjs';
+import { bundleOpenPanes } from './template/tab-frames.mjs';
+import { measureNamed } from './template/measure-named.mjs';
 
 // [{ family, weights: [400, 700], italicWeights: [] }] for every visible text node (incl. mixed-style runs)
 export function collectFonts(root) {
@@ -47,7 +49,9 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   if (unbound.length) {
     throw new Error(unbound.map((gap) => `${gap.kind} "${gap.name}" [${gap.node}] cần id. Bảng này chỉ render dynamic data của id đó.`).join('\n'));
   }
+  measureNamed(tree, detections);
   bundleOpenPanes(tree, detections);
+  const codeNotes = []; // what the code could not do on this run: written to plan.md, never fixed during a generate run
   const overrides = ws.readJson('overrides.json', { nodes: {} });
   const flats = ws.readJson('assets/manifest.json', {}).flats ?? {};
   const readAsset = (file) => readFileSync(ws.file('assets/' + file), 'utf8');
@@ -75,8 +79,11 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       const vws = resolveWorkspace(join(dirname(ws.dir), v.workspace));
       requireSignOff(vws, 'build');
       const vtree = vws.readJson('tree.json');
-      const variantDetections = vws.readJson('detections.json', null);
       const pairs = matchTrees(tree, vtree, { aliases: v.aliases ?? {} }).pairs;
+      // every component the base frame approved is built on the paired node of this frame too
+      const carryMap = carryPairs(tree, vtree, pairs, v.aliases ?? {});
+      const variantDetections = carryComponents(detections, vws.readJson('detections.json', null), carryMap, vtree.id);
+      for (const line of carryGaps(detections, carryMap)) codeNotes.push(`[${v.key}] ${line}`);
       const priced = (detections?.components ?? []).some((item) => isKind(item, PartKind.PRICE_TABLE) && item.params?.table)
         ? carryPriceTables(detections, variantDetections, pairs, vtree.id)
         : variantDetections;
@@ -87,6 +94,7 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
       if (variantGaps.length) {
         throw new Error(variantGaps.map((gap) => `${v.key} ${gap.kind} "${gap.name}" [${gap.node}] cần cùng id. Bảng này chỉ render dynamic data của id đó.`).join('\n'));
       }
+      measureNamed(vtree, carried);
       bundleOpenPanes(vtree, carried);
       fontSources.push(vtree);
       const b = buildTemplate(vtree, {
@@ -124,9 +132,12 @@ export function buildStep(urlOrDir, { strict = false } = {}) {
   // A pasted frame already supplied this breakpoint. What is still wider than an undesigned screen
   // becomes 100%, capped at the px Figma drew, so 320 / 767 / 991 do not scroll sideways.
   fitAnvRemainder(template, { keep });
+  // No tablet frame: 768–991 uses the mobile frame, not the desktop step-down.
+  useMobileOnTablet(template, { keep });
   ws.writeJson('bricks.json', template);
   ws.writeJson('mapping.json', mapping);
   ws.writeJson('warnings.json', warnings);
+  writePlanNotes(ws, codeNotes);
   const fonts = new Map(); // union over every frame: the site loads each family once
   for (const f of fontSources.flatMap(collectFonts)) {
     const e = fonts.get(f.family) ?? { family: f.family, weights: new Set(), italicWeights: new Set() };

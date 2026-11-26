@@ -1,5 +1,5 @@
-import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
-import { MISSING, PlanGroup } from '../missing-content/choices.mjs';
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
+import { MISSING, PlanGroup } from '../choices.mjs';
 
 export const isForm = (entry) => isKind(entry, PartKind.FORM);
 

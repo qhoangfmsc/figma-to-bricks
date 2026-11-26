@@ -399,156 +399,106 @@ function moreControl(host, rows) {
   return last;
 }
 
-function bindCompare(node, table, id, root, attrs) {
+function compareScene(node, table, id, root) {
   const empty = { patches: {}, omit: [], warnings: [], column: null, skip: false };
-  if (!table?.packages?.length || !table.groups?.some((group) => group.rows.length) || !id) return empty;
+  if (!table?.packages?.length || !table.groups?.some((group) => group.rows.length) || !id) return { stop: empty };
   const scope = root ?? node;
   const matrix = matrixOf(scope);
-  if (!matrix) return { ...empty, warnings: ['no package row and feature rows are drawn here'] };
+  if (!matrix) return { stop: { ...empty, warnings: ['no package row and feature rows are drawn here'] } };
   const { header, groups } = matrix;
   const drawnMatch = header.cols.length === table.packages.length;
   const columns = drawnMatch ? header.cols : [header.cols[0]];
   const closed = groups.filter((item) => moreControl(item.host, item.rows));
   const opened = groups.filter((item) => !moreControl(item.host, item.rows));
   const group = closed[0] ?? groups[0];
-  const dataGroup = table.groups[0];
   const feature = group.rows[0];
-  const drawn = drawnMark(groups);
-  if (!feature?.cells?.length) return { ...empty, warnings: ['a feature row has no cell under the package column'] };
+  if (!feature?.cells?.length) return { stop: { ...empty, warnings: ['a feature row has no cell under the package column'] } };
+  return { scope, header, groups, drawnMatch, columns, closed, opened, group, dataGroup: table.groups[0], feature, drawn: drawnMark(groups) };
+}
 
-  const patches = {};
-  const put = (nodeId, patch) => {
-    const prev = patches[nodeId] ?? {};
-    const settings = { ...(prev.settings ?? {}), ...(patch.settings ?? {}) };
-    if (prev.settings?._attributes && patch.settings?._attributes) {
-      settings._attributes = [...prev.settings._attributes, ...patch.settings._attributes];
-    }
-    patches[nodeId] = {
-      ...prev,
-      ...patch,
-      settings,
-      css: [...(prev.css ?? []), ...(patch.css ?? [])],
-      ...(patch.extraChildren ? { extraChildren: [...(prev.extraChildren ?? []), ...patch.extraChildren] } : {}),
-    };
-  };
-  const omit = [];
-  put(scope.id, { css: [{ decl: `--vnx-cmp-packages: ${table.packages.length};`, suffix: '' }] });
-  if (!drawnMatch && !rowScrolls(header.host)) {
-    put(columns[0].id, { css: [{ decl: 'flex: 0 0 calc(100% / var(--vnx-cmp-packages)); width: calc(100% / var(--vnx-cmp-packages));', suffix: '' }] });
-  }
+function omitCompareCopies(omit, { header, groups, group, feature, columns, drawnMatch }) {
   if (!drawnMatch) header.cols.filter((col) => col.id !== columns[0].id).forEach((col) => omit.push(col.id));
   groups.filter((item) => item.host.id !== group.host.id).forEach((item) => omit.push(item.host.id));
   group.rows.filter((row) => row.node.id !== feature.node.id).forEach((row) => omit.push(row.node.id));
   if (!drawnMatch) feature.cells.slice(1).forEach((item) => omit.push(item.id));
+}
 
-  const used = new Set();
-  const take = (textNode, name, position = null) => {
-    put(textNode.id, { settings: { text: tag(name, position, id) } });
-    used.add(textNode.id);
+function compareBuy(position, id, attrs) {
+  const button = buyButton(tag('button', position, id), attrs);
+  const swap = (value) => String(value)
+    .replaceAll('{vnx_cmp_link}', tag('link', position, id))
+    .replaceAll('{vnx_cmp_price:raw}', tag('price', position, id, ['raw']))
+    .replaceAll('{vnx_cmp_price}', tag('price', position, id))
+    .replaceAll('{vnx_cmp_cycle}', tag('cycle', position, id))
+    .replaceAll('{vnx_cmp_name}', tag('name', position, id))
+    .replaceAll('{vnx_cmp_button}', tag('button', position, id));
+  return {
+    ...button,
+    text: swap(button.text),
+    link: { ...button.link, url: swap(button.link.url) },
+    ...((button._attributes) ? { _attributes: button._attributes.map((attr) => ({ ...attr, value: swap(attr.value) })) } : {}),
   };
-  const pricedButton = (position) => {
-    const button = buyButton(tag('button', position, id), attrs);
-    const swap = (value) => String(value)
-      .replaceAll('{vnx_cmp_link}', tag('link', position, id))
-      .replaceAll('{vnx_cmp_price:raw}', tag('price', position, id, ['raw']))
-      .replaceAll('{vnx_cmp_price}', tag('price', position, id))
-      .replaceAll('{vnx_cmp_cycle}', tag('cycle', position, id))
-      .replaceAll('{vnx_cmp_name}', tag('name', position, id))
-      .replaceAll('{vnx_cmp_button}', tag('button', position, id));
-    return {
-      ...button,
-      text: swap(button.text),
-      link: { ...button.link, url: swap(button.link.url) },
-      ...((button._attributes) ? { _attributes: button._attributes.map((attr) => ({ ...attr, value: swap(attr.value) })) } : {}),
-    };
+}
+
+function fillCompareColumn(put, used, take, { table, id, attrs, column, position }) {
+  const asBuy = (textNode) => {
+    const frame = parentOf(column, textNode.id);
+    const onlyText = frame && frame.id !== column.id && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
+    if (!onlyText) return;
+    const button = compareBuy(position, id, attrs);
+    delete button.text;
+    put(frame.id, { kind: 'block', unmerge: true, dropSettings: ['text', 'icon', 'iconPosition'], settings: button });
   };
-  const fillColumn = (column, position) => {
-    const asBuy = (textNode) => {
+  for (const textNode of textsIn(column)) {
+    const word = textNode.text.characters;
+    if (table.packages.some((item) => same(word, item.total))) take(textNode, 'total', position);
+    else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, 'unit', position);
+    else if (table.packages.some((item) => same(word, item.cycle))) take(textNode, 'cycle', position);
+    else if (table.packages.some((item) => same(word, item.price)) || amount(word)) { take(textNode, 'price', position); asBuy(textNode); }
+    else if (priced(word)) { put(textNode.id, { settings: { text: mixedPrice(word, position, id, table) } }); used.add(textNode.id); asBuy(textNode); }
+    else if (table.meta.button && same(word, table.meta.button)) {
+      take(textNode, 'button', position);
       const frame = parentOf(column, textNode.id);
-      const onlyText = frame && frame.id !== column.id && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
-      if (!onlyText) return;
-      const button = pricedButton(position);
-      delete button.text;
-      put(frame.id, { kind: 'block', unmerge: true, dropSettings: ['text', 'icon', 'iconPosition'], settings: button });
-    };
-    for (const textNode of textsIn(column)) {
-      const word = textNode.text.characters;
-      if (table.packages.some((item) => same(word, item.total))) take(textNode, 'total', position);
-      else if (table.meta.unit && same(word, table.meta.unit)) take(textNode, 'unit', position);
-      else if (table.packages.some((item) => same(word, item.cycle))) take(textNode, 'cycle', position);
-      else if (table.packages.some((item) => same(word, item.price)) || amount(word)) { take(textNode, 'price', position); asBuy(textNode); }
-      else if (priced(word)) { put(textNode.id, { settings: { text: mixedPrice(word, position, id, table) } }); used.add(textNode.id); asBuy(textNode); }
-      else if (table.meta.button && same(word, table.meta.button)) {
-        take(textNode, 'button', position);
-        const frame = parentOf(column, textNode.id);
-        const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
-        if (onlyText) {
-          const button = pricedButton(position);
-          delete button.text;
-          put(frame.id, { kind: 'block', unmerge: true, dropSettings: ['text', 'icon', 'iconPosition'], settings: button });
-        }
-      }
-    }
-    const prices = textsIn(column).filter((textNode) => priced(textNode.text.characters));
-    const priceY = prices.length ? Math.min(...prices.map(top)) : Infinity;
-    const nameNode = textsIn(column).filter((textNode) => !used.has(textNode.id) && top(textNode) < priceY)
-      .sort((a, b) => top(b) - top(a))[0];
-    if (nameNode) take(nameNode, 'name', position);
-  };
-  const fillCell = (cell, position) => {
-    const shared = drawn ?? {};
-    const own = markNode(cell);
-    const size = own?.box ? Math.max(own.box.w, own.box.h) : shared.size;
-    const yesFill = solidFill(own) ?? shared.fill;
-    const look = (which) => ({
-      icon: { library: 'fontawesome', icon: which === 'yes' ? 'fa-solid fa-check' : NO_MARK.icon },
-      ...(size ? { iconSize: px(size) } : {}),
-      ...(which === 'yes'
-        ? (iconColor(yesFill) ? { iconColor: iconColor(yesFill) } : {})
-        : { iconColor: { hex: NO_MARK.hex } }),
-      _conditions: which === 'yes' ? [yesNo(position, id)[0]] : [yesNo(position, id)[1]],
-    });
-    if (own) {
-      put(own.id, { kind: 'icon', skipChildren: true, dropSettings: ['text'], settings: look('yes') });
-      put(cell.id, { extraChildren: [{ name: 'icon', label: 'No', settings: look('no') }] });
-    } else {
-      put(cell.id, { extraChildren: [{ name: 'icon', label: 'Yes', settings: look('yes') }, { name: 'icon', label: 'No', settings: look('no') }] });
-    }
-    const cellText = textsIn(cell)[0];
-    if (cellText) put(cellText.id, { settings: { text: tag('value_text', position, id), _conditions: textOnly(position, id) } });
-    else put(cell.id, { extraChildren: [{ name: 'text-basic', label: 'Value', settings: { text: tag('value_text', position, id), _conditions: textOnly(position, id) } }] });
-  };
-
-  const colAttr = [{ name: 'data-vnx-cmp-col', value: '1' }];
-  columns.forEach((col, index) => {
-    put(col.id, { settings: { ...(drawnMatch ? {} : loop('pkg', id)), _attributes: colAttr } });
-    fillColumn(col, drawnMatch ? index + 1 : null);
-  });
-  const cells = drawnMatch ? feature.cells : [feature.cells[0]];
-  cells.forEach((item, index) => {
-    put(item.id, { settings: { ...(drawnMatch ? {} : loop('pkg', id)), _attributes: colAttr } });
-    fillCell(item, drawnMatch ? index + 1 : null);
-  });
-  if (feature.stacked) {
-    const share = 'calc(100% / var(--vnx-cmp-packages))';
-    for (const cell of feature.cells) {
-      put(cell.id, {
-        settings: { _flexGrow: 1, _flexShrink: 1, _flexBasis: '0px', _width: share, _widthMax: share, _widthMin: '0px' },
-      });
-      for (const textNode of textsIn(cell)) {
-        put(textNode.id, { settings: { _width: '100%', _flexBasis: 'auto', _widthMin: '0px', _typography: { 'white-space': 'normal' } } });
+      const onlyText = frame && visibleKids(frame).filter((child) => child.type === 'TEXT' && !child.svg).length === 1;
+      if (onlyText) {
+        const button = compareBuy(position, id, attrs);
+        delete button.text;
+        put(frame.id, { kind: 'block', unmerge: true, dropSettings: ['text', 'icon', 'iconPosition'], settings: button });
       }
     }
   }
-  put(group.host.id, {
-    settings: {
-      ...loop('group', id),
-      _attributes: [{ name: 'data-vnx-cmp-group', value: '1' }],
-      _cssClasses: 'f2b-cmp-g-{vnx_cmp_group_index}',
-    },
-  });
-  put(feature.node.id, { settings: { ...loop('row', id), _cssClasses: 'f2b-cmp-row f2b-cmp-i-{vnx_cmp_row_index}' } });
+  const prices = textsIn(column).filter((textNode) => priced(textNode.text.characters));
+  const priceY = prices.length ? Math.min(...prices.map(top)) : Infinity;
+  const nameNode = textsIn(column).filter((textNode) => !used.has(textNode.id) && top(textNode) < priceY)
+    .sort((a, b) => top(b) - top(a))[0];
+  if (nameNode) take(nameNode, 'name', position);
+}
 
+function fillCompareCell(put, { drawn, id, cell, position }) {
+  const shared = drawn ?? {};
+  const own = markNode(cell);
+  const size = own?.box ? Math.max(own.box.w, own.box.h) : shared.size;
+  const yesFill = solidFill(own) ?? shared.fill;
+  const look = (which) => ({
+    icon: { library: 'fontawesome', icon: which === 'yes' ? 'fa-solid fa-check' : NO_MARK.icon },
+    ...(size ? { iconSize: px(size) } : {}),
+    ...(which === 'yes'
+      ? (iconColor(yesFill) ? { iconColor: iconColor(yesFill) } : {})
+      : { iconColor: { hex: NO_MARK.hex } }),
+    _conditions: which === 'yes' ? [yesNo(position, id)[0]] : [yesNo(position, id)[1]],
+  });
+  if (own) {
+    put(own.id, { kind: 'icon', skipChildren: true, dropSettings: ['text'], settings: look('yes') });
+    put(cell.id, { extraChildren: [{ name: 'icon', label: 'No', settings: look('no') }] });
+  } else {
+    put(cell.id, { extraChildren: [{ name: 'icon', label: 'Yes', settings: look('yes') }, { name: 'icon', label: 'No', settings: look('no') }] });
+  }
+  const cellText = textsIn(cell)[0];
+  if (cellText) put(cellText.id, { settings: { text: tag('value_text', position, id), _conditions: textOnly(position, id) } });
+  else put(cell.id, { extraChildren: [{ name: 'text-basic', label: 'Value', settings: { text: tag('value_text', position, id), _conditions: textOnly(position, id) } }] });
+}
+
+function bindCompareMore(put, { scope, id, group, opened, closed, table }) {
   const more = moreControl(group.host, group.rows);
   if (more) {
     const moreLabel = textsIn(more)[0];
@@ -625,6 +575,10 @@ function bindCompare(node, table, id, root, attrs) {
       }],
     });
   }
+  return more;
+}
+
+function bindCompareSlider(put, { scope, header }) {
   put(header.host.id, {
     settings: {
       _position: 'sticky',
@@ -664,7 +618,9 @@ function bindCompare(node, table, id, root, attrs) {
   put(header.host.id, { extraChildren: [sides.prev ? null : navButton('prev'), sides.next ? null : navButton('next')].filter(Boolean) });
   if (sides.prev) put(sides.prev.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-prev', value: '1' }] } });
   if (sides.next) put(sides.next.id, { settings: { _attributes: [{ name: 'data-vnx-cmp-next', value: '1' }] } });
+}
 
+function bindCompareLabels(put, used, take, { group, feature, dataGroup, more }) {
   for (const textNode of textsIn(group.host)) {
     if (used.has(textNode.id) || group.rows.some((row) => contains(row.node, textNode.id))) continue;
     if (more && contains(more, textNode.id)) continue;
@@ -676,7 +632,9 @@ function bindCompare(node, table, id, root, attrs) {
     if (dataGroup.rows.some((row) => same(textNode.text.characters, row.desc))) take(textNode, 'row_desc');
     else if (!used.has(textNode.id)) take(textNode, 'row');
   }
+}
 
+function bindCompareTips(put, omit, { scope, groups, header, feature, group, id }) {
   const bubble = tipBubble(scope, groups, header.cols);
   if (bubble) omit.push(bubble.node.id);
   const bg = bubble?.fill?.hex || '#007cfc';
@@ -702,6 +660,81 @@ function bindCompare(node, table, id, root, attrs) {
     wrapped.enclose.tail[0].settings._conditions = [[{ key: 'dynamic_data', dynamic_data: tag('row_desc', null, id), compare: 'empty_not' }]];
     put(icon.id, wrapped);
   }
+}
+
+function shareStackedCells(put, feature) {
+  if (!feature.stacked) return;
+  const share = 'calc(100% / var(--vnx-cmp-packages))';
+  for (const cell of feature.cells) {
+    put(cell.id, {
+      settings: { _flexGrow: 1, _flexShrink: 1, _flexBasis: '0px', _width: share, _widthMax: share, _widthMin: '0px' },
+    });
+    for (const textNode of textsIn(cell)) {
+      put(textNode.id, { settings: { _width: '100%', _flexBasis: 'auto', _widthMin: '0px', _typography: { 'white-space': 'normal' } } });
+    }
+  }
+}
+
+function bindCompareLoops(put, { id, group, feature }) {
+  put(group.host.id, {
+    settings: {
+      ...loop('group', id),
+      _attributes: [{ name: 'data-vnx-cmp-group', value: '1' }],
+      _cssClasses: 'f2b-cmp-g-{vnx_cmp_group_index}',
+    },
+  });
+  put(feature.node.id, { settings: { ...loop('row', id), _cssClasses: 'f2b-cmp-row f2b-cmp-i-{vnx_cmp_row_index}' } });
+}
+
+function bindCompare(node, table, id, root, attrs) {
+  const scene = compareScene(node, table, id, root);
+  if (scene.stop) return scene.stop;
+  const { scope, header, groups, drawnMatch, columns, closed, opened, group, dataGroup, feature, drawn } = scene;
+
+  const patches = {};
+  const put = (nodeId, patch) => {
+    const prev = patches[nodeId] ?? {};
+    const settings = { ...(prev.settings ?? {}), ...(patch.settings ?? {}) };
+    if (prev.settings?._attributes && patch.settings?._attributes) {
+      settings._attributes = [...prev.settings._attributes, ...patch.settings._attributes];
+    }
+    patches[nodeId] = {
+      ...prev,
+      ...patch,
+      settings,
+      css: [...(prev.css ?? []), ...(patch.css ?? [])],
+      ...(patch.extraChildren ? { extraChildren: [...(prev.extraChildren ?? []), ...patch.extraChildren] } : {}),
+    };
+  };
+  const omit = [];
+  put(scope.id, { css: [{ decl: `--vnx-cmp-packages: ${table.packages.length};`, suffix: '' }] });
+  if (!drawnMatch && !rowScrolls(header.host)) {
+    put(columns[0].id, { css: [{ decl: 'flex: 0 0 calc(100% / var(--vnx-cmp-packages)); width: calc(100% / var(--vnx-cmp-packages));', suffix: '' }] });
+  }
+  omitCompareCopies(omit, { header, groups, group, feature, columns, drawnMatch });
+
+  const used = new Set();
+  const take = (textNode, name, position = null) => {
+    put(textNode.id, { settings: { text: tag(name, position, id) } });
+    used.add(textNode.id);
+  };
+  const colAttr = [{ name: 'data-vnx-cmp-col', value: '1' }];
+  columns.forEach((col, index) => {
+    put(col.id, { settings: { ...(drawnMatch ? {} : loop('pkg', id)), _attributes: colAttr } });
+    fillCompareColumn(put, used, take, { table, id, attrs, column: col, position: drawnMatch ? index + 1 : null });
+  });
+  const cells = drawnMatch ? feature.cells : [feature.cells[0]];
+  cells.forEach((item, index) => {
+    put(item.id, { settings: { ...(drawnMatch ? {} : loop('pkg', id)), _attributes: colAttr } });
+    fillCompareCell(put, { drawn, id, cell: item, position: drawnMatch ? index + 1 : null });
+  });
+  shareStackedCells(put, feature);
+  bindCompareLoops(put, { id, group, feature });
+
+  const more = bindCompareMore(put, { scope, id, group, opened, closed, table });
+  bindCompareSlider(put, { scope, header });
+  bindCompareLabels(put, used, take, { group, feature, dataGroup, more });
+  bindCompareTips(put, omit, { scope, groups, header, feature, group, id });
 
   return { patches, omit, warnings: [], column: columns[0] };
 }

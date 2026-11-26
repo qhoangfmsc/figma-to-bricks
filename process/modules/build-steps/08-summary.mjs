@@ -49,6 +49,7 @@ export function summaryStep(urlOrDir) {
   // severity tiers (shared/severity.mjs): FAIL = a blocker or major difference; tier 3 minor and tier 4 negligible are listed, they do not fail
   const tiers = verify?.tiers ?? { 1: 0, 2: verify?.bad?.length ?? 0, 3: 0, 4: 0 };
   const verdict = !verify ? 'NOT VERIFIED (step 5 not run)'
+    : verify.visualMean == null ? 'NOT MEASURED: the Figma picture was not compared with the preview'
     : tiers[1] || tiers[2] ? `FAIL: ${tiers[1]} blocker and ${tiers[2]} major difference(s) from Figma`
       : tiers[3] ? `PASS WITH MINOR: ${tiers[3]} minor difference(s), ${tiers[4]} negligible (see below)`
         : !warnings.length && !st.unhandled.size && !missing.length ? `PASS: every checked value matches Figma within the negligible class (${tiers[4]} listed), nothing unmapped`
@@ -75,11 +76,13 @@ export function summaryStep(urlOrDir) {
     built.length > 60 ? `\n_… ${built.length - 60} more in report.md_` : '', '',
     '## 🧩 Components (approved detections)', '',
     table(['Figma node', 'Component', 'Detection'], built.filter(([, m]) => m.component).map(([id, m]) => [`${clip(nameOf(id), 40)} \`${id}\``, m.component, m.detection])),
-    detections ? `\n${detections.components.filter((c) => c.status === 'proposed').length} candidate(s) still waiting for review in detections.md (they stay blocks).` : '\n_detect step not run: nothing was classified as a component._', '',
+    detections ? `\n${detections.components.filter((c) => c.status === 'proposed' && c.component).length} measured row(s) stay blocks until the picture names that component.` : '\n_detect step not run: nothing was measured._', '',
     '## ⏭ Skipped on purpose', '',
     table(['Figma node', 'Why'], skipped.map(([id, m]) => [`${clip(tree.id === id ? tree.name : (nodes.find((n) => n.id === id)?.name ?? id), 40)} \`${id}\``, clip(overrides[id]?.reason ?? m.skipped, 110)])), '',
-    '## ✗ Wrong (rendered ≠ Figma)', '',
-    table(['Node', 'Check', 'Figma', 'Rendered'], (verify?.bad ?? []).map((r) => [r.label, r.check, r.want, r.got])), '',
+    '## Sai so với Figma', '',
+    'Mỗi dòng là một attribute của một node. Cột Figma là giá trị trên cây. Cột Rendered là giá trị đo trên preview. Khác nhau là sai so với Figma.',
+    '',
+    table(['Node', 'Attribute', 'Figma', 'Rendered'], (verify?.bad ?? []).map((r) => [r.label, r.check, r.want, r.got])), '',
     '## ❓ Missing (visible in Figma, not in Bricks)', '',
     table(['Figma node', 'Type'], missing.map((n) => [`${clip(n.name, 40)} \`${n.id}\``, n.type])), '',
     '## ⚠ Not supported / approximated', '',
@@ -87,7 +90,10 @@ export function summaryStep(urlOrDir) {
     '## ❗ Unhandled Figma properties', '',
     st.unhandled.size ? [...st.unhandled].map((u) => `- ${u}`).join('\n') : '_none_', '',
     '## ◌ Not measured by verify', '',
-    `${unverified} node(s) skipped or excluded from the browser check (skipped nodes, \`verify:false\`). Image content and the look of slider internals are never compared.`, '',
+    `${unverified} node(s) skipped or excluded from the browser check (skipped nodes, \`verify:false\`). Image content and the look of slider internals are never compared.`,
+    '',
+    'Blur, text-shadow, and font-size are rows in Sai so với Figma when the node has them. A 1–2px font difference is still a difference. A click that opens a tab, accordion, or slider was not pressed.',
+    '',
     '## Assets and fonts', '',
     `- Images uploaded: ${Object.keys(ws.readJson('assets/manifest.json', { images: {} }).images).length} · inline SVG: ${st.svgs}`,
     `- Fonts to have on the site: ${[...st.fonts].join(', ') || '-'}`,

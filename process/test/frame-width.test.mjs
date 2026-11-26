@@ -9,6 +9,21 @@ import { fitFluid, fitSoloTemplate } from '../modules/breakpoints/solo.mjs';
 // padding (382) and the row wraps.
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 
+test('a fixed block inside a hugging parent keeps that width above its own size', () => {
+  const template = {
+    content: [
+      { id: 'sec', parent: 0, name: 'section', settings: { _width: '100%', _display: 'flex', _direction: 'column' } },
+      { id: 'hug', parent: 'sec', name: 'block', settings: { _width: 'auto', _display: 'flex', _direction: 'column' } },
+      { id: 'box', parent: 'hug', name: 'block', settings: { _width: '1320px', _display: 'flex', _direction: 'column', _alignItems: 'center' } },
+      { id: 'row', parent: 'box', name: 'block', settings: { _width: '1200px', _display: 'flex', _direction: 'row', _columnGap: '22px' } },
+    ],
+  };
+  fitFluid(template, { frameWidth: 2284 });
+  const css = template.content.find((e) => e.id === 'box').settings._cssCustom ?? '';
+  assert.match(css, /max-width: 1319px/);
+  assert.doesNotMatch(css, /max-width: 2283px/);
+});
+
 test('three 384px cards stay 384px at the 1905 frame', () => {
   const card = (id, x) => ({
     id, name: id, type: 'FRAME',

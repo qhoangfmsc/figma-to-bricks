@@ -22,9 +22,13 @@ export function applyLine({ node, s, warn }) {
   if (node.place !== 'ABSOLUTE') s._position = 'relative';
   const w = st.weight;
   const color = cssColor(top);
+  // A zero-thickness line keeps the stroke on its edge. A line whose layout box is thicker than the stroke
+  // (FILL across a column) draws the stroke through the middle of that box.
+  const across = vertical ? node.box?.w ?? 0 : node.box?.h ?? 0;
+  const at = across > w + 0.5 ? `calc(50% - ${px(w / 2)})` : px(-w / 2);
   const decl = vertical
-    ? `content: ""; position: absolute; left: ${px(-w / 2)}; top: 0; width: ${px(w)}; height: 100%; background: ${color};`
-    : `content: ""; position: absolute; top: ${px(-w / 2)}; left: 0; height: ${px(w)}; width: 100%; background: ${color};`;
+    ? `content: ""; position: absolute; left: ${at}; top: 0; width: ${px(w)}; height: 100%; background: ${color};`
+    : `content: ""; position: absolute; top: ${at}; left: 0; height: ${px(w)}; width: 100%; background: ${color};`;
   addCustomCss(s, decl, '::before');
   return true;
 }

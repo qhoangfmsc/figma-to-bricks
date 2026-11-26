@@ -1,11 +1,11 @@
-import { closedItems, drawnAnswer, syncNotes } from '../write-bricks/components/accordion.mjs';
-import { visibleKids, firstText } from '../write-bricks/components/helpers.mjs';
-import { MISSING } from '../missing-content/choices.mjs';
-import { tabInventory } from '../write-bricks/components/tabs.mjs';
-import { switchInventory, tabQuestions } from '../write-bricks/components/tab-switch.mjs';
-import { paneQuestionLabel } from '../missing-content/pane-label.mjs';
-import { menuLabels } from '../write-bricks/components/menu.mjs';
-import { PartKind, isKind, isAnyKind, isSignal, isPaginationHint, WidgetKind, ChoiceKind, TabKind, MenuKind } from '../recognize-parts/kinds.mjs';
+import { closedItems, drawnAnswer, syncNotes } from '../../write-bricks/components/accordion.mjs';
+import { visibleKids, firstText } from '../../write-bricks/components/helpers.mjs';
+import { MISSING } from '../choices.mjs';
+import { tabInventory } from '../../write-bricks/components/tabs.mjs';
+import { switchInventory, tabQuestions } from '../../write-bricks/components/tab-switch.mjs';
+import { paneQuestionLabel } from '../pane-label.mjs';
+import { menuLabels } from '../../write-bricks/components/menu.mjs';
+import { PartKind, isKind, isAnyKind, isSignal, isPaginationHint, WidgetKind, ChoiceKind, TabKind, MenuKind } from '../../recognize-parts/kinds.mjs';
 import { decideForm } from './form-decision.mjs';
 
 const high = (entry) => entry.confidence === 'high';

@@ -32,3 +32,14 @@ Một cột gói, một nhóm, một dòng và một ô là mẫu lặp. Đầu 
 Không có id, hoặc id không đúng chữ thường và dấu gạch, thì build dừng. Không gắn tag và không giữ chữ đã vẽ làm dữ liệu.
 
 Output bắt buộc, với mọi file cùng kiểu: query nhóm, query dòng, và đủ cột gói. Ít cột hơn số gói thì một cột là query gói và lặp hết data. Đủ cột thì mỗi cột là tag của một gói. Tên dòng và giá trị ô lấy từ data. Figma chỉ chọn layout. Thiếu nhóm, dòng, hoặc một gói thì build dừng.
+
+## Hợp đồng
+
+- Nhận: one package row plus feature groups whose rows line up one cell per package. The plan must name one Comparison table id
+- Phần: `id`, `table`
+- Data: một id trong plan. Chữ Figma là ô.
+- Hành vi: One column, one group, one row and one cell are the loop. The same id is the data on every breakpoint. Without that loaded table the build stops. The drawn words are the slot look
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`.
+- Xong khi: element đúng kind, còn bấm được, slot đã gắn nguồn không còn chữ vẽ, và ảnh Figma đã được so với preview. Chưa đo ảnh thì chưa xong.
+- Cấm: hạ component thành block, in chữ Figma khi đã có nguồn, sửa `.mjs` trong chính lần dựng.

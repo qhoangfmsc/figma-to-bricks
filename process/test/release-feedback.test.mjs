@@ -369,6 +369,8 @@ test('a wide field with an icon is a search, and a picture with a play mark wait
   assert.equal(field.settings.inputWidth, '280px');
   assert.equal(player.settings.videoType, 'youtube');
   assert.equal(player.settings.youTubeId, 'abcdefghijk');
+  assert.ok(player.settings._height, 'the frame height is kept');
+  assert.equal(player.settings._padding?.top, '0px');
   assert.equal(hearAnswers({ 'video:clip': 'https://vimeo.com/1234567' })['video:clip'], 'https://vimeo.com/1234567');
 });
 

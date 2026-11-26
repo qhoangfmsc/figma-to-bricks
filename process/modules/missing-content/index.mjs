@@ -1,4 +1,4 @@
-import { PartKind, isKind, isAnyKind } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind, isAnyKind, ListKind, StateKind } from '../recognize-parts/kinds.mjs';
 // THE PLAN: the one document the owner reads and fills before anything is built (owner decision 2026-10-29: "after you look at Figma
 // and detect, ask only what you really need: values to list, content to fill in, short and clear, with a link to the place in Figma;
 // once I confirm, run to the end").
@@ -918,15 +918,6 @@ export function shareFilledContent(baseWs) {
       const hit = partner(c);
       if (!hit) continue;
       if (c.params?.sync && !hit.params?.sync) { deep(hit, ['params', 'sync'], c.params.sync); mark(); }
-      if (c.status === 'approved' && /confirmed by the owner/.test(c.note ?? '') && hit.status === 'proposed') {
-        hit.status = 'approved';
-        hit.note = `${hit.note ?? ''} · confirmed by the owner in the Plan`.replace(/^ · /, '');
-        for (const l of vComps.filter((x) => isKind(x, PartKind.SEMANTIC) && x.node === hit.node && live(x))) {
-          l.status = 'rejected';
-          l.note = 'autopilot: the node is an accordion now (confirmed in the Plan)';
-        }
-        mark();
-      }
     }
 
     for (const c of baseDet.components.filter((x) => (isKind(x, PartKind.TABS) || isKind(x, PartKind.TAB_SWITCH)) && live(x))) {
@@ -1011,6 +1002,21 @@ export function shareFilledContent(baseWs) {
       if (!hit) continue;
       if (c.params?.expand && !hit.params?.expand) { (hit.params ??= {}).expand = valueOf(c.params.expand); mark(); }
       if (c.params?.buttonMode && !hit.params?.buttonMode) { (hit.params ??= {}).buttonMode = c.params.buttonMode; mark(); }
+    }
+
+    // A component the base frame already uses stays that component on every breakpoint. A proposed
+    // copy on the narrow frame is the same part, so it is built, not left as a dead block.
+    const kept = new Set([...ListKind, ...StateKind]);
+    for (const c of baseDet.components.filter((x) => isAnyKind(x, [...kept]) && x.status === 'approved')) {
+      const hit = partner(c);
+      if (!hit || hit.status !== 'proposed') continue;
+      hit.status = 'approved';
+      hit.note = `${hit.note ?? ''} · the base frame already uses this component`.replace(/^ · /, '');
+      for (const l of vComps.filter((x) => isKind(x, PartKind.SEMANTIC) && x.node === hit.node && live(x))) {
+        l.status = 'rejected';
+        l.note = 'autopilot: the node stays the component from the base frame';
+      }
+      mark();
     }
 
     const vOv = vws.has('overrides.json') ? vws.readJson('overrides.json', { nodes: {} }) : null;

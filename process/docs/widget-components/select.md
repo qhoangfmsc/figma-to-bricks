@@ -13,3 +13,14 @@ Nhận dạng: `process/modules/recognize-parts/rules/select.mjs`
 Element: block `f2b-select`. Đây là default. Nút là control đã vẽ: chữ bên trái, mũi tên chỉ ở nút. Danh sách là một block `f2b-select-values`, `position: absolute`, ngay dưới nút. Mục không có viền và không có mũi tên. Mục đang chọn có dấu check. Bảng giá dùng đúng shell này, chỉ đổ vòng lặp chu kỳ vào danh sách.
 
 Plan hỏi các mục, mỗi mục một dòng. Trống thì ô giữ chữ đang vẽ và chưa có menu.
+
+## Hợp đồng
+
+- Nhận: a short wide bordered control, one value, and a small mark after that value (`rules/select.mjs`). A label above it is optional
+- Phần: `text`, `values`
+- Data: không bịa URL, alt, câu trả lời, pane. Chữ Figma là ô khi kind đã gắn nguồn.
+- Hành vi: The option list is not drawn. The plan writes one value per line. Blank keeps the drawn value and adds no menu. This is the default shell a price table reuses
+- Breakpoint: desktop và mobile là cùng element, cùng nguồn. Không có khung tablet thì dùng layout mobile đến 991px.
+- Look: size, gap, fill, blur, ảnh, shadow lấy từ `write-bricks/render/`.
+- Xong khi: element đúng kind, còn bấm được, slot đã gắn nguồn không còn chữ vẽ, và ảnh Figma đã được so với preview. Chưa đo ảnh thì chưa xong.
+- Cấm: hạ component thành block, in chữ Figma khi đã có nguồn, sửa `.mjs` trong chính lần dựng.

@@ -2,8 +2,8 @@
 // linked frame the same way as the desktop frame. These checks refuse what that read could not
 // separate: a tab bar still in the result, two item groups of the same size, or a slide link that
 // is the tab buttons.
-import { visibleKids } from '../write-bricks/components/helpers.mjs';
-import { isNamedTabBar, isSingleTab, isTabList, repeatedSet } from '../write-bricks/components/tab-switch.mjs';
+import { visibleKids } from '../../write-bricks/components/helpers.mjs';
+import { isNamedTabBar, isSingleTab, isTabList, repeatedSet } from '../../write-bricks/components/tab-switch.mjs';
 
 function containsTabBar(node) {
   if (!node || node.visible === false) return false;

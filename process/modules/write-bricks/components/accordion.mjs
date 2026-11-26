@@ -129,6 +129,33 @@ export function closedItems(node) {
   return visibleKids(node).filter((i) => visibleKids(i).length === 1).map((i) => ({ item: i, question: firstText(visibleKids(i)[0])?.text.characters.replace(/\s+/g, ' ').trim() ?? i.name }));
 }
 
+function answerBlock(itemId, answers, drawn, drawnText) {
+  const answer = answers?.[itemId];
+  if (!answer) return { name: 'block', label: 'Content (empty: not in Figma)', settings: { ...hidden('accordion-content-wrapper'), _padding: { ...ZERO } } };
+  return {
+    name: 'block', label: 'Content',
+    settings: { ...hidden('accordion-content-wrapper'), ...(!drawn && { _padding: { ...ZERO } }) },
+    ...(drawn && { like: drawn.id, drop: ['_display'] }),
+    children: [{ name: 'text-basic', label: 'Answer', settings: {}, ...(drawnText && { like: drawnText.id }), text: answer }],
+  };
+}
+
+function writeItems(out, items, det, drawn, drawnText, withGap, stateCss) {
+  for (const item of items) {
+    const [title, content] = visibleKids(item);
+    out[title.id] = { settings: hidden('accordion-title-wrapper'), ...THEME_RESET };
+    if (content) {
+      out[content.id] = { settings: hidden('accordion-content-wrapper'), ...THEME_RESET, ...(displayOf(content) && { dropSettings: ['_display'] }) };
+      out[item.id] = withGap(item, { css: [...openCss(content), ...stateCss] });
+    } else {
+      out[item.id] = withGap(item, {
+        css: [...(det.params?.content?.answers?.[item.id] ? openCss(drawn) : []), ...stateCss],
+        extraChildren: [answerBlock(item.id, det.params?.content?.answers, drawn, drawnText)],
+      });
+    }
+  }
+}
+
 export default {
   id: PartKind.ACCORDION,
   status: 'implemented',
@@ -183,22 +210,7 @@ export default {
       const g = gapPatch(item);
       return { ...patch, ...(g.settings && { settings: { ...(patch.settings ?? {}), ...g.settings } }), ...(g.expectCss && { expectCss: { ...(patch.expectCss ?? {}), ...g.expectCss } }) };
     };
-    for (const item of items) {
-      const [title, content] = visibleKids(item);
-      out[title.id] = { settings: hidden('accordion-title-wrapper'), ...THEME_RESET };
-      if (content) {
-        out[content.id] = { settings: hidden('accordion-content-wrapper'), ...THEME_RESET, ...(displayOf(content) && { dropSettings: ['_display'] }) };
-        out[item.id] = withGap(item, { css: [...openCss(content), ...stateCss] });
-      } else {
-        const answer = det.params?.content?.answers?.[item.id];
-        out[item.id] = withGap(item, {
-          css: [...(answer ? openCss(drawn) : []), ...stateCss],
-          extraChildren: [answer
-            ? { name: 'block', label: 'Content', settings: { ...hidden('accordion-content-wrapper'), ...(!drawn && { _padding: { ...ZERO } }) }, ...(drawn && { like: drawn.id, drop: ['_display'] }), children: [{ name: 'text-basic', label: 'Answer', settings: {}, ...(drawnText && { like: drawnText.id }), text: answer }] }
-            : { name: 'block', label: 'Content (empty: not in Figma)', settings: { ...hidden('accordion-content-wrapper'), _padding: { ...ZERO } } }],
-        });
-      }
-    }
+    writeItems(out, items, det, drawn, drawnText, withGap, stateCss);
     const placed = items.map((item) => ({ item, place: iconPlace(item) })).filter((row) => row.place?.icon?.svg?.file);
     const openRow = placed.find((row) => itemState(row.item) === 'open');
     const closedRow = placed.find((row) => itemState(row.item) !== 'open');

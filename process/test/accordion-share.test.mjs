@@ -145,6 +145,60 @@ test('links, alts, tabs, sliders and read-more text filled on desktop reach the 
   }
 });
 
+test('a component already used on the wide frame stays that component on the narrow frame', () => {
+  const root = mkdtempSync(join(tmpdir(), 'keep-kind-'));
+  try {
+    const desk = join(root, 'desk');
+    const mob = join(root, 'mob');
+    const row = (id, label) => ({ id, name: 'Row', children: [text(`${id}-t`, label)] });
+    writeWs(desk, {
+      id: 'root', name: 'Section', children: [
+        { id: 'hours', name: 'Hours', children: [row('h1', 'When does the counter close')] },
+        { id: 'switcher', name: 'Switcher', children: [
+          { id: 'bar', name: 'Bar', children: [row('s1', 'Morning'), row('s2', 'Evening')] },
+          { id: 'body', name: 'Body', children: [] },
+        ] },
+      ],
+    }, {
+      components: [
+        { id: 'd1', component: PartKind.ACCORDION, status: 'approved', node: 'hours', params: { content: { answers: { h1: 'Nine' } } } },
+        { id: 'd2', component: PartKind.TABS, status: 'approved', node: 'switcher', params: {} },
+      ],
+    });
+    writeFileSync(join(desk, 'responsive.json'), JSON.stringify({ variants: [{ key: 'mobile_portrait', workspace: 'mob', maxWidth: 478 }] }));
+    writeWs(mob, {
+      id: 'mroot', name: 'Section', children: [
+        { id: 'mhours', name: 'Hours', children: [row('mh1', 'When does the counter close')] },
+        { id: 'mswitcher', name: 'Switcher', children: [
+          { id: 'mbar', name: 'Bar', children: [row('ms1', 'Morning'), row('ms2', 'Evening')] },
+          { id: 'mbody', name: 'Body', children: [] },
+        ] },
+      ],
+    }, {
+      components: [
+        { id: 'd1', component: PartKind.ACCORDION, status: 'proposed', node: 'mhours', params: {} },
+        { id: 'd2', component: PartKind.SEMANTIC, status: 'approved', node: 'mhours', params: {} },
+        { id: 'd3', component: PartKind.TABS, status: 'proposed', node: 'mswitcher', params: {} },
+      ],
+    });
+    const base = {
+      dir: desk,
+      readJson: (name, fallback) => {
+        try { return JSON.parse(readFileSync(join(desk, name), 'utf8')); } catch { return fallback; }
+      },
+    };
+    shareFilledContent(base);
+    const det = JSON.parse(readFileSync(join(mob, 'detections.json'), 'utf8'));
+    const by = (node, kind) => det.components.find((c) => c.node === node && c.component === kind);
+    assert.equal(by('mhours', PartKind.ACCORDION).status, 'approved');
+    assert.equal(by('mhours', PartKind.ACCORDION).params.content.answers.mh1, 'Nine');
+    assert.equal(by('mhours', PartKind.SEMANTIC).status, 'rejected');
+    assert.equal(by('mswitcher', PartKind.TABS).status, 'approved');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('a form error is copied onto the same field, and a frame without the form is left alone', () => {
   const root = mkdtempSync(join(tmpdir(), 'form-share-'));
   const desk = join(root, 'desk');

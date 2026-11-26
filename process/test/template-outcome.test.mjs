@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { outcomeOf, readyForUser } from '../modules/single-template/outcome.mjs';
+import { outcomeOf, readyForUser } from '../modules/build-steps/template/outcome.mjs';
 
 test('a pushed template is a result even when verify exits with mismatches', () => {
   const out = outcomeOf({
@@ -26,11 +26,12 @@ test('a pushed template is still returned when verify itself stops', () => {
 });
 
 test('the user link waits until every frame was measured and none has a heavy miss', () => {
-  const pass = { verify: { verdict: 'PASS' } };
-  const minor = { verify: { verdict: 'PASS WITH MINOR' } };
+  const pass = { verify: { verdict: 'PASS', visualMean: 2 } };
+  const minor = { verify: { verdict: 'PASS WITH MINOR', visualMean: 4 } };
   assert.equal(readyForUser([pass, minor]), true);
-  assert.equal(readyForUser([pass, { verify: { verdict: 'FAIL' } }]), false);
+  assert.equal(readyForUser([pass, { verify: { verdict: 'FAIL', visualMean: 20 } }]), false);
   assert.equal(readyForUser([pass, { verify: null }]), false);
+  assert.equal(readyForUser([{ verify: { verdict: 'PASS' } }]), false);
   assert.equal(readyForUser([]), false);
 });
 

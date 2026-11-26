@@ -2,9 +2,9 @@ import { PartKind } from '../modules/recognize-parts/kinds.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
+import { screenParts } from '../modules/build-steps/template/parts.mjs';
 import { validateAnswers, applyAnswers, readExpand } from '../modules/missing-content/index.mjs';
-import { graftExpand } from '../modules/single-template/expand.mjs';
+import { graftExpand } from '../modules/build-steps/template/expand.mjs';
 import readmore from '../modules/write-bricks/components/readmore.mjs';
 import button from '../modules/write-bricks/components/button.mjs';
 

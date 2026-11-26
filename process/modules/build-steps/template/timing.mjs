@@ -4,7 +4,7 @@
 // The node request itself is not in that span. process/modules/read-figma/api.mjs aborts one request at 120s.
 // Build: median of (raw.json → verify.json) minus (raw.json → tree.json) is 48s
 // (export, build, push, Playwright) per frame. Every filled slot counts, including widescreen and mobile landscape.
-import { SLOTS } from '../single-template/frames.mjs';
+import { SLOTS } from './frames.mjs';
 
 export const PLAN_TYPICAL_MS = 5_000;
 export const FIGMA_TIMEOUT_MS = 120_000;

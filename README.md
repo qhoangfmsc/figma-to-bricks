@@ -41,10 +41,10 @@ Plan, ảnh so và báo cáo nằm trong `history/runs/{timestamp}-{tên-frame}/
 Cursor chạy `node mcp/f2b-mcp.mjs`. File này đọc `WP_URL` và `MCP_TOKEN` trong `.env`, gọi `WP_URL/wp-json/f2b-mcp/v1/mcp`. Đổi site thì sửa `.env` rồi reload MCP.
 
 ## CSS dùng chung
-Bản CSS của site trong `WP_URL` nằm ở `process/modules/staging/site-css/`: palette màu, biến site, global element, và class trang chủ đang inline.
+Bản CSS của site trong `WP_URL` nằm ở `process/modules/maintenance/site-css/`: palette màu, biến site, global element, và class trang chủ đang inline.
 ```bash
-node process/modules/staging/site-css.mjs pull    # đọc lại WP_URL
-node process/modules/staging/site-css.mjs apply   # chép vào wp-content/uploads/bricks/css
+node process/modules/maintenance/site-css.mjs pull    # đọc lại WP_URL
+node process/modules/maintenance/site-css.mjs apply   # chép vào wp-content/uploads/bricks/css
 ```
 `apply` chỉ ghi file trong repo. Máy local nạp các file đó. Class id chỉ nằm trong một template thì vẫn ở CSS của template đó.
 Chi tiết cho người sửa code: [process/README.md](process/README.md).

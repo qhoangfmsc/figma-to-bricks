@@ -19,11 +19,11 @@
 //   icons (svg)            decorative: aria-hidden
 //   images                 alt "" (decorative) and listed for the designer; eager in the first section, lazy below the fold
 import { readFileSync } from 'node:fs';
-import { detectTemplateType } from '../recognize-parts/rules/template-type.mjs';
-import { PartKind, isKind, isAnyKind, ListKind, isPaginationHint } from '../recognize-parts/kinds.mjs';
+import { detectTemplateType } from '../../recognize-parts/rules/template-type.mjs';
+import { PartKind, isKind, isAnyKind, isSignal, ListKind, isPaginationHint } from '../../recognize-parts/kinds.mjs';
 import { decideCandidate } from './kind-decisions.mjs';
-import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../write-bricks/components/price-table.mjs';
-import { compareFrames, BUY_BUTTON_FIELDS, buyAttrKey } from '../write-bricks/components/compare-table.mjs';
+import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../../write-bricks/components/price-table.mjs';
+import { compareFrames, BUY_BUTTON_FIELDS, buyAttrKey } from '../../write-bricks/components/compare-table.mjs';
 
 const kids = (n) => (n.children ?? []).filter((c) => c.visible !== false);
 const walk = (n, fn) => { if (n.visible === false) return; fn(n); kids(n).forEach((c) => walk(c, fn)); };
@@ -35,7 +35,7 @@ const NAV_SECTION = /^(menu|header|nav|navigation)\b/i;
 const NAV_ITEM = /menu\s?item|nav\s?item|nav\s?link/i;
 const DECOR_NAME = /glow|background|bg\b|pattern|decor|gradient|overlay|shadow|blur|border|corner|edge|line|divider/i;
 
-export function decide(ws, { firstSection = false, variant = false, parentBg = null, formErrors = {} } = {}) {
+export function decide(ws, { firstSection = false, variant = false, parentBg = null, formErrors = {}, namedOnly = false } = {}) {
   const tree = ws.readJson('tree.json');
   const facts = ws.readJson('facts.json');
   const det = ws.readJson('detections.json');
@@ -65,19 +65,25 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     log('background', tree, `background ${parentBg}`, 'transparent section: the page frame fill is what the eye sees behind it', 'high');
   }
 
+  // A picture already named the component. This pass only asks for values the tree does not have.
+  const pictured = namedOnly ? new Map(det.components.filter((c) => c.status === 'approved').map((c) => [c.id, c.status])) : null;
   // ---- 1. candidates found by the rules
   for (const c of det.components) {
-    if (c.status !== 'proposed') continue;
+    if (namedOnly) {
+      if (c.status !== 'approved' || isSignal(c.component)) continue;
+    } else if (c.status !== 'proposed') continue;
     const node = find(tree, c.node);
     if (!node) continue;
     const tools = { ask, log, designer, formErrors, findNode: (id) => find(tree, id), textsIn, kids, hasText };
     if (!decideCandidate(c, node, tools)) {
+      if (namedOnly) continue;
       c.status = 'rejected';
       c.note = `autopilot: ${c.component} needs content only the designer has`;
       log(c.component, node, 'rejected', 'needs content the Figma file does not contain', 'medium');
       needs.push(`${c.component} candidate on "${node.name}" [${node.id}] was left as blocks: ${c.evidence ?? ''}`);
     }
   }
+  if (pictured) for (const c of det.components) if (pictured.has(c.id)) c.status = 'approved';
 
   // a checkbox or switch row is that control, not a second button, and not a field of an approved form
   const holds = (root, id) => !!root && (root.id === id || (root.children ?? []).some((c) => holds(c, id)));
@@ -113,7 +119,7 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   }
 
   // ---- 1b. masked decoration: a group with a mask layer and no text. CSS cannot reproduce a Figma mask, Figma can render it, so it is one picture
-  walk(tree, (n) => {
+  if (!namedOnly) walk(tree, (n) => {
     if (n === tree || !['GROUP', 'FRAME', 'COMPONENT', 'INSTANCE'].includes(n.type) || hasText(n)) return;
     if (!kids(n).some((c) => c.isMask)) return;
     if (det.components.some((c) => isKind(c, PartKind.FLAT_IMAGE) && c.node === n.id)) return;
@@ -158,7 +164,7 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   // ---- 3. lists (base frame only: the breakpoint variants take the tags from the base frame)
   // A parent whose visible children are ALL repeated items is a list, also when the items fall into several groups of slightly different structure
   // (a menu: 5 items with a tag + 4 without).
-  if (!variant) {
+  if (!variant && !namedOnly) {
     const byParent = new Map();
     for (const r of facts.repeats ?? []) if (r.count >= 2) { const g = byParent.get(r.parent) ?? { r, ids: new Set() }; r.ids.forEach((id) => g.ids.add(id)); byParent.set(r.parent, g); }
     for (const [pid, { r, ids }] of byParent) {
@@ -178,7 +184,7 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
   }
 
   // ---- 3b. navigation: the label of every menu item is a link (text-link, "#" until the designer gives the URL)
-  if (isNav) {
+  if (isNav && !namedOnly) {
     const labels = [];
     walk(tree, (n) => {
       if (!['INSTANCE', 'FRAME', 'COMPONENT'].includes(n.type) || !NAV_ITEM.test(`${n.name ?? ''} ${n.component ?? ''}`)) return;
@@ -224,13 +230,15 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     log('divider', find(tree, line.node) ?? tree, 'rejected (scroll bar)', line.evidence ?? '', 'high');
   }
 
-  for (const frame of compareFrames(tree)) {
-    ask('compare', frame.id, `Bảng so sánh "${frame.name || frame.id}"`);
-    askRegister(frame.id, BUY_BUTTON_FIELDS, buyAttrKey);
-  }
-  for (const frame of priceFrames(tree)) {
-    ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
-    askRegister(frame.id);
+  if (!namedOnly) {
+    for (const frame of compareFrames(tree)) {
+      ask('compare', frame.id, `Bảng so sánh "${frame.name || frame.id}"`);
+      askRegister(frame.id, BUY_BUTTON_FIELDS, buyAttrKey);
+    }
+    for (const frame of priceFrames(tree)) {
+      ask('price', frame.id, `Bảng giá "${frame.name || frame.id}"`);
+      askRegister(frame.id);
+    }
   }
   for (const item of det.components) {
     if (!isKind(item, PartKind.PRICE_TABLE) || item.status === 'rejected') continue;

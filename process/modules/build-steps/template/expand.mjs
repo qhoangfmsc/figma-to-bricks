@@ -1,17 +1,17 @@
-import { PartKind, isKind } from '../recognize-parts/kinds.mjs';
+import { PartKind, isKind } from '../../recognize-parts/kinds.mjs';
 // The "Nội dung khi mở" answer is either extra text (handled at render) or a Figma link of the expanded frame.
 // The link is fetched into a side folder of THIS section. It is not written to the OS temp scratch of that node,
 // because that folder may already be another section's workspace.
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
-import { findNode } from '../write-bricks/components/helpers.mjs';
-import { download, getImageFills, getNode, getRenders } from '../read-figma/api.mjs';
-import { collectImageRefs, collectSvgRoots } from '../read-figma/nodes.mjs';
-import { normalizeRoot } from '../read-figma/normalize.mjs';
-import { imageInfo, sha256 } from '../common/image-info.mjs';
-import { safeId } from '../common/workspace.mjs';
-import { parseFigmaUrl } from '../read-figma/url.mjs';
-import { rejectTabBar } from '../single-template/recheck.mjs';
+import { findNode } from '../../write-bricks/components/helpers.mjs';
+import { download, getImageFills, getNode, getRenders } from '../../read-figma/api.mjs';
+import { collectImageRefs, collectSvgRoots } from '../../read-figma/nodes.mjs';
+import { normalizeRoot } from '../../read-figma/normalize.mjs';
+import { imageInfo, sha256 } from '../../common/image-info.mjs';
+import { safeId } from '../../common/workspace.mjs';
+import { parseFigmaUrl } from '../../read-figma/url.mjs';
+import { rejectTabBar } from './recheck.mjs';
 
 const stamp = (id) => `o${safeId(id)}`;
 

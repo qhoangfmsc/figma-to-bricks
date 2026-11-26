@@ -7,10 +7,11 @@ import { detectCarousels, dashRowFromSvg } from '../modules/recognize-parts/rule
 import { detectDividers } from '../modules/recognize-parts/rules/divider.mjs';
 import { checkCites } from '../modules/recognize-parts/cite.mjs';
 import carousel, { paginationMarks } from '../modules/write-bricks/components/carousel.mjs';
+import { markPeekScroll } from '../modules/write-bricks/render/utils/peek-scroll.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { applyAnswers, validateAnswers } from '../modules/missing-content/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
-import { graftSlides } from '../modules/single-template/slides.mjs';
+import { screenParts } from '../modules/build-steps/template/parts.mjs';
+import { graftSlides } from '../modules/build-steps/template/slides.mjs';
 
 const treeOf = (id) => JSON.parse(readFileSync(new URL(`../fixtures/sections/${id}/tree.json`, import.meta.url), 'utf8'));
 const svgOf = (id, file) => readFileSync(new URL(`../fixtures/sections/${id}/assets/${file}`, import.meta.url), 'utf8');
@@ -325,7 +326,7 @@ test('a desktop slider stays a slider on mobile unless a mobile frame draws some
   assert.equal(parts[0].fields[0].value, 'mobile vẫn là slider');
   assert.deepEqual(parts[0].children, ['Pagination: không', 'Nút trước: không', 'Nút sau: không']);
   const drawn = screenParts(tree, [{ component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: { pagination: 'dots', prev: 'pv', next: 'nx' } }], questions, 'FILE');
-  assert.deepEqual(drawn[0].children, ['Pagination: `dots` — nghi ngờ', 'Nút trước: `pv` — nghi ngờ', 'Nút sau: `nx` — nghi ngờ']);
+  assert.deepEqual(drawn[0].children, ['Pagination: `dots`', 'Nút trước: `pv`', 'Nút sau: `nx`']);
   const files = { 'tree.json': tree, 'overrides.json': { nodes: {} }, 'detections.json': { components: [{ id: 'd1', component: PartKind.CAROUSEL, node: 'row', status: 'approved', params: {} }] } };
   const missed = applyAnswers({ readJson: (n, fb) => files[n] ?? fb, writeJson: (n, v) => { files[n] = v; } }, { 'mobileform:row': 'làm hàng kéo ở điện thoại' });
   assert.deepEqual(missed.unused, ['mobileform:row']);
@@ -350,7 +351,40 @@ test('one drawn slide stays type slide so Splide does not clone the card out of 
     s: many, root: { id: 'root', children: [] }, warn() {}, readAsset() { return ''; },
   }, { params: { autoplay: false } });
   assert.equal(many.type, 'loop');
-  assert.equal(many.height, undefined);
+  assert.equal(many.height, '60px');
+  assert.match(many._cssCustom, /height:\s*60px/);
+  assert.match(many._cssCustom, /\.splide__list > \* \{[^}]*position:\s*relative/);
+  const fixed = {};
+  carousel.apply({
+    node: { id: 'n', box: { w: 400, h: 80, absX: 0, absY: 0 }, sizing: { v: 'FIXED' }, layout: { gap: 0 }, children: [0, 1].map((i) => ({ id: 'c' + i, box: { x: i * 200, y: 0, w: 200, h: 80 } })) },
+    s: fixed, root: { id: 'root', children: [] }, warn() {}, readAsset() { return ''; },
+  }, { params: { autoplay: false } });
+  assert.equal(fixed.height, '80px');
+  assert.match(fixed._cssCustom, /overflow:\s*visible/);
+  assert.match(fixed._cssCustom, /\.splide__track \{ overflow:\s*hidden/);
+  const grown = {};
+  carousel.apply({
+    node: {
+      id: 'n', box: { w: 200, h: 100, absX: 0, absY: 0 }, layout: { gap: 0 },
+      children: [
+        { id: 'a', box: { x: 0, y: 0, w: 200, h: 100 }, children: [] },
+        { id: 'b', box: { x: 220, y: 0, w: 180, h: 100 }, children: [{ id: 'inner', box: { x: 0, y: -4, w: 240, h: 140 }, children: [] }] },
+      ],
+    },
+    s: grown, root: { id: 'root', children: [] }, warn() {}, readAsset() { return ''; },
+  }, { params: { autoplay: false } });
+  assert.equal(grown.height, '140px');
+  assert.equal(grown._width, '240px');
+  const dot = (id, w) => ({ id, box: { x: 0, y: 0, w, h: 14 }, radius: [8, 8, 8, 8], fills: [{ type: 'SOLID', hex: '#ffffff', alpha: 1 }], children: [] });
+  const rounded = {};
+  const pag = { id: 'pag', children: [dot('long', 40), dot('short', 14)] };
+  carousel.apply({
+    node: { id: 'n', box: { w: 200, h: 80, absX: 0, absY: 0 }, children: [{ id: 'a', box: { w: 200, h: 80 } }, { id: 'b', box: { w: 200, h: 80 } }] },
+    s: rounded, root: pag, warn() {}, readAsset() { return ''; },
+  }, { params: { autoplay: false, pagination: 'pag' } });
+  assert.equal(rounded.paginationBorder.radius.top, '8px');
+  assert.match(rounded._cssCustom, /border-radius:\s*8px !important/);
+  assert.doesNotMatch(rounded._cssCustom, /border-radius:\s*100%/);
 });
 
 test('a clipped row of the same card is a carousel, and the fade shapes are not slides', () => {
@@ -422,6 +456,26 @@ test('a Figma frame of items replaces the drawn slides and keeps the arrow', () 
   assert.equal(tree.children[0].children.length, 3);
   assert.equal(tree.children[0].children[0].children.length, 1);
   assert.notEqual(tree.children[0].children[0].id, 'n1');
+});
+
+test('a clipped heading with an absolute glow is not a scroll row', () => {
+  const title = { id: 'title', type: 'TEXT', place: 'FLOW', box: { x: 16, y: 18, w: 200, h: 48, absX: 16, absY: 18 }, text: { characters: 'Managed' } };
+  const glow = { id: 'glow', type: 'ELLIPSE', place: 'ABSOLUTE', box: { x: -20, y: -10, w: 160, h: 40, absX: -20, absY: -10 } };
+  const head = { id: 'head', type: 'FRAME', clip: true, layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 278, h: 82, absX: 0, absY: 0 }, children: [glow, title] };
+  markPeekScroll(head, { components: [] });
+  assert.equal(head.__peekScroll, undefined);
+});
+
+test('a card row inside a carousel slide is not a second scrollbar', () => {
+  const card = (id, x, w) => ({ id, type: 'FRAME', box: { x, y: 0, w, h: 80, absX: x, absY: 0 }, children: [] });
+  const row = { id: 'row', type: 'FRAME', layout: { mode: 'HORIZONTAL' }, box: { x: 0, y: 0, w: 300, h: 80, absX: 0, absY: 0 }, children: [card('a', 0, 200), card('b', 220, 200)] };
+  const host = { id: 'slider', type: 'FRAME', clip: true, box: { x: 0, y: 0, w: 300, h: 80, absX: 0, absY: 0 }, children: [row] };
+  markPeekScroll(host, { components: [{ status: 'approved', component: 'carousel', node: 'slider' }] });
+  assert.equal(row.__peekScroll, undefined);
+  const bare = { id: 'page', type: 'FRAME', clip: true, box: { x: 0, y: 0, w: 300, h: 80, absX: 0, absY: 0 }, children: [structuredClone(row)] };
+  const again = bare.children[0];
+  markPeekScroll(bare, { components: [] });
+  assert.equal(again.__peekScroll, true);
 });
 
 test('a square illustration svg is not a pagination row', () => {

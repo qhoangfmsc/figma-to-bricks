@@ -4,7 +4,7 @@ import { normalizeRoot } from '../modules/read-figma/normalize.mjs';
 import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { detectSelects } from '../modules/recognize-parts/rules/select.mjs';
 import { detectButtons } from '../modules/recognize-parts/rules/button.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
+import { decide } from '../modules/missing-content/decide/index.mjs';
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
 

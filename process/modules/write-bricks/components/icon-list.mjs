@@ -21,6 +21,38 @@ function rowOf(item) {
   return null;
 }
 
+function writeListItems(s, items, det) {
+  s.items = items.map((it, i) => {
+    const icon = svgNode(it);
+    return { id: rowId(det.id, i), title: firstText(it).text.characters, ...(icon && { icon: svgIcon(icon) }) };
+  });
+  s.separatorDisable = true;
+  s.titleTypography = typography(firstText(items[0]));
+  s.titleMargin = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
+}
+
+function writeListGap(s, node) {
+  // The list element has no flex or gap control. The theme also draws a line after every title.
+  for (const key of ['_display', '_direction', '_rowGap', '_columnGap', '_justifyContent', '_alignItems', '_flexWrap']) delete s[key];
+  addCustomCss(s, `display: flex; flex-direction: column; row-gap: ${px(node.layout?.gap ?? 0)};`);
+}
+
+function writeIconGap(s, items) {
+  const row = rowOf(items[0]);
+  if (row?.layout) addCustomCss(s, `margin-right: ${px(row.layout.gap)};`, ' li .icon');
+}
+
+function writeSeparator(s, node, det, warn) {
+  const sepNode = det.params?.separator && findNode(node, det.params.separator);
+  if (!sepNode?.stroke) return;
+  const weight = sepNode.stroke.weight ?? 1;
+  const paint = sepNode.stroke.paints.at(-1);
+  const pad = px(node.layout?.gap ?? 0);
+  if (paint.type === 'SOLID') addCustomCss(s, `border-bottom: ${px(weight)} solid ${cssColor(paint)}; padding-bottom: ${pad};`, ' li:not(:last-child)');
+  else if (paint.type === 'GRADIENT_LINEAR') addCustomCss(s, `border-bottom: ${px(weight)} solid transparent; border-image: ${linearGradientCss(paint, sepNode.box.w || 1, 1)} 1; padding-bottom: ${pad};`, ' li:not(:last-child)');
+  else warn(sepNode, `separator stroke ${paint.type} is not supported`);
+}
+
 export default {
   id: PartKind.ICON_LIST,
   status: 'implemented',
@@ -45,26 +77,10 @@ export default {
 
   apply({ node, s, warn }, det) {
     const items = itemsOf(node, det);
-    s.items = items.map((it, i) => {
-      const icon = svgNode(it);
-      return { id: rowId(det.id, i), title: firstText(it).text.characters, ...(icon && { icon: svgIcon(icon) }) };
-    });
-    s.separatorDisable = true;
-    s.titleTypography = typography(firstText(items[0]));
-    s.titleMargin = { top: '0px', right: '0px', bottom: '0px', left: '0px' };
-    // the Bricks list element has no flex / gap controls: layout is written as css (Figma auto layout: column + gap)
-    for (const k of ['_display', '_direction', '_rowGap', '_columnGap', '_justifyContent', '_alignItems', '_flexWrap']) delete s[k];
-    addCustomCss(s, `display: flex; flex-direction: column; row-gap: ${px(node.layout?.gap ?? 0)};`);
-    const row = rowOf(items[0]);
-    if (row?.layout) addCustomCss(s, `margin-right: ${px(row.layout.gap)};`, ' li .icon');
-    const sepNode = det.params?.separator && findNode(node, det.params.separator);
-    if (sepNode?.stroke) {
-      const w = sepNode.stroke.weight ?? 1;
-      const paint = sepNode.stroke.paints.at(-1);
-      if (paint.type === 'SOLID') addCustomCss(s, `border-bottom: ${px(w)} solid ${cssColor(paint)}; padding-bottom: ${px(node.layout?.gap ?? 0)};`, ' li:not(:last-child)');
-      else if (paint.type === 'GRADIENT_LINEAR') addCustomCss(s, `border-bottom: ${px(w)} solid transparent; border-image: ${linearGradientCss(paint, sepNode.box.w || 1, 1)} 1; padding-bottom: ${px(node.layout?.gap ?? 0)};`, ' li:not(:last-child)');
-      else warn(sepNode, `separator stroke ${paint.type} is not supported`);
-    }
+    writeListItems(s, items, det);
+    writeListGap(s, node);
+    writeIconGap(s, items);
+    writeSeparator(s, node, det, warn);
     return { merged: [] };
   },
 };

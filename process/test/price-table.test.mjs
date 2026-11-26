@@ -6,9 +6,9 @@ import { buildTemplate } from '../modules/write-bricks/render/index.mjs';
 import { parseWidgetData, PRICE_ID, carryPriceTables } from '../modules/write-bricks/components/price-data.mjs';
 import { choiceOf } from '../modules/missing-content/choices.mjs';
 import { applyAnswers } from '../modules/missing-content/index.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
-import { screenParts } from '../modules/single-template/parts.mjs';
-import { REGISTER_BUTTON_FIELDS, missingBoundTables, priceFrames, registerAttrKey, stepPriceCard } from '../modules/write-bricks/components/price-table.mjs';
+import { decide } from '../modules/missing-content/decide/index.mjs';
+import { screenParts } from '../modules/build-steps/template/parts.mjs';
+import { REGISTER_BUTTON_FIELDS, discountPercent, missingBoundTables, priceFrames, registerAttrKey, stepPriceCard } from '../modules/write-bricks/components/price-table.mjs';
 
 const box = (x, y, w, h) => ({ x, y, width: w, height: h });
 const text = (id, value) => ({
@@ -35,7 +35,7 @@ function widgetOf({ id, unit, button, cycles, rows, packages }) {
     '',
     ...packages.map((item) => {
       const price = item.prices[index];
-      return ['', price.sale, price.total, price.tag ?? '', price.promo, price.code, ''].join(' | ');
+      return [price.regular ?? '', price.sale, price.total, price.tag ?? '', price.promo, price.code, price.special ?? ''].join(' | ');
     }),
   ]);
   const infoHead = ['Specs | *', 'Product | Extra | Icon', ...packages.map(() => '')];
@@ -272,7 +272,7 @@ test('another table with different words uses the same tags', () => {
   ]);
   const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 400, 200], [
     frame('bar', 'cycles', [0, 0, 200, 32], [pill('m1', 'Month'), pill('m2', 'Season')], { layoutMode: 'HORIZONTAL' }),
-    frame('deck', 'cards', [0, 40, 360, 140], [card('a', 'Starter', '3', 'Fast', 'AA'), card('b', 'Growth', '6', 'Faster', 'BB')], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 40, 360, 140], [card('a', 'Starter', '1.200$', 'Fast', 'AA'), card('b', 'Growth', '6', 'Faster', 'BB')], { layoutMode: 'HORIZONTAL' }),
   ]) } } }, 'r', { images: {}, svgs: {} });
   const built = buildTemplate(tree, {
     detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'studio-plan', table: parsed.table } }] },
@@ -326,6 +326,22 @@ test('one package row is the price table, and it needs a loaded id', () => {
   assert.deepEqual(missingBoundTables(tree, { components: [] }).map((gap) => gap.node), ['deck']);
   const loaded = { components: [{ component: PartKind.PRICE_TABLE, status: 'approved', node: 'deck', params: { id: 'lane-pier', table: { packages: [{ name: 'Lane' }] } } }] };
   assert.deepEqual(missingBoundTables(tree, loaded), []);
+});
+
+test('amounts drawn inside a carousel stay the slide', () => {
+  const spec = (id, label) => frame(id, 'spec', [0, 0, 140, 24], [text(`${id}t`, label)]);
+  const card = (id, name, amount) => frame(id, 'card', [0, 0, 160, 140], [
+    text(`${id}n`, name),
+    text(`${id}p`, amount),
+    text(`${id}u`, '/yr'),
+    spec(`${id}s`, 'Seats'),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Stage', [0, 0, 400, 180], [
+    frame('deck', 'mock', [0, 0, 400, 160], [card('a', 'North', '4.000 đ'), card('b', 'South', '9.000 đ')], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const slide = { components: [{ component: PartKind.CAROUSEL, status: 'approved', node: 'r', params: {} }] };
+  assert.equal(missingBoundTables(tree, slide).some((gap) => gap.kind === PartKind.PRICE_TABLE), false);
+  assert.equal(missingBoundTables(tree, { components: [] }).some((gap) => gap.node === 'deck'), true);
 });
 
 test('a card title that is not the stored package name is still the name slot', () => {
@@ -844,4 +860,158 @@ test('a filled category is on the register button and the other attributes stay 
   assert.equal(button.settings._cssClasses, 'vnx-button vnx-btn-conversion vnx-button-register');
   assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-category').value, 'Cloud desk');
   assert.equal(button.settings._attributes.find((attr) => attr.name === 'data-product-name').value, '{vnx_sp_name}');
+});
+
+test('cards in one row share a height, and a percent chip uses the tag or the two prices', () => {
+  assert.equal(discountPercent('2.000', '1.800'), 10);
+  assert.equal(discountPercent('4 000', '4 000'), 0);
+  assert.equal(discountPercent('', '1.800'), 0);
+  const parsed = parseWidgetData(widgetOf({
+    id: 'lane-fare',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Week', badge: '' }, { label: 'Month', badge: '' }],
+    rows: ['Seat'],
+    packages: [
+      { name: 'Cabin', prices: [{ regular: '2000', sale: '1800', total: '1800', tag: '', promo: '', code: '' }, { regular: '2000', sale: '1600', total: '6400', tag: '-20%', promo: '', code: '' }], info: ['one seat'], links: ['https://example.com/a', 'https://example.com/b'] },
+      { name: 'Loft', prices: [{ regular: '4000', sale: '3600', total: '3600', tag: '', promo: '', code: '' }, { regular: '4000', sale: '3200', total: '12800', tag: '-20%', promo: '', code: '' }], info: ['two seats'], links: ['https://example.com/c', 'https://example.com/d'] },
+    ],
+  }));
+  const struck = (id, value) => ({ ...text(id, value), style: { fontFamily: 'Roboto', fontSize: 14, fontWeight: 500, lineHeightPx: 20, textDecoration: 'STRIKETHROUGH' } });
+  const card = frame('cabin', 'card', [0, 0, 180, 220], [
+    text('name', 'Cabin'),
+    frame('price', 'price', [0, 24, 160, 24], [
+      struck('old', '2.000'),
+      frame('chip', 'chip', [80, 0, 40, 22], [text('off', '-4%')]),
+    ], { layoutMode: 'HORIZONTAL' }),
+    text('sale', '1.800'),
+    text('unit', '/wk'),
+    frame('line', 'line', [0, 80, 160, 20], [text('info', 'one seat')]),
+    frame('buy', 'buy', [0, 160, 80, 28], [text('buyt', 'Book')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 420, 280], [
+    frame('bar', 'cycles', [0, 0, 180, 32], [
+      frame('w1', 'pill', [0, 0, 80, 32], [text('w1t', 'Week')]),
+      frame('w2', 'pill', [90, 0, 80, 32], [text('w2t', 'Month')]),
+    ], { layoutMode: 'HORIZONTAL' }),
+    frame('deck', 'cards', [0, 48, 400, 220], [
+      card,
+      frame('loft', 'card', [190, 0, 180, 140], [text('loftn', 'Loft'), text('loftp', '3.600')]),
+      frame('ask', 'card', [0, 0, 160, 100], [text('askt', 'Write us')]),
+    ], { layoutMode: 'HORIZONTAL', counterAxisAlignItems: 'MIN' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'lane-fare', table: parsed.table } }] },
+    salt: 'lane',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('deck').settings._alignItems, 'stretch');
+  assert.equal(el('cabin').settings._alignSelf, 'stretch');
+  assert.equal(el('ask').settings._alignSelf, 'stretch');
+  assert.equal(el('off').settings.text, '{vnx_sp_tag}');
+  assert.equal(el('off').settings._attributes.find((attr) => attr.name === 'data-vnx-sp-off').value, '-');
+  assert.equal(el('chip').settings._attributes.find((attr) => attr.name === 'data-vnx-sp-off-chip').value, '1');
+  assert.equal(el('old').settings.text, '{vnx_sp_regular}');
+  assert.equal(el('sale').settings.text, '{vnx_sp_sale}');
+  assert.equal(el('old').settings._attributes[0].name, 'data-vnx-sp-regular');
+  assert.equal(el('sale').settings._attributes[0].name, 'data-vnx-sp-sale');
+  assert.equal(el('off').settings.text.includes('-4%'), false);
+  assert.equal(el('chip').settings._conditions[0][0].dynamic_data, '{vnx_sp_tag}');
+  assert.equal(el('chip').settings._conditions[0][0].compare, 'empty_not');
+  const pane = built.template.content.find((item) => item.label === 'Cycle');
+  assert.equal(pane.settings._overflow, 'visible');
+  assert.equal(pane.settings._flexWrap, 'nowrap');
+  assert.equal(el('cabin').settings._flexGrow, 1);
+  assert.equal(el('cabin').settings.query.objectType, 'vnxsp_pkg__lane-fare');
+  assert.equal(el('name').settings.text, '{vnx_sp_name}');
+  assert.equal(el('sale').settings.text, '{vnx_sp_sale}');
+  assert.equal(el('ask').settings.query, undefined);
+  assert.equal(el('askt').settings.text, 'Write us');
+  assert.equal(el('ask').settings._flexGrow, 1);
+});
+
+test('a header on one card is the popular label and stays hidden without that cell', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'pier-fare',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Week', badge: '' }],
+    rows: ['Seat'],
+    packages: [
+      { name: 'Cabin', prices: [{ regular: '2000', sale: '1800', total: '1800', tag: '', promo: '', code: '', special: '' }], info: ['one seat'], links: ['https://example.com/a'] },
+      { name: 'Loft', prices: [{ regular: '4000', sale: '3600', total: '3600', tag: '9', promo: '', code: '', special: 'Spotlight' }], info: ['two seats'], links: ['https://example.com/b'] },
+    ],
+  }));
+  const plain = frame('plain', 'card', [0, 0, 180, 140], [
+    text('name', 'Cabin'),
+    text('sale', '1.800'),
+    text('unit', '/wk'),
+    frame('line', 'line', [0, 80, 160, 20], [text('info', 'one seat')]),
+  ]);
+  const featured = frame('featured', 'card', [200, 0, 180, 180], [
+    frame('band', 'band', [0, 0, 180, 28], [text('bandt', 'Spotlight')]),
+    frame('rest', 'rest', [0, 28, 180, 140], [text('fname', 'Loft'), text('fsale', '3.600'), text('funit', '/wk')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 420, 240], [
+    frame('bar', 'cycles', [0, 0, 90, 32], [frame('w1', 'pill', [0, 0, 80, 32], [text('w1t', 'Week')])]),
+    frame('deck', 'cards', [0, 48, 400, 180], [plain, featured], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'pier-fare', table: parsed.table } }] },
+    salt: 'pier',
+  });
+  const plainCard = built.template.content.find((item) => item.id === built.mapping.plain?.bricksId);
+  const label = built.template.content.find((item) => item.label === 'Popular label');
+  assert.equal(built.mapping.featured.skipped.startsWith('merged into'), true);
+  assert.equal(plainCard.settings.query.objectType, 'vnxsp_pkg__pier-fare');
+  assert.equal(label.settings.text, '{vnx_sp_label}');
+  assert.equal(built.template.content.some((item) => item.settings?.text === 'Spotlight'), false);
+});
+
+test('a card whose name is not in the table stays a mockup beside the dynamic cards', () => {
+  const parsed = parseWidgetData(widgetOf({
+    id: 'harbor-fare',
+    unit: '/wk',
+    button: 'Book',
+    cycles: [{ label: 'Week', badge: '' }],
+    rows: ['Berth'],
+    packages: [
+      { name: 'Cabin', prices: [{ regular: '2000', sale: '1800', total: '1800', tag: '', promo: '', code: '' }], info: ['one berth'], links: ['https://example.com/a'] },
+      { name: 'Loft', prices: [{ regular: '4000', sale: '3600', total: '3600', tag: '', promo: '', code: '' }], info: ['two berths'], links: ['https://example.com/b'] },
+    ],
+  }));
+  const dataCard = (id, name, price) => frame(id, 'card', [0, 0, 160, 120], [
+    text(`${id}n`, name),
+    text(`${id}p`, price),
+    text(`${id}u`, '/wk'),
+    frame(`${id}b`, 'buy', [0, 80, 80, 28], [text(`${id}bt`, 'Book')]),
+  ]);
+  const tree = normalizeRoot({ nodes: { r: { document: frame('r', 'Plans', [0, 0, 560, 200], [
+    frame('bar', 'cycles', [0, 0, 80, 32], [frame('w1', 'pill', [0, 0, 80, 32], [text('w1t', 'Week')])]),
+    frame('deck', 'cards', [0, 48, 520, 120], [
+      dataCard('cabin', 'Cabin', '1.800'),
+      dataCard('loft', 'Loft', '3.600'),
+      frame('ask', 'card', [360, 0, 160, 120], [
+        text('askn', 'Ask'),
+        text('askp', '9.999'),
+        text('asku', '/wk'),
+        frame('askb', 'buy', [0, 80, 80, 28], [text('askt', 'Write us')]),
+      ]),
+    ], { layoutMode: 'HORIZONTAL' }),
+  ]) } } }, 'r', { images: {}, svgs: {} });
+  const built = buildTemplate(tree, {
+    detections: { components: [{ id: 'price', status: 'approved', source: 'plan', component: PartKind.PRICE_TABLE, node: 'r', params: { id: 'harbor-fare', table: parsed.table } }] },
+    salt: 'harbor',
+  });
+  const el = (id) => built.template.content.find((item) => item.id === built.mapping[id]?.bricksId);
+  assert.equal(el('cabin').settings.query.objectType, 'vnxsp_pkg__harbor-fare');
+  assert.equal(el('cabinn').settings.text, '{vnx_sp_name}');
+  assert.equal(el('cabinp').settings.text, '{vnx_sp_sale}');
+  assert.equal(built.mapping.loft.skipped.startsWith('merged into'), true);
+  assert.equal(built.mapping.ask.skipped, undefined);
+  assert.equal(el('ask').settings.query, undefined);
+  assert.equal(el('askn').settings.text, 'Ask');
+  assert.equal(el('askp').settings.text, '9.999');
+  assert.equal(el('askt').settings.text, 'Write us');
+  assert.equal(el('ask').settings._flexGrow, 1);
 });

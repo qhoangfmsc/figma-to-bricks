@@ -32,9 +32,19 @@ function clipWindows(node, root) {
   return windows;
 }
 
+export function underCarousel(id, root, carouselIds) {
+  let current = parentOf(root, id);
+  while (current) {
+    if (carouselIds.has(current.id)) return true;
+    current = parentOf(root, current.id);
+  }
+  return false;
+}
+
 export function peekOf(row, root) {
   if (!row || row.layout?.mode !== 'HORIZONTAL' || !row.box) return null;
-  const items = shown(row).filter((item) => item.box && item.box.w > 1 && item.box.h > 1);
+  // An absolute glow stuck on a clipped heading is decoration, not the next card of a scroll row.
+  const items = shown(row).filter((item) => item.box && item.box.w > 1 && item.box.h > 1 && item.place !== 'ABSOLUTE');
   if (items.length < 2) return null;
   for (const clip of clipWindows(row, root)) {
     const left = clip.box.absX;
@@ -67,9 +77,10 @@ export function markPeekScroll(root, detections) {
       if (list) owned.add(list);
     }
   }
+  const carouselIds = new Set((detections?.components ?? []).filter((item) => item.status === 'approved' && isKind(item, PartKind.CAROUSEL)).map((item) => item.node));
   const walk = (node) => {
     const hit = peekOf(node, root);
-    if (hit && !owned.has(hit.row.id)) {
+    if (hit && !owned.has(hit.row.id) && !underCarousel(hit.row.id, root, carouselIds)) {
       hit.row.__peekScroll = true;
       hit.item.__lockWidth = hit.width;
     }

@@ -1,11 +1,11 @@
 // Confirm step of /generate-template-from-figma: one block per component, one labelled field per thing the owner can change.
 // A component the rules already asked about keeps those questions. One the rules skipped still gets a field,
 // so a missed question is not a blank screen.
-import { findNode, firstText } from '../write-bricks/components/helpers.mjs';
-import { GROUPS, itemHeading, keyOf, figmaLink } from '../missing-content/index.mjs';
-import { MISSING } from '../missing-content/choices.mjs';
-import { unclaimedRepeats } from '../recognize-parts/structure.mjs';
-import { PartKind, isKind, isSignal, isPaginationHint, SIGNAL_RULES } from '../recognize-parts/kinds.mjs';
+import { findNode, firstText } from '../../write-bricks/components/helpers.mjs';
+import { GROUPS, itemHeading, keyOf, figmaLink } from '../../missing-content/index.mjs';
+import { MISSING } from '../../missing-content/choices.mjs';
+import { unclaimedRepeats } from '../../recognize-parts/structure.mjs';
+import { PartKind, isKind, isSignal, isPaginationHint, SIGNAL_RULES } from '../../recognize-parts/kinds.mjs';
 
 const HINT = {
   link: 'Viết địa chỉ, ví dụ vietnix.vn/bang-gia. Chưa có thì ghi chưa có.',
@@ -104,7 +104,7 @@ function childFacts(tree, component) {
     const count = child.id === 'tabs_bar' && Number.isInteger(component.params?.tabsActive)
       ? ` — ${component.params.tabsActive} đang chọn, ${component.params.tabsIdle ?? 0} nghỉ`
       : '';
-    return `${label}: \`${id}\`${name ? ` ${name}` : ''}${count} — nghi ngờ`;
+    return `${label}: \`${id}\`${name ? ` ${name}` : ''}${count}`;
   });
 }
 
@@ -132,8 +132,8 @@ function fieldOf(q, fileKey) {
   };
 }
 
-// approved components, deepest owner wins a question, plus a fallback field when the rules asked nothing.
-// A component with nothing to type is still listed: step 2 is where the owner sees what was recognized.
+// Fields for components the picture already named. The tree supplies the size and the paint.
+// A code detection is not a component in the plan.
 export function screenParts(tree, components, questions, fileKey) {
   const approved = (components ?? []).filter((c) => c.status === 'approved' && !isSignal(c.component) && !isPaginationHint(c));
   const readmoreButtons = new Set(approved.filter((c) => isKind(c, PartKind.READMORE)).map((c) => c.params?.button).filter(Boolean));

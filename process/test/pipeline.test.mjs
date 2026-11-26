@@ -182,7 +182,7 @@ import { mergeDetections, runRules, validate, emptyDetections } from '../modules
 import { COMPONENTS } from '../modules/write-bricks/components/index.mjs';
 import { matchTrees } from '../modules/breakpoints/match.mjs';
 import { mergeResponsive } from '../modules/breakpoints/merge.mjs';
-import { decide } from '../modules/approve-parts/index.mjs';
+import { decide } from '../modules/missing-content/decide/index.mjs';
 import { detectForms } from '../modules/recognize-parts/rules/form.mjs';
 import { detectButtons } from '../modules/recognize-parts/rules/button.mjs';
 import { tierOf, verdictOf } from '../modules/common/severity.mjs';
@@ -350,7 +350,7 @@ test('flat-image approved: one image element, subtree merged, alt = unique texts
 
 // ---- source grounding + review gate
 import { checkCites } from '../modules/recognize-parts/cite.mjs';
-import { buildFacts } from '../modules/tree-inventory/index.mjs';
+import { buildFacts } from '../modules/recognize-parts/facts.mjs';
 import { gate, signOff, requireSignOff } from '../modules/sign-off/index.mjs';
 import { resolveWorkspace } from '../modules/common/workspace.mjs';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -479,7 +479,9 @@ test('tabs: bar + one open pane -> tab-menu / tab-title divs / tab-content / pan
   assert.equal(byFigma(b, 'content').settings._hidden._cssClasses, 'tab-content');
   assert.equal(byFigma(b, 'tt2').name, 'div');
   assert.equal(byFigma(b, 'tt2').settings._hidden._cssClasses, 'tab-title');
-  assert.equal(b.template.content.filter((e) => e.settings._hidden?._cssClasses === 'tab-pane').length, 3);
+  const panes = b.template.content.filter((e) => String(e.settings._hidden?._cssClasses ?? '').split(/\s+/).includes('tab-pane'));
+  assert.equal(panes.length, 3);
+  assert.equal(panes.filter((e) => e.settings._hidden._cssClasses.split(/\s+/).includes('brx-open')).length, 1);
   assert.match(b.warnings.map((w) => w.msg).join(), /2 empty pane/);
 });
 
@@ -768,6 +770,9 @@ test('countdown: units become fields (format + label), the colon is a ::after at
   const bad = buildWith(mini({ children: [values] }), det({ ...params, fields: [{ node: 'u1', format: 'days' }, params.fields[1]] }));
   assert.equal(byFigma(bad, 'vals').name, 'block'); // approved but not applicable: stays a block, warned
   assert.match(bad.warnings.map((w) => w.msg).join(), /format must be one of/);
+  const clock = kid('clock', { layoutMode: 'HORIZONTAL', itemSpacing: 8, absoluteBoundingBox: { x: 0, y: 0, width: 146, height: 58 }, children: [unit('m', 0, '04', 'Mins'), txt('colon', ':', { x: 70, y: 18, w: 6, size: 18, lh: 22 }), unit('s', 84, '12', 'Secs')] });
+  const measured = buildWith(mini({ children: [clock] }), { components: [{ id: 'd1', status: 'approved', component: PartKind.COUNTDOWN, node: 'clock', params: { date: '2026-12-01 08:00', timezone: 'UTC+00:00' } }] });
+  assert.deepEqual(byFigma(measured, 'clock').settings.fields.map(({ format, suffix }) => ({ format, suffix })), [{ format: '%M', suffix: 'Mins' }, { format: '%S', suffix: 'Secs' }]);
 });
 
 test('overflow like Figma: cross-axis and main-axis center spill on both sides, an absolute child wider than its parent is not clamped to 100%', () => {

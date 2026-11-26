@@ -54,7 +54,7 @@ Order when reading the picture: `repeats[]` (same child shape), then `look.png`,
 
 Point to `plan.md` only after `look` says `ready: true`. Then stop.
 
-During this run, do not edit `process/` or the theme. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task. Build creates the template on `WP_URL` without an upload confirmation. Never write Bricks theme styles. CSS loading stays External files.
+During this run, do not edit `process/` or the theme, not even when a build fails or a frame looks wrong. The code stays fixed so that a hundred files run the same way. The chat decides with data only: `look-ai.json`, `choices.json`, `overrides.json`, and `aliases` in `responsive.json`. Every component the picture names on the desktop frame is built on every breakpoint frame, with the same params. The code pairs the nodes of two frames by what they draw (images, texts), never by layer name, because the layer names are not reliable. A pair the code cannot find is a decision for the chat: write the `aliases` entry (variant node id -> desktop node id) in `responsive.json`, then build again. When a miss comes from the code (a rule that does not exist, a setting Bricks 1.12.3 does not have, a pair no alias can fix), do not patch it. Write it as one line under `## Lỗi do code (không sửa trong lúc generate)` at the end of `plan.md` (build writes the ones it finds itself between `<!-- code-notes -->` markers), add it to `history/notes/gaps.md`, and finish the template with what the code can do. Say the miss in the final report. A group the rules are unsure about stays a question in `plan.md`. A rule change is a later task the owner asks for, with a test whose copy is not the failing file's. Build creates the template on `WP_URL` without an upload confirmation. Never write Bricks theme styles. CSS loading stays External files.
 
 The file, in this order:
 
@@ -67,6 +67,8 @@ The file, in this order:
 - `Sửa:` only when the owner already typed one. Blank means keep the values shown.
 
 A new `read` keeps typed values and resets `Xác nhận` to `không`.
+
+Every part under **Cần User quyết định** has a line `Quyết định` (`part:<id>`) that starts as `Đồng ý`. The owner who only sets `Xác nhận: có` agrees with everything in the plan. A sentence that says no ("không", "bỏ", "đừng dựng") is drop. Any other note on that line is applied by its meaning, or asked back when it cannot be mapped. The code keeps the words as typed; the chat maps them to the enum.
 
 Blank stays the safe default. Never invent content. The owner writes any words. Before build, read `plan.md` and write `choices.json`. Map each sentence to one enum in `process/modules/missing-content/choices.mjs` by what it means. `part` and `guess` are keep or drop: "xóa", "bỏ", "đừng dựng" are drop. A blank line is the default, not a sentence. A blank price id or compare id is not that default: ask for the id and do not build. The drawn words are not the table. Do not add those words to the code. A sentence you cannot map is a question in the same turn. Do not edit `process/` because the words differ. A Figma link in a field is read again and reduced to the part the question asked for. A tab bar still in that read, or two item groups of the same size, stops the run. A miss during the run goes to `history/notes/gaps.md`.
 
