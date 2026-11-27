@@ -235,7 +235,9 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
       const aSig = withSignatures(orig.get(bEl.id), base.sig), bSig = withSignatures(vEl.settings, v.sig);
       // Same crop, another file: one image element, `sources` carries the frame's file. A wide frame has no Bricks breakpoint for that.
       const samePictureBox = !wide && bEl.name === 'image' && vEl.name === 'image' && !cropDiffers(orig.get(bEl.id), vEl.settings);
-      const split = SPLIT_ON.filter((k) => !(k === 'image' && samePictureBox) && !same(aSig[k], bSig[k]));
+      // Owner's decision (2026-11-27): the words of the desktop frame are the data of every breakpoint. A phone frame that draws other words is only a
+      // layout: it keeps the desktop text and takes the phone's look. Pictures, icons, fields and items still split.
+      const split = SPLIT_ON.filter((k) => k !== 'text' && !(k === 'image' && samePictureBox) && !same(aSig[k], bSig[k]));
       if (split.length) { warn(vNode.get(vFid), `${v.key}: ${split.join(', ')} differs from the base frame (a setting cannot swap it per breakpoint): two elements, one shown per frame`); continue; }
       pairedEl.set(vEl.id, bEl);
       exists.get(bEl.id).add(v.key);
@@ -293,6 +295,35 @@ export function mergeResponsive({ base, variants }) { // base.sig / variants[].s
       if (wantParent && haveParent && wantParent !== haveParent && pairedBase.has(haveParent)) warn(nodeForWarn, `${v.key}: the parent changed to another paired container (moved): the layout may differ`);
       // what the next (narrower) frame is compared with
       if (!wide) effective.set(bEl.id, { settings: { ...ref.settings, ...withSignatures(next, v.sig) }, css: nextCss });
+    }
+    // Owner's decision (2026-11-27): the desktop frame holds the data of every breakpoint. A repeated group (FAQ items, cards) that the phone frame draws
+    // with fewer members keeps the rest. Each one takes the phone look of the last paired member of its group, when the two have the same shape.
+    if (!wide) {
+      const under = (id) => composite.filter((x) => x.parent === id);
+      const shape = (el) => `${el.name}(${under(el.id).map(shape).join(',')})`;
+      const walkPair = (donor, el, fn) => { fn(donor, el); const d = under(donor.id), e = under(el.id); d.forEach((x, i) => walkPair(x, e[i], fn)); };
+      const groups = new Map();
+      for (const bEl of pairedEl.values()) {
+        const key = `${bEl.parent}|${bEl.name}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(bEl);
+      }
+      for (const [key, members] of groups) {
+        if (members.length < 2) continue;
+        const donor = members[members.length - 1];
+        const parent = key.slice(0, key.lastIndexOf('|'));
+        for (const el of composite.filter((x) => String(x.parent) === parent && x.name === donor.name && !pairedEl.has(x.id) && !exists.get(x.id)?.has(v.key) && !members.includes(x))) {
+          if (shape(el) !== shape(donor)) continue;
+          walkPair(donor, el, (from, to) => {
+            exists.get(to.id)?.add(v.key);
+            for (const [k, value] of Object.entries(from.settings)) if (k.endsWith(`:${v.key}`)) to.settings[k] = structuredCloneSafe(value);
+            for (const rule of media.get(from.id) ?? []) {
+              if (rule.range?.key === v.key) addMedia(to.id, rule.range, rule.selector.replaceAll(`#brxe-${from.id}`, `#brxe-${to.id}`), rule.body);
+            }
+          });
+          warn(v.tree, `${v.key}: "${el.label ?? el.name}" is not drawn in this frame; it stays, with the look of the last drawn one of its group`);
+        }
+      }
     }
     mappings[v.key] = vMap;
 

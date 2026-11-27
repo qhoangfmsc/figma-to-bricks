@@ -7,6 +7,8 @@ import { download, getRenders } from '../../read-figma/api.mjs';
 import { SIGNAL_RULES, isSignal, lookKinds } from '../../recognize-parts/kinds.mjs';
 import { screenParts } from './parts.mjs';
 import { confirmNode } from '../../recognize-parts/confirm-node.mjs';
+import { findNode } from '../../recognize-parts/cite.mjs';
+import { walk } from '../../read-figma/nodes.mjs';
 import { matchTrees } from '../../breakpoints/match.mjs';
 import { resolveWorkspace } from '../../common/workspace.mjs';
 
@@ -265,9 +267,17 @@ function placeComponent(components, row, ws) {
 function widenOnce(ws, entry) {
   const tree = typeof ws?.readJson === 'function' ? ws.readJson('tree.json', null) : null;
   if (!tree) return;
-  const result = confirmNode(tree, entry.component, entry.node);
+  const result = confirmNode(tree, entry.component, entry.node, entry.params);
   entry.params = { ...(entry.params ?? {}), confirm: result.confirm };
   if (result.confirm === 'again' && result.node) entry.node = result.node;
+  // The chosen pill is named by its words too, because the other frames of the table draw it under other node ids.
+  const picked = entry.params.selected && !entry.params.selectedLabel ? findNode(tree, entry.params.selected) : null;
+  if (picked) {
+    const words = [];
+    walk(picked, (item) => { if (item.type === 'TEXT' && item.text?.characters) words.push(String(item.text.characters).trim()); });
+    const label = words.find((word) => word && !/^[-+]?\d+\s*%$/.test(word));
+    if (label) entry.params.selectedLabel = label;
+  }
 }
 
 function storeReading(entry, reading) {

@@ -749,7 +749,10 @@ export function applyAnswers(ws, answers) {
       case 'items': {
         const c = of('carousel', node).find((x) => x.status === 'approved');
         if (!c) break;
-        if (picked.choice === 'figma' && picked.nodeId) (c.params ??= {}).items = { kind: 'figma', url: picked.url, fileKey: picked.fileKey, nodeId: picked.nodeId };
+        // Several frames, each one slide: the first is in this section, the others are fetched. One link keeps the default below.
+        if (picked.choice === 'figma' && picked.at && Array.isArray(picked.frames) && picked.frames.length >= 2 && picked.frames.every((f) => f?.nodeId && f?.url)) {
+          (c.params ??= {}).items = { kind: 'frames', at: picked.at, frames: picked.frames.map((f) => ({ url: f.url, fileKey: f.fileKey, nodeId: f.nodeId })) };
+        } else if (picked.choice === 'figma' && picked.nodeId) (c.params ??= {}).items = { kind: 'figma', url: picked.url, fileKey: picked.fileKey, nodeId: picked.nodeId };
         ok = true;
         break;
       }

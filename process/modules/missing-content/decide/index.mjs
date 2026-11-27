@@ -19,7 +19,6 @@
 //   icons (svg)            decorative: aria-hidden
 //   images                 alt "" (decorative) and listed for the designer; eager in the first section, lazy below the fold
 import { readFileSync } from 'node:fs';
-import { detectTemplateType } from '../../recognize-parts/rules/template-type.mjs';
 import { PartKind, isKind, isAnyKind, isSignal, ListKind, isPaginationHint } from '../../recognize-parts/kinds.mjs';
 import { decideCandidate } from './kind-decisions.mjs';
 import { priceFrames, REGISTER_BUTTON_FIELDS, registerAttrKey } from '../../write-bricks/components/price-table.mjs';
@@ -251,10 +250,11 @@ export function decide(ws, { firstSection = false, variant = false, parentBg = n
     askRegister(item.node, BUY_BUTTON_FIELDS, buyAttrKey);
   }
 
-  const typed = detectTemplateType(tree);
-  const suggested = typed.confidence === 'low' ? 'section' : typed.type;
-  ask('type', tree.id, typed.reason, suggested);
-  log('template-type', tree, suggested, typed.reason, typed.confidence);
+  // Owner's decision (2026-11-27): every plan is a section. Header, footer and popup are made by the owner, who writes the type in the plan.
+  const suggested = 'section';
+  const reason = 'Mặc định là section. Header, footer, popup do chủ dự án tự chọn.';
+  ask('type', tree.id, reason, suggested);
+  log('template-type', tree, suggested, reason, 'high');
 
   ws.writeJson('detections.json', det);
   ws.writeJson('overrides.json', ov);

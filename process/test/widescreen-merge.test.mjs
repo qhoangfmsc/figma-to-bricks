@@ -179,3 +179,49 @@ test('a changed image file is a source at that breakpoint, and the phone is list
     { breakpoint: 'tablet_portrait', image: { $asset: 'images/tab.png', size: 'full' } },
   ]);
 });
+
+test('a phone frame that draws other words keeps the desktop words and takes only its look', () => {
+  const frame = (id, rootId, words, size) => ({
+    tree: { id: rootId, name: 'Notes', children: [{ id: `${rootId}t`, name: 'Line', children: [] }] },
+    template: {
+      content: [
+        { id, parent: 0, name: 'section', settings: {} },
+        { id: `${id}t`, parent: id, name: 'text-basic', settings: { text: words, _typography: { 'font-size': size } } },
+      ],
+    },
+    mapping: {
+      [rootId]: { bricksId: id, element: 'section', verify: true, expect: {} },
+      [`${rootId}t`]: { bricksId: `${id}t`, element: 'text-basic', verify: true, expect: {} },
+    },
+  });
+  const merged = mergeResponsive({
+    base: frame('BASE', 'root', 'Desktop words', '20px'),
+    variants: [{ key: 'mobile_portrait', maxWidth: 478, ...frame('MOB', 'mroot', 'Words of another page', '14px'), aliases: {} }],
+  });
+  const texts = merged.template.content.filter((item) => item.name === 'text-basic');
+  assert.equal(texts.length, 1);
+  assert.equal(texts[0].settings.text, 'Desktop words');
+  assert.equal(texts[0].settings['_typography:mobile_portrait']['font-size'], '14px');
+});
+
+test('members of a repeated group that the phone frame did not draw stay, with the look of the last drawn one', () => {
+  const frame = (prefix, rootId, count, pad) => {
+    const content = [{ id: `${prefix}`, parent: 0, name: 'section', settings: {} }, { id: `${prefix}l`, parent: prefix, name: 'block', settings: {} }];
+    const tree = { id: rootId, name: 'List', children: [{ id: `${rootId}l`, name: 'Rows', children: [] }] };
+    const mapping = { [rootId]: { bricksId: prefix, element: 'section', verify: true, expect: {} }, [`${rootId}l`]: { bricksId: `${prefix}l`, element: 'block', verify: true, expect: {} } };
+    for (let i = 0; i < count; i += 1) {
+      content.push({ id: `${prefix}r${i}`, parent: `${prefix}l`, name: 'block', settings: { _padding: { top: pad, right: pad, bottom: pad, left: pad } } });
+      tree.children[0].children.push({ id: `${rootId}r${i}`, name: `Row ${i}`, children: [] });
+      mapping[`${rootId}r${i}`] = { bricksId: `${prefix}r${i}`, element: 'block', verify: true, expect: {} };
+    }
+    return { tree, template: { content }, mapping };
+  };
+  const merged = mergeResponsive({
+    base: frame('B', 'root', 4, '20px'),
+    variants: [{ key: 'mobile_portrait', maxWidth: 478, ...frame('M', 'mroot', 2, '12px'), aliases: {} }],
+  });
+  const rows = merged.template.content.filter((item) => item.parent === 'Bl');
+  assert.equal(rows.length, 4);
+  for (const row of rows) assert.equal(row.settings['_padding:mobile_portrait'].top, '12px');
+  assert.ok(!/display: none/.test(JSON.stringify(rows.map((row) => row.settings._cssCustom ?? '')) + JSON.stringify(rows.map((row) => row.settings['_display:mobile_portrait'] ?? ''))));
+});

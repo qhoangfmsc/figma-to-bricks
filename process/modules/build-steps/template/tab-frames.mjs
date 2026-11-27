@@ -198,6 +198,12 @@ export function graftTabPane(tree, hostId, titleIndex, sourceTree, options) {
   return grafted.id;
 }
 
+export function withoutStale(components, tree, keepers = []) {
+  const present = new Set();
+  (function collect(n) { if (!n) return; present.add(n.id); (n.children ?? []).forEach(collect); })(tree);
+  return components.filter((other) => keepers.includes(other) || (present.has(other.node) && (other.cite ?? []).every((q) => !q?.node || present.has(q.node))));
+}
+
 export async function attachTabFrames(ws, { log = () => {} } = {}) {
   const det = ws.readJson('detections.json', { components: [] });
   const jobs = det.components.filter((c) => (isKind(c, PartKind.TABS) || isKind(c, PartKind.TAB_SWITCH)) && c.status === 'approved' && c.params?.content?.sources);
@@ -225,6 +231,14 @@ export async function attachTabFrames(ws, { log = () => {} } = {}) {
       grafted++;
     }
   }
-  if (grafted) ws.writeJson('tree.json', tree);
+  if (grafted) {
+    ws.writeJson('tree.json', tree);
+    // The panes replace the frame that was drawn in the section, so a detection on a node that is gone, or that cites one, is stale.
+    const keep = withoutStale(det.components, tree, jobs);
+    if (keep.length !== det.components.length) {
+      det.components = keep;
+      ws.writeJson('detections.json', det);
+    }
+  }
   return { grafted };
 }

@@ -335,3 +335,35 @@ test('two fields and no button are still a form, and the plan asks the button te
   applyAnswers(ws, { [`${PlanGroup.SUBMIT}:frm`]: { choice: SubmitChoice.DROP } });
   assert.equal(files['detections.json'].components[0].status, 'rejected');
 });
+
+test('a checkbox row gets a checked look: the accent of its link, with a tick', () => {
+  const statement = {
+    id: 'say', name: 'Statement', type: 'TEXT', characters: 'I accept the Rules today',
+    absoluteBoundingBox: box(28, 0, 300, 20),
+    style: { fontFamily: 'Inter', fontSize: 14, fontWeight: 400, lineHeightPx: 20, textAlignHorizontal: 'LEFT' },
+    fills: [{ type: 'SOLID', color: { r: 0.2, g: 0.2, b: 0.2, a: 1 } }],
+    characterStyleOverrides: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+    styleOverrideTable: { 1: { textDecoration: 'UNDERLINE', fills: [{ type: 'SOLID', color: { r: 0.8, g: 0.1, b: 0.1, a: 1 } }] } },
+  };
+  const row = {
+    id: 'ok', name: 'Row', type: 'FRAME', absoluteBoundingBox: box(0, 0, 400, 24), layoutMode: 'HORIZONTAL', itemSpacing: 8,
+    children: [{ id: 'cb', name: 'Checkbox', type: 'FRAME', absoluteBoundingBox: box(0, 2, 20, 20), strokes: [{ type: 'SOLID', color: { r: 0.5, g: 0.5, b: 0.5, a: 1 } }], strokeWeight: 1, children: [] }, statement],
+  };
+  const b = built({
+    id: 'r', name: 'Section', type: 'FRAME', absoluteBoundingBox: box(0, 0, 480, 200), layoutMode: 'VERTICAL',
+    children: [{
+      id: 'frm', name: 'Join', type: 'FRAME', absoluteBoundingBox: box(0, 0, 400, 140), layoutMode: 'VERTICAL', itemSpacing: 12,
+      children: [
+        input('in1', { x: 0, y: 0, w: 400, h: 40 }, 'Email'),
+        row,
+        { id: 'btn', name: 'Submit', type: 'FRAME', absoluteBoundingBox: box(0, 90, 400, 44), layoutMode: 'HORIZONTAL', fills: [{ type: 'SOLID', color: { r: 0, g: 0.4, b: 1, a: 1 } }], children: [text('bt', 'Go', { x: 180, y: 100, w: 40, h: 20 })] },
+      ],
+    }],
+  }, {
+    fields: [{ node: 'in1', type: 'email', placeholder: 'Email' }, { node: 'ok', type: 'checkbox', label: 'I accept the Rules today', labelNode: 'say' }],
+    submit: 'btn',
+  });
+  const css = formOf(b)._cssCustom;
+  assert.match(css, /input\[type=checkbox\]:checked \{[^}]*background: #cc1a1a url\(/);
+  assert.match(css, /input\[type=checkbox\]:checked \{[^}]*border-color: #cc1a1a/);
+});

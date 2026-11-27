@@ -31,3 +31,19 @@ test('a mark strip under a card row belongs to that row', () => {
   assert.deepEqual(confirmNode(tree, 'carousel', 'row'), { confirm: 'ok', node: 'row' });
   assert.deepEqual(confirmNode(tree, 'carousel', 'marks'), { confirm: 'again', node: 'row' });
 });
+
+test('tabs keep the frame that holds the named tab bar and the named tab data', () => {
+  const tab = (id) => ({ id, type: 'FRAME', visible: true, children: [text(`${id}t`)] });
+  const bar = { id: 'strip', type: 'FRAME', visible: true, children: [tab('a'), tab('b'), tab('c')] };
+  const data = { id: 'body', type: 'FRAME', visible: true, children: [card('left'), card('right')] };
+  const frame = { id: 'frame', type: 'FRAME', visible: true, children: [bar, data] };
+  const tree = { id: 'root', type: 'FRAME', visible: true, children: [{ id: 'wrap', type: 'FRAME', visible: true, children: [frame] }] };
+  const params = { tabs_bar: 'strip', tabs_data: 'body' };
+  // The strip, the frame or the wrapper may be named. The frame with exactly those two branches is the node.
+  assert.deepEqual(confirmNode(tree, 'tabs', 'frame', params), { confirm: 'ok', node: 'frame' });
+  assert.deepEqual(confirmNode(tree, 'tab-switch', 'strip', params), { confirm: 'again', node: 'frame' });
+  assert.deepEqual(confirmNode(tree, 'tabs', 'wrap', params), { confirm: 'again', node: 'frame' });
+  // A third branch beside the bar and the data is not a tab frame: the old rule decides.
+  frame.children.push(card('extra'));
+  assert.notEqual(confirmNode(tree, 'tabs', 'frame', params).node, 'strip');
+});

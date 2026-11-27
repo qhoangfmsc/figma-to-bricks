@@ -215,3 +215,17 @@ test('every part the owner decides on has a decision line that starts as agreed 
   assert.match(edited, /- Quyết định `part:9:2`: không/);
   assert.match(edited, /- Quyết định `part:9:1`: Đồng ý/);
 });
+
+test('the chosen tab is stored with its words, so other frames find it under other ids', () => {
+  const text = (id, characters) => ({ id, type: 'TEXT', name: id, text: { characters }, children: [] });
+  const tab = (id, ...words) => ({ id, type: 'FRAME', name: id, children: words.map((word, index) => text(`${id}t${index}`, word)) });
+  const tree = { id: 'root', type: 'FRAME', name: 'root', children: [{ id: 'bar', type: 'FRAME', name: 'bar', children: [tab('p1', 'Monthly', '-5%'), tab('p2', 'Yearly', '-20%')] }] };
+  const ai = normalizeAi([{ node: 'bar', kind: 'price-table', see: 'pills above cards', selected: 'p2', children: {} }]);
+  const files = {
+    'tree.json': tree,
+    'detections.json': { components: [{ id: 'd', status: 'approved', component: PartKind.PRICE_TABLE, node: 'bar', params: { id: 'plans' }, cite: [{ node: 'bar', field: 'name' }] }] },
+  };
+  const ws = { has: () => true, readJson: (name, fallback) => files[name] ?? fallback, writeJson: (name, value) => { files[name] = value; } };
+  applyAiDecisions(ws, lookReport({ shot: 'look.png', signals: signalRows([{ node: 'bar', component: PartKind.PRICE_TABLE, status: 'approved', evidence: 'pills', cite: [{ node: 'bar', field: 'name' }] }]), ai }));
+  assert.equal(files['detections.json'].components[0].params.selectedLabel, 'Yearly');
+});

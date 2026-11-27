@@ -268,6 +268,12 @@ function writeCheckbox(target, root, field, warn) {
   const border = look.border;
   // Theme form inputs carry padding. The checkbox mark is only the Figma box.
   addCustomCss(target, `appearance: none; -webkit-appearance: none; cursor: pointer; flex: none; margin: 0; padding: 0 !important; width: ${px(box.box.w)}; height: ${px(box.box.h)}; box-sizing: border-box; background: ${look.background ? cssColor(look.background) : 'transparent'};${border ? ` border: ${border.width.top} ${border.style} ${cssColor(border.color)}; border-radius: ${border.radius?.top ?? '0px'};` : ''}`, ' .form-group input[type=checkbox]');
+  // Figma draws the checked box in a variant the file does not carry, so the checked look is derived: the box is filled with the accent of the
+  // statement (the color of its underlined link run, else the border color) and a white tick is drawn on it.
+  const link = (statement?.text?.runs ?? []).find((run) => /UNDERLINE/.test(run.style?.textDecoration ?? '') && run.style?.fills?.some((fill) => fill.type === 'SOLID'));
+  const accent = link?.style?.fills?.find((fill) => fill.type === 'SOLID')?.hex ?? (border?.color ? cssColor(border.color) : '#0759ce');
+  const tick = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 6.8' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
+  addCustomCss(target, `background: ${accent} ${tick} center / 100% 100% no-repeat; border-color: ${accent};`, ' .form-group input[type=checkbox]:checked');
   const gap = statement ? statement.box.x - (box.box.x + box.box.w) : 12;
   addCustomCss(target, 'list-style: none; margin: 0; padding: 0;', ' .options-wrapper');
   addCustomCss(target, `display: flex; align-items: center; gap: ${px(gap)}; margin: 0; padding: 0;`, ' .options-wrapper li');

@@ -82,6 +82,12 @@ Sign-off is `owner (chat)`. Then look at `verify.figma.png`, `verify.png`, and `
 
 Report: title, `Mở template trong Bricks` (`builderUrl`), one line per frame (`lệch N%` and the review notes), `Template đã nằm trong Bricks. Bạn tự gắn nó vào trang.`, designer list. No page assemble. The template is on the site in `WP_URL`. Do not offer a second upload to another site.
 
+## Bảng giá
+
+Một section có bảng giá (thẻ gói cộng hàng chu kỳ) làm theo [process/docs/PRICE-TABLE.md](../../process/docs/PRICE-TABLE.md), không tự nghĩ cách khác. Điều kiện tiên quyết: bố cục và kiểu giống Figma, dữ liệu luôn động (đổi bảng trên server thì giá, % giảm, tiết kiệm, danh sách, gói và chu kỳ nổi bật đổi theo; ô dữ liệu nào thiếu thì giao diện vẫn đúng Figma).
+
+Trước khi build: nhìn `look.png` và liệt kê từng thành phần (tên gói, mô tả, giá gốc, giá bán, chip % của gói, câu tổng, tiết kiệm, danh sách, hộp lưu ý, nút, gói nổi bật, pill chu kỳ, chip % của tab, nhãn nổi bật của tab) cùng nguồn của nó (dữ liệu, tính từ dữ liệu, hoặc Figma theo tên gói), rồi báo cho chủ trước khi build. Sau khi build: bấm từng tab chu kỳ ở từng khung và đối chiếu số với bảng dữ liệu, chụp cả trang để so Figma. Một biến thể không dựng được bằng dữ liệu hay case có sẵn là lỗi do code: ghi vào `plan.md` và `history/notes/gaps.md`, không vá tay.
+
 ## Pixels
 
 `fitSoloTemplate` then `fitFluid` in `process/modules/build-steps/05-build.mjs`. A pasted frame keeps its own numbers. Undesigned widths stay inside the window. A row becomes a column only at sm 640, md 768, lg 1024, xl 1280, or 2xl 1536. A pasted phone frame holds until 768. Do not patch `bricks.json`.

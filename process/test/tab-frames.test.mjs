@@ -217,3 +217,13 @@ test('a tab link is copied onto the breakpoint that has that tab, and skipped wh
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('after the panes replace the drawn frame, a detection on a node that is gone is dropped', async () => {
+  const { withoutStale } = await import('../modules/build-steps/template/tab-frames.mjs');
+  const tree = { id: 'root', children: [{ id: 'kept', children: [] }] };
+  const tabs = { id: 't', node: 'kept', cite: [] };
+  const gone = { id: 'g', node: 'old-chip', cite: [] };
+  const cites = { id: 'c', node: 'kept', cite: [{ node: 'old-mark', field: 'type' }] };
+  assert.deepEqual(withoutStale([tabs, gone, cites], tree, [tabs]).map((item) => item.id), ['t']);
+  assert.deepEqual(withoutStale([gone], tree, [gone]).map((item) => item.id), ['g']);
+});

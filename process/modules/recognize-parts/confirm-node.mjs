@@ -65,7 +65,36 @@ function parentOf(tree, id) {
   return found;
 }
 
-export function confirmNode(tree, kind, nodeId) {
+// The picture names the tab bar and the tab data. The frame that holds both is their nearest common parent, and it must have exactly two
+// branches, one for each. Nothing else about the frame (name, shape, count of titles) is read.
+function tabContainer(tree, barId, dataId) {
+  const pathTo = (id) => {
+    const trail = [];
+    const walk = (node) => {
+      trail.push(node);
+      if (node.id === id) return true;
+      for (const child of node.children ?? []) if (child && walk(child)) return true;
+      trail.pop();
+      return false;
+    };
+    return walk(tree) ? trail : null;
+  };
+  const bar = pathTo(barId);
+  const data = pathTo(dataId);
+  if (!bar || !data) return null;
+  let at = 0;
+  while (at < bar.length - 1 && at < data.length - 1 && bar[at + 1].id === data[at + 1].id) at += 1;
+  const holder = bar[at];
+  const branches = kids(holder);
+  const own = (path) => path[at + 1];
+  return branches.length === 2 && own(bar) && own(data) && own(bar) !== own(data) ? holder : null;
+}
+
+export function confirmNode(tree, kind, nodeId, params = {}) {
+  if ((kind === PartKind.TABS || kind === PartKind.TAB_SWITCH) && params.tabs_bar && params.tabs_data) {
+    const holder = tabContainer(tree, params.tabs_bar, params.tabs_data);
+    if (holder) return holder.id === nodeId ? { confirm: 'ok', node: nodeId } : { confirm: 'again', node: holder.id };
+  }
   const node = findNode(tree, nodeId);
   if (!node) return { confirm: 'ask', node: nodeId };
   if (!ROW.has(kind)) return { confirm: 'ok', node: nodeId };
